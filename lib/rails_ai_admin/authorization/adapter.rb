@@ -16,6 +16,20 @@ module RailsAiAdmin
       def fields(context:, resource:, action:, record: nil)
         []
       end
+
+      # Custom operation inputs are independent of ordinary attribute write grants.
+      def operation_fields(context:, resource:, operation:, record: nil)
+        []
+      end
+
+      # Delivery authorizes a committed fact, not re-execution of its command.
+      def deliver_work?(context:, resource:, operation:, work_kind:, record:)
+        false
+      end
+
+      def read_operation_receipt?(context:, resource:, operation:, record:)
+        false
+      end
     end
   end
 end

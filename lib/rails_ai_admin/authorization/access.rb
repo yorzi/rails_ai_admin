@@ -55,6 +55,29 @@ module RailsAiAdmin
         authorize!(:show, record)
         fields(:read, record).to_h { |field| [ field.name.to_s, record.public_send(field.name) ] }
       end
+
+      def operation_fields(operation, record = nil)
+        definition = RailsAiAdmin.operation_registry.fetch(resource, operation)
+        return [] unless definition.custom?
+        names = @adapter.respond_to?(:operation_fields) ? @adapter.operation_fields(context: context, resource: resource, operation: operation.to_sym, record: record) : []
+        raise ConfigurationError, "Operation fields must be an array" unless names.is_a?(Array)
+        names = names.map(&:to_sym)
+        definition.handler_class.input.select { |field| names.include?(field.name) }
+      end
+
+      def authorize_delivery!(operation, work_kind, record)
+        allowed = @adapter.respond_to?(:deliver_work?) && @adapter.deliver_work?(context: context, resource: resource,
+          operation: operation.to_sym, work_kind: work_kind, record: record) == true
+        raise AccessDenied unless allowed
+        true
+      end
+
+      def authorize_receipt!(operation, record)
+        allowed = @adapter.respond_to?(:read_operation_receipt?) && @adapter.read_operation_receipt?(context: context,
+          resource: resource, operation: operation.to_sym, record: record) == true
+        raise AccessDenied unless allowed
+        true
+      end
     end
   end
 end

@@ -8,6 +8,7 @@ module RailsAiAdmin
         super
         child.instance_variable_set(:@fields, {})
         child.instance_variable_set(:@disabled_actions, [])
+        child.instance_variable_set(:@operations, {})
       end
 
       def model(name = nil)
@@ -47,8 +48,23 @@ module RailsAiAdmin
       end
 
       def action_enabled?(action)
-        !@disabled_actions.include?(action.to_sym) && !(readonly? && %i[create update destroy].include?(action.to_sym))
+        action = action.to_sym
+        known = %i[index show create update destroy].include?(action) || @operations.key?(action)
+        known && !@disabled_actions.include?(action) && !(readonly? && (%i[create update destroy].include?(action) || @operations.key?(action)))
       end
+
+      def operation(key, handler:, scope: :member, confirmation: :required)
+        unless key.to_s.match?(/\A[a-z][a-z0-9_]*\z/) && !%w[index show create update destroy new edit].include?(key.to_s)
+          raise ConfigurationError, "Custom operation needs a distinct stable key"
+        end
+        unless handler.is_a?(String) && handler.match?(/\A[A-Z]\w*(?:::[A-Z]\w*)*\z/) && scope == :member && confirmation == :required
+          raise ConfigurationError, "Use a handler class-name string, member scope and required confirmation"
+        end
+        raise ConfigurationError, "Duplicate operation #{key}" if @operations.key?(key.to_sym)
+        @operations[key.to_sym] = handler.freeze
+      end
+
+      def operation_declarations = @operations
 
       def fields(&block)
         FieldBuilder.new(@fields).instance_eval(&block) if block
@@ -72,6 +88,7 @@ module RailsAiAdmin
         @policy_name&.freeze
         @fields.freeze
         @disabled_actions.freeze
+        @operations.freeze
         self
       end
     end

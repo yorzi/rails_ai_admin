@@ -7,8 +7,10 @@ module RailsAiAdmin
   class Doctor
     Check = Data.define(:name, :status, :message)
 
-    def initialize(configuration: RailsAiAdmin.configuration, registry: RailsAiAdmin.registry, application: Rails.application)
+    def initialize(configuration: RailsAiAdmin.configuration, registry: RailsAiAdmin.registry, application: Rails.application,
+      operation_registry: RailsAiAdmin.operation_registry, work_registry: RailsAiAdmin.work_registry)
       @configuration, @registry, @application = configuration, registry, application
+      @operation_registry, @work_registry = operation_registry, work_registry
     end
 
     def checks
@@ -19,9 +21,14 @@ module RailsAiAdmin
         autoload_check,
         Check.new("assistant", :unsupported, "Assistant routes/tables are not installed; no provider call is made."),
         Check.new("files", :unsupported, "Private attachment management is not implemented."),
-        Check.new("queue", :unsupported, "Only synchronous database CRUD is implemented; no durable job promise."),
+        Check.new("queue", @work_registry.definitions.empty? ? :closed : :review,
+          "Durable post-commit outbox; #{ @work_registry.definitions.size } work handlers; auto_dispatch=#{config.outbox_auto_dispatch}. Schedule pending scans and verify downstream idempotency. Async business execution is not implemented."),
         Check.new("coexistence", :review, "No rails_tool_views global configuration is changed; shared Surface integration is unresolved.")
       ]
+      if @work_registry.definitions.any?
+        result << adapter_check("job_context", config.context_adapter, { resolve_job: [ 0, %i[actor_ref tenant_ref security_version] ] })
+        result << Check.new("work_delivery_policy", :review, "Delivery and receipt grants are independent of command preconditions; default denies. Verify fresh tenant/epoch, record-version policy and one effect per item in host tests.")
+      end
       @registry.resources.each do |resource|
         begin
           if config.authorization_adapter == "RailsAiAdmin::Authorization::PunditAdapter"
@@ -31,7 +38,7 @@ module RailsAiAdmin
               "Explicit Pundit policy and policy-owned Scope required; field grants are independent. Mapping complete=#{configured}; authorization still needs host tests.")
           end
           model = resource.model_class
-          same_pool = model.connection_pool.equal?(OperationRun.connection_pool) && model.connection_pool.equal?(AuditEvent.connection_pool)
+          same_pool = model.connection_pool.equal?(OperationRun.connection_pool) && model.connection_pool.equal?(AuditEvent.connection_pool) && model.connection_pool.equal?(WorkItem.connection_pool)
           locking = model.locking_enabled? && model.locking_column == "lock_version"
           writable = !resource.readonly?
           status = writable && (!same_pool || !locking || model.composite_primary_key?) ? :error : :ok
@@ -39,6 +46,12 @@ module RailsAiAdmin
           message = "same_pool=#{same_pool}; lock_version=#{locking}; readonly=#{resource.readonly?}. Host callbacks must be database-only."
           result << Check.new("resource:#{resource.key}", status, message)
           result.concat(schema_checks(resource, model))
+          @operation_registry.custom(resource).each do |definition|
+            models = definition.handler_class.atomic_models.map(&:constantize)
+            valid = models.all? { |related| related.is_a?(Class) && related < ActiveRecord::Base && related.connection_pool.equal?(model.connection_pool) }
+            result << Check.new("operation:#{resource.key}:#{definition.key}", valid ? :review : :error,
+              "Declared atomic models share pool=#{valid}; handler/input metadata validated. Trusted Ruby is not a sandbox: test callbacks, preflight purity and external-effect boundaries. Duration checks are cooperative, not a hard SQL/Ruby interrupt.")
+          end
         rescue ActiveRecord::ActiveRecordError, NameError, ConfigurationError => error
           result << Check.new("resource:#{resource.key}", :error, "Inspect model/migrations (#{error.class.name}); no record content was printed.")
         end

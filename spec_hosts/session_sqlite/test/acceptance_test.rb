@@ -5,6 +5,7 @@ require "rails_ai_admin/test_kit"
 
 class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
   def setup
+    RailsAiAdmin::WorkItem.delete_all
     RailsAiAdmin::OperationRun.delete_all
     RailsAiAdmin::AuditEvent.delete_all
     Customer.delete_all
@@ -72,5 +73,27 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
     end
     context = RailsAiAdmin::Context.new(actor: @user, tenant: @account, security_version: @user.security_version.to_s)
     assert RailsAiAdmin::TestKit.assert_isolated(context: context, resource: CustomerAdmin, foreign_id: Customer.where.not(account_id: @account.id).first.id)
+  end
+
+  def test_custom_operation_native_preview_confirmation_and_replay
+    login
+    path = "/staff/customers/#{@customer.id}/operations/award_points"
+    get path
+    assert_response :success
+    assert_empty css_select("input[name=intent_ref]")
+    token = css_select("input[name=authenticity_token]").first["value"]
+    post "#{path}/preflight", params: { authenticity_token: token, expected_version: @customer.lock_version, input: { amount: "08" } }
+    assert_response :success
+    assert_equal 0, @customer.reload.points
+    confirmation = { authenticity_token: css_select("input[name=authenticity_token]").first["value"],
+      intent_ref: css_select("input[name=intent_ref]").first["value"], confirmed_input: css_select("input[name=confirmed_input]").first["value"] }
+    2.times do
+      post "#{path}/execute", params: confirmation
+      assert_response :see_other
+    end
+    assert_equal 8, @customer.reload.points
+    assert_equal 1, @customer.lock_version
+    assert_equal 1, RailsAiAdmin::AuditEvent.where(operation: "award_points", status: "succeeded").count
+    assert_empty RailsAiAdmin::WorkItem.all
   end
 end

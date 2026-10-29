@@ -191,7 +191,7 @@ class DeveloperToolsTest < Minitest::Test
       application.routes.draw { mount RailsAiAdmin::Engine => "/admin", as: :rails_ai_admin }
       capture_io { RailsAiAdmin::Generators::InstallGenerator.new([], { force: true }, destination_root: directory, application: application).invoke_all }
       paths.each { |path| assert_includes File.read(File.join(directory, path)), "# reviewed host extension" }
-      assert_equal 2, Dir[File.join(directory, "db/migrate/*.rb")].size
+      assert_equal 3, Dir[File.join(directory, "db/migrate/*.rb")].size
       assert_equal 1, File.read(File.join(directory, "config/routes.rb")).scan("mount RailsAiAdmin::Engine").size
     end
   end

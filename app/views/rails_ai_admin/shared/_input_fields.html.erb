@@ -1,0 +1,18 @@
+<% fields.each do |field| %>
+  <div class="raa-field">
+    <%= form.label field.name, field.label %>
+    <% value = values[field.name.to_s] %>
+    <% error_id = "raa_#{@resource.key}_#{field.name}_error" %>
+    <% input_options = { aria: { invalid: errors.key?(field.name.to_s), describedby: errors.key?(field.name.to_s) ? error_id : nil } } %>
+    <% case field.type; when :textarea %><%= form.text_area field.name, value: value, maxlength: field.options[:max_length], rows: 5, **input_options %>
+    <% when :boolean %><%= form.select field.name, [["Yes", "true"], ["No", "false"]], { selected: value.to_s, include_blank: field.options[:nullable] ? "Not set" : false }, input_options %>
+    <% when :enum %><%= form.select field.name, field.options[:values], { selected: value, include_blank: field.options[:nullable] ? "Not set" : false }, input_options %>
+    <% when :integer %><%= form.number_field field.name, value: value, step: 1, **input_options %>
+    <% when :decimal %><%= form.text_field field.name, value: value.is_a?(BigDecimal) ? value.to_s("F") : value, inputmode: "decimal", **input_options %>
+    <% when :date %><%= form.date_field field.name, value: value, **input_options %>
+    <% when :datetime %><%= form.text_field field.name, value: value.respond_to?(:iso8601) ? value.iso8601 : value, placeholder: "2026-10-30T09:30:00+08:00", **input_options %>
+    <% else %><%= form.text_field field.name, value: value, maxlength: field.options[:max_length], **input_options %>
+    <% end %>
+    <% if errors[field.name.to_s] %><p class="raa-field-error" id="<%= error_id %>"><%= errors[field.name.to_s].join(", ") %></p><% end %>
+  </div>
+<% end %>

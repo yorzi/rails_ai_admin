@@ -93,6 +93,7 @@ module DatabaseHelpers
     UuidCustomer.delete_all
     ActiveRecord::MigrationContext.new(File.expand_path("../../db/migrate", __dir__)).migrate
     Customer.delete_all
+    RailsAiAdmin::WorkItem.delete_all
     RailsAiAdmin::OperationRun.delete_all
     RailsAiAdmin::AuditEvent.delete_all
     TestPolicy.denied = false

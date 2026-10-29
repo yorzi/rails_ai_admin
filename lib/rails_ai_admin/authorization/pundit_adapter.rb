@@ -30,7 +30,7 @@ module RailsAiAdmin
       end
 
       def allowed?(context:, action:, resource:, record: nil)
-        return false unless ACTIONS.include?(action.to_sym)
+        return false unless ACTIONS.include?(action.to_sym) || resource.operation_declarations.key?(action.to_sym)
         klass = policy_class(resource)
         target = record || (action.to_sym == :create ? scope(context: context, resource: resource, relation: resource.model_class.all).new : resource.model_class)
         return false unless klass && klass.new(context, target).respond_to?("#{action}?")
@@ -57,6 +57,33 @@ module RailsAiAdmin
       def configured?(resource)
         klass = policy_class(resource)
         !!(klass && scope_class(klass))
+      rescue StandardError => error
+        policy_error!(resource, error)
+      end
+
+      def operation_fields(context:, resource:, operation:, record: nil)
+        klass = policy_class(resource)
+        return [] unless klass
+        policy = klass.new(context, record || resource.model_class)
+        policy.respond_to?(:permitted_operation_fields) ? policy.permitted_operation_fields(operation.to_sym) : []
+      rescue StandardError => error
+        policy_error!(resource, error)
+      end
+
+      def deliver_work?(context:, resource:, operation:, work_kind:, record:)
+        klass = policy_class(resource)
+        return false unless klass
+        policy = klass.new(context, record)
+        policy.respond_to?(:deliver_operation_work?) && policy.deliver_operation_work?(operation.to_sym, work_kind.to_s) == true
+      rescue StandardError => error
+        policy_error!(resource, error)
+      end
+
+      def read_operation_receipt?(context:, resource:, operation:, record:)
+        klass = policy_class(resource)
+        return false unless klass
+        policy = klass.new(context, record)
+        policy.respond_to?(:read_operation_receipt?) && policy.read_operation_receipt?(operation.to_sym) == true
       rescue StandardError => error
         policy_error!(resource, error)
       end

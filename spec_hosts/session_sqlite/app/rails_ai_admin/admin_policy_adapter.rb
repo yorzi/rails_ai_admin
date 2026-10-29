@@ -15,4 +15,12 @@ class AdminPolicyAdapter < RailsAiAdmin::Authorization::Adapter
     else []
     end
   end
+
+  def operation_fields(context:, resource:, operation:, record: nil)
+    context.actor.role == "admin" && operation == :award_points ? [ :amount ] : []
+  end
+
+  def read_operation_receipt?(context:, resource:, operation:, record:)
+    context.actor.role == "admin" && operation == :award_points
+  end
 end

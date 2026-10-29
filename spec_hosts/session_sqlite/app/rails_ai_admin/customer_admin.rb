@@ -9,4 +9,5 @@ class CustomerAdmin < RailsAiAdmin::Resource
     integer :points
     datetime :created_at, readonly: true
   end
+  operation :award_points, handler: "AwardCustomerPoints"
 end

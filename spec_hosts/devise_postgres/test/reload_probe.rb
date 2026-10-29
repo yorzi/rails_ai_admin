@@ -6,6 +6,10 @@ before_policy = TicketPolicy
 before_model = SupportTicket
 before_context = AdminContext
 before_registry = RailsAiAdmin.registry
+before_operations = RailsAiAdmin.operation_registry
+before_work_registry = RailsAiAdmin.work_registry
+before_operation_class = TriageTicketOperation
+before_work_class = TicketReceiptWork
 product_configuration = RailsToolViews.configuration
 product_resolver = product_configuration.scope_resolver
 product_llm_configuration = RubyLLM.config
@@ -25,6 +29,12 @@ begin
   raise "Model class was retained" if SupportTicket.equal?(before_model)
   raise "Context class was retained" if AdminContext.equal?(before_context)
   raise "Registry was retained" if RailsAiAdmin.registry.equal?(before_registry)
+  raise "Operation registry was retained" if RailsAiAdmin.operation_registry.equal?(before_operations)
+  raise "Work registry was retained" if RailsAiAdmin.work_registry.equal?(before_work_registry)
+  raise "Operation handler was retained" if TriageTicketOperation.equal?(before_operation_class)
+  raise "Work handler was retained" if TicketReceiptWork.equal?(before_work_class)
+  raise "Operation registry points to an old handler" unless RailsAiAdmin.operation_registry.fetch(TicketAdmin, :triage).handler_class.equal?(TriageTicketOperation)
+  raise "Work registry points to an old handler" unless RailsAiAdmin.work_registry.fetch("tickets.triaged").handler_class.equal?(TicketReceiptWork)
   raise "Registry points to the old resource" unless RailsAiAdmin.registry.fetch(:tickets).equal?(TicketAdmin)
   raise "Reload did not apply source" unless TicketAdmin.label == "Reloaded tickets"
   2.times { Rails.application.reloader.reload! }

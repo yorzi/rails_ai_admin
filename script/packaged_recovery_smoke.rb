@@ -61,3 +61,18 @@ run!(env, target, "test/recovery_probe.rb", "verify_rollback")
 run!(env, target, "test/recovery_probe.rb", "commit_and_exit")
 run!(env, target, "test/recovery_probe.rb", "verify_replay")
 puts "Packaged reload/crash/replay probes passed; no child remains running"
+
+[
+  [ "triage", "after", "succeeded", "2" ],
+  [ "close", "before", "succeeded", "1" ],
+  [ "close", "after", "reconciliation_required", "1" ]
+].each do |decision, boundary, expected, requests|
+  run!(env, target, "test/outbox_recovery_probe.rb", "prepare", decision)
+  fault = boundary == "after" ? "RAA_FIXTURE_EXIT_AFTER_EFFECT" : "RAA_FIXTURE_EXIT_BEFORE_EFFECT"
+  run!(env.merge(fault => "1"), target, "test/outbox_recovery_probe.rb", "deliver")
+  run!(env, target, "test/outbox_recovery_probe.rb", "verify_crash", boundary)
+  run!(env, target, "test/outbox_recovery_probe.rb", "wait_for_lease")
+  run!(env, target, "test/outbox_recovery_probe.rb", "deliver")
+  run!(env, target, "test/outbox_recovery_probe.rb", "verify_result", expected, requests)
+end
+puts "Packaged outbox death/retry/reconciliation probes passed against the synthetic downstream; no provider/network call or child remains"

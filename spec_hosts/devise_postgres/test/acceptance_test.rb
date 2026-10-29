@@ -9,12 +9,14 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
   include ActiveSupport::Testing::TimeHelpers
 
   def setup
+    RailsAiAdmin::WorkItem.delete_all
     RailsAiAdmin::OperationRun.delete_all
     RailsAiAdmin::AuditEvent.delete_all
     SupportTicket.delete_all
     TenantMembership.delete_all
     StaffUser.delete_all
     Tenant.delete_all
+    FileUtils.rm_rf(Rails.root.join("tmp/synthetic_deliveries"))
     @tenant = Tenant.create!(name: "Tenant A")
     @other_tenant = Tenant.create!(name: "Tenant B")
     @outsider = Tenant.create!(name: "Not a membership")
@@ -206,5 +208,67 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
     context = RailsAiAdmin::Context.new(actor: @staff, tenant: @tenant, security_version: @staff.security_version.to_s)
     assert RailsAiAdmin::TestKit.assert_hidden(context: context, resource: TicketAdmin, field: :secret_token)
     assert RailsAiAdmin::TestKit.assert_isolated(context: context, resource: TicketAdmin, foreign_id: @foreign.id)
+  end
+
+  def test_custom_operation_confirmation_postcondition_replay_and_outbox
+    login
+    path = "/operations/tickets/#{@ticket.id}/operations/triage"
+    get path
+    assert_response :success
+    post "#{path}/preflight", params: { authenticity_token: csrf, expected_version: @ticket.lock_version,
+      input: { decision: "triage", review_note: "<script>reviewed privately</script>" } }
+    assert_response :success
+    refute_includes response.body, "<script>reviewed privately</script>"
+    assert_includes response.body, "&lt;script&gt;"
+    assert_equal "open", @ticket.reload.state
+    confirmation = { authenticity_token: csrf, intent_ref: css_select("input[name=intent_ref]").first["value"],
+      confirmed_input: css_select("input[name=confirmed_input]").first["value"] }
+    2.times do
+      post "#{path}/execute", params: confirmation
+      assert_response :see_other
+    end
+    assert_equal "triaged", @ticket.reload.state
+    assert_equal 1, @ticket.lock_version
+    assert_equal 1, RailsAiAdmin::WorkItem.count
+    item = RailsAiAdmin::WorkItem.first
+    assert_equal "pending", item.status
+    assert RailsAiAdmin::Outbox::Dispatcher.new.run(item.id).success?
+    assert_equal "succeeded", item.reload.status
+    receipt = JSON.parse(Rails.root.join("tmp/synthetic_deliveries/#{item.id}.json").read)
+    assert_equal "raa:tenant:Tenant:#{@tenant.id}", receipt.fetch("tenant_ref")
+    refute_includes receipt.to_json, "reviewed privately"
+    assert RailsAiAdmin::Outbox::Dispatcher.new.run(item.id).success?
+    assert_equal 1, Rails.root.join("tmp/synthetic_deliveries/applications.log").readlines.size
+    assert_equal 1, Rails.root.join("tmp/synthetic_deliveries/requests.log").readlines.size
+  end
+
+  def test_queued_work_rechecks_real_membership_epoch_and_separates_business_success
+    context = RailsAiAdmin::Context.new(actor: @staff, tenant: @tenant, security_version: @staff.security_version.to_s)
+    runner = RailsAiAdmin::Operations::Runner.new
+    proposal = runner.preflight(context: context, resource: TicketAdmin, operation: :triage,
+      target_id: @ticket.id, expected_version: @ticket.lock_version, input: { decision: "triage" })
+    result = runner.execute(context: context, intent_ref: proposal.intent.id, input: proposal.values, human_confirmed: true)
+    assert result.success?
+    @staff.update!(role: "viewer", security_version: 2)
+    delivery = RailsAiAdmin::Outbox::Dispatcher.new.run(result.work_refs.first)
+    assert_equal "cancelled", delivery.status
+    assert_equal "triaged", @ticket.reload.state
+    assert_equal "succeeded", proposal.intent.reload.status
+    assert_empty Dir[Rails.root.join("tmp/synthetic_deliveries/*.json")]
+  end
+
+  def test_reused_delivery_worker_rebuilds_real_tenant_context
+    results = [ [ @tenant, @ticket ], [ @other_tenant, @foreign ] ].map do |tenant, ticket|
+      context = RailsAiAdmin::Context.new(actor: @staff, tenant: tenant, security_version: @staff.security_version.to_s)
+      runner = RailsAiAdmin::Operations::Runner.new
+      proposal = runner.preflight(context: context, resource: TicketAdmin, operation: :triage,
+        target_id: ticket.id, expected_version: ticket.lock_version, input: { decision: "triage" })
+      runner.execute(context: context, intent_ref: proposal.intent.id, input: proposal.values, human_confirmed: true)
+    end
+    worker = RailsAiAdmin::Outbox::Dispatcher.new
+    results.each { |result| assert worker.run(result.work_refs.first).success? }
+    refs = results.map { |result| JSON.parse(Rails.root.join("tmp/synthetic_deliveries/#{result.work_refs.first}.json").read).fetch("tenant_ref") }
+    assert_equal [ "raa:tenant:Tenant:#{@tenant.id}", "raa:tenant:Tenant:#{@other_tenant.id}" ], refs
+    assert SupportTicket.create!(tenant: @tenant, subject: "Writes remain available after delivery").persisted?
   end
 end

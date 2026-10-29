@@ -2,6 +2,7 @@
 
 require "test_helper"
 require "support/database"
+require "minitest/mock"
 
 class SeparatePoolCustomer < ActiveRecord::Base
   self.table_name = "customers"
@@ -33,8 +34,10 @@ class StorageTest < Minitest::Test
 
   def test_same_database_in_a_different_pool_is_rejected
     SeparatePoolCustomer.establish_connection(Customer.connection_db_config.configuration_hash)
-    assert_raises(RailsAiAdmin::ConfigurationError) do
-      RailsAiAdmin::Operations::Runner.new.prepare(context: context, resource: SeparatePoolAdmin, operation: :update, target_id: @customer.id, expected_version: 0)
+    RailsAiAdmin.stub(:operation_registry, RailsAiAdmin::Operations::Registry.new([ SeparatePoolAdmin ])) do
+      assert_raises(RailsAiAdmin::ConfigurationError) do
+        RailsAiAdmin::Operations::Runner.new.prepare(context: context, resource: SeparatePoolAdmin, operation: :update, target_id: @customer.id, expected_version: 0)
+      end
     end
     assert_equal "Alice", @customer.reload.name
   ensure
@@ -42,8 +45,10 @@ class StorageTest < Minitest::Test
   end
 
   def test_models_without_optimistic_locking_are_rejected_for_generic_writes
-    assert_raises(RailsAiAdmin::ConfigurationError) do
-      RailsAiAdmin::Operations::Runner.new.prepare(context: context, resource: UnlockedAdmin, operation: :update, target_id: @customer.id, expected_version: 0)
+    RailsAiAdmin.stub(:operation_registry, RailsAiAdmin::Operations::Registry.new([ UnlockedAdmin ])) do
+      assert_raises(RailsAiAdmin::ConfigurationError) do
+        RailsAiAdmin::Operations::Runner.new.prepare(context: context, resource: UnlockedAdmin, operation: :update, target_id: @customer.id, expected_version: 0)
+      end
     end
   end
   def test_uuid_targets_and_created_receipts_round_trip_without_integer_coercion

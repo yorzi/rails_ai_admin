@@ -10,4 +10,5 @@ class TicketAdmin < RailsAiAdmin::Resource
     integer :priority, sortable: true
     textarea :internal_note
   end
+  operation :triage, handler: "TriageTicketOperation"
 end

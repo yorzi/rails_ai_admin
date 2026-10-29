@@ -38,6 +38,16 @@ retries after committed response loss, and kills/reaps its own confirmed live ch
 inside a transaction. It leaves no server or child running. Both hosts use only
 synthetic credentials and records; do not deploy them. No provider key/call is used.
 
+The native-session host also exercises a confirmed member points award through a
+custom adapter. Host B exercises an input-bound ticket review with Pundit, then
+fresh job membership/epoch checks and tenant isolation. Its synthetic downstream
+is an exclusive file receipt, never mail or HTTP. The recovery script abruptly
+exits real workers before/after that effect, waits for actual five-second leases
+to expire and verifies safe idempotent retry or non-idempotent reconciliation.
+Stable-key request counts, one applied receipt and one business audit are checked.
+This is local process-loss evidence; no real provider/delivery or host scheduler
+reliability is established.
+
 Both consumers execute the install-generated anonymous HTTP test at their actual
 custom mount, and run host-owned TestKit role/field-grant matrices. They generate
 an unregistered readonly resource for a user model and verify that schema advice
