@@ -58,4 +58,19 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
     assert RailsAiAdmin::TestKit.assert_hidden(context: context, resource: CustomerAdmin, field: :secret)
     assert RailsAiAdmin::TestKit.assert_isolated(context: context, resource: CustomerAdmin, foreign_id: Customer.where.not(account_id: @account.id).first.id)
   end
+
+  def test_host_policy_matrix_and_field_grants
+    anonymous = Struct.new(:session).new({})
+    assert RailsAiAdmin::TestKit.assert_unauthenticated(adapter: AdminContext.new, controller: anonymous)
+    %w[admin viewer].each do |role|
+      @user.update!(role: role)
+      context = RailsAiAdmin::Context.new(actor: @user, tenant: @account, security_version: @user.security_version.to_s)
+      assert RailsAiAdmin::TestKit.assert_access(context: context, resource: CustomerAdmin, action: :update, record: @customer, allowed: role == "admin")
+      assert RailsAiAdmin::TestKit.assert_field_grants(context: context, resource: CustomerAdmin, record: @customer,
+        expected: { read: %i[id name active points created_at], write: role == "admin" ? %i[name active points] : [], search: [ :name ], sort: [ :name ] })
+      assert RailsAiAdmin::TestKit.assert_hidden(context: context, resource: CustomerAdmin, field: :secret)
+    end
+    context = RailsAiAdmin::Context.new(actor: @user, tenant: @account, security_version: @user.security_version.to_s)
+    assert RailsAiAdmin::TestKit.assert_isolated(context: context, resource: CustomerAdmin, foreign_id: Customer.where.not(account_id: @account.id).first.id)
+  end
 end

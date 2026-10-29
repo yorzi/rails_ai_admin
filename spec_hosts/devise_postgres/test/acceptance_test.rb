@@ -189,4 +189,22 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
       assert_equal "proposed", RailsAiAdmin::OperationRun.find(intent).status
     end
   end
+
+  def test_host_policy_matrix_and_field_grants
+    anonymous = Struct.new(:request, :session).new(Struct.new(:env).new({}), {})
+    assert RailsAiAdmin::TestKit.assert_unauthenticated(adapter: AdminContext.new, controller: anonymous)
+    %w[admin operator viewer].each do |role|
+      @staff.update!(role: role)
+      context = RailsAiAdmin::Context.new(actor: @staff, tenant: @tenant, security_version: @staff.security_version.to_s)
+      assert RailsAiAdmin::TestKit.assert_access(context: context, resource: TicketAdmin, action: :update, record: @ticket, allowed: role != "viewer")
+      assert RailsAiAdmin::TestKit.assert_access(context: context, resource: TicketAdmin, action: :destroy, record: @ticket, allowed: role == "admin")
+      readable = %i[id subject state priority] + (role == "viewer" ? [] : [ :internal_note ])
+      writable = role == "viewer" ? [] : %i[subject state priority internal_note]
+      assert RailsAiAdmin::TestKit.assert_field_grants(context: context, resource: TicketAdmin, record: @ticket,
+        expected: { read: readable, write: writable, search: [ :subject ], sort: [ :priority ] })
+    end
+    context = RailsAiAdmin::Context.new(actor: @staff, tenant: @tenant, security_version: @staff.security_version.to_s)
+    assert RailsAiAdmin::TestKit.assert_hidden(context: context, resource: TicketAdmin, field: :secret_token)
+    assert RailsAiAdmin::TestKit.assert_isolated(context: context, resource: TicketAdmin, foreign_id: @foreign.id)
+  end
 end

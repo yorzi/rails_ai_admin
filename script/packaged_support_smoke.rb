@@ -47,6 +47,10 @@ end
 run!(env, target, "bundle", "exec", "rails", "db:migrate")
 run!(env, target, "bundle", "exec", "rails", "zeitwerk:check")
 run!(env, target, "bundle", "exec", "rails", "rails_ai_admin:doctor")
+run!(env, target, "bundle", "exec", "rails", "test", "test/rails_ai_admin/access_test.rb")
+FileUtils.rm_f(File.join(target, "app/rails_ai_admin/staff_user_admin.rb"))
+run!(env, target, "bundle", "exec", "rails", "generate", "rails_ai_admin:resource", "StaffUser")
+run!(env, target, "bundle", "exec", "rails", "runner", "source = Rails.root.join('app/rails_ai_admin/staff_user_admin.rb').read; raise unless source.include?('# text :email'); raise if source.match?(/password|security_version|role/); raise unless StaffUserAdmin.readonly? && StaffUserAdmin.fields.map(&:name) == [:id]; raise if RailsAiAdmin.registry.resources.include?(StaffUserAdmin)")
 run!(env, target, "bundle", "exec", "ruby", "test/acceptance_test.rb")
 npm = [ "npm", "ci", "--ignore-scripts" ]
 npm += [ "--offline", "--cache", ENV.fetch("RAA_NPM_CACHE", "/tmp/raa-npm-cache") ] if ENV["RAA_NPM_OFFLINE"] == "1"

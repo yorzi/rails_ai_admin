@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
+require "rails/generators"
 require "rails/generators/named_base"
+require "rails_ai_admin/schema_suggestions"
 
 module RailsAiAdmin
   module Generators
@@ -19,6 +21,14 @@ module RailsAiAdmin
         if Object.const_defined?(constant) && !File.exist?(File.join(destination_root, target))
           raise Rails::Generators::Error, "Constant #{constant} already exists"
         end
+        report = SchemaSuggestions.new(class_name.safe_constantize).call
+        notes = if report.available
+          [ "# Schema suggestions only. Review sensitivity, fields and policy before uncommenting.",
+            *report.suggestions.map { |suggestion| "# #{suggestion.declaration}" },
+            "# #{report.omitted} sensitive, relationship, internal or unsupported columns omitted." ]
+        else
+          [ "# Schema unavailable. Migrate the model and rerun, or add reviewed scalar fields manually." ]
+        end
         create_file target, <<~RUBY
           class #{constant} < RailsAiAdmin::Resource
             model "#{class_name}"
@@ -27,11 +37,11 @@ module RailsAiAdmin
             readonly
             fields do
               id :id
-              # Add reviewed scalar fields here. Nothing is inferred or exposed.
+          #{notes.map { |line| "    #{line}" }.join("\n")}
             end
           end
         RUBY
-        say "Add \"#{constant}\" to config.resources after reviewing fields and policies. Writes remain readonly."
+        say "Review schema suggestions and policies, then add \"#{constant}\" to config.resources. Only readonly ID is enabled."
       end
     end
   end

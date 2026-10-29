@@ -1,6 +1,7 @@
 RailsAiAdmin.configure do |config|
   config.context_adapter = "AdminContext"
-  # TODO: set a policy adapter; the default denies every action and field.
-  # config.authorization_adapter = "AdminPolicyAdapter"
+  # This generated adapter denies every scope, action and field.
+  config.authorization_adapter = "AdminPolicyAdapter"
+  # Review ExampleAdmin or generate a resource; nothing is registered by default.
   config.resources = []
 end
