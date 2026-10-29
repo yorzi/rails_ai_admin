@@ -16,6 +16,7 @@ require_relative "rails_ai_admin/resource"
 require_relative "rails_ai_admin/registry"
 require_relative "rails_ai_admin/request_log_filter"
 require_relative "rails_ai_admin/authorization/adapter"
+require_relative "rails_ai_admin/authorization/pundit_adapter"
 require_relative "rails_ai_admin/authorization/access"
 
 # Provides an isolated admin engine. The host supplies all authority.

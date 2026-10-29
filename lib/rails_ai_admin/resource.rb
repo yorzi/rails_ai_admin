@@ -30,6 +30,12 @@ module RailsAiAdmin
         @title
       end
 
+      # Names an explicit optional policy for this resource, independent of aliases.
+      def policy(name = nil)
+        @policy_name = name if name
+        @policy_name
+      end
+
       def readonly(value = true)
         @readonly = value
       end
@@ -58,8 +64,12 @@ module RailsAiAdmin
 
       def validate!
         raise ConfigurationError, "model must be a constant name string" unless model.is_a?(String)
+        if policy && (!policy.is_a?(String) || !policy.match?(/\A[A-Z]\w*(?:::[A-Z]\w*)*\z/))
+          raise ConfigurationError, "policy must be a constant name string"
+        end
         raise ConfigurationError, "A resource must declare fields and a title" if fields.empty? || !title || !@fields.key?(title)
         raise ConfigurationError, "A resource cannot declare lock_version as a field" if @fields.key?(:lock_version)
+        @policy_name&.freeze
         @fields.freeze
         @disabled_actions.freeze
         self

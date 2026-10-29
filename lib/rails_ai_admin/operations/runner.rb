@@ -171,7 +171,7 @@ module RailsAiAdmin
       end
 
       def operation_version(resource, operation)
-        "crud:1:#{InputSchema.digest(model: resource.model, fields: resource.fields.map { |field| [ field.name, field.type, field.options ] }, operation: operation)}"
+        "crud:1:#{InputSchema.digest(model: resource.model, policy: resource.policy, fields: resource.fields.map { |field| [ field.name, field.type, field.options ] }, operation: operation)}"
       end
 
       def load_record(access, run)

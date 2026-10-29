@@ -17,6 +17,12 @@ module RailsAiAdmin
       ]
       RailsAiAdmin.registry.resources.each do |resource|
         begin
+          if config.authorization_adapter == "RailsAiAdmin::Authorization::PunditAdapter"
+            configured = Authorization::PunditAdapter.new.configured?(resource)
+            policy_status = resource.policy.nil? ? :closed : (configured ? :review : :error)
+            result << Check.new("policy:#{resource.key}", policy_status,
+              "Explicit Pundit policy and policy-owned Scope required; field grants are independent. Mapping complete=#{configured}; authorization still needs host tests.")
+          end
           model = resource.model_class
           same_pool = model.connection_pool.equal?(OperationRun.connection_pool) && model.connection_pool.equal?(AuditEvent.connection_pool)
           locking = model.locking_enabled? && model.locking_column == "lock_version"
@@ -24,7 +30,7 @@ module RailsAiAdmin
           status = writable && (!same_pool || !locking || model.composite_primary_key?) ? :error : :ok
           message = "same_pool=#{same_pool}; lock_version=#{locking}; readonly=#{resource.readonly?}. Host callbacks must be database-only."
           result << Check.new("resource:#{resource.key}", status, message)
-        rescue ActiveRecord::ActiveRecordError, NameError => error
+        rescue ActiveRecord::ActiveRecordError, NameError, ConfigurationError => error
           result << Check.new("resource:#{resource.key}", :error, "Inspect model/migrations (#{error.class.name}); no record content was printed.")
         end
       end
