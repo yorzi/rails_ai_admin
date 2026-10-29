@@ -1,0 +1,16 @@
+/drafts/
+/.bundle/
+/vendor/bundle/
+/vendor/cache/
+/pkg/
+/tmp/
+/log/
+/.env
+/.env.*
+!/ .env.example
+/coverage/
+/frontend/node_modules/
+/docs/site/_site/
+/docs/site/.jekyll-cache/
+.DS_Store
+*.sqlite3*

@@ -1,0 +1,17 @@
+name: Bug report
+description: Report a reproducible problem using synthetic data.
+body:
+  - type: textarea
+    id: environment
+    attributes:
+      label: Versions and environment
+      description: Ruby, Rails, gem, database and host asset pipeline.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction, expected result and actual result
+      description: Do not include credentials or security exploit details.
+    validations:
+      required: true

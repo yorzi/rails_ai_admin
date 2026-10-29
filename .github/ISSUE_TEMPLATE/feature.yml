@@ -1,0 +1,9 @@
+name: Feature request
+description: Describe an administrative task and its acceptance criteria.
+body:
+  - type: textarea
+    id: task
+    attributes:
+      label: User task, evidence and acceptance criteria
+    validations:
+      required: true
