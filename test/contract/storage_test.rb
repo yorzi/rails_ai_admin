@@ -67,4 +67,27 @@ class StorageTest < Minitest::Test
     assert_match(/\A[0-9a-f-]{36}\z/, created.record_id)
     assert_equal 1, UuidCustomer.find(created.record_id).account_id
   end
+  def test_deployment_changing_primary_key_cannot_redirect_an_old_intent
+    runner = RailsAiAdmin::Operations::Runner.new
+    intent = runner.prepare(context: context, resource: TestResource, operation: :update,
+      target_id: @customer.id, expected_version: @customer.lock_version)
+    Customer.create!(account_id: 1, name: "Different real customer", points: @customer.id)
+    original_key = Customer.primary_key
+    Customer.primary_key = "points"
+    result = runner.execute(context: context, intent_ref: intent.id, input: { "name" => "Wrong target" }, human_confirmed: true)
+    assert_equal "APPROVAL_INVALIDATED", result.code
+    assert_equal "Different real customer", Customer.where(name: "Different real customer").pick(:name)
+    assert_empty RailsAiAdmin::AuditEvent.where(status: "succeeded")
+  ensure
+    Customer.primary_key = original_key if original_key
+  end
+
+  def test_table_mapping_changes_invalidate_record_identity_without_process_local_values
+    definition = RailsAiAdmin.operation_registry.fetch(TestResource, :update)
+    before = RailsAiAdmin::Operations::RunnerFingerprint.call(TestResource, definition)
+    Customer.stub(:table_name, "remapped_customers") do
+      refute_equal before, RailsAiAdmin::Operations::RunnerFingerprint.call(TestResource, definition)
+    end
+    assert_equal before, RailsAiAdmin::Operations::RunnerFingerprint.call(TestResource, definition)
+  end
 end
