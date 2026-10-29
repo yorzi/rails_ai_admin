@@ -1,0 +1,8 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Fixture login</title></head><body>
+<h1>Fixture login</h1>
+<%= form_with url: "/login", local: true do |form| %>
+  <%= form.label :email %><%= form.email_field :email %>
+  <%= form.label :password %><%= form.password_field :password %>
+  <%= form.submit "Sign in" %>
+<% end %>
+</body></html>

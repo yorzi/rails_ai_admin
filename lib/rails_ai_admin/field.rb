@@ -37,6 +37,18 @@ module RailsAiAdmin
       !options[:readonly] && options[operation.to_sym == :create ? :create : :edit]
     end
 
+    # Formats an already-authorized scalar for conventional pages.
+    def format(value, time_zone: "UTC")
+      return "—" if value.nil?
+      case type
+      when :boolean then value ? "Yes" : "No"
+      when :decimal then value.is_a?(BigDecimal) ? value.to_s("F") : value.to_s
+      when :datetime then value.in_time_zone(time_zone).iso8601
+      when :date then value.iso8601
+      else value.to_s
+      end
+    end
+
     # Coerces form or JSON scalar values, preserving false, zero and null.
     def coerce(value, time_zone: "UTC")
       if value.nil? || (value == "" && !%i[text textarea].include?(type))
@@ -53,7 +65,10 @@ module RailsAiAdmin
         value.dup
       when :integer
         raise ArgumentError, "must be an integer" unless value.is_a?(Integer) || (value.is_a?(String) && value.match?(/\A[+-]?\d+\z/))
-        Integer(value)
+        raise ArgumentError, "is out of range" if value.is_a?(String) && value.length > 100
+        number = value.is_a?(String) ? Integer(value, 10) : value
+        raise ArgumentError, "is out of range" unless (-(2**63)..(2**63 - 1)).cover?(number)
+        number
       when :decimal
         raise ArgumentError, "must be a decimal" unless value.is_a?(Integer) || value.is_a?(BigDecimal) || (value.is_a?(String) && value.match?(/\A[+-]?(?:\d+(?:\.\d*)?|\.\d+)\z/))
         BigDecimal(value.to_s)

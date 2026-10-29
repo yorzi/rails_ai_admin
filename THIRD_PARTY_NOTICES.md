@@ -11,6 +11,8 @@ Runtime dependencies retain their own notices in their distributed packages:
 | Turbo / turbo-rails | MIT | https://github.com/hotwired/turbo-rails |
 | Stimulus / stimulus-rails | MIT | https://github.com/hotwired/stimulus-rails |
 
-Bundled frontend licenses must be included before shipping third-party frontend
-code. Dependency installation and license declarations do not prove a security
+The prebuilt ESM contains Turbo 8.0.23 and Stimulus 3.2.2. Their complete notices
+ship in `app/assets/builds/rails_ai_admin.LICENSE.txt`, generated from the sources
+recorded in `frontend/licenses/README.md`. The host needs no Node build for these
+assets. Dependency installation and license declarations do not prove a security
 audit or grant rights to third-party trademarks.

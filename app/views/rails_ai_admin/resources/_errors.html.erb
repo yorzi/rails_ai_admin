@@ -1,0 +1,8 @@
+<% if @failure_code || @errors.any? %>
+  <div class="raa-errors" role="alert" tabindex="-1">
+    <h2>Changes were not saved</h2>
+    <% if @failure_code %><p><%= @failure_code.humanize %>.</p><% end %>
+    <ul><% @errors.each do |name, messages| %><% messages.each do |message| %><li><%= name.humanize %> <%= message %></li><% end %><% end %></ul>
+    <% if @needs_reload %><p>This form cannot be submitted again. Open a fresh form to review the latest record and permissions.</p><% end %>
+  </div>
+<% end %>

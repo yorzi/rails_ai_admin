@@ -5,6 +5,10 @@ module RailsAiAdmin
   class Engine < ::Rails::Engine
     isolate_namespace RailsAiAdmin
 
+    initializer "rails_ai_admin.request_logging" do |app|
+      app.middleware.insert_before Rails::Rack::Logger, RequestLogFilter
+    end
+
     initializer "rails_ai_admin.assets" do |app|
       if app.config.respond_to?(:assets)
         app.config.assets.paths << root.join("app/assets/builds").to_s

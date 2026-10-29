@@ -1,0 +1,20 @@
+<div class="raa-heading"><h1><%= @resource.label %></h1>
+<% if allowed_action?(@resource, :create) %><%= link_to "New record", new_resource_path(resource: @resource.key), class: "raa-button" %><% end %></div>
+<% if @searchable %>
+  <%= form_with url: resources_path(resource: @resource.key), method: :get, local: true, class: "raa-search" do |form| %>
+    <%= form.label :q, "Search" %><%= form.search_field :q, value: params[:q], maxlength: 200 %>
+    <%= form.submit "Search" %>
+  <% end %>
+<% end %>
+<div class="raa-table-scroll" role="region" aria-label="Resource records" tabindex="0">
+<table><caption><%= @resource.label %>, page <%= @page.number %></caption>
+<thead><tr><% @columns.each do |field| %><th scope="col"><%= field.label %></th><% end %><th scope="col">Actions</th></tr></thead>
+<tbody><% @rows.each do |row| %><tr>
+  <% @columns.each do |field| %><td><%= field.format(row[:values][field.name.to_s], time_zone: @context.time_zone) %></td><% end %>
+  <td><%= link_to "View #{row[:label]}", resource_path(resource: @resource.key, id: row[:id]) %></td>
+</tr><% end %></tbody></table></div>
+<% if @rows.empty? %><p>No records match this query.</p><% end %>
+<nav class="raa-pagination" aria-label="Pagination">
+  <% if @page.number > 1 %><%= link_to "Previous", resources_path(resource: @resource.key, q: params[:q], sort: params[:sort], direction: params[:direction], page: @page.number - 1) %><% end %>
+  <% if @page.has_next %><%= link_to "Next", resources_path(resource: @resource.key, q: params[:q], sort: params[:sort], direction: params[:direction], page: @page.number + 1) %><% end %>
+</nav>

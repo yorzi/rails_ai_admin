@@ -54,4 +54,10 @@ class InputSchemaTest < Minitest::Test
     assert_equal Time.utc(2026, 10, 29, 1, 30), local.values["at"]
     refute schema.coerce({ "at" => "tomorrow" }).valid?
   end
+
+  def test_integer_form_values_always_use_base_ten
+    field = RailsAiAdmin::Field.new(:points, type: :integer)
+    assert_equal 10, field.coerce("010")
+    assert_equal 8, field.coerce("08")
+  end
 end

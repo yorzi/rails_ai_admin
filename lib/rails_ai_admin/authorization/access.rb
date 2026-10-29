@@ -22,6 +22,9 @@ module RailsAiAdmin
         unless relation.is_a?(ActiveRecord::Relation) && relation.klass == resource.model_class
           raise ConfigurationError, "Policy scope must return the resource's ActiveRecord relation"
         end
+        if relation.limit_value || relation.offset_value || relation.select_values.any? || relation.group_values.any? || !relation.having_clause.empty? || !relation.from_clause.empty?
+          raise ConfigurationError, "Policy scope must be a complete filter relation without limit, offset, select, group, having or from"
+        end
         relation
       end
 
@@ -41,6 +44,7 @@ module RailsAiAdmin
         names = names.map(&:to_sym)
         resource.fields.select do |field|
           names.include?(field.name) &&
+            (action != :write || field.name.to_s != resource.model_class.primary_key) &&
             (action != :write || field.writable?(operation || :update)) &&
             (action != :search || field.options[:searchable]) &&
             (action != :sort || field.options[:sortable])
@@ -48,6 +52,7 @@ module RailsAiAdmin
       end
 
       def project(record)
+        authorize!(:show, record)
         fields(:read, record).to_h { |field| [ field.name.to_s, record.public_send(field.name) ] }
       end
     end

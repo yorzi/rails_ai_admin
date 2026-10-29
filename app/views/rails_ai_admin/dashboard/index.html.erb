@@ -1,0 +1,8 @@
+<h1>Overview</h1>
+<p>Select a resource to manage. Available resources follow your current permissions.</p>
+<ul class="raa-cards">
+  <% visible_resources.each do |resource| %>
+    <li><%= link_to resource.label, resources_path(resource: resource.key) %></li>
+  <% end %>
+</ul>
+<% if visible_resources.empty? %><p>No resources are available for this session.</p><% end %>

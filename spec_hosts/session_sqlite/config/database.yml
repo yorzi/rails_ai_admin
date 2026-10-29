@@ -1,0 +1,11 @@
+default: &default
+  adapter: sqlite3
+  database: storage/host.sqlite3
+  pool: 5
+  timeout: 1000
+development:
+  <<: *default
+test:
+  <<: *default
+production:
+  <<: *default

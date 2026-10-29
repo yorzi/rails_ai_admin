@@ -11,3 +11,6 @@ gem "pundit", "~> 2.5"
 gem "rubocop-rails-omakase", "~> 1.1"
 gem "capybara", "~> 3.40"
 gem "webmock", "~> 3.0"
+gem "bcrypt", "~> 3.1", require: false
+gem "importmap-rails", "~> 2.2", require: false
+gem "puma", "~> 8.0", require: false

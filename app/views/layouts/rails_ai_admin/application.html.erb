@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="turbo-cache-control" content="no-cache">
+  <meta name="csp-nonce" content="<%= @admin_csp_nonce %>">
+  <title><%= RailsAiAdmin.configuration.title %></title>
+  <%= csrf_meta_tags %>
+  <%= stylesheet_link_tag "rails_ai_admin", "data-turbo-track": "reload" %>
+  <%= javascript_include_tag "rails_ai_admin", type: "module", "data-turbo-track": "reload", defer: true, preload_links_header: false %>
+</head>
+<body class="raa">
+  <a class="raa-skip" href="#raa-main">Skip to content</a>
+  <header class="raa-header"><%= link_to RailsAiAdmin.configuration.title, root_path %><span>Development preview</span></header>
+  <div class="raa-shell">
+    <nav aria-label="Admin resources">
+      <%= link_to "Overview", root_path %>
+      <% visible_resources.each do |resource| %>
+        <%= link_to resource.label, resources_path(resource: resource.key), aria: { current: (params[:resource] == resource.key.to_s ? "page" : nil) } %>
+      <% end %>
+    </nav>
+    <main id="raa-main" tabindex="-1">
+      <% flash.each do |_, message| %><p class="raa-notice" role="status"><%= message %></p><% end %>
+      <%= yield %>
+    </main>
+  </div>
+</body>
+</html>

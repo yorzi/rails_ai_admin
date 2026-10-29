@@ -14,6 +14,7 @@ require_relative "rails_ai_admin/field"
 require_relative "rails_ai_admin/input_schema"
 require_relative "rails_ai_admin/resource"
 require_relative "rails_ai_admin/registry"
+require_relative "rails_ai_admin/request_log_filter"
 require_relative "rails_ai_admin/authorization/adapter"
 require_relative "rails_ai_admin/authorization/access"
 
@@ -42,4 +43,7 @@ module RailsAiAdmin
   end
 end
 
+require_relative "rails_ai_admin/queries/list"
+require_relative "rails_ai_admin/operations/result"
+require_relative "rails_ai_admin/operations/runner"
 require_relative "rails_ai_admin/engine"

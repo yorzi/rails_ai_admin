@@ -1,15 +1,89 @@
 # Rails AI Admin
 
-A self-hosted Rails admin engine with an explicit resource registry and a shared,
-authorized operation boundary for conventional pages and future AI interfaces.
+A self-hosted Rails admin engine with explicitly registered resources and one
+policy-checked, audited execution boundary for conventional CRUD.
 
-**Status: unreleased development.** The development plan describes the target
-product, not the currently supported feature set. See [ROADMAP.md](ROADMAP.md)
-for implementation status and [COMPATIBILITY.md](COMPATIBILITY.md) for evidence.
+**Unreleased development.** Scalar conventional CRUD is the first implementation
+slice. Chat, trusted Surfaces, associations, CSV, private files, batch actions,
+metrics dashboards and background operations remain future work. The development
+plan describes the target product, not the supported feature set.
 
-The host owns authentication, authorization, tenants and domain data. Access is
-denied until a host supplies both context and policy adapters. No provider call,
-public deployment or gem publication is part of local development.
+The host owns authentication, tenants, policies and domain data. Missing context
+or policy grants deny access. Generic writes require standard `lock_version`
+optimistic locking and the same Active Record connection pool for domain records,
+operation receipts and audit. Resources with irreversible callback effects should
+remain readonly.
 
-Licensed under [MIT](LICENSE). The implementation is original; dependencies keep
-their own licenses. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+## Develop
+
+```sh
+bundle install
+bundle exec rake test
+bundle exec rake build
+```
+
+The build creates `pkg/rails_ai_admin-0.1.0.dev.gem`; it does not publish. Use the
+[installation guide](docs/site/_getting_started/getting-started.md) to add a local
+build or development checkout to a host. Then run:
+
+```sh
+bin/rails generate rails_ai_admin:install
+bin/rails db:migrate
+bin/rails generate rails_ai_admin:resource Customer
+bin/rails rails_ai_admin:doctor
+```
+
+Installation stays closed: the generated `AdminContext` returns nil, the default
+policy denies all actions/fields, and a generated resource is readonly with only
+its ID declared. Implement host authentication and explicit policies, then review
+fields and register class-name strings in the initializer.
+
+```ruby
+RailsAiAdmin.configure do |config|
+  config.context_adapter = "AdminContext"
+  config.authorization_adapter = "AdminPolicyAdapter"
+  config.resources = ["CustomerAdmin"]
+end
+```
+
+```ruby
+class CustomerAdmin < RailsAiAdmin::Resource
+  model "Customer"
+  key :customers
+  title :name
+
+  fields do
+    id :id
+    text :name, required: true, nullable: false,
+      searchable: :prefix, sortable: true
+  end
+end
+```
+
+This declares exposure; it grants no permission. See the runnable host contract
+examples in the [configuration guide](docs/site/_getting_started/configuration.md).
+Mount with `as: :rails_ai_admin`; the path can be customized. Admin CSS/ESM are
+prebuilt in the gem, so a host does not need Node to compile them. No provider key,
+AI table or provider call is required for conventional mode.
+
+## Read the Contracts
+
+- [Architecture](ARCHITECTURE.md), [public contract](docs/reference/public-contract.md)
+  and [operation semantics](docs/reference/operations.md).
+- [Resources and fields](docs/site/_core_features/resources-and-fields.md),
+  [host verification](docs/site/_advanced/host-verification.md) and
+  [data/security boundaries](docs/site/_advanced/data-and-security.md).
+- [Compatibility evidence](COMPATIBILITY.md), [roadmap](ROADMAP.md) and
+  [dependency integration constraints](docs/reference/dependency-contracts.md).
+
+The Jekyll/RDoc site lives under `docs/site/`. It is a local documentation source;
+no hosted site or remote repository is implied. Build it with
+`docs/site/bin/build.sh` after installing its separate bundle.
+
+Local automated checks and internal review do not establish production readiness,
+independent security review, real-provider behavior or user acceptance. Release
+gates remain in the plan; publishing requires explicit maintainer approval.
+
+Licensed under [MIT](LICENSE). Dependencies retain their own licenses in
+[third-party notices](THIRD_PARTY_NOTICES.md). Read [SECURITY.md](SECURITY.md) before
+reporting a vulnerability and [CONTRIBUTING.md](CONTRIBUTING.md) before contributing.

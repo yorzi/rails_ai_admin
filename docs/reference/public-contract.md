@@ -4,6 +4,12 @@ No stable release contract is frozen. Supported APIs are backed by executable
 contract tests and the packaged fixture host. The development plan contains
 additional target APIs which are not implemented merely because they are listed.
 
+Mount with `as: :rails_ai_admin`. The path itself is configurable. Request-local
+redaction uses that named mount before Rails logs query parameters; it does not
+change the host's global filter list. Host SQL debug logging, custom loggers and
+instrumentation remain host responsibilities and can expose domain values.
+Use production log levels and never submit credentials as ordinary admin data.
+
 Configure `context_adapter`, `authorization_adapter` and `resources` using class
 name strings before boot. A context adapter implements `resolve(controller)`.
 An authorization adapter implements `scope(context:, resource:, relation:)`,

@@ -1,7 +1,6 @@
 /drafts/
 /.bundle/
-/vendor/bundle/
-/vendor/cache/
+/vendor/
 /pkg/
 /tmp/
 /log/
