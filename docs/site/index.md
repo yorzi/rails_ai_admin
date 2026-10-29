@@ -1,0 +1,69 @@
+---
+layout: home
+title: Rails AI Admin
+description: Build authorized admin pages with explicit resources and atomic operations.
+permalink: /
+hero:
+  name: Rails AI Admin
+  text: Explicit Rails administration
+  tagline: Unreleased development of conventional admin pages with a shared operation boundary.
+  actions:
+    - theme: brand
+      text: Get started
+      link: /getting-started/
+    - theme: alt
+      text: Development status
+      link: /development-status/
+features:
+  - title: Explicit exposure
+    details: Register reviewed resources and fields rather than publishing reflected models.
+    link: /resources-and-fields/
+    link_text: Declare resources
+  - title: Host authority
+    details: Resolve fresh sessions, complete tenant scopes and independent field permissions.
+    link: /configuration/
+    link_text: Connect policies
+  - title: Atomic evidence
+    details: Commit conventional domain changes, human confirmation, receipts and audit together.
+    link: /operations/
+    link_text: Understand operations
+---
+
+## Build Locally
+
+This gem and documentation site are not published. In the checkout:
+
+```sh
+bundle install
+bundle exec rake test
+bundle exec rake build
+```
+
+The development package is `pkg/rails_ai_admin-{{ site.version }}.gem`. Follow the
+[installation guide]({% link _getting_started/getting-started.md %}) to connect it to
+a host. It remains closed until you supply authentication and policies.
+
+## A First Look
+
+```ruby
+class CustomerAdmin < RailsAiAdmin::Resource
+  model "Customer"
+  key :customers
+  title :name
+  fields do
+    id :id
+    text :name, nullable: false, required: true
+  end
+end
+```
+
+The declaration narrows exposure; it grants no permission. The host owns the model,
+its tenant scope and every action/field decision. Generic writes require standard
+optimistic locking and a shared database connection pool.
+
+## Current Scope
+
+The current slice implements conventional scalar CRUD. Chat, trusted Surfaces,
+CSV, associations, private files and background workflows remain future milestones.
+Read [development status]({% link _reference/development-status.md %}) before treating
+a target API in the plan as implemented.

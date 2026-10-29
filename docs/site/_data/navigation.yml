@@ -1,0 +1,12 @@
+- title: Guides
+  url: /getting-started/
+  collections:
+    - getting_started
+    - core_features
+    - advanced
+- title: Reference
+  url: /api-reference/
+  collections:
+    - reference
+- title: Status
+  url: /development-status/

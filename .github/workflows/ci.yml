@@ -1,0 +1,74 @@
+name: CI
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ["3.4", "4.0"]
+        database: [sqlite, postgres]
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-ci-only
+          POSTGRES_DB: raa_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: ruby/setup-ruby@7f797815d8adceb1c412e7abefdd1ab4abc47a5f # v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+      - run: bundle exec rubocop --cache false
+      - name: SQLite contracts and requests
+        if: matrix.database == 'sqlite'
+        run: bundle exec rake test
+      - name: PostgreSQL contracts and requests
+        if: matrix.database == 'postgres'
+        env:
+          RAA_TEST_DATABASE_URL: postgresql://postgres:synthetic-ci-only@127.0.0.1:5432/raa_test
+        run: bundle exec rake test
+      - run: bundle exec rake build
+      - name: Packaged session / SQLite consumer
+        run: bundle exec ruby script/packaged_smoke.rb
+
+  assets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --prefix frontend
+      - run: npm run check --prefix frontend
+      - run: npm audit --prefix frontend --audit-level=high
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: ruby/setup-ruby@7f797815d8adceb1c412e7abefdd1ab4abc47a5f # v1
+        with:
+          ruby-version: "4.0"
+      - name: Install documentation dependencies
+        working-directory: docs/site
+        run: |
+          bundle config set --local path ../../vendor/docs-bundle
+          bundle install
+      - run: docs/site/bin/build.sh

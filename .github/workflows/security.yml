@@ -1,0 +1,22 @@
+name: Dependency security
+on:
+  pull_request:
+  push:
+  schedule:
+    - cron: "23 3 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: ruby/setup-ruby@7f797815d8adceb1c412e7abefdd1ab4abc47a5f # v1
+        with:
+          ruby-version: "4.0"
+      - run: gem install bundler-audit --version 0.9.3 --no-document
+      - run: bundle-audit check --update --database tmp/ruby-advisory-db
+      - name: Audit documentation bundle
+        run: bundle-audit check --database tmp/ruby-advisory-db --gemfile-lock docs/site/Gemfile.lock

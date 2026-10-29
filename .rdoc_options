@@ -1,0 +1,10 @@
+---
+title: "Rails AI Admin"
+exclude:
+  - lib/tasks/
+  - lib/generators/
+  - \.json$
+footer_content:
+  Documentation:
+    Guides: http://127.0.0.1:4000/
+    Upgrading: http://127.0.0.1:4000/upgrading/

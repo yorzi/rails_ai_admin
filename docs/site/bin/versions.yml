@@ -1,0 +1,13 @@
+# The version selector. bin/build.sh copies it into each versioned build once
+# a release has docs; prepare_versions.rb fills in the release number.
+current: stable
+items:
+  - id: stable
+    title: Stable
+    url: /
+  - id: next
+    title: Next (unreleased)
+    url: /next/
+  - id: changelog
+    title: Changelog
+    url: /release-history/

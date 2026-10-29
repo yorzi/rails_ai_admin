@@ -1,0 +1,107 @@
+title: "Rails AI Admin"
+description: "Build authorized admin pages with explicit resources and atomic operations."
+tagline: "Explicit Rails administration"
+url: http://127.0.0.1:4000
+baseurl: ""
+lang: en-US
+
+theme: jekyll-vitepress-theme
+
+markdown: kramdown
+kramdown:
+  input: GFM
+  syntax_highlighter_opts:
+    block:
+      line_numbers: false
+permalink: pretty
+
+collections:
+  getting_started:
+    permalink: "/:name/"
+    output: true
+  core_features:
+    permalink: "/:name/"
+    output: true
+  advanced:
+    permalink: "/:name/"
+    output: true
+  reference:
+    permalink: "/:name/"
+    output: true
+
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default
+      jekyll_vitepress:
+        auto_title: false
+
+jekyll_vitepress:
+  seo:
+    page_type: TechArticle
+    publisher:
+      type: Organization
+      name: "Rails AI Admin"
+      url: http://127.0.0.1:4000
+  llms:
+    title: Rails AI Admin Documentation
+    description: "Build authorized admin pages with explicit resources and atomic operations."
+    full: true
+  branding:
+    site_title: "Rails AI Admin"
+  typography:
+    body_font_family: "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif"
+    code_font_family: "ui-monospace, monospace"
+  syntax:
+    light_theme: github
+    dark_theme: github.dark
+  tokens:
+    light:
+      "--vp-c-brand-1": "#155E75"
+      "--vp-c-brand-2": "#1A738F"
+      "--vp-c-brand-3": "#10495B"
+      "--vp-c-brand-soft": "rgba(21, 94, 117, 0.14)"
+    dark:
+      "--vp-c-brand-1": "#1E88A9"
+      "--vp-c-brand-2": "#1A738F"
+      "--vp-c-brand-3": "#155E75"
+      "--vp-c-brand-soft": "rgba(30, 136, 169, 0.18)"
+  github_star:
+    enabled: false
+  footer:
+    enabled: true
+    show_on_docs: false
+    message: "Unreleased development. Source licensed under MIT."
+    copyright: "Copyright © 2026 Andy Wang"
+  doc_footer:
+    enabled: true
+    previous_label: Previous page
+    next_label: Next page
+  last_updated:
+    enabled: true
+    text: Last updated
+    format: "%-d %b %Y"
+  edit_link:
+    enabled: false
+
+plugins:
+  - jekyll-redirect-from
+  - jekyll-vitepress-theme
+
+exclude:
+  - bin
+  - vendor
+  - Gemfile
+  - Gemfile.lock
+  - README.md
+
+# The language of code examples; `project-docs` uses it for new pages.
+code_language: ruby
+
+# Values that change between releases. Pages read them as {{ site.version }}
+# and {{ site.examples.NAME }}, so one edit here updates every page. Set
+# `released: true` and the new version in the commit you tag for a release.
+released: false
+version: "0.1.0.dev"
+examples: {}
