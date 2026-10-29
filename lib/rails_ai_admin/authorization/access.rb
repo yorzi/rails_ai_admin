@@ -53,7 +53,19 @@ module RailsAiAdmin
 
       def project(record)
         authorize!(:show, record)
-        fields(:read, record).to_h { |field| [ field.name.to_s, record.public_send(field.name) ] }
+        fields(:read, record).to_h { |field| [ field.name.to_s, read_value(record, field) ] }
+      end
+
+      # Scalar declarations cannot turn arbitrary model methods into read actions.
+      # Host overrides of real attribute getters remain trusted application code.
+      def read_value(record, field)
+        name = field.name.to_s
+        primary_key = record.class.primary_key
+        id_alias = name == "id" && primary_key.is_a?(String) && record.has_attribute?(primary_key)
+        unless record.has_attribute?(name) || id_alias
+          raise ConfigurationError, "Scalar fields must name model attributes"
+        end
+        record.public_send(name)
       end
 
       def operation_fields(operation, record = nil)

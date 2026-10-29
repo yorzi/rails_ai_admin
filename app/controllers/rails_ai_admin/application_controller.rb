@@ -69,8 +69,8 @@ module RailsAiAdmin
     def record_label(resource, record)
       access = Authorization::Access.new(@context, resource)
       return "Record ##{record.id}" unless allowed_action?(resource, :show, record)
-      fields = access.fields(:read, record).map(&:name)
-      fields.include?(resource.title) ? record.public_send(resource.title).to_s : "Record ##{record.id}"
+      field = access.fields(:read, record).find { |candidate| candidate.name == resource.title }
+      field ? access.read_value(record, field).to_s : "Record ##{record.id}"
     end
   end
 end
