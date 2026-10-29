@@ -1,0 +1,8 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Support product</title></head><body>
+<h1>Support product</h1><%= link_to "Administration", "/operations" %>
+<%= form_with url: "/tenant", local: true do |form| %>
+  <%= form.label :tenant_id, "Tenant" %><%= form.select :tenant_id, current_staff_user.tenants.map { |tenant| [tenant.name, tenant.id] } %>
+  <%= form.submit "Switch tenant" %>
+<% end %>
+<%= button_to "Sign out", destroy_staff_user_session_path, method: :delete %>
+</body></html>

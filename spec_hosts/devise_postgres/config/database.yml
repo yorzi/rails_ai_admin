@@ -1,0 +1,10 @@
+default: &default
+  adapter: postgresql
+  url: <%= ENV.fetch("RAA_HOST_B_DATABASE_URL") %>
+  pool: 10
+development:
+  <<: *default
+test:
+  <<: *default
+production:
+  <<: *default

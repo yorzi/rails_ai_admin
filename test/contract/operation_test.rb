@@ -291,4 +291,27 @@ class OperationTest < Minitest::Test
     assert_raises(RailsAiAdmin::ConfigurationError) { prepare }
     assert_equal "Alice", @customer.reload.name
   end
+  def test_independent_intents_for_one_version_do_not_both_commit
+    intents = [ prepare, prepare ]
+    ready, start = Queue.new, Queue.new
+    threads = intents.map do |intent|
+      Thread.new do
+        ActiveRecord::Base.connection_pool.with_connection do
+          ready << true
+          start.pop
+          execute(intent)
+        end
+      end
+    end
+    2.times { ready.pop }
+    2.times { start << true }
+    results = threads.map(&:value)
+    assert_equal 1, results.count(&:success?), results.map(&:code).inspect
+    assert_equal 1, results.count { |result| result.code == "CONFLICT" }
+    assert_equal 1, @customer.reload.lock_version
+    assert_equal 1, RailsAiAdmin::AuditEvent.where(status: "succeeded").count
+    loser = intents.zip(results).find { |_, result| !result.success? }.first
+    assert_equal "CONFLICT", execute(loser).code
+    assert_equal "proposed", loser.reload.status
+  end
 end

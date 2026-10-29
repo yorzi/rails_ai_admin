@@ -142,5 +142,4 @@ class ResourcesTest < ActionDispatch::IntegrationTest
     assert_select "a[href='/portal/backoffice/customers/new']"
     assert_select "a[href='/portal/backoffice/customers/#{@customer.id}']"
   end
-
 end

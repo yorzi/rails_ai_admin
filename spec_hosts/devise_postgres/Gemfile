@@ -1,0 +1,18 @@
+source "https://rubygems.org"
+gem "rails", "8.1.4"
+gem "rails_ai_admin", "0.1.0.dev"
+gem "devise", "~> 5.0.4"
+gem "pundit", "~> 2.5"
+gem "pg", "~> 1.6"
+if ENV["RAA_ASSET_PIPELINE"] == "sprockets"
+  gem "sprockets-rails", "~> 3.5"
+else
+  gem "propshaft", "~> 1.3"
+end
+gem "jsbundling-rails", "~> 1.3"
+gem "ruby_llm", "2.1.1"
+gem "rails_tool_views", "1.0.1"
+gem "minitest", "~> 5.27"
+gem "webmock", "~> 3.0"
+gem "rake", "~> 13.0"
+gem "puma", "~> 8.0"
