@@ -55,5 +55,11 @@ stays commented and omits sensitive authority/authentication columns. Host B dra
 its admin mount from `config/routes/admin.rb`; installation must preserve it rather
 than insert a second root-file mount.
 
+Both hosts also grant Selection capture independently from list/write permission.
+Native checkbox POST/CSRF captures fixed IDs/current versions and redirects to a
+fresh-label preview. Tests revoke the host selection grant and verify denial;
+Host B retains its UUID identity. Capture creates no business run or audit and
+does not exercise collection execution or jobs.
+
 The legacy-admin migration host and independent user/security acceptance remain
 required. These author-controlled fixtures do not close release gates.

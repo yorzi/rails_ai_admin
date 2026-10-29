@@ -71,6 +71,8 @@ class PunditAdapterTest < Minitest::Test
     assert_empty @adapter.scope(context: context, resource: TestResource, relation: Customer.all)
     refute @adapter.allowed?(context: context, action: :index, resource: TestResource)
     assert_empty @adapter.fields(context: context, resource: TestResource, action: :read)
+    refute @adapter.select_records?(context: context, resource: TestResource)
+    refute @adapter.select_records?(context: context, resource: PunditCustomerAdmin)
   end
 
   def test_field_capabilities_are_separate_and_default_to_empty

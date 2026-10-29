@@ -9,6 +9,8 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
   include ActiveSupport::Testing::TimeHelpers
 
   def setup
+    RailsAiAdmin::SelectionItem.delete_all
+    RailsAiAdmin::Selection.delete_all
     RailsAiAdmin::WorkItem.delete_all
     RailsAiAdmin::OperationRun.delete_all
     RailsAiAdmin::AuditEvent.delete_all
@@ -270,5 +272,23 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
     refs = results.map { |result| JSON.parse(Rails.root.join("tmp/synthetic_deliveries/#{result.work_refs.first}.json").read).fetch("tenant_ref") }
     assert_equal [ "raa:tenant:Tenant:#{@tenant.id}", "raa:tenant:Tenant:#{@other_tenant.id}" ], refs
     assert SupportTicket.create!(tenant: @tenant, subject: "Writes remain available after delivery").persisted?
+  end
+  def test_uuid_selection_uses_independent_pundit_grant_and_fresh_tenant
+    login
+    get "/operations/tickets"
+    token = css_select("form#raa-selection input[name=authenticity_token]").first["value"]
+    post "/operations/tickets/selections", params: { authenticity_token: token, target_ids: [ @ticket.id ] }
+    assert_response :see_other
+    path = URI(response.location).path
+    get path
+    assert_response :success
+    assert_includes response.body, "Support task"
+    assert_includes response.body, @ticket.id
+    assert_equal @ticket.id, RailsAiAdmin::SelectionItem.first.target_id
+    assert_equal 0, RailsAiAdmin::OperationRun.count
+    @staff.update!(role: "viewer")
+    get path
+    assert_response :not_found
+    refute_includes response.body, "Support task"
   end
 end

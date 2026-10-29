@@ -13,6 +13,11 @@ module RailsAiAdmin
         { id: record.id, label: record_label(@resource, record), values: @access.project(record) }
       end
       @searchable = @access.fields(:search).any?
+      @selectable = begin
+        @access.authorize_selection!
+      rescue AccessDenied
+        false
+      end
     end
 
     def show

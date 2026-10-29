@@ -7,6 +7,8 @@ class AdminPolicyAdapter < RailsAiAdmin::Authorization::Adapter
     %i[index show].include?(action) || context.actor.role == "admin"
   end
 
+  def select_records?(context:, resource:) = context.actor.role == "admin"
+
   def fields(context:, resource:, action:, record: nil)
     case action
     when :read then %i[id name active points created_at]

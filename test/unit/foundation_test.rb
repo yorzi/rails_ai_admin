@@ -7,6 +7,7 @@ class FoundationTest < Minitest::Test
     adapter = RailsAiAdmin::Authorization::Adapter.new
     refute adapter.allowed?(context: context, action: :index, resource: TestResource)
     assert_empty adapter.fields(context: context, resource: TestResource, action: :write)
+    refute adapter.select_records?(context: context, resource: TestResource)
   end
 
   def test_context_has_typed_bounded_identities

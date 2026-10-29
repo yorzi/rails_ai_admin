@@ -2,6 +2,8 @@
 
 RailsAiAdmin::Engine.routes.draw do
   root to: "dashboard#index"
+  post ":resource/selections", to: "selections#create", as: :capture_selection
+  get "selections/:selection_ref", to: "selections#show", as: :selection
   get ":resource/:id/operations/:operation", to: "operations#new", as: :operation_form
   post ":resource/:id/operations/:operation/preflight", to: "operations#preflight", as: :operation_preflight
   post ":resource/:id/operations/:operation/execute", to: "operations#execute", as: :operation_execute

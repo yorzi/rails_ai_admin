@@ -56,6 +56,13 @@ module RailsAiAdmin
         fields(:read, record).to_h { |field| [ field.name.to_s, read_value(record, field) ] }
       end
 
+      def authorize_selection!
+        authorize!(:index)
+        allowed = @adapter.respond_to?(:select_records?) && @adapter.select_records?(context: context, resource: resource) == true
+        raise AccessDenied unless allowed
+        true
+      end
+
       # Scalar declarations cannot turn arbitrary model methods into read actions.
       # Host overrides of real attribute getters remain trusted application code.
       def read_value(record, field)

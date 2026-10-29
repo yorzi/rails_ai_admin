@@ -30,6 +30,11 @@ module RailsAiAdmin
       def read_operation_receipt?(context:, resource:, operation:, record:)
         false
       end
+
+      # Capturing/viewing a fixed selection is independent of list/read/write.
+      def select_records?(context:, resource:)
+        false
+      end
     end
   end
 end

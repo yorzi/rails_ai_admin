@@ -88,6 +88,15 @@ module RailsAiAdmin
         policy_error!(resource, error)
       end
 
+      def select_records?(context:, resource:)
+        klass = policy_class(resource)
+        return false unless klass
+        policy = klass.new(context, resource.model_class)
+        policy.respond_to?(:select_records?) && policy.select_records? == true
+      rescue StandardError => error
+        policy_error!(resource, error)
+      end
+
       private
 
       def policy_class(resource)

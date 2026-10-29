@@ -6,10 +6,17 @@
     <%= form.submit "Search" %>
   <% end %>
 <% end %>
+<% if @selectable %>
+  <%= form_with url: capture_selection_path(resource: @resource.key), method: :post, local: true, id: "raa-selection", data: { turbo: false } do |form| %>
+    <p>Select records on this page, then capture their current versions. Up to 100 targets; this does not execute changes.</p>
+    <%= form.submit "Capture selection" %>
+  <% end %>
+<% end %>
 <div class="raa-table-scroll" role="region" aria-label="Resource records" tabindex="0">
 <table><caption><%= @resource.label %>, page <%= @page.number %></caption>
-<thead><tr><% @columns.each do |field| %><th scope="col"><%= field.label %></th><% end %><th scope="col">Actions</th></tr></thead>
-<tbody><% @rows.each do |row| %><tr>
+<thead><tr><% if @selectable %><th scope="col">Select</th><% end %><% @columns.each do |field| %><th scope="col"><%= field.label %></th><% end %><th scope="col">Actions</th></tr></thead>
+<tbody><% @rows.each_with_index do |row, index| %><tr>
+  <% if @selectable %><td><%= check_box_tag "target_ids[]", row[:id], false, id: "raa-target-#{index}", form: "raa-selection", aria: { label: "Select #{row[:label].to_s.truncate(120)}" } %></td><% end %>
   <% @columns.each do |field| %><td><%= field.format(row[:values][field.name.to_s], time_zone: @context.time_zone) %></td><% end %>
   <td><%= link_to "View #{row[:label]}", resource_path(resource: @resource.key, id: row[:id]) %></td>
 </tr><% end %></tbody></table></div>

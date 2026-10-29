@@ -180,6 +180,16 @@ class DeveloperToolsTest < Minitest::Test
     assert_equal :error, checks.find { |entry| entry.name == "context" }.status
   end
 
+  def test_doctor_reports_missing_selection_tables_without_granting_selection
+    RailsAiAdmin::Selection.stub(:table_exists?, false) do
+      checks = RailsAiAdmin::Doctor.new(application: nil).checks
+      check = checks.find { |entry| entry.name == "selections" }
+      assert_equal :error, check.status
+      assert_includes check.message, "installed=false"
+      refute RailsAiAdmin::Authorization::Adapter.new.select_records?(context: context, resource: TestResource)
+    end
+  end
+
   def test_install_preserves_reviewed_extra_scaffolds_even_when_forced
     Dir.mktmpdir("raa-install-", File.expand_path("../../tmp", __dir__)) do |directory|
       FileUtils.mkdir_p(File.join(directory, "config"))
@@ -191,7 +201,7 @@ class DeveloperToolsTest < Minitest::Test
       application.routes.draw { mount RailsAiAdmin::Engine => "/admin", as: :rails_ai_admin }
       capture_io { RailsAiAdmin::Generators::InstallGenerator.new([], { force: true }, destination_root: directory, application: application).invoke_all }
       paths.each { |path| assert_includes File.read(File.join(directory, path)), "# reviewed host extension" }
-      assert_equal 3, Dir[File.join(directory, "db/migrate/*.rb")].size
+      assert_equal 4, Dir[File.join(directory, "db/migrate/*.rb")].size
       assert_equal 1, File.read(File.join(directory, "config/routes.rb")).scan("mount RailsAiAdmin::Engine").size
     end
   end

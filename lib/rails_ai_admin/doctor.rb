@@ -21,6 +21,7 @@ module RailsAiAdmin
         autoload_check,
         Check.new("assistant", :unsupported, "Assistant routes/tables are not installed; no provider call is made."),
         Check.new("files", :unsupported, "Private attachment management is not implemented."),
+        selection_check,
         Check.new("queue", @work_registry.definitions.empty? ? :closed : :review,
           "Durable post-commit outbox; #{ @work_registry.definitions.size } work handlers; auto_dispatch=#{config.outbox_auto_dispatch}. Schedule pending scans and verify downstream idempotency. Async business execution is not implemented."),
         Check.new("coexistence", :review, "No rails_tool_views global configuration is changed; shared Surface integration is unresolved.")
@@ -60,6 +61,14 @@ module RailsAiAdmin
     end
 
     private
+
+    def selection_check
+      installed = [ Selection, SelectionItem ].all?(&:table_exists?)
+      Check.new("selections", installed ? :review : :error,
+        "Fixed selection tables installed=#{installed}; at most 100 targets with lock_version in one pool. Separate select_records? grant, current scope/show/fields and expiry apply. Selection is not approval or batch execution.")
+    rescue ActiveRecord::ActiveRecordError
+      Check.new("selections", :error, "Cannot inspect selection tables. Check database connectivity and pending engine migrations.")
+    end
 
     def adapter_check(kind, name, methods)
       if name.nil? || name == "RailsAiAdmin::Authorization::Adapter"

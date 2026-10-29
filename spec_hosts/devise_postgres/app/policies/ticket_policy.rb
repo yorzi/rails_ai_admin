@@ -3,6 +3,7 @@ class TicketPolicy
   def initialize(context, record)
     @context, @record = context, record
   end
+  def select_records? = %w[operator admin].include?(context.actor.role)
   def index? = %w[viewer operator admin].include?(context.actor.role)
   def show? = index? && record.tenant_id == context.tenant.id
   def create? = %w[operator admin].include?(context.actor.role) && record.tenant_id == context.tenant.id

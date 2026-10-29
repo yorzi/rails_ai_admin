@@ -46,10 +46,16 @@ module RailsAiAdmin
       status = case error.code
       when "UNAUTHENTICATED" then :unauthorized
       when "INVALID_QUERY" then :unprocessable_content
-      when "CONFLICT" then :conflict
+      when "CONFLICT", "SELECTION_EXPIRED", "SELECTION_INVALIDATED" then :conflict
       else :not_found
       end
-      render plain: status == :unauthorized ? "Authentication required" : (status == :unprocessable_content ? "Invalid query" : "Not found"), status: status
+      message = case status
+      when :unauthorized then "Authentication required"
+      when :unprocessable_content then "Invalid query"
+      when :conflict then "The records or request have changed. Reload and try again."
+      else "Not found"
+      end
+      render plain: message, status: status
     end
 
     def visible_resources

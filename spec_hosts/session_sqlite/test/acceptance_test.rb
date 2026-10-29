@@ -5,6 +5,8 @@ require "rails_ai_admin/test_kit"
 
 class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
   def setup
+    RailsAiAdmin::SelectionItem.delete_all
+    RailsAiAdmin::Selection.delete_all
     RailsAiAdmin::WorkItem.delete_all
     RailsAiAdmin::OperationRun.delete_all
     RailsAiAdmin::AuditEvent.delete_all
@@ -95,5 +97,22 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
     assert_equal 1, @customer.lock_version
     assert_equal 1, RailsAiAdmin::AuditEvent.where(operation: "award_points", status: "succeeded").count
     assert_empty RailsAiAdmin::WorkItem.all
+  end
+  def test_native_fixed_selection_requires_csrf_and_current_authority
+    login
+    get "/staff/customers"
+    assert_select "form#raa-selection"
+    token = css_select("form#raa-selection input[name=authenticity_token]").first["value"]
+    post "/staff/customers/selections", params: { authenticity_token: token, target_ids: [ @customer.id ] }
+    assert_response :see_other
+    path = URI(response.location).path
+    get path
+    assert_response :success
+    assert_includes response.body, "Packaged Customer"
+    assert_equal 0, RailsAiAdmin::OperationRun.count
+    @user.update!(role: "viewer")
+    get path
+    assert_response :not_found
+    refute_includes response.body, "Packaged Customer"
   end
 end
