@@ -15,6 +15,11 @@ No stable gem has been released. Development APIs and migrations can still chang
 read the checkout's `CHANGELOG.md` and public contract before replacing a local build.
 Do not infer that an unchanged `0.1.0.dev` identifier guarantees compatible storage.
 
+The operation fingerprint now includes the explicit resource policy mapping.
+Existing development intents from before this change can return
+`APPROVAL_INVALIDATED`. Reopen their forms and review current permissions; do not
+recreate or edit persisted receipts to force execution.
+
 Back up the host database, test migrations against a disposable copy, run the host
 policy matrix and verify packaged installation before using a changed build.
 Never delete live operation receipts to get a replay to execute again. Keep

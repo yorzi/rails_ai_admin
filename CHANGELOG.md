@@ -10,6 +10,9 @@
   Turbo/Stimulus assets and request-local log redaction.
 - Add closed installation/resource generators, basic doctor/TestKit, a packaged
   session/SQLite consumer, database contracts and local public documentation.
+- Add the optional explicit Pundit adapter, a distinct packaged Devise/PostgreSQL
+  host, Propshaft and Sprockets/jsbundling variants, real development reload and
+  process crash/response-loss recovery probes. Keep host product SDK settings intact.
 
 Assistant/Surface adapters, custom operations, async/outbox, associations, files,
 batch, CSV and metrics dashboards are not implemented. Release gates remain open.

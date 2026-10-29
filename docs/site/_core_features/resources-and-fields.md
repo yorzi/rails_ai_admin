@@ -46,6 +46,10 @@ at boot. The current types are `id`, `text`, `textarea`, `integer`, `decimal`,
 `boolean`, `date`, `datetime` and `enum`. Money, associations, files, virtual fields
 and custom field registration are not implemented.
 
+When using Pundit, also declare an explicit `policy "CustomerPolicy"` class name.
+The adapter does not infer a policy from the model or reuse an alias policy.
+The policy name is optional for a custom adapter that supplies its own decisions.
+
 A resource must declare a string `model`, a unique stable `key`, fields and a
 `title` naming a declared field. Keys reserve `assistant`, `audit`, `dashboards`,
 `exports`, `imports`, `jobs`, `selections`, `settings`, `doctor` and `assets`.

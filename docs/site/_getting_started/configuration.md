@@ -95,8 +95,9 @@ records; filtering unauthorized rows after pagination is not equivalent.
 Field grants are independent for `:read`, `:write`, `:search` and `:sort`. Each is
 intersected with the declared resource fields. Search and sort also require their
 DSL flags; write also requires the field to be editable for the operation. Hiding
-a field in a template does not establish authorization. Built-in Pundit and
-ActionPolicy adapters are not part of this slice.
+a field in a template does not establish authorization. You can instead opt into
+the [Pundit adapter]({% link _advanced/pundit-and-devise.md %}) with an explicit policy
+for each resource. ActionPolicy integration remains future work.
 
 ## Configure Before Boot
 
@@ -126,5 +127,6 @@ login/logout routes or redirect to a guessed host sign-in page.
 
 ## Next Steps
 
+* [Pundit and Devise]({% link _advanced/pundit-and-devise.md %}) connects explicit policies and host sessions.
 * [Host Verification]({% link _advanced/host-verification.md %}) checks your policy boundary.
 * [Operations]({% link _core_features/operations.md %}) covers intent expiry and execution-time authorization.

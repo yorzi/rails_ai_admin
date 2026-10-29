@@ -58,6 +58,11 @@ shard or cross-pool atomicity is promised. MySQL is unsupported. Callback vetoes
 and `Rollback` do not become successful receipts. A failed audit rolls back the
 business write. Failures/rejections have separate audit status.
 
+The operation fingerprint includes the explicit resource policy mapping. A
+changed mapping invalidates existing development form/proposal intents. Reopen the
+form and review the latest permissions rather than editing persisted evidence to
+force a retry. The fingerprint does not replace current policy/field checks.
+
 ## Replay and current visibility
 
 A same-intent/same-normalized-input committed retry returns its receipt and a

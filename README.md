@@ -8,7 +8,9 @@ slice. Chat, trusted Surfaces, associations, CSV, private files, batch actions,
 metrics dashboards and background operations remain future work. The development
 plan describes the target product, not the supported feature set.
 
-The host owns authentication, tenants, policies and domain data. Missing context
+The engine supports custom policy adapters and an optional Pundit adapter with
+explicit policy mappings per resource. The host owns authentication, tenants,
+policies and domain data. Missing context
 or policy grants deny access. Generic writes require standard `lock_version`
 optimistic locking and the same Active Record connection pool for domain records,
 operation receipts and audit. Resources with irreversible callback effects should
@@ -75,6 +77,18 @@ AI table or provider call is required for conventional mode.
   [data/security boundaries](docs/site/_advanced/data-and-security.md).
 - [Compatibility evidence](COMPATIBILITY.md), [roadmap](ROADMAP.md) and
   [dependency integration constraints](docs/reference/dependency-contracts.md).
+
+An independent [Devise/Pundit/PostgreSQL consumer](spec_hosts/devise_postgres)
+exercises UUID tickets, verified tenant memberships, development reload and
+fresh-process crash/replay using the built gem. Its Propshaft/jsbundling and
+Sprockets/jsbundling modes are asset variants of one consumer. See the
+[Pundit/Devise guide](docs/site/_advanced/pundit-and-devise.md) and
+[host verification guide](docs/site/_advanced/host-verification.md). The engine
+does not provide accounts or login routes. The fixture's separate product Chat
+and Surface remain host-owned; admin Chat/continuation is not yet implemented.
+
+Changing a resource's policy mapping changes its operation fingerprint. Reopen
+existing development forms if their old intents are invalidated.
 
 The Jekyll/RDoc site lives under `docs/site/`. It is a local documentation source;
 no hosted site or remote repository is implied. Build it with

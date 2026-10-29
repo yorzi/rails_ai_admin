@@ -6,13 +6,14 @@ CI configuration is not a completed CI run; no production support is declared.
 | Component / combination | Evidence |
 | --- | --- |
 | Ruby 4.0.9, Rails 8.1.4, JSON 3.1.0, macOS arm64 | Local core and request suites executed |
-| SQLite (`sqlite3` 2.10.2) | 56 tests / 276 assertions, including contention, atomic rollback, UUID refs and cross-pool rejection |
-| PostgreSQL 17.11 (`pg` 1.7.0), same Ruby/Rails | 56 tests / 276 assertions, including native UUID targets, contention and rollback |
+| SQLite (`sqlite3` 2.10.2) | 66 tests / 319 assertions, including Pundit scope regressions, contention, atomic rollback, UUID refs and cross-pool rejection |
+| PostgreSQL 17.11 (`pg` 1.7.0), same Ruby/Rails | 66 tests / 319 assertions, including native UUID targets, separate-intent contention and rollback |
 | Packaged session / SQLite consumer, Propshaft 1.3.2, host importmap 2.2.3 | Actual `.gem` install, closed generated context, install rerun, readonly resource generator, real login/CSRF/CRUD/replay (27 assertions), doctor, Zeitwerk, production eager load and precompile |
 | Prebuilt Turbo 8.0.23 / Stimulus 3.2.2 | Reproducible esbuild output; Chrome login/list/show/form validation/save checked; nonce CSP without unsafe-inline; 320px and desktop spot checks |
 | Ruby 3.4 and Linux | CI configured; not executed locally or remotely yet |
-| Sprockets / jsbundling consumers | Not yet validated |
-| Devise / Pundit packaged Host B | Not implemented yet; custom policy adapter is the only executed host integration |
+| Independent packaged Host B: Devise 5.0.4 / Pundit 2.5.2 / PostgreSQL | Real login/CSRF/logout/timeout, fresh role and tenant grants, UUID update/replay, alias scope, product SDK coexistence: 10 tests / 91 assertions |
+| Host B Propshaft 1.3.2 or Sprockets 4.4.1 / sprockets-rails 3.5.2, jsbundling-rails 1.3.1 | Both production precompiles and eager boots passed; host esbuild 0.25.12 bundle built; each variant passed Host B acceptance. These are two variants of one host |
+| Host B development reload and process recovery | Real source change/reload replaced model/resource/policy/context and registry; killed precommit transaction rolled back domain/claim/audit; fresh-process retry after committed response loss returned one durable receipt |
 | Real providers / persisted Chat / Surface / continuation | Not implemented or tested; no paid calls |
 
 Runtime bounds: Ruby >= 3.4; Rails >= 8.1.4 and < 8.2; rails_tool_views ~> 1.0.1;
@@ -22,9 +23,12 @@ The lockfile records actual resolution, including Linux/source platform metadata
 
 Published rails_tool_views 1.0.1 package SHA-256:
 `b35d792611e46e55b1be1b79898fab39445bebc7583d7e1e67ae7229468ada1e`.
-Conventional packaged boot did not load RubyLLM/rails_tool_views constants, create
+Host A conventional packaged boot did not load RubyLLM/rails_tool_views constants, create
 AI/runtime tables, access provider keys or call a provider. A host already using
-both SDKs still needs separate coexistence acceptance.
+both SDKs (Host B) preserved its product Chat/Message, Surface and global settings
+through ordinary admin CRUD and development reload. Full admin Chat/Surface and
+continuation coexistence still needs separate acceptance. Released SDK ToolCall
+storage is shared by default; Engine-owned ToolCall storage is unresolved.
 
 Unsupported in this slice: MySQL, composite keys, multiple/parameterized mounts,
 shards, cross-pool atomic writes, custom operation handlers, async/outbox, Chat,

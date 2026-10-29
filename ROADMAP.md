@@ -12,7 +12,8 @@ this file records current scope without rewriting its historical review claims.
 - Isolated Engine, namespaced storage, bounded dependencies, frozen string-name
   configuration and explicit registry (RAA-0101/0103/0106, initial contracts).
 - Fresh typed actor/tenant context, default-deny actions/SQL scopes/fields and
-  readonly aliases. Custom policy adapter only (parts of RAA-0104/0105).
+  readonly aliases. Custom adapter and optional explicit Pundit resource policies
+  (parts of RAA-0104/0105).
 - Typed scalar fields and conventional index/show/new/edit/create/update/delete;
   separate delete confirmation, validation input preservation, bounded search/sort,
   custom mount and relative URL root (parts of RAA-0201–0207/0210/0212).
@@ -22,8 +23,13 @@ this file records current scope without rewriting its historical review claims.
 - Closed install/resource generators, basic doctor and framework-neutral TestKit
   assertions (initial RAA-0108/0109/0115; reflected field suggestions still open).
 - Prebuilt namespaced assets, CSP nonce, native forms and dirty-form warning;
-  one independent session/SQLite/Propshaft consumer installed from the `.gem`
-  (parts of RAA-0110/0114 and SPIKE-01/07).
+  two independent consumers installed from the `.gem`: native session/SQLite and
+  Devise/Pundit/PostgreSQL, including Propshaft/importmap and Sprockets/jsbundling
+  combinations (parts of RAA-0110/0114 and SPIKE-01/07).
+- Actual development reload, separate-intent version contention, process death
+  before commit and response loss after commit. Host B verifies fresh role/tenant
+  membership, logout/timeout and preliminary product SDK coexistence. These do
+  not establish admin Chat/Surface or full browser matrix acceptance.
 - Public Jekyll/RDoc/LLM documentation, threat model and initial ADRs. ADRs are
   implementation decisions awaiting owner review, not an approved Gate A.
 
@@ -35,16 +41,17 @@ documentation and advisory scanning. No remote CI run has occurred.
 
 Finish the Phase 1 evidence before broadening conventional features:
 
-1. Add an independent Devise/Pundit/PostgreSQL packaged Host B, followed by
-   Sprockets and jsbundling/static-asset consumption. Prove real development reload.
-2. Exercise process restart/response-loss recovery and separate-intent contention;
-   expand doctor/TestKit and field/schema suggestion diagnostics.
-3. Complete async/outbox and the custom Operation contract before exposing custom
+1. Expand doctor/TestKit and field/schema suggestion diagnostics; finish the
+   asset/browser/CSP matrix beyond the existing Host A Chrome spot checks.
+2. Complete async/outbox and the custom Operation contract before exposing custom
    handlers or claiming all of RAA-0112/0113. Generic callbacks with external effects
    remain unsupported; no in-process retry may create a second business intent.
-4. Close the initial ADR/threat/requirement traceability and relevant spikes with
+3. Close the initial ADR/threat/requirement traceability and relevant spikes with
    evidence. Add the allowed-failure Rails main prewarning and complete the wider
    CI/security/browser matrices after their prerequisites exist.
+4. Resolve the released RubyLLM shared ToolCall/usage persistence constraint
+   against the plan's Engine-owned tables before claiming isolated admin Chat.
+   The existing explicit Chat/Message mappings do not by themselves prove it.
 
 ## Remaining product work
 

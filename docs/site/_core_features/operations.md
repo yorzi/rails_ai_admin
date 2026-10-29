@@ -75,6 +75,11 @@ no historical field snapshot and requires a fresh collection-level destroy grant
 The engine provides no purge job yet; retain replay evidence through the full
 published retry window and do not recreate expired intents from client content.
 
+Changing a resource's policy mapping changes the operation fingerprint. Existing
+development form/proposal intents then return `APPROVAL_INVALIDATED`; reopen the
+form and review its current permissions instead of reusing the old intent. The
+fingerprint is not a substitute for current action and field authorization.
+
 ## Require a Shared Connection and Record Version
 
 Generic writes require one primary key and standard `lock_version` optimistic

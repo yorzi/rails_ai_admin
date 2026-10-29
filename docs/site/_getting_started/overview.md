@@ -43,9 +43,13 @@ an outer transaction is not committed until that outer transaction commits.
 
 ## Separate Target APIs from Implemented APIs
 
-The current development slice supplies scalar conventional CRUD, explicit policy
-adapters, bounded index queries, server-issued form intents, execution/audit
-records, install/resource generators and initial host verification helpers.
+The current development slice supplies scalar conventional CRUD, custom and
+optional explicitly mapped Pundit policies, bounded index queries, server-issued
+form intents, execution/audit records, install/resource generators and initial
+host verification helpers. An independent packaged Devise/Pundit/PostgreSQL host
+exercises a different authentication, model, policy and asset configuration from
+the native-session SQLite host. These are author-controlled synthetic consumers,
+not independent users or production adoption.
 
 It does not implement the full development plan. Associations, CSV, private files,
 batch operations, dashboards with metrics, saved views, asynchronous operations,
