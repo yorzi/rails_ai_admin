@@ -38,5 +38,12 @@ retries after committed response loss, and kills/reaps its own confirmed live ch
 inside a transaction. It leaves no server or child running. Both hosts use only
 synthetic credentials and records; do not deploy them. No provider key/call is used.
 
+Both consumers execute the install-generated anonymous HTTP test at their actual
+custom mount, and run host-owned TestKit role/field-grant matrices. They generate
+an unregistered readonly resource for a user model and verify that schema advice
+stays commented and omits sensitive authority/authentication columns. Host B draws
+its admin mount from `config/routes/admin.rb`; installation must preserve it rather
+than insert a second root-file mount.
+
 The legacy-admin migration host and independent user/security acceptance remain
 required. These author-controlled fixtures do not close release gates.

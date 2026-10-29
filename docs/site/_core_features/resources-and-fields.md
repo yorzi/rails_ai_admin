@@ -55,6 +55,21 @@ A resource must declare a string `model`, a unique stable `key`, fields and a
 `exports`, `imports`, `jobs`, `selections`, `settings`, `doctor` and `assets`.
 `lock_version` is execution metadata and cannot be a resource field.
 
+## Treat Schema Suggestions as Comments
+
+The resource generator can inspect model schema to suggest supported scalar field
+declarations. Suggestions are comments; the generated resource remains readonly,
+with only its ID enabled, and is not automatically registered. Sensitive names,
+encrypted attributes, foreign keys and polymorphic foreign-type columns, STI
+inheritance columns, `lock_version`, authority-like names such as `role`,
+`permission` and `security_version`, and unsupported types are excluded. No record values are queried to choose suggestions. If the model or
+table is unavailable, the safe declaration remains usable for later review.
+
+Suggestions describe types, not permission, privacy or business meaning. Review
+each field before enabling it, and supply the separate policy grants. An omitted
+suggestion does not prevent an explicit host declaration; doctor can flag
+sensitive or unsupported declarations, but it cannot judge their real contents.
+
 ## Narrow Write Exposure
 
 ```ruby

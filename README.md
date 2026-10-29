@@ -10,8 +10,7 @@ plan describes the target product, not the supported feature set.
 
 The engine supports custom policy adapters and an optional Pundit adapter with
 explicit policy mappings per resource. The host owns authentication, tenants,
-policies and domain data. Missing context
-or policy grants deny access. Generic writes require standard `lock_version`
+policies and domain data. Missing context or policy grants deny access. Generic writes require standard `lock_version`
 optimistic locking and the same Active Record connection pool for domain records,
 operation receipts and audit. Resources with irreversible callback effects should
 remain readonly.
@@ -35,10 +34,21 @@ bin/rails generate rails_ai_admin:resource Customer
 bin/rails rails_ai_admin:doctor
 ```
 
-Installation stays closed: the generated `AdminContext` returns nil, the default
-policy denies all actions/fields, and a generated resource is readonly with only
-its ID declared. Implement host authentication and explicit policies, then review
-fields and register class-name strings in the initializer.
+Installation stays closed: the generated `AdminContext` returns nil and the
+`AdminPolicyAdapter` stub denies all actions/fields. The install generator also
+provides an unregistered `ExampleAdmin` and an anonymous HTTP test at
+`test/rails_ai_admin/access_test.rb`. These are starting points, not a working
+authentication integration.
+
+The resource generator keeps only a readonly ID enabled and leaves the resource
+unregistered. When model schema is available, it adds commented scalar field
+suggestions for review. It does not sample records; sensitive/encrypted fields,
+foreign keys and polymorphic type columns, STI inheritance columns,
+`lock_version`, authority-like names such as role/permission/security_version,
+and unsupported types are excluded from suggestions.
+Missing models or unavailable table metadata still leave the safe readonly scaffold.
+Implement host authentication and explicit policies, then review fields and
+register class-name strings in the initializer.
 
 ```ruby
 RailsAiAdmin.configure do |config|
@@ -62,9 +72,26 @@ class CustomerAdmin < RailsAiAdmin::Resource
 end
 ```
 
-This declares exposure; it grants no permission. See the runnable host contract
+Run the generated anonymous request test before and after adapting the host:
+
+```sh
+bin/rails test test/rails_ai_admin/access_test.rb
+```
+
+Doctor reports obviously incompatible public zero-argument constructors/signatures, schema,
+field-type review hints, sortable-index and sensitive-declaration findings,
+and default autoload-path diagnostics. Its metadata cannot prove authentication
+or authorization. `TestKit` provides separate anonymous-context, action, tenant
+and exact field-grant assertions; field-grant snapshots are not an AI exposure
+report. See the [host verification guide](docs/site/_advanced/host-verification.md).
+
+The resource declaration grants no permission. See the runnable host contract
 examples in the [configuration guide](docs/site/_getting_started/configuration.md).
-Mount with `as: :rails_ai_admin`; the path can be customized. Admin CSS/ESM are
+Use one static-path engine mount whose final helper name is `rails_ai_admin`,
+with no HTTP-verb restriction. Run installation inside the target Rails app; its
+loaded routes are checked before writing, including drawn files and namespace
+prefixes. Other helper names, dynamic path parameters and multiple mounts are
+rejected. Admin CSS/ESM are
 prebuilt in the gem, so a host does not need Node to compile them. No provider key,
 AI table or provider call is required for conventional mode.
 

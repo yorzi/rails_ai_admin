@@ -19,8 +19,11 @@ Current code includes explicit resources, fresh host contexts, custom default-de
 policy contracts and an optional Pundit adapter with an explicit policy per
 resource, independent field grants, readonly resources, scalar forms,
 bounded search/sort/pagination, typed inputs, optimistic locking, server-issued
-intents, atomic receipt/audit writes, install/resource generators, doctor and an
-initial TestKit. These capabilities still require host-specific validation.
+intents, atomic receipt/audit writes, closed install/resource scaffolds, schema-only
+commented field suggestions, diagnostic metadata and an initial TestKit with
+anonymous-context and exact field-grant assertions. These capabilities still
+require host-specific validation. Field-grant snapshots do not substitute for
+action/scope checks or constitute an AI exposure report.
 
 Not implemented in this slice: associations, nested attributes, uploads/private
 attachments, imports/exports, batch actions, metrics dashboards, saved views,

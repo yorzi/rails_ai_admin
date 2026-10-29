@@ -19,6 +19,7 @@ The [RDoc reference]({{ '/api/' | relative_url }}) opens on `RailsAiAdmin` and h
 | Configure host adapters | `RailsAiAdmin.configure`, `Configuration` |
 | Carry authenticated authority | `Context` |
 | Declare exposure | `Resource`, `Field`, `Registry` |
+| Inspect schema-only suggestions | `SchemaSuggestions` (no registration or exposure) |
 | Check host policy | `Authorization::Adapter`, `Authorization::PunditAdapter`, `Authorization::Access` |
 | Coerce input | `InputSchema` |
 | Issue/execute intents | `Operations::Runner`, `Operations::Result` |

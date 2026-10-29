@@ -20,8 +20,14 @@ this file records current scope without rewriting its historical review claims.
 - Server-owned intents with input/identity/epoch/version/expiry binding, database
   serialization, replay, atomic domain/audit/receipt, callback rollback handling
   and separate post-commit warning (synchronous parts of RAA-0112/0113).
-- Closed install/resource generators, basic doctor and framework-neutral TestKit
-  assertions (initial RAA-0108/0109/0115; reflected field suggestions still open).
+- Closed install/resource generators with an unregistered example, default-deny
+  policy and runnable anonymous test. Resource schema suggestions remain comments;
+  sensitive/encrypted/relationship/internal fields are omitted. Install checks
+  actual final mount names, drawn routes and constant conflicts before writing.
+- Doctor metadata checks for adapter interfaces/signatures, scalar schema/type
+  compatibility, sensitivity, sortable indexes and default autoloading. TestKit
+  covers anonymous adapters, policy matrices, tenant exclusion and independent
+  field-grant snapshots in both packaged hosts (initial RAA-0108/0109/0115).
 - Prebuilt namespaced assets, CSP nonce, native forms and dirty-form warning;
   two independent consumers installed from the `.gem`: native session/SQLite and
   Devise/Pundit/PostgreSQL, including Propshaft/importmap and Sprockets/jsbundling
@@ -41,11 +47,12 @@ documentation and advisory scanning. No remote CI run has occurred.
 
 Finish the Phase 1 evidence before broadening conventional features:
 
-1. Expand doctor/TestKit and field/schema suggestion diagnostics; finish the
-   asset/browser/CSP matrix beyond the existing Host A Chrome spot checks.
-2. Complete async/outbox and the custom Operation contract before exposing custom
+1. Complete async/outbox and the custom Operation contract before exposing custom
    handlers or claiming all of RAA-0112/0113. Generic callbacks with external effects
    remain unsupported; no in-process retry may create a second business intent.
+2. Finish the asset/browser/CSP matrix beyond the existing Host A Chrome spot
+   checks, layout/theme tokens and configurable host paths. Later TestKit and
+   doctor expansions must cover each new surface; AI exposure reports are open.
 3. Close the initial ADR/threat/requirement traceability and relevant spikes with
    evidence. Add the allowed-failure Rails main prewarning and complete the wider
    CI/security/browser matrices after their prerequisites exist.

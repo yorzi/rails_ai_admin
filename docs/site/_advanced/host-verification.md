@@ -13,7 +13,8 @@ description: Verify your host adapters and installation boundaries with focused 
 After reading this guide, you will know:
 
 * How to run doctor without a provider call.
-* How to assert policy and tenant boundaries from host tests.
+* How to assert anonymous access, actions and tenant boundaries from host tests.
+* How to compare exact independent field grants.
 * Which evidence still needs browser and packaged-host verification.
 
 ## Run Installation Diagnostics
@@ -22,14 +23,36 @@ After reading this guide, you will know:
 bin/rails rails_ai_admin:doctor
 ```
 
-Doctor reports configured context/policy status, connection-pool and optimistic
-locking requirements for registered resources, and unsupported assistant, private
-file and durable-queue capabilities. A configured adapter is marked for review,
-not declared secure merely because its class exists. Error findings fail the task.
-For Pundit resources, doctor also reports whether the explicit policy class and
-its policy-owned/inherited Scope can be resolved. A complete mapping is only
-metadata: it does not prove the Scope, action predicates or field grants are
-correct. Doctor neither probes credentials nor calls providers.
+Doctor reports context/policy public interfaces, connection-pool and optimistic
+locking requirements, schema metadata, sensitive declarations and the default
+host autoload path. It also identifies unimplemented assistant, private-file and
+durable-queue capabilities. A complete interface is marked for review, not
+declared secure merely because its methods exist. Error findings fail the task.
+
+For a context adapter, it checks for public `resolve`; for a policy adapter, public
+`scope`, `allowed?` and `fields`. It also checks that public `.new` accepts no
+arguments and flags obviously incompatible `initialize` and positional/keyword
+method signatures as errors. These are signature checks, not proof that the
+constructor body or adapter behavior is correct. Pundit mapping checks separately resolve the named
+policy and its policy-owned/inherited Scope. None of these metadata checks proves
+anonymous denial, SQL membership, action decisions or field grants.
+
+Schema diagnostics identify declared fields without supported scalar columns
+(including missing, array or unsupported JSON columns). This does not establish
+all Field/database type conversions. `field_types:<resource>` marks obvious scalar
+Field/database mismatches for review; an `ok` metadata result does not prove every
+format, precision or conversion. Sensitivity diagnostics flag naming heuristics
+(including authority-like names) and encrypted attributes for review.
+
+For declared sortable fields, doctor reports missing leading-column indexes;
+check real query plans and tenant-composite indexes yourself. The hint does not
+create an index or establish performance. The default-path check reports whether
+`app/rails_ai_admin` is an autoload root and whether Rails' `RailsAiAdmin` inflection
+is preserved. Custom `host_paths` configuration is not implemented.
+
+Doctor does not call `resolve` to simulate a real anonymous session, sample business
+records, probe credentials, invoke a provider or prove callback safety. Use host
+request tests and the independent TestKit checks below.
 
 ## Assert Host Policy Decisions
 
@@ -57,6 +80,81 @@ Run the same matrix for anonymous users, readers, writers, different tenants and
 revoked sessions. These helpers cover initial access, complete SQL scope and field
 exposure. They do not automatically prove every future export, association, AI
 query or stream. Those features are not present yet.
+
+## Assert the Anonymous Boundary
+
+Installation supplies `test/rails_ai_admin/access_test.rb`. Run it before and
+after replacing the closed generated adapters:
+
+```sh
+bin/rails test test/rails_ai_admin/access_test.rb
+```
+
+It requests the named mount without authenticating and expects an unauthorized
+response. Adapt the test to the host's anonymous session/Devise failure behavior
+when wiring real authentication; do not replace the denied boundary with a
+success assertion merely to make the test pass.
+
+For a direct adapter check, supply a host controller/request object representing
+an anonymous session as `anonymous_controller`:
+
+```ruby
+RailsAiAdmin::TestKit.assert_unauthenticated(
+  adapter: AdminContext.new,
+  controller: anonymous_controller
+)
+```
+
+This helper calls `resolve(controller)` and requires exactly `nil`, not any
+truthy/falsey substitute. It does not make an HTTP request or establish how a real
+session, middleware or redirect behaves. Keep both the direct and request tests.
+
+## Compare Independent Field Grants
+
+Given the administrator context, Customer resource and custom policy shown in the
+configuration guide, compare the exact grants:
+
+```ruby
+expected = {
+  "read" => %w[active id name points],
+  "write" => %w[active name points],
+  "search" => %w[name],
+  "sort" => %w[name]
+}
+RailsAiAdmin::TestKit.assert_field_grants(
+  context: context,
+  resource: CustomerAdmin,
+  record: customer,
+  operation: :update,
+  expected: expected
+)
+```
+
+Use a representative record when field rules depend on record state. The helper
+requires all four groups and compares their exact membership after normalizing
+keys/field names to strings and sorting; it does not treat `expected` as a minimum
+allowlist. An unexpected newly granted field therefore fails the snapshot.
+
+To inspect the same structure without an assertion:
+
+```ruby
+grants = RailsAiAdmin::TestKit.field_grants(
+  context: context,
+  resource: CustomerAdmin,
+  record: customer,
+  operation: :update
+)
+```
+
+The result always has string keys `read`, `write`, `search` and `sort`, with sorted
+field-name string arrays. `operation` accepts `:create` or `:update` and selects
+new/edit write exposure; its default is `:update`. No record values are returned.
+
+These are independent field grants after policy/DSL intersection. The snapshot
+does not apply action permission or SQL membership, and a supplied record is not
+made authorized by producing a snapshot. Keep `assert_access`, `assert_isolated`
+and real requests alongside it. It is not an AI exposure report: assistant tools,
+query capabilities and record projections are separate, unimplemented concerns.
 
 ## Verify Beyond an In-Repository Test App
 

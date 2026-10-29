@@ -18,6 +18,8 @@ After reading this guide, you will know:
 
 ## Resolve an Authenticated Context
 
+Installation generates a closed `AdminContext` and a default-deny
+`AdminPolicyAdapter`; neither automatically connects your existing authentication.
 A context adapter implements one public method, `resolve(controller)`. It returns
 a `RailsAiAdmin::Context` or `nil`. This example assumes a host `User` with an
 `account`, `role` and `security_version`; the gem does not supply these models.
@@ -121,9 +123,28 @@ classes and do not mutate configuration after boot.
 mount RailsAiAdmin::Engine => "/backoffice", as: :rails_ai_admin
 ```
 
-Keep `as: :rails_ai_admin`; request-local log filtering resolves that named mount.
-The path itself can change. This slice supports one mount. It does not install
-login/logout routes or redirect to a guessed host sign-in page.
+Keep exactly one engine mount whose final helper name is `rails_ai_admin`;
+request-local log filtering resolves that name. The path can change, but cannot
+contain dynamic path parameters, and the mount must accept all HTTP verbs. This
+parenthesized spelling is an alternative to the example above, not a second mount:
+
+```ruby
+mount(RailsAiAdmin::Engine, at: "/backoffice", as: "rails_ai_admin")
+```
+
+Installation inspects the target host's actual loaded RouteSet. A route defined
+through `draw :admin`, `self.mount` or another valid Rails spelling is assessed by
+its resulting engine endpoint, path parts, verbs and final helper name. It does
+not parse source or require literal-only Ruby syntax. A namespace that prefixes
+the helper to `staff_rails_ai_admin`, for example, is unsupported even when the
+inner declaration says `as: :rails_ai_admin`.
+
+Run the installer inside the target Rails application so that its root and loaded
+routes match the destination. Other aliases, prefixed helper names, dynamic
+parameters, verb restrictions and multiple admin mounts are rejected before
+writing. When no admin mount exists, a different route occupying the
+`rails_ai_admin` name is also rejected. The engine does not install login/logout
+routes or redirect to a guessed host sign-in page.
 
 ## Next Steps
 

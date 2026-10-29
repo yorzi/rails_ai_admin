@@ -50,16 +50,43 @@ bin/rails generate rails_ai_admin:resource Customer
 bin/rails rails_ai_admin:doctor
 ```
 
-The install generator copies conventional execution/audit migrations, a configuration
-initializer and `app/rails_ai_admin/admin_context.rb`. It mounts the engine at
-`/admin` with the name `rails_ai_admin`. The generated context returns `nil`, the
-default policy denies every action, and the resource generator emits a readonly
-resource exposing only its ID. An authenticated host user receives no automatic
-permission.
+The install generator copies conventional execution/audit migrations, a
+configuration initializer, a closed `AdminContext`, a default-deny
+`AdminPolicyAdapter`, an unregistered `ExampleAdmin`, and an anonymous request test
+at `test/rails_ai_admin/access_test.rb`. It adds the `/admin` mount named
+`rails_ai_admin` when the host has no existing admin engine mount. The generated
+context returns `nil`; the generated policy grants no actions or fields. An
+authenticated host user receives no automatic permission.
 
 The generator does not create users, roles, provider settings or assistant tables.
-It leaves existing conflicting files for your review; do not force an overwrite
-of a configured host adapter.
+It preserves an existing policy scaffold, example declaration or anonymous test,
+even with `--force`. The initializer and `AdminContext` still use normal generator
+conflict handling: `--force` can overwrite those files. Review them before rerunning
+installation; do not treat the force option as a safe merge of real authentication.
+Conflicting scaffold constants loaded from other paths are rejected before writing.
+Run installation inside the target Rails application: its actual loaded RouteSet
+is checked before writing. The destination must match that application's root;
+pointing the generator at another directory is refused. The check handles drawn
+route files and the final names produced by namespace/self.mount syntax, rather
+than parsing a particular Ruby source spelling.
+
+Only one admin engine mount is supported, with final helper name `rails_ai_admin`,
+a path without dynamic parameters, and all HTTP verbs. A static custom path is
+retained. Other aliases, namespace-generated helper prefixes, dynamic parameters,
+verb restrictions or multiple admin mounts are rejected before files are written.
+If no admin mount exists but another route already owns the `rails_ai_admin` name,
+installation refuses the collision rather than adding a conflicting route.
+
+The setup message points to the installed gem's actual README file; there is no
+hosted documentation URL yet. `ExampleAdmin` is an unregistered declaration to
+review, not a discovered business model or live endpoint. The generated test checks
+the anonymous HTTP boundary; run it before and after adapting authentication:
+
+```sh
+bin/rails test test/rails_ai_admin/access_test.rb
+```
+
+A passing anonymous test does not prove a logged-in policy or tenant boundary.
 
 ## Connect Host Authority
 
@@ -77,9 +104,23 @@ end
 Use class name strings. Initializers run once, while Rails can reload host classes.
 Configuration freezes after initialization; the registry rebuilds in `to_prepare`.
 
-## Enable Reviewed Fields
+## Review Suggested Fields
 
-Replace the generated resource after reviewing the host model and policy:
+`rails_ai_admin:resource Customer` emits a readonly resource with only its ID
+enabled, and does not register it. If schema metadata is available, supported
+scalar columns appear as commented suggestions. Sensitive names, encrypted
+attributes, foreign keys and polymorphic foreign-type columns, the STI inheritance
+column, `lock_version`, authority-like names such as `role`, `permission` and
+`security_version`, and unsupported column types are excluded.
+The generator reads schema metadata, not sample records or business values.
+
+An unknown model or an unavailable/unmigrated table does not cause automatic
+exposure: the generator leaves the safe readonly declaration without relying on
+suggestions. Review field meaning and host policy yourself; a harmless column name
+is not proof that its contents are nonsensitive.
+
+After reviewing the model and policy, replace the generated declaration and
+register it deliberately:
 
 ```ruby
 # app/rails_ai_admin/customer_admin.rb

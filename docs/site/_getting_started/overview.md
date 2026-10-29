@@ -46,7 +46,10 @@ an outer transaction is not committed until that outer transaction commits.
 The current development slice supplies scalar conventional CRUD, custom and
 optional explicitly mapped Pundit policies, bounded index queries, server-issued
 form intents, execution/audit records, install/resource generators and initial
-host verification helpers. An independent packaged Devise/Pundit/PostgreSQL host
+host verification helpers. Schema field suggestions remain comments in an
+unregistered readonly resource. Doctor and field-grant snapshots inspect
+configuration/permissions; they do not prove authentication or AI-visible data.
+An independent packaged Devise/Pundit/PostgreSQL host
 exercises a different authentication, model, policy and asset configuration from
 the native-session SQLite host. These are author-controlled synthetic consumers,
 not independent users or production adoption.
