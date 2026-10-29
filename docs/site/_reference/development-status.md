@@ -24,7 +24,10 @@ commented field suggestions, diagnostic metadata and an initial TestKit with
 anonymous-context and exact field-grant assertions. The code also implements
 registered synchronous member operations, pure/input-bound confirmation, separate
 operation-input/receipt/delivery grants and a typed durable outbox with stable
-request binding, leases and bounded recovery. These capabilities still
+request binding, leases and bounded recovery. Fixed Selection manifests now
+capture/revalidate up to 100 explicit canonical IDs and record versions through
+separate default-deny selection permission and native no-JavaScript previews.
+These capabilities still
 require host-specific validation. Field-grant snapshots do not substitute for
 action/scope checks or constitute an AI exposure report.
 
@@ -36,6 +39,13 @@ Chat, provider calls, Surface dispatch and continuation. ActionPolicy integratio
 and advanced field plugins remain future work. Host-owned Devise authentication
 is demonstrated in a packaged consumer; the engine does not provide accounts or
 login routes.
+
+Fixed selections persist only owner/contract/count/digest/expiry and target
+ID/version/position metadata. They do not persist queries, labels or business
+payload, create OperationRun/audit/job records, approve an operation or implement
+collection admission/execution. They are a prerequisite for the planned
+asynchronous batch workflows, not a narrowed replacement for that scope. See
+[Fixed Selections]({% link _core_features/selections.md %}) for current boundaries.
 
 Durable Work delivers one declared effect for an already committed operation.
 The host must schedule scans, rebuild current authority and verify the actual

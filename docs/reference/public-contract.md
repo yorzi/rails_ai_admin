@@ -154,3 +154,33 @@ actual request tests. A field snapshot is not an AI exposure
 report and does not return/serialize record values or establish that the actor
 can access the supplied record. Record-dependent host policies can still inspect
 the supplied record when computing their field grants.
+
+
+## Fixed target selections
+
+`Selections::Builder#capture(context:, resource:, target_ids:)` persists at most
+100 distinct canonical IDs and their current `lock_version`. The resource must be
+registered and use the same SQLite/PostgreSQL pool as the Selection tables, a single
+integer/string/UUID primary key and standard optimistic locking. The separate
+`select_records?(context:, resource:)` grant defaults to false. Pundit calls
+`select_records?` on the explicitly mapped policy with the resource model class.
+Current index/show/SQL scope rules also apply; read/write grants imply no selection
+capability. Qualified primary-key subqueries deduplicate authorized joins before
+bounding the outer lookup, including models containing PostgreSQL JSON columns.
+
+`#revalidate(context:, selection_ref:, resource: nil, manifest_digest: nil)` returns
+a fresh safe snapshot after checking owner, tenant, security epoch, expiry,
+resource/model/table/key fingerprint, stored membership digest, current target
+versions and permissions. It recomputes permitted bounded labels; persisted rows
+contain only identity/version metadata. Invalid manifests are internal
+configuration errors, not permission to rebuild targets from a query. UUIDs and
+digests identify a stored snapshot; neither is business approval. Revalidation is
+a check at read time and does not lock targets for a future action.
+
+Native `POST /:resource/selections` captures checked IDs and redirects with 303 to
+`GET /selections/:selection_ref`. These forms work without JavaScript. Selection
+expiry or identity/epoch/digest changes give controlled 409 responses; missing or
+inaccessible targets remain generic 404. Normal capture/view creates no
+OperationRun, business audit or WorkItem. Collection preflight/admission, 10,000-item
+async manifests, cancellation, cleanup and job execution remain roadmap work.
+See the Fixed Selections guide for exact snapshot fields and host examples.

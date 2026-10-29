@@ -6,12 +6,12 @@ CI configuration is not a completed CI run; no production support is declared.
 | Component / combination | Evidence |
 | --- | --- |
 | Ruby 4.0.9, Rails 8.1.4, JSON 3.1.0, macOS arm64 | Local core and request suites executed |
-| SQLite (`sqlite3` 2.10.2) | 115 tests / 601 assertions, including scalar read guards, pure operation previews, receipt replay, outbox fencing, request fingerprints, schema suggestions, installer preservation and atomic rollback |
-| PostgreSQL 17.11 (`pg` 1.7.0), same Ruby/Rails | 115 tests / 601 assertions, including native UUID targets, same-pool delivery checks, operation/outbox contracts, contention and atomic rollback |
-| Packaged session / SQLite consumer, Propshaft 1.3.2, host importmap 2.2.3 | Actual `.gem` install, closed generated context, install rerun, schema suggestions with no automatic exposure, login/CSRF/CRUD/custom-operation confirmation/replay plus host TestKit matrix (3 tests / 48 assertions), generated anonymous HTTP test (1 / 1), doctor, Zeitwerk, production eager load and precompile |
-| Prebuilt Turbo 8.0.23 / Stimulus 3.2.2 | Reproducible esbuild output; Chrome login/list/show/form validation/save checked; nonce CSP without unsafe-inline; 320px and desktop CRUD spot checks; packaged Sprockets Host B custom-operation Turbo Stream review and explicit confirmation checked in Chrome at 500px, with no console/CSP errors |
+| SQLite (`sqlite3` 2.10.2) | 138 tests / 750 assertions, including fixed selections/current-authority manifests, table/key identity guards, pure operation previews, receipt replay, outbox fencing, request fingerprints, schema suggestions, installer preservation and atomic rollback |
+| PostgreSQL 17.11 (`pg` 1.7.0), same Ruby/Rails | 138 tests / 750 assertions, including native UUID selections/targets, authorized joins/includes, same-pool delivery checks, operation/outbox contracts, contention and atomic rollback |
+| Packaged session / SQLite consumer, Propshaft 1.3.2, host importmap 2.2.3 | Actual `.gem` install, closed generated context, install rerun, schema suggestions with no automatic exposure, login/CSRF/CRUD, native fixed-selection capture/revocation, custom-operation confirmation/replay plus host TestKit matrix (4 tests / 58 assertions), generated anonymous HTTP test (1 / 1), doctor, Zeitwerk, production eager load and precompile |
+| Prebuilt Turbo 8.0.23 / Stimulus 3.2.2 | Reproducible esbuild output; Chrome login/list/show/form validation/save checked; nonce CSP without unsafe-inline; 320px and desktop CRUD spot checks; packaged Sprockets Host B custom-operation Turbo Stream review and explicit confirmation checked in Chrome at 500px, with no console/CSP errors; fixed-selection checkbox capture/303/current preview checked in the packaged Sprockets host at 500px with scrolling confined to the table |
 | Ruby 3.4 and Linux | CI configured; not executed locally or remotely yet |
-| Independent packaged Host B: Devise 5.0.4 / Pundit 2.5.2 / PostgreSQL | Real login/CSRF/logout/timeout, role/tenant grants, UUID replay, custom-operation grants/receipts, synthetic outbox effects, alias scope, product SDK coexistence and TestKit matrix: 14 tests / 136 assertions; generated anonymous HTTP test (1 / 1). Existing mount in a `draw` route file preserved |
+| Independent packaged Host B: Devise 5.0.4 / Pundit 2.5.2 / PostgreSQL | Real login/CSRF/logout/timeout, role/tenant grants, UUID replay/selection, independent selection grants, custom-operation grants/receipts, synthetic outbox effects, alias scope, product SDK coexistence and TestKit matrix: 15 tests / 149 assertions; generated anonymous HTTP test (1 / 1). Existing mount in a `draw` route file preserved |
 | Host B Propshaft 1.3.2 or Sprockets 4.4.1 / sprockets-rails 3.5.2, jsbundling-rails 1.3.1 | Both production precompiles and eager boots passed; host esbuild 0.25.12 bundle built; each variant passed Host B acceptance. These are two variants of one host |
 | Host B development reload and process recovery | Real source reload replaced model/resource/policy/context/Operation/Work classes and registries; killed precommit transaction rolled back domain/claim/audit; response-loss replay returned one receipt. Separate worker processes died before/after synthetic effects: expired-lease idempotent replay applied once, non-idempotent pre-effect retry succeeded, and unknown non-idempotent outcome required reconciliation without resend |
 | Real providers / persisted Chat / Surface / continuation | Not implemented or tested; no paid calls |
@@ -40,7 +40,9 @@ trusted Ruby, with bounded metadata and cooperative checks, not a sandbox or har
 execution timeout. External retry safety requires the downstream to honor the
 stable delivery key; tests use a synthetic file-backed receiver, not a real provider.
 Policy scopes reject limit/offset/select/
-group/having/from rather than risk widening membership. Host SQL debug logs,
+group/having/from rather than risk widening membership. Fixed selections currently support explicit capture/preview only, at most 100
+targets; no collection admission or 10,000-item async materialization is supplied.
+Host SQL debug logs,
 custom instrumentation and callback side effects remain host responsibilities.
 
 Chrome spot checks are not complete accessibility, browser or responsive

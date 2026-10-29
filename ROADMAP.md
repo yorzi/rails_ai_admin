@@ -28,6 +28,11 @@ this file records current scope without rewriting its historical review claims.
   and fencing generations. Unknown non-idempotent effects require reconciliation;
   pending scans recover queue loss. These are follow-up effects, not asynchronous
   business execution or a complete job center (further RAA-0112/0113 evidence).
+- Fixed Selection manifests with canonical ID/version membership, owner/tenant/
+  epoch/expiry and stable model/table/key fingerprints. Native capture/preview,
+  independent selection grants and current-authority revalidation are implemented.
+  No collection admission, batch mutation or job approval is supplied yet
+  (prerequisite portions of RAA-0305/0312).
 - Closed install/resource generators with an unregistered example, default-deny
   policy and runnable anonymous test. Resource schema suggestions remain comments;
   sensitive/encrypted/relationship/internal fields are omitted. Install checks
@@ -53,10 +58,11 @@ documentation and advisory scanning. No remote CI run has occurred.
 
 ## Next implementation checkpoint
 
-Finish the Phase 1 evidence before broadening conventional features:
+Continue the shared execution contracts while the full Phase 1 evidence remains open:
 
 1. Extend the shared Operation contract to collection/global actions, custom CRUD
-   replacement and asynchronous business execution, including bounded selections,
+   replacement and asynchronous business execution. Bind the implemented bounded
+   selection manifest to one parent approval, then add
    item-level fencing/cancellation and job/result views. Keep reconciliation and
    downstream delivery guarantees distinct. External effects in domain callbacks
    remain unsupported; retries cannot create a second business intent.

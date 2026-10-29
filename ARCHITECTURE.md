@@ -15,7 +15,8 @@ Rails `to_prepare` replaces resource, Operation and Work registries after reload
 All business writes use the operation runner. Domain records, intents, audit and
 outbox rows share one Active Record connection pool. Default CRUD and explicitly
 registered member Operations use that boundary, typed inputs, current grants,
-human intent evidence and `lock_version`. Custom writes that change the target
+human intent evidence and `lock_version`. Intents bind stable model/table/primary-key
+identity; remapping those IDs invalidates old intents rather than redirecting them. Custom writes that change the target
 must advance its version. Host Ruby and callbacks are trusted code; declaration
 checks and ordinary AR guards do not create a plugin sandbox.
 
@@ -32,6 +33,14 @@ Idempotent replay still requires downstream cooperation. Non-idempotent unknown
 outcomes and incompatible queued work remain for reconciliation. Host-scheduled
 pending scans close the after-commit/queue-loss window. Delivery is distinct from
 the already committed business result. See ADR 0006 and the operation contract.
+
+Fixed Selections capture at most 100 distinct canonical IDs and lock versions.
+Immutable manifest rows retain owner/tenant/security epoch, stable model/table/key
+identity, digest and expiry; they retain neither a query to expand later nor labels.
+Current scope/show/field and independent selection authority apply on every view.
+Joined scopes are deduplicated by authorized primary keys inside SQL before the
+outer bound. Selection capture creates no approval, business run, audit or work.
+Collection admission must later bind its exact digest, inputs and operation version.
 
 Collection/global actions, custom CRUD replacement, asynchronous business
 execution, cross-pool atomicity and external calls in domain transactions remain

@@ -4,8 +4,8 @@ A self-hosted Rails admin engine with explicitly registered resources and one
 policy-checked, audited execution boundary for conventional CRUD.
 
 **Unreleased development.** Current code supplies scalar conventional CRUD,
-synchronous member operations and a durable outbox for one declared post-commit
-effect. Chat, trusted Surfaces, associations, CSV, private files, batch actions,
+synchronous member operations, fixed Selection previews and a durable outbox for
+one declared post-commit effect. Chat, trusted Surfaces, associations, CSV, private files, batch actions,
 metrics dashboards and asynchronous business execution remain future work. The
 development plan describes the target product, not the supported feature set.
 
@@ -128,6 +128,21 @@ before enabling a real transport. Preflight's Active Record write guard is not a
 trusted-Ruby sandbox, and operation duration checks do not hard-interrupt Ruby/SQL.
 Collection/global operations, CRUD handler replacement, async business execution
 and AI/Surface dispatch remain unavailable; complete release Gates remain open.
+
+## Fixed Selection Previews
+
+A separate default-deny `select_records?` grant enables native index checkboxes
+and a no-JavaScript preview of up to 100 explicit targets. `Selections::Builder`
+captures exact canonical IDs/versions and revalidates ownership, security version,
+expiry, resource contract and current record/field grants. Newly matching records
+or same-count replacements cannot expand a captured manifest. Labels are freshly
+projected; only IDs/versions/positions and parent binding metadata are persisted.
+
+Capture is not operation approval and creates no OperationRun, business audit,
+Work item or job. There is no collection execution/admission API yet. This is the
+fixed-target prerequisite for the full planned async batch workflow; complete
+scope and release Gates remain required. See
+[Fixed Selections](docs/site/_core_features/selections.md).
 
 ## Read the Contracts
 

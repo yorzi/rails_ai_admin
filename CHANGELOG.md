@@ -27,6 +27,11 @@
   getters, preventing accidental mutating-method calls during readonly display.
   Normal attribute getter overrides remain trusted host code.
 
+- Add immutable fixed selections with independent default-deny grants, canonical
+  target/version manifests, native capture/preview and fresh revalidation.
+- Bind operation/selection identity to the physical table and primary-key contract,
+  preventing stale references from changing meaning after a model remapping.
+
 Assistant/Surface adapters, collection/global actions, custom CRUD replacement,
 asynchronous business execution, associations, files,
 batch, CSV and metrics dashboards are not implemented. Release gates remain open.
