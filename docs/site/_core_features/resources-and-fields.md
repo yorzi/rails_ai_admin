@@ -46,6 +46,12 @@ at boot. The current types are `id`, `text`, `textarea`, `integer`, `decimal`,
 `boolean`, `date`, `datetime` and `enum`. Money, associations, files, virtual fields
 and custom field registration are not implemented.
 
+The runtime checks that a scalar projection or title names a model attribute
+before calling its getter. The single primary-key `id` alias is also supported.
+A method such as `destroy` cannot become a display field through a declaration;
+a missing attribute raises `ConfigurationError`. Overrides of real attribute
+getters remain trusted host Ruby and must be safe to read.
+
 When using Pundit, also declare an explicit `policy "CustomerPolicy"` class name.
 The adapter does not infer a policy from the model or reuse an alias policy.
 The policy name is optional for a custom adapter that supplies its own decisions.

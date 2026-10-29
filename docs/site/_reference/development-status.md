@@ -21,17 +21,26 @@ resource, independent field grants, readonly resources, scalar forms,
 bounded search/sort/pagination, typed inputs, optimistic locking, server-issued
 intents, atomic receipt/audit writes, closed install/resource scaffolds, schema-only
 commented field suggestions, diagnostic metadata and an initial TestKit with
-anonymous-context and exact field-grant assertions. These capabilities still
+anonymous-context and exact field-grant assertions. The code also implements
+registered synchronous member operations, pure/input-bound confirmation, separate
+operation-input/receipt/delivery grants and a typed durable outbox with stable
+request binding, leases and bounded recovery. These capabilities still
 require host-specific validation. Field-grant snapshots do not substitute for
 action/scope checks or constitute an AI exposure report.
 
 Not implemented in this slice: associations, nested attributes, uploads/private
 attachments, imports/exports, batch actions, metrics dashboards, saved views,
-custom operation handlers, durable background operations, assistant installation,
+collection/global custom operations, custom CRUD handler replacement, asynchronous
+business execution, general reconciliation UI, assistant installation,
 Chat, provider calls, Surface dispatch and continuation. ActionPolicy integration
 and advanced field plugins remain future work. Host-owned Devise authentication
 is demonstrated in a packaged consumer; the engine does not provide accounts or
 login routes.
+
+Durable Work delivers one declared effect for an already committed operation.
+The host must schedule scans, rebuild current authority and verify the actual
+downstream idempotency/unknown-outcome protocol. It does not prove downstream
+exactly-once behavior or complete the asynchronous-workflow roadmap.
 
 The checkout's `COMPATIBILITY.md` and `ROADMAP.md` identify executed evidence and
 remaining milestones. In-repository tests, packaged-consumer tests, actual browser

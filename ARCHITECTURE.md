@@ -10,12 +10,32 @@ widen a policy decision. No arbitrary constant, SQL or template comes from input
 A host context adapter returns a fresh `Context` for each request. References
 include the `raa:` namespace, object type and key. There is no mutable global
 Current context. Configuration stores host class names and freezes after boot;
-Rails `to_prepare` replaces the entire resource registry after reload.
+Rails `to_prepare` replaces resource, Operation and Work registries after reload.
 
-All writes must use the operation runner. Domain records, intents and audit events
-must share the same Active Record connection pool. The first slice supports
-synchronous database-only CRUD with `lock_version`. Cross-pool writes, callbacks
-with external effects and custom operations are unsupported in this slice.
+All business writes use the operation runner. Domain records, intents, audit and
+outbox rows share one Active Record connection pool. Default CRUD and explicitly
+registered member Operations use that boundary, typed inputs, current grants,
+human intent evidence and `lock_version`. Custom writes that change the target
+must advance its version. Host Ruby and callbacks are trusted code; declaration
+checks and ordinary AR guards do not create a plugin sandbox.
+
+Custom input-bound preflight feeds a native confirmation page. Independent
+receipt authority permits a successful replay after the command's business
+precondition stops being true, while current read/scope rules still constrain
+output. Invalid committed replays disclose no input schema details.
+
+Outbox delivery follows commit. Every attempt reconstructs job identity and uses
+independent delivery authority. Finite leases, owner/generation fencing and stable
+keys protect the framework's receipts. One explicit effect per item binds a plain
+JSON request fingerprint; ordinary AR business writes are prevented in delivery.
+Idempotent replay still requires downstream cooperation. Non-idempotent unknown
+outcomes and incompatible queued work remain for reconciliation. Host-scheduled
+pending scans close the after-commit/queue-loss window. Delivery is distinct from
+the already committed business result. See ADR 0006 and the operation contract.
+
+Collection/global actions, custom CRUD replacement, asynchronous business
+execution, cross-pool atomicity and external calls in domain transactions remain
+unimplemented/unsupported; they remain requirements in the full plan.
 
 RubyLLM and rails_tool_views are bounded runtime dependencies. Conventional boot
 must not load the experimental adapter, require AI tables or call a provider.

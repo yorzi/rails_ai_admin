@@ -25,8 +25,9 @@ bin/rails rails_ai_admin:doctor
 
 Doctor reports context/policy public interfaces, connection-pool and optimistic
 locking requirements, schema metadata, sensitive declarations and the default
-host autoload path. It also identifies unimplemented assistant, private-file and
-durable-queue capabilities. A complete interface is marked for review, not
+host autoload path. It identifies unimplemented assistant/private-file capability
+and reports registered Work, its auto-dispatch setting and required scan/queue
+review. Work does not establish asynchronous business execution. A complete interface is marked for review, not
 declared secure merely because its methods exist. Error findings fail the task.
 
 For a context adapter, it checks for public `resolve`; for a policy adapter, public
@@ -49,6 +50,11 @@ check real query plans and tenant-composite indexes yourself. The hint does not
 create an index or establish performance. The default-path check reports whether
 `app/rails_ai_admin` is an autoload root and whether Rails' `RailsAiAdmin` inflection
 is preserved. Custom `host_paths` configuration is not implemented.
+
+For registered Work, doctor also checks the job-context resolver interface and
+flags delivery/receipt policy review. For custom operations it validates handler
+metadata and declared atomic-model pools; neither proves preflight purity,
+external-effect safety or a hard deadline.
 
 Doctor does not call `resolve` to simulate a real anonymous session, sample business
 records, probe credentials, invoke a provider or prove callback safety. Use host
@@ -154,7 +160,9 @@ These are independent field grants after policy/DSL intersection. The snapshot
 does not apply action permission or SQL membership, and a supplied record is not
 made authorized by producing a snapshot. Keep `assert_access`, `assert_isolated`
 and real requests alongside it. It is not an AI exposure report: assistant tools,
-query capabilities and record projections are separate, unimplemented concerns.
+query capabilities and record projections are separate concerns. Custom operation
+inputs, receipt reads and Work delivery also have independent grants outside this
+four-group snapshot. Test them through their own operation/delivery paths.
 
 ## Verify Beyond an In-Repository Test App
 
@@ -204,8 +212,15 @@ Consult the checkout's `COMPATIBILITY.md` for final executed combinations; test
 source and configured scripts alone are not proof that a run passed. Full release
 Gates A through E remain open.
 
+When enabling custom operations/Work, additionally exercise input-bound preflight,
+replay after a successful state transition, revoked receipt/delivery permissions,
+missed enqueue recovery and unknown downstream outcomes. A stable mock receipt
+does not prove a real downstream system honors its delivery key. Consult the
+[Outbox contract]({% link _advanced/durable-outbox.md %}) before making that claim.
+
 ## Next Steps
 
+* [Durable Outbox]({% link _advanced/durable-outbox.md %}) defines scanning, fencing and reconciliation boundaries.
 * [Pundit and Devise]({% link _advanced/pundit-and-devise.md %}) documents the host integration contract.
 * [Data and Security]({% link _advanced/data-and-security.md %}) describes operational constraints.
 * [Development Status]({% link _reference/development-status.md %}) keeps release gates distinct from tests.

@@ -30,13 +30,14 @@ field and read action are authorized, otherwise a safe record reference is used.
 
 ## Share One Write Boundary
 
-Ordinary create, update and delete forms call `Operations::Runner`. The runner
+Ordinary create/update/delete and registered member-operation forms call
+`Operations::Runner`. The runner
 checks the current authority, input schema and expected record version, then
-commits the domain change, human confirmation, operation receipt and audit in one
-database transaction. The engine does not call `update_all` or `delete_all` for
+commits the domain change, human confirmation, operation receipt, audit and any
+outbox intent in one database transaction. The engine does not call `update_all` or `delete_all` for
 generic domain CRUD.
 
-Domain models, `OperationRun` and `AuditEvent` must share the same Active Record
+Domain models, `OperationRun`, `AuditEvent` and `WorkItem` must share one Active Record
 connection pool. Matching database addresses alone is insufficient. A framework
 savepoint can isolate an operation within a caller's transaction; a result inside
 an outer transaction is not committed until that outer transaction commits.
@@ -45,7 +46,9 @@ an outer transaction is not committed until that outer transaction commits.
 
 The current development slice supplies scalar conventional CRUD, custom and
 optional explicitly mapped Pundit policies, bounded index queries, server-issued
-form intents, execution/audit records, install/resource generators and initial
+form intents, typed synchronous member operations, independent operation-input
+and receipt grants, durable post-commit Work intent, execution/audit records,
+install/resource generators and initial
 host verification helpers. Schema field suggestions remain comments in an
 unregistered readonly resource. Doctor and field-grant snapshots inspect
 configuration/permissions; they do not prove authentication or AI-visible data.
@@ -55,16 +58,23 @@ the native-session SQLite host. These are author-controlled synthetic consumers,
 not independent users or production adoption.
 
 It does not implement the full development plan. Associations, CSV, private files,
-batch operations, dashboards with metrics, saved views, asynchronous operations,
-custom operation handlers, Chat and Surface workflows remain later milestones.
+batch operations, dashboards with metrics, saved views, collection/global actions,
+custom CRUD overrides, asynchronous business execution, Chat and Surface workflows
+remain later milestones. Work delivers a committed fact after the domain
+transaction; it is not a parallel asynchronous business-operation path.
 
 RubyLLM and `rails_tool_views` are installed bounded dependencies. Their presence
 does not mean the admin has integrated their runtime features. Ordinary mode does
 not install AI tables, configure providers or require a model key. There is no
 `config.ai` API or assistant install generator in this slice.
 
+Outbox delivery has its own fresh context/permission, record-version policy,
+deadline, lease and receipt. It requires recurring host scans and real downstream
+idempotency; a database row or an after-commit hook is not exactly-once proof.
+
 ## Next Steps
 
 * [Resources and Fields]({% link _core_features/resources-and-fields.md %}) shows the supported DSL.
+* [Durable Outbox]({% link _advanced/durable-outbox.md %}) explains post-commit effects and recovery.
 * [Dependency Contracts]({% link _reference/dependency-contracts.md %}) records integration boundaries.
 * [Development Status]({% link _reference/development-status.md %}) distinguishes implementation from release gates.

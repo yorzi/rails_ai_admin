@@ -3,17 +3,18 @@
 A self-hosted Rails admin engine with explicitly registered resources and one
 policy-checked, audited execution boundary for conventional CRUD.
 
-**Unreleased development.** Scalar conventional CRUD is the first implementation
-slice. Chat, trusted Surfaces, associations, CSV, private files, batch actions,
-metrics dashboards and background operations remain future work. The development
-plan describes the target product, not the supported feature set.
+**Unreleased development.** Current code supplies scalar conventional CRUD,
+synchronous member operations and a durable outbox for one declared post-commit
+effect. Chat, trusted Surfaces, associations, CSV, private files, batch actions,
+metrics dashboards and asynchronous business execution remain future work. The
+development plan describes the target product, not the supported feature set.
 
 The engine supports custom policy adapters and an optional Pundit adapter with
 explicit policy mappings per resource. The host owns authentication, tenants,
 policies and domain data. Missing context or policy grants deny access. Generic writes require standard `lock_version`
 optimistic locking and the same Active Record connection pool for domain records,
-operation receipts and audit. Resources with irreversible callback effects should
-remain readonly.
+operation receipts, audit and Work items. Resources with irreversible callback
+effects should remain readonly until their host boundary is redesigned and tested.
 
 ## Develop
 
@@ -94,6 +95,39 @@ prefixes. Other helper names, dynamic path parameters and multiple mounts are
 rejected. Admin CSS/ESM are
 prebuilt in the gem, so a host does not need Node to compile them. No provider key,
 AI table or provider call is required for conventional mode.
+
+## Custom Operations and Follow-Up Delivery
+
+Register a `RailsAiAdmin::Operation` on a resource for a synchronous member command.
+Its native input form leads to input-bound preflight and a separate human
+confirmation, using the same Runner/receipt/audit transaction as CRUD. Operation
+inputs, committed-receipt reads and follow-up delivery have independent grants;
+ordinary editable-field permissions do not grant them. Successful custom receipt
+replay compares its already bound schema/input digest, not current input grants;
+failed or changed replay input returns a generic conflict without field errors.
+See the
+[Operation guide](docs/site/_core_features/operations.md).
+
+`RailsAiAdmin::Work` reuses the input DSL for post-commit delivery. Registered
+`config.work_handlers` persist bounded payload/digest intent through
+`context.outbox.enqueue`. Work performs one declared `context.effect(request:)`
+using a stable downstream delivery key and a dedicated digest of its plain JSON
+wire request. Typed values must be serialized first; normalized key collisions,
+nonfinite floats and unsupported objects are rejected. Ordinary Active Record
+writes in Work/effect execution are guarded, while trusted Ruby remains outside
+a sandbox. A successful business result does not
+mean the effect finished. Outbox auto-dispatch defaults to false; the host must
+schedule `rails_ai_admin:work:scan` or bounded `work:drain` recovery. Optional
+after-commit enqueue is only an accelerator.
+
+The default exact record-version policy stops delivery after later record edits.
+Unknown non-idempotent effects require reconciliation rather than automatic
+retry. Leases/fencing and persistent payloads do not establish downstream
+exactly-once execution. Read the [Durable Outbox guide](docs/site/_advanced/durable-outbox.md)
+before enabling a real transport. Preflight's Active Record write guard is not a
+trusted-Ruby sandbox, and operation duration checks do not hard-interrupt Ruby/SQL.
+Collection/global operations, CRUD handler replacement, async business execution
+and AI/Surface dispatch remain unavailable; complete release Gates remain open.
 
 ## Read the Contracts
 

@@ -6,14 +6,14 @@ CI configuration is not a completed CI run; no production support is declared.
 | Component / combination | Evidence |
 | --- | --- |
 | Ruby 4.0.9, Rails 8.1.4, JSON 3.1.0, macOS arm64 | Local core and request suites executed |
-| SQLite (`sqlite3` 2.10.2) | 78 tests / 386 assertions, including schema-only suggestions, installer preflight/preservation, adapter diagnostics, Pundit scopes, contention and atomic rollback |
-| PostgreSQL 17.11 (`pg` 1.7.0), same Ruby/Rails | 78 tests / 386 assertions, including real foreign-key metadata, native UUID targets, separate-intent contention and cross-pool rejection |
-| Packaged session / SQLite consumer, Propshaft 1.3.2, host importmap 2.2.3 | Actual `.gem` install, closed generated context, install rerun, schema suggestions with no automatic exposure, login/CSRF/CRUD/replay plus host TestKit matrix (2 tests / 35 assertions), generated anonymous HTTP test (1 / 1), doctor, Zeitwerk, production eager load and precompile |
-| Prebuilt Turbo 8.0.23 / Stimulus 3.2.2 | Reproducible esbuild output; Chrome login/list/show/form validation/save checked; nonce CSP without unsafe-inline; 320px and desktop spot checks |
+| SQLite (`sqlite3` 2.10.2) | 115 tests / 601 assertions, including scalar read guards, pure operation previews, receipt replay, outbox fencing, request fingerprints, schema suggestions, installer preservation and atomic rollback |
+| PostgreSQL 17.11 (`pg` 1.7.0), same Ruby/Rails | 115 tests / 601 assertions, including native UUID targets, same-pool delivery checks, operation/outbox contracts, contention and atomic rollback |
+| Packaged session / SQLite consumer, Propshaft 1.3.2, host importmap 2.2.3 | Actual `.gem` install, closed generated context, install rerun, schema suggestions with no automatic exposure, login/CSRF/CRUD/custom-operation confirmation/replay plus host TestKit matrix (3 tests / 48 assertions), generated anonymous HTTP test (1 / 1), doctor, Zeitwerk, production eager load and precompile |
+| Prebuilt Turbo 8.0.23 / Stimulus 3.2.2 | Reproducible esbuild output; Chrome login/list/show/form validation/save checked; nonce CSP without unsafe-inline; 320px and desktop CRUD spot checks; packaged Sprockets Host B custom-operation Turbo Stream review and explicit confirmation checked in Chrome at 500px, with no console/CSP errors |
 | Ruby 3.4 and Linux | CI configured; not executed locally or remotely yet |
-| Independent packaged Host B: Devise 5.0.4 / Pundit 2.5.2 / PostgreSQL | Real login/CSRF/logout/timeout, role/tenant grants, UUID replay, alias scope, product SDK coexistence and TestKit matrix: 11 tests / 103 assertions; generated anonymous HTTP test (1 / 1). Existing mount in a `draw` route file preserved |
+| Independent packaged Host B: Devise 5.0.4 / Pundit 2.5.2 / PostgreSQL | Real login/CSRF/logout/timeout, role/tenant grants, UUID replay, custom-operation grants/receipts, synthetic outbox effects, alias scope, product SDK coexistence and TestKit matrix: 14 tests / 136 assertions; generated anonymous HTTP test (1 / 1). Existing mount in a `draw` route file preserved |
 | Host B Propshaft 1.3.2 or Sprockets 4.4.1 / sprockets-rails 3.5.2, jsbundling-rails 1.3.1 | Both production precompiles and eager boots passed; host esbuild 0.25.12 bundle built; each variant passed Host B acceptance. These are two variants of one host |
-| Host B development reload and process recovery | Real source change/reload replaced model/resource/policy/context and registry; killed precommit transaction rolled back domain/claim/audit; fresh-process retry after committed response loss returned one durable receipt |
+| Host B development reload and process recovery | Real source reload replaced model/resource/policy/context/Operation/Work classes and registries; killed precommit transaction rolled back domain/claim/audit; response-loss replay returned one receipt. Separate worker processes died before/after synthetic effects: expired-lease idempotent replay applied once, non-idempotent pre-effect retry succeeded, and unknown non-idempotent outcome required reconciliation without resend |
 | Real providers / persisted Chat / Surface / continuation | Not implemented or tested; no paid calls |
 
 Runtime bounds: Ruby >= 3.4; Rails >= 8.1.4 and < 8.2; rails_tool_views ~> 1.0.1;
@@ -26,15 +26,20 @@ Published rails_tool_views 1.0.1 package SHA-256:
 Host A conventional packaged boot did not load RubyLLM/rails_tool_views constants, create
 AI/runtime tables, access provider keys or call a provider. A host already using
 both SDKs (Host B) preserved its product Chat/Message, Surface and global settings
-through ordinary admin CRUD and development reload. Full admin Chat/Surface and
+through conventional admin CRUD/member operations and development reload. Full admin Chat/Surface and
 continuation coexistence still needs separate acceptance. Released SDK ToolCall
 storage is shared by default; Engine-owned ToolCall storage is unresolved.
 
 Unsupported in this slice: MySQL, composite keys, multiple/parameterized mounts,
-shards, cross-pool atomic writes, custom operation handlers, async/outbox, Chat,
-Surface dispatch, associations, private files, imports, exports and dashboards
+shards, cross-pool atomic writes, collection/global operations, custom CRUD
+replacement, asynchronous business execution, a full job center, Chat, Surface
+dispatch, associations, private files, imports, exports and dashboards
 beyond the resource landing page. Generic writes require `lock_version` and
-synchronous database-only callbacks. Policy scopes reject limit/offset/select/
+synchronous database-only callbacks. Member handlers and post-commit Work are
+trusted Ruby, with bounded metadata and cooperative checks, not a sandbox or hard
+execution timeout. External retry safety requires the downstream to honor the
+stable delivery key; tests use a synthetic file-backed receiver, not a real provider.
+Policy scopes reject limit/offset/select/
 group/having/from rather than risk widening membership. Host SQL debug logs,
 custom instrumentation and callback side effects remain host responsibilities.
 

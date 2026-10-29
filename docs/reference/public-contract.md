@@ -20,25 +20,40 @@ change the host's global filter list. Host SQL debug logging, custom loggers and
 instrumentation remain host responsibilities and can expose domain values.
 Use production log levels and never submit credentials as ordinary admin data.
 
-Configure `context_adapter`, `authorization_adapter` and `resources` using class
+Configure `context_adapter`, `authorization_adapter`, `resources` and `work_handlers` using class
 name strings before boot. A context adapter implements `resolve(controller)`.
 An authorization adapter implements `scope(context:, resource:, relation:)`,
 `allowed?(context:, action:, resource:, record: nil)` and
 `fields(context:, resource:, action:, record: nil)`. Default results deny access.
+Custom inputs, receipts and delivery have independent default-deny methods:
+`operation_fields(context:, resource:, operation:, record: nil)`,
+`read_operation_receipt?(context:, resource:, operation:, record:)` and
+`deliver_work?(context:, resource:, operation:, work_kind:, record:)`.
+Background delivery additionally needs `context_adapter.resolve_job(actor_ref:,
+tenant_ref:, security_version:)`, which reconstructs current authority rather than
+trusting stored refs/epoch as permission.
 
-Resources declare `model`, `key`, `label`, `title`, optional `policy`, `readonly`, `disable` and
-`fields`. Field types are id/text/textarea/integer/decimal/boolean/date/datetime/enum.
+Resources declare `model`, `key`, `label`, `title`, optional `policy`, `readonly`, `disable`,
+`fields` and explicit member `operation` handlers. Field types are id/text/textarea/integer/decimal/boolean/date/datetime/enum.
 Fields use explicit readonly/required/nullable/create/edit/searchable/sortable
 flags. Search/sort grants are independent of read/write. Resources do not scan
 model tables at boot. Reserved slugs are rejected by the registry.
+
+Scalar projection and record titles require a model attribute (or the single
+primary-key `id` alias) before invoking its getter. Arbitrary model methods cannot
+be exposed as scalar fields; a missing attribute fails closed with
+`ConfigurationError`. Overrides of real attribute getters remain trusted host
+Ruby and must be safe to read. This is not a general virtual-field API.
 
 `Context.new(actor:, tenant:, security_version:, time_zone: "UTC")` requires
 stable typed identities. No request/job authority is cached across invocations.
 The host is responsible for changing its security version on revocation.
 
-See the operation and HTTP contracts added alongside the vertical slice. Custom
-handlers, assistant APIs, exports, associations and async execution are not yet
-publicly supported. A published dependency API is not an implemented admin feature.
+See the operation contract for the native form/preflight/confirmation routes,
+registered default CRUD, member handlers and durable post-commit Work. Collection/
+global handlers, CRUD replacement, asynchronous business execution, assistant APIs,
+exports and associations remain unimplemented. A published dependency API is not
+an implemented admin feature.
 
 ## Optional Pundit authorization
 
@@ -47,7 +62,8 @@ With host dependency `pundit >= 2.5, < 3`, configure
 each resource an explicit `policy "TicketPolicy"` string. No model-policy
 inference or alias fallback occurs. A policy receives the full `Context` and
 record/model. Supported predicates are `index?`, `show?`, `create?`, `update?` and
-`destroy?`. Field grants come separately from `readable_fields`, `writable_fields`,
+`destroy?`, plus a predicate for each explicitly registered custom operation.
+Field grants come separately from `readable_fields`, `writable_fields`,
 `searchable_fields` and `sortable_fields`; missing methods return no grants.
 
 The mapped policy or a parent policy class must own its Scope. An unrelated
@@ -57,6 +73,21 @@ group, having or from shapes. Missing policy/scope denies rather than falling ba
 to an unscoped model; action and field checks remain separate. Normal Pundit action denials return false; unexpected policy failures raise
 generic `ConfigurationError` without leaking the original exception text.
 Doctor's policy-mapping report checks metadata, not correctness of decisions.
+
+For custom actions, `permitted_operation_fields(operation)` grants typed input
+names. `read_operation_receipt?(operation)` authorizes an already committed custom
+receipt; replay uses its bound schema only for digest matching and returns generic
+`IDEMPOTENCY_CONFLICT` without field errors for changed/invalid input. Current
+read/show/scope/epoch still constrain its projection. `deliver_operation_work?(
+operation, work_kind)` authorizes a committed fact separately from whether the
+original command could be executed again. Missing methods deny.
+
+`Work` handlers use the same scalar input DSL. Payloads are bounded; leases,
+independent deadlines and stable request/key evidence are persisted. The host
+schedules `rails_ai_admin:work:scan` or `:drain`; optional after-commit enqueue is
+an accelerator. Neither an in-memory queue nor a fencing counter proves external
+exactly-once delivery. See `docs/reference/operations.md` and ADR 0006 for the full
+current contract and reconciliation boundaries.
 
 Host Devise can resolve the context through Warden, a freshly loaded actor and
 verified tenant membership. The engine does not add accounts or login routes.

@@ -25,3 +25,11 @@ retain only refs/digests, never full record snapshots or raw submitted payloads.
 
 PostgreSQL row locking and SQLite contention need separate concurrency evidence.
 A SQLite busy result is a retryable conflict, never an assumed success.
+
+The 2026-10-30 extension adds explicit member handlers and a post-commit outbox,
+without changing the common Runner boundary. Native preflight/confirmation binds
+custom input before execution; changed target attributes require an advanced
+lock_version. Receipt and delivery grants are separate from command eligibility.
+See ADR 0006 for leases, request fingerprints, unknown outcomes and recovery.
+Collection/global actions, CRUD overrides and asynchronous business execution
+remain later requirements; this extension does not close a full phase or Gate.

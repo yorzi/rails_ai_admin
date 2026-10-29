@@ -20,6 +20,14 @@ this file records current scope without rewriting its historical review claims.
 - Server-owned intents with input/identity/epoch/version/expiry binding, database
   serialization, replay, atomic domain/audit/receipt, callback rollback handling
   and separate post-commit warning (synchronous parts of RAA-0112/0113).
+- Explicit Operation registry/default CRUD handlers and member domain handlers,
+  typed pure preflight, HTML/Turbo confirmation, separate input/receipt permissions
+  and version-advancing custom writes. Host Ruby remains trusted code.
+- Atomic post-commit outbox with typed bounded payloads, independent fresh job
+  authority, deadlines, request fingerprints, stable delivery keys, finite leases
+  and fencing generations. Unknown non-idempotent effects require reconciliation;
+  pending scans recover queue loss. These are follow-up effects, not asynchronous
+  business execution or a complete job center (further RAA-0112/0113 evidence).
 - Closed install/resource generators with an unregistered example, default-deny
   policy and runnable anonymous test. Resource schema suggestions remain comments;
   sensitive/encrypted/relationship/internal fields are omitted. Install checks
@@ -47,9 +55,11 @@ documentation and advisory scanning. No remote CI run has occurred.
 
 Finish the Phase 1 evidence before broadening conventional features:
 
-1. Complete async/outbox and the custom Operation contract before exposing custom
-   handlers or claiming all of RAA-0112/0113. Generic callbacks with external effects
-   remain unsupported; no in-process retry may create a second business intent.
+1. Extend the shared Operation contract to collection/global actions, custom CRUD
+   replacement and asynchronous business execution, including bounded selections,
+   item-level fencing/cancellation and job/result views. Keep reconciliation and
+   downstream delivery guarantees distinct. External effects in domain callbacks
+   remain unsupported; retries cannot create a second business intent.
 2. Finish the asset/browser/CSP matrix beyond the existing Host A Chrome spot
    checks, layout/theme tokens and configurable host paths. Later TestKit and
    doctor expansions must cover each new surface; AI exposure reports are open.

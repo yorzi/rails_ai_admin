@@ -30,6 +30,13 @@ Direct SQL and database administrators remain outside that boundary. Framework
 audits cover writes through its runner, not all changes made by the host elsewhere.
 There is no retention/purge scheduler or Audit Explorer in the initial slice.
 
+`rails_ai_admin_work_items` separately stores typed delivery payloads, payload and
+external-request digests, handler/version binding, deadline, lease owner/generation
+and delivery status. The minimal audit contract does not make payload storage
+secret-free: keep Work input minimal, avoid credentials and use host secret
+management for transport authentication. Work delivery status is separate from
+the committed business receipt.
+
 ## Redact Requests Without Changing Host Filters
 
 The named engine mount gets request-local filtering before Rails logs the initial
@@ -62,6 +69,19 @@ framework boundaries; this gem does not sandbox them. Generic writes require
 callbacks without irreversible external effects. A callback warning after commit
 must be reconciled rather than treated as an uncommitted failure.
 
+Custom preflight puts scoped lookup, authorization, input resolution and its
+handler under Active Record `while_preventing_writes` before creating an intent.
+This does not block arbitrary trusted Ruby I/O or raw connections. Unexpected
+ordinary preflight errors have generic public diagnostics; explicit host logging
+remains host-controlled. Custom handlers may
+not use `requires_new`; declared atomic models must share the primary pool. A
+soft operation deadline checks before/after the handler but does not hard-stop
+Ruby/SQL. Post-commit Work has one declared effect boundary; fencing cannot recall
+a request already in flight or prove downstream exactly-once execution. Work
+authorization, handler and RPC/effect execution also prevent ordinary Active
+Record writes, except short framework CAS bookkeeping. Work is not a permitted
+route for unaudited business updates, and these guards are not a Ruby sandbox.
+
 The current engine does not expose assistant tools, arbitrary SQL, private uploads,
 exports, cross-database writes or asynchronous business actions. Each needs its
 own later contract and adversarial validation before becoming a supported feature.
@@ -69,4 +89,5 @@ own later contract and adversarial validation before becoming a supported featur
 ## Next Steps
 
 * [Operations]({% link _core_features/operations.md %}) explains committed outcomes and retries.
+* [Durable Outbox]({% link _advanced/durable-outbox.md %}) explains fresh delivery authority and unknown outcomes.
 * [Dependency Contracts]({% link _reference/dependency-contracts.md %}) distinguishes constraints from dependency defects.

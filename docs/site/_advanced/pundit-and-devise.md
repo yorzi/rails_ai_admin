@@ -107,8 +107,9 @@ class TicketPolicy
 end
 ```
 
-The supported action predicates are `index?`, `show?`, `create?`, `update?` and
-`destroy?`. Missing predicates deny the action. Missing `readable_fields`,
+The CRUD action predicates are `index?`, `show?`, `create?`, `update?` and
+`destroy?`. Registered member operations use their own named predicate, such as
+`triage?`. Missing predicates deny the action. Missing `readable_fields`,
 `writable_fields`, `searchable_fields` or `sortable_fields` methods grant no fields;
 `permitted_attributes` does not implicitly supply these grants. DSL flags and
 readonly rules can still narrow the returned lists.
@@ -149,6 +150,13 @@ errors become a generic `ConfigurationError` without returning the original
 exception text or cause. This is a failed configuration/decision, never a
 permission grant. Doctor reports mapping metadata only; finding a policy and
 Scope does not prove their authorization logic.
+
+Custom operation inputs use `permitted_operation_fields(operation)`, committed
+custom receipts use `read_operation_receipt?(operation)` and Work delivery uses
+`deliver_operation_work?(operation, kind)`. These default-deny grants are
+independent of `writable_fields` and of a command's precondition. See the concrete
+[member operation example]({% link _core_features/operations.md %}) before enabling
+a custom action.
 
 ## Resolve Devise Sessions Through the Host
 
@@ -198,6 +206,11 @@ They do not establish full admin Chat, Surface dispatch or durable continuation
 coexistence, which remain unimplemented. The author-controlled packaged hosts
 also do not replace independent usability/security review or close release Gates
 A through E.
+
+For durable Work, the same host context adapter also implements a fresh
+`resolve_job(actor_ref:, tenant_ref:, security_version:)`; it cannot reuse a cached
+request/Warden user. The [Outbox guide]({% link _advanced/durable-outbox.md %}) shows
+current actor/membership reconstruction and its separate delivery checks.
 
 ## Next Steps
 

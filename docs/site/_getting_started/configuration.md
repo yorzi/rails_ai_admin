@@ -52,7 +52,9 @@ issued intent does not override a changed session, role or tenant.
 
 ## Grant Scoped Actions and Fields
 
-A custom adapter implements `scope`, `allowed?` and `fields`. This example grants
+A custom adapter implements `scope`, `allowed?` and `fields` for conventional CRUD.
+Registered custom commands also require the independent input/receipt/delivery
+grants described in [Operations]({% link _core_features/operations.md %}). This example grants
 reads to host users and writes to an `admin` role within their current account:
 
 ```ruby
@@ -148,6 +150,7 @@ routes or redirect to a guessed host sign-in page.
 
 ## Next Steps
 
+* [Durable Outbox]({% link _advanced/durable-outbox.md %}) configures Work and a fresh job-context resolver.
 * [Pundit and Devise]({% link _advanced/pundit-and-devise.md %}) connects explicit policies and host sessions.
 * [Host Verification]({% link _advanced/host-verification.md %}) checks your policy boundary.
 * [Operations]({% link _core_features/operations.md %}) covers intent expiry and execution-time authorization.

@@ -63,7 +63,9 @@ optimistic locking and a shared database connection pool.
 
 ## Current Scope
 
-The current slice implements conventional scalar CRUD. Chat, trusted Surfaces,
-CSV, associations, private files and background workflows remain future milestones.
+The current slice implements scalar CRUD, synchronous member operations and
+durable post-commit delivery intent. Chat, trusted Surfaces, CSV, associations,
+private files, collection/global actions and asynchronous business workflows remain
+future milestones.
 Read [development status]({% link _reference/development-status.md %}) before treating
 a target API in the plan as implemented.

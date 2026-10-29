@@ -13,13 +13,22 @@
 - Add the optional explicit Pundit adapter, a distinct packaged Devise/PostgreSQL
   host, Propshaft and Sprockets/jsbundling variants, real development reload and
   process crash/response-loss recovery probes. Keep host product SDK settings intact.
-
 - Add schema-only commented field suggestions, preserved default-deny install
   scaffolds and actual-route preflight checks. Expand doctor metadata diagnostics
   and host TestKit policy/field-grant assertions; run generated anonymous tests in
   both packaged consumers.
+- Add registered member Operations with typed pure preflight, native human
+  confirmation, independent input/receipt authority and guarded versioned writes.
+- Add atomic outbox intents, fresh delivery authority, bounded leases/fencing,
+  stable request fingerprints, explicit unknown outcomes and pending-work scans.
+  Keep delivery outcomes separate from committed business receipts.
 
-Assistant/Surface adapters, custom operations, async/outbox, associations, files,
+- Restrict scalar projection and record titles to model attributes before invoking
+  getters, preventing accidental mutating-method calls during readonly display.
+  Normal attribute getter overrides remain trusted host code.
+
+Assistant/Surface adapters, collection/global actions, custom CRUD replacement,
+asynchronous business execution, associations, files,
 batch, CSV and metrics dashboards are not implemented. Release gates remain open.
 
 No gem has been published.

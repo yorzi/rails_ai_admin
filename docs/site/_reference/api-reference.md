@@ -22,12 +22,13 @@ The [RDoc reference]({{ '/api/' | relative_url }}) opens on `RailsAiAdmin` and h
 | Inspect schema-only suggestions | `SchemaSuggestions` (no registration or exposure) |
 | Check host policy | `Authorization::Adapter`, `Authorization::PunditAdapter`, `Authorization::Access` |
 | Coerce input | `InputSchema` |
-| Issue/execute intents | `Operations::Runner`, `Operations::Result` |
+| Declare/execute member operations | `Operation`, `Operations::Registry`, `Operations::Runner`, `Operations::Result` |
+| Persist/deliver post-commit intent | `Work`, `Outbox::Writer`, `Outbox::Dispatcher`, `Outbox::DeliveryContext`, `Outbox::RequestDigest` |
 | Bound a list query | `Queries::List` |
 | Verify host boundaries | `TestKit`, `Doctor` |
 
 Only documented, tested APIs are current. Pseudocode in the development plan is
-not an implemented public contract. Custom handlers and Assistant APIs remain
+not an implemented public contract. Collection/global handlers, custom CRUD overrides and Assistant APIs remain
 unavailable. Start with [Configuration]({% link _getting_started/configuration.md %})
 and [Operations]({% link _core_features/operations.md %}) before invoking the Ruby API.
 
