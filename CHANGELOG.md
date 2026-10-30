@@ -38,6 +38,17 @@
 - Select rails_tool_views 1.0.2, close DEP-001/DEP-006 and verify the released
   installer preserves an existing custom mount without route restoration.
 
+- Add a reloadable scalar field-type registry with pure normalization/validation,
+  intersected JSON Schemas, plain-text formatting and trusted field partials.
+  Bind plugin versions/schema to operation, selection and Work fingerprints.
+- Add fixed Select labels, a readonly scalar shorthand and disabled placeholders
+  for unavailable selections. Respect per-record field denial before rendering.
+- Accept typed Date/Time operation proposals during confirmation/replay without
+  freezing caller-owned temporal values; preserve timestamp microseconds in hooks
+  and native forms, and reject nonfinite decimals.
+- Exercise custom fields in both packaged consumers and initialize domain fixture
+  schema before transactional request tests so fresh databases are deterministic.
+
 Assistant/Surface adapters, global actions, custom CRUD replacement, 10,000-target
 batch materialization, associations, files, CSV and metrics dashboards are not implemented. Release gates remain open.
 

@@ -32,7 +32,10 @@ durable per-target child intents/items. A worker uses the shared Runner with fre
 authority, lease fencing and independent target transactions; native job receipts
 and cancellation preserve committed results. These capabilities still require
 host-specific validation. Field-grant snapshots do not substitute for
-action/scope checks or constitute an AI exposure report.
+action/scope checks or constitute an AI exposure report. Registered scalar field
+types now supply pure normalization/validation, constrained wire schemas and
+field-level partials; [Field Types]({% link _core_features/field-types.md %})
+documents this limited extension contract.
 
 Not implemented in this slice: associations, nested attributes, uploads/private
 attachments, imports/exports, all-filtered or 10,000-target batch manifests,
@@ -40,7 +43,7 @@ metrics dashboards, saved views, global custom operations, custom CRUD handler
 replacement, a full job center/retention workflow, general reconciliation UI,
 assistant installation,
 Chat, provider calls, Surface dispatch and continuation. ActionPolicy integration
-and advanced field plugins remain future work. Host-owned Devise authentication
+and association/file/money field extensions remain future work. Host-owned Devise authentication
 is demonstrated in a packaged consumer; the engine does not provide accounts or
 login routes.
 

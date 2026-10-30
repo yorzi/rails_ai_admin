@@ -17,6 +17,12 @@ this file records current scope without rewriting its historical review claims.
 - Typed scalar fields and conventional index/show/new/edit/create/update/delete;
   separate delete confirmation, validation input preservation, bounded search/sort,
   custom mount and relative URL root (parts of RAA-0201–0207/0210/0212).
+- Reloadable scalar field-type registration, immutable descriptors, pure/idempotent
+  normalization, typed validation, intersected wire schemas and escaped formatting.
+  Form/index/show partials receive authorized scalars; record-specific denied fields
+  do not invoke a renderer. Fixed Select labels and readonly shorthand are covered
+  in contracts and both packaged hosts. This advances RAA-0203/0208; virtual fields
+  and broader override/plugin compatibility remain open.
 - Server-owned intents with input/identity/epoch/version/expiry binding, database
   serialization, replay, atomic domain/audit/receipt, callback rollback handling
   and separate post-commit warning (synchronous parts of RAA-0112/0113).
@@ -61,6 +67,11 @@ documentation and advisory scanning. No remote CI run has occurred.
 
 ## Next implementation checkpoint
 
+Finish the remaining Phase 2 contracts: declared virtual/computed field dependencies,
+form recovery/structure, a reviewable full-page override workflow and three distinct
+domain-resource acceptance. The scalar extension milestone is complete locally;
+its broader phase and release gates remain open.
+
 Continue the shared execution contracts while the full Phase 1 evidence remains open:
 
 1. Extend the shared Operation contract to global actions and custom CRUD
@@ -83,7 +94,8 @@ Continue the shared execution contracts while the full Phase 1 evidence remains 
 
 ## Remaining product work
 
-- Phase 2: complete field/plugin/override, form recovery and three-resource acceptance.
+- Phase 2: finish virtual/computed fields, full-page overrides, form recovery and
+  three-resource acceptance beyond the implemented scalar plugin/partial contract.
 - Early proof: ordinary Order Review and one trusted Surface through the same
   Operation, then an offline released RubyLLM loop and continuation faults.
 - Phases 3–4: associations, batch/selection, CSV, private files, audit explorer,

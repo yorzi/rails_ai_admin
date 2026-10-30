@@ -4,8 +4,8 @@ A self-hosted Rails admin engine with explicitly registered resources and one
 policy-checked, audited execution boundary for conventional CRUD.
 
 **Unreleased development.** Current code supplies scalar conventional CRUD,
-synchronous member operations, fixed Selection previews, bounded asynchronous
-collection operations and a durable outbox for one declared post-commit effect.
+registered scalar field types and partials, synchronous member operations, fixed
+Selection previews, bounded asynchronous collection operations and a durable outbox for one declared post-commit effect.
 Chat, trusted Surfaces, associations, CSV, private files, metrics dashboards and
 the broader batch/job-center workflows remain future work. The
 development plan describes the target product, not the supported feature set.
@@ -16,6 +16,10 @@ policies and domain data. Missing context or policy grants deny access. Generic 
 optimistic locking and the same Active Record connection pool for domain records,
 operation receipts, audit and Work items. Resources with irreversible callback
 effects should remain readonly until their host boundary is redesigned and tested.
+
+See [Field Types](docs/site/_core_features/field-types.md) for custom normalization,
+validation, fixed Select labels and authorized form/index/show partials. Plugins
+refine a core scalar; they do not grant access or expose virtual model methods.
 
 ## Develop
 

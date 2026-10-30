@@ -43,8 +43,10 @@ end
 Declare columns that exist on your own host model; this example is a field-type
 reference, not an instruction to add business columns. No schema inference runs
 at boot. The current types are `id`, `text`, `textarea`, `integer`, `decimal`,
-`boolean`, `date`, `datetime` and `enum`. Money, associations, files, virtual fields
-and custom field registration are not implemented.
+`boolean`, `date`, `datetime`, `enum` and `select`. Registered scalar
+[Field Types]({% link _core_features/field-types.md %}) can refine coercion, validation
+and field presentation. Money, associations, files and virtual/computed fields
+remain unimplemented.
 
 The runtime checks that a scalar projection or title names a model attribute
 before calling its getter. The single primary-key `id` alias is also supported.
@@ -125,5 +127,6 @@ keyset pagination, saved views and association sorting are future work.
 
 ## Next Steps
 
+* [Field Types]({% link _core_features/field-types.md %}) adds pure scalar refinements and field partials.
 * [Configuration]({% link _getting_started/configuration.md %}) separates field grants from declarations.
 * [Operations]({% link _core_features/operations.md %}) describes safe writes and retries.

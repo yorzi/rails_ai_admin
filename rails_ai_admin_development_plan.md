@@ -2,7 +2,7 @@
 
 > **工程立项 / 产品需求文档 / 架构设计 / 测试与发布计划 / AI Agent 可执行任务书**  
 > 状态：**Reviewed Proposal · v0.3（第二轮源码级复核完成；尚未实现、运行验证或批准发布）**  
-> 实施检查点（2026-10-30）：常规 CRUD、成员级自定义 Operation/确认与事务 outbox、固定 Selection 捕获/重验与异步集合逐项执行/取消、显式 Pundit 适配器、两个独立 packaged Host、真实重载及崩溃恢复，以及 schema 注释建议、安装预检、Doctor/TestKit 初版已取得本地验收证据；当前依赖已升级 rails_tool_views 1.0.2；完整范围与未完成项见 `ROADMAP.md` / `COMPATIBILITY.md`。以下审查结论保留为立项时历史基线，不能用于推断任何 Gate 已通过。
+> 实施检查点（2026-10-30）：常规 CRUD、成员级自定义 Operation/确认与事务 outbox、固定 Selection 捕获/重验与异步集合逐项执行/取消、显式 Pundit 适配器、两个独立 packaged Host、真实重载及崩溃恢复，以及 schema 注释建议、安装预检、Doctor/TestKit 初版已取得本地验收证据；当前依赖已升级 rails_tool_views 1.0.2；标量字段插件注册/规范化/校验/Schema/Partial、固定 Select 与只读字段语法已取得本地证据（Virtual、完整页面覆盖与 Phase 2 Gate 仍未完成）；完整范围与未完成项见 `ROADMAP.md` / `COMPATIBILITY.md`。以下审查结论保留为立项时历史基线，不能用于推断任何 Gate 已通过。
 > 制定日期：2026-10-29  
 > 复核日期：2026-10-29（Asia/Shanghai）；v0.2 设计复核 + v0.3 对本地 `rails_tool_views`/RubyLLM 源码与上游 Release 的二次核对；两轮均只修改计划，无产品代码  
 > 目标项目：`rails_ai_admin`（项目名已由发起者确定；RubyGems 名称及 GitHub 仓库可用性须在创建前确认）  
@@ -354,7 +354,7 @@ app/rails_ai_admin/
 ├─ admin_context.rb            # AdminContext        (host auth/tenant adapter)
 ├─ order_admin.rb              # OrderAdmin          < RailsAiAdmin::Resource
 ├─ customer_directory_admin.rb # CustomerDirectoryAdmin (second resource on Customer)
-├─ money_admin_field.rb        # MoneyAdminField     < RailsAiAdmin::Field
+├─ money_admin_field.rb        # MoneyAdminField     < RailsAiAdmin::Fields::Type
 ├─ high_value_admin_filter.rb  # HighValueAdminFilter
 └─ sales_admin_dashboard.rb    # SalesAdminDashboard
 app/services/orders/mark_reviewed.rb   # Orders::MarkReviewed — host domain code stays where it lives
@@ -1278,7 +1278,7 @@ Evaluation 应至少覆盖：
 - [ ] `RAA-0205` Resource scoped relation + member lookup，记录级授权。
 - [ ] `RAA-0206` 操作结果协议：标准 success/validation/conflict/forbidden/error。
 - [ ] `RAA-0207` 优化 URL、Flash、返回位置、空状态、确认 Dialog。
-- [ ] `RAA-0208` 扩展 Field type 的插件 API 与示例。
+- [ ] `RAA-0208` 扩展 Field type 的插件 API 与示例。标量 refinement、class-name Registry、form/index/show partial 与两 packaged Host 示例已实现；完整扩展兼容验收仍待完成（ADR 0009）。
 - [ ] `RAA-0209` 所有默认页面由 Host override 实现主题/业务布局，无需修改 Gem 内部代码。
 - [ ] `RAA-0210` 添加 Model validation、CSRF、Mass Assignment、XSS、Reload 和 N+1 测试。
 - [ ] `RAA-0211` 提供普通 Rails Controller/Partial escape hatch，不强制所有复杂页面必须使用 DSL。

@@ -61,6 +61,14 @@ The declaration narrows exposure; it grants no permission. The host owns the mod
 its tenant scope and every action/field decision. Generic writes require standard
 optimistic locking and a shared database connection pool.
 
+## Extend Scalar Fields
+
+[Field Types]({% link _core_features/field-types.md %}) shows class-name
+registration, pure normalization/validation and field partials. The
+[extension contract]({% link _reference/extension-contracts.md %}) records the
+exact scalar/schema and rendering boundaries. Plugins preserve current policy
+grants and attribute-only projection.
+
 ## Current Scope
 
 The current slice implements scalar CRUD, synchronous member operations and
