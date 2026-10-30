@@ -29,9 +29,10 @@ RAA_ASSET_PIPELINE=sprockets bundle exec ruby script/packaged_support_smoke.rb
 
 The first script installs the actual built gem and released SDK migrations in
 `tmp/packaged-devise-postgres`, checks the generated context is closed, then restores
-the reviewed host adapter. It preserves the existing custom SDK mount after the
-rails_tool_views 1.0.1 installer adds a conflicting route. See
-`docs/reference/dependency-contracts.md` for that dependency limitation.
+the reviewed host adapter. It reruns the rails_tool_views 1.0.2 installer and verifies unchanged custom SDK
+mount source and named path, without restoring routes afterwards. Host configuration
+still belongs to the reviewed product initializer. DEP-001 and DEP-006 are resolved;
+see `docs/reference/dependency-contracts.md` for the shared-runtime contract.
 
 The recovery script edits/restores only the copied host sources, reloads Rails,
 retries after committed response loss, and kills/reaps its own confirmed live child

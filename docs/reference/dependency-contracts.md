@@ -1,14 +1,15 @@
 # Dependency integration boundaries
 
 This record distinguishes selected package contracts, unresolved integration
-constraints and verified defects. The Phase 1 consumers reproduced a released
-rails_tool_views installer conflict described below. A local admin mistake caused
-by an assumed dependency behavior is not automatically an upstream defect.
+constraints and resolved reports. The selected rails_tool_views 1.0.2 fixes the
+previous custom-mount installer defect and clarifies its host-owned shared runtime.
+DEP-001 and DEP-006 are closed; full admin Surface/continuation acceptance remains
+future product work. Local admin mistakes are not upstream defects.
 
 | Dependency line | Current consumption boundary |
 | --- | --- |
 | Rails `>= 8.1.4, < 8.2` | Isolated engine, Active Record, controller/view/job infrastructure |
-| rails_tool_views `~> 1.0.1` | Installed dependency; admin Surface/continuation runtime not integrated |
+| rails_tool_views `~> 1.0.2` | Installed dependency; admin Surface/continuation runtime not integrated |
 | RubyLLM `>= 2.1.1, < 3` | Host product persistence checked; no admin chats or provider calls |
 | Pundit 2.5.x / Devise 5.0.4 | Optional host authorization/authentication examples; not runtime requirements |
 | turbo-rails `~> 2.0`, stimulus-rails `~> 1.3` | Bounded Rails integration dependencies; admin ships prebuilt frontend |
@@ -17,25 +18,25 @@ The lockfile and `COMPATIBILITY.md` identify actual resolved/tested combinations
 Version ranges do not establish compatibility with future releases. Ordinary
 installation must work without AI tables, provider keys or model catalog refresh.
 
-## rails_tool_views coexistence constraint
+## Resolved rails_tool_views reports
 
-The published 1.0.1 package uses process-level `configuration` and `registry`
-objects. `scope_resolver`, `parent_controller`, `agent_adapter` and `auto_deliver`
-are shared settings. `rails_tool_views_action_form` builds action URLs through the
-dependency engine's route proxy. If admin overwrote these settings, a host's
-existing product Surface could resolve a different identity or delivery adapter.
+| Report | Resolution in 1.0.2 |
+| --- | --- |
+| DEP-001: shared runtime ownership | Configuration guide explicitly requires one host-owned configuration/registry/mount. Gems register distinct component keys and leave host authority/delivery settings alone. Closed as a documented integration contract. |
+| DEP-006: duplicated existing mount | Installer skips an existing root-file Engine mount. The packaged consumer checks unchanged route source and the existing named path without restoring the file afterwards. |
 
-This is a confirmed design/integration constraint, not an established upstream
-defect. The current admin does not overwrite those globals and has no Surface write
-routes. SPIKE-03/06 must prove compatible ownership, namespaced actor/tenant refs,
-component keys, dispatch routes and continuation before support is claimed.
-Do not infer adapter stability from the dependency core's stable version.
+There is still one process-level runtime. This release does not add isolated
+configurations or change the action helper's named `rails_tool_views` route.
+The admin leaves those globals untouched; future `raa_` components and admin
+endpoints must cooperate with the host-owned scope/policies and adapter. Closing
+DEP-001 does not claim completed admin Surface or continuation integration.
 
-Owning sources in the released package:
+Owning released sources:
 
-- [Configuration and registry](https://github.com/yorzi/rails_tool_views/blob/v1.0.1/lib/rails_tool_views/core.rb).
-- [Action-form route construction](https://github.com/yorzi/rails_tool_views/blob/v1.0.1/app/helpers/rails_tool_views/surfaces_helper.rb).
-- [Public contract](https://github.com/yorzi/rails_tool_views/blob/v1.0.1/docs/site/_reference/public-contract.md).
+- [Shared runtime configuration](https://github.com/yorzi/rails_tool_views/blob/v1.0.2/docs/site/_getting_started/configuration.md#share-one-runtime).
+- [Configuration and registry](https://github.com/yorzi/rails_tool_views/blob/v1.0.2/lib/rails_tool_views/core.rb).
+- [Action-form route construction](https://github.com/yorzi/rails_tool_views/blob/v1.0.2/app/helpers/rails_tool_views/surfaces_helper.rb).
+- [Installer](https://github.com/yorzi/rails_tool_views/blob/v1.0.2/lib/generators/rails_tool_views/install/install_generator.rb).
 
 ## Rails callback integration hazards
 
@@ -83,14 +84,16 @@ admin supplies a per-response style nonce plus `csp-nonce` meta tag; it does not
 add `unsafe-inline`. Host pipeline/CSP browser acceptance is still separate from
 building the asset file. This is an integration requirement, not a Turbo defect.
 
-## Preserve an existing dependency mount during installation
+## Preserve the reviewed host configuration
 
-The rails_tool_views 1.0.1 installer unconditionally inserts its default named
-mount. If a host already mounts it at a custom path with `as: :rails_tool_views`,
-running the installer adds another mount with the same alias and route loading
-fails. Host B reproduces this setup and preserves its reviewed routes after SDK
-migration installation. Inspect generated routes before booting a host with an
-existing mount; no dependency monkey patch is used.
+The 1.0.2 packaged smoke reruns the released installer with an existing custom
+`RailsToolViews::Engine` mount in `config/routes.rb`. It asserts that route source
+is unchanged and the named helper still resolves to `/product_surfaces`. No route
+restoration or dependency patch hides an installer regression. This verifies the
+original DEP-006 case; it does not claim support for every alternate Rails mount
+spelling or generated route layout.
 
-Owning source: [released installer](https://github.com/yorzi/rails_tool_views/blob/v1.0.1/lib/generators/rails_tool_views/install/install_generator.rb).
-This is an installer issue, separate from the unresolved shared Surface runtime.
+The installer still generates configuration scaffolding. The fixture retains its
+reviewed host-owned product initializer instead of treating generated defaults as
+an automatic merge. Admin Chat/Surface and continuation have their own remaining
+acceptance gates.

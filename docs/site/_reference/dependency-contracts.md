@@ -2,7 +2,7 @@
 layout: default
 title: Dependency Contracts
 nav_order: 4
-description: Understand selected dependency guarantees, a known installer defect and integration limits.
+description: Understand selected dependency guarantees, resolved installer reports and integration limits.
 ---
 
 # {{ page.title }}
@@ -13,14 +13,14 @@ description: Understand selected dependency guarantees, a known installer defect
 After reading this guide, you will know:
 
 * Which released dependency lines the gem selects.
-* Why Surface coexistence remains unresolved.
+* How the host owns the documented shared Surface runtime.
 * How to preserve a custom mount when running the released Surface installer.
 * How Rails callback semantics affect operation results.
 
 ## Use Released Dependency Lines
 
 The gem currently bounds Rails to 8.1.4 through below 8.2, `rails_tool_views` to
-1.0.1 through below 1.1, RubyLLM to 2.1.1 through below 3, `turbo-rails` to 2.x and
+1.0.2 through below 1.1, RubyLLM to 2.1.1 through below 3, `turbo-rails` to 2.x and
 `stimulus-rails` to 1.x. Refer to the lockfile for the exact resolved graph. A
 candidate range does not prove all future versions in that range are compatible.
 
@@ -29,36 +29,31 @@ provider. No paid provider call is part of default development tests. RubyLLM ma
 APIs such as unreleased queue/claim/approval primitives must not be assumed present
 in the selected released package.
 
-## Keep Surface Coexistence Explicit
+## Adopt the Host-Owned Shared Runtime
 
-The published `rails_tool_views` 1.0.1 package has process-level configuration and
-registry objects. Its `scope_resolver`, `parent_controller`, `agent_adapter` and
-`auto_deliver` settings are shared by uses in the same process. Its generated action
-forms target its own engine routes. Overwriting those values for admin could break
-or change authority for a host's existing product Surface.
+The selected `rails_tool_views` 1.0.2 Configuration guide explicitly documents one
+configuration, registry and mount per process. The host owns `scope_resolver`,
+`parent_controller`, `agent_adapter` and `auto_deliver`; action forms use the named
+`rails_tool_views` mount. A registering gem uses its own component-key prefix and
+declares the host scope/policy/adapter contract instead of overwriting globals.
 
-This is a confirmed integration constraint, not evidence of an upstream defect.
-The current admin does not configure those globals or implement Surface actions.
-Shared/exclusive routing, identity prefixes and continuation require the planned
-SPIKE-03/06 evidence before a support claim. The dependency's stable core does not
-make its experimental RubyLLM adapter or this admin's future integration stable.
+DEP-001 is closed as this documented contract. The release adds no isolated
+runtime configuration. The current admin preserves the host product's settings;
+admin Surface identity/routing/continuation still needs its planned acceptance.
+The dependency's stable core does not make the experimental adapter stable.
 
-## Preserve a Custom Surface Mount During Installation
+## Preserve an Existing Surface Mount
 
-The released `rails_tool_views` 1.0.1 installer has a reproduced custom-mount
-limitation: running its install generator when the host already has a custom
-mount named `rails_tool_views` adds the default mount with the same route name.
-The next route load then fails because the alias is duplicated. This is an
-installer defect in that selected release, separate from the process-wide
-configuration constraint above.
+DEP-006 is fixed in 1.0.2: the installer skips an existing root-file Engine mount
+instead of appending another route with the same alias. The packaged support smoke
+reruns that released installer, asserts unchanged route source and checks that
+the named path remains `/product_surfaces`. It no longer restores routes to hide
+the 1.0.1 defect and applies no dependency monkey patch. This proves that concrete
+case, not every alternate Rails route spelling or drawn layout.
 
-Install the SDK before customizing its mount where possible. When running its
-installer in an existing host, preserve the reviewed host route/configuration and
-ensure only one `rails_tool_views` mount alias remains before booting again. Do
-not replace an existing product resolver merely to make the install command pass.
-The packaged support bootstrap restores its reviewed custom routes after exercising
-the released installer; it does not patch dependency source. Full admin Surface
-and continuation coexistence still needs its separate proof.
+Review generated initializer scaffolding against the host's existing configuration.
+A successful install is not an automatic merge or permission to replace the host
+resolver. Full admin Surface and continuation remain separate work.
 
 ## Respect Rails Transaction Semantics
 
@@ -89,10 +84,10 @@ create admin Chat/ToolCall records and does not claim this proof is complete.
 The checkout's `docs/reference/dependency-contracts.md` links the owning released
 persistence sources. No provider key or network call was used for the mapping probe.
 
-The custom-mount installer defect above is reproduced in the selected released
-package. The other items remain documented integration constraints and hazards.
-Keep unconfirmed findings labelled as such and reproduce them against a released
-package before proposing a dependency fix.
+DEP-001 and DEP-006 are resolved for the selected 1.0.2 package. Remaining storage,
+provider and integration evidence must still be established. Keep unconfirmed
+findings labelled as such and reproduce them against a released package before
+proposing a dependency fix.
 
 ## Next Steps
 

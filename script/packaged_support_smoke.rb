@@ -32,13 +32,14 @@ unless Dir[File.join(target, "db/migrate/*create_ruby_llm_records.rb")].any?
 end
 FileUtils.rm_f(File.join(target, "config/initializers/ruby_llm.rb"))
 %w[product_chat product_message].each { |name| FileUtils.cp(File.join(source, "app/models/#{name}.rb"), File.join(target, "app/models/#{name}.rb")) }
-unless Dir[File.join(target, "db/migrate/*create_rails_tool_views.rb")].any?
-  # Exercise the released installer on an existing custom product mount. Keep the
-  # host's route/config as the authority, rather than modifying the dependency.
-  run!(env, target, "bundle", "exec", "rails", "generate", "rails_tool_views:install", "--force")
-end
-FileUtils.cp(File.join(source, "config/routes.rb"), File.join(target, "config/routes.rb"))
+# Re-run the released installer against the host's existing custom named mount.
+# 1.0.2 must preserve the route; do not restore it to hide a regression.
+routes_file = File.join(target, "config/routes.rb")
+routes_before = File.binread(routes_file)
+run!(env, target, "bundle", "exec", "rails", "generate", "rails_tool_views:install", "--force")
+raise "Dependency installer changed the existing custom mount" unless File.binread(routes_file) == routes_before
 FileUtils.rm_f(File.join(target, "config/initializers/rails_tool_views.rb"))
+run!(env, target, "bundle", "exec", "rails", "runner", "raise unless Gem.loaded_specs.fetch('rails_tool_views').version.to_s == '1.0.2'; raise unless Rails.application.routes.url_helpers.rails_tool_views_path == '/product_surfaces'")
 run!(env, target, "bundle", "exec", "rails", "generate", "rails_ai_admin:install", "--force")
 run!(env, target, "bundle", "exec", "rails", "runner", "raise unless AdminContext.new.resolve(nil).nil?")
 [ "config/initializers/rails_ai_admin.rb", "app/rails_ai_admin/admin_context.rb" ].each do |path|
