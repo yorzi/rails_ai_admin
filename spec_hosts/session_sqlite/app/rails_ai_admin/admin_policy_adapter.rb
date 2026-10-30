@@ -11,7 +11,7 @@ class AdminPolicyAdapter < RailsAiAdmin::Authorization::Adapter
 
   def fields(context:, resource:, action:, record: nil)
     case action
-    when :read then %i[id name active points created_at]
+    when :read then %i[id name active points created_at status_summary]
     when :write then context.actor.role == "admin" ? %i[name active points] : []
     when :search, :sort then [ :name ]
     else []

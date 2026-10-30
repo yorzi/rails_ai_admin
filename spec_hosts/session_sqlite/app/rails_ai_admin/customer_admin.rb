@@ -8,6 +8,7 @@ class CustomerAdmin < RailsAiAdmin::Resource
     boolean :active
     integer :points
     readonly :created_at, type: :datetime
+    virtual :status_summary, type: :text, depends_on: %i[active points], compute: "CustomerStatusSummary"
   end
   operation :award_points, handler: "AwardCustomerPoints"
   operation :bulk_award_points, handler: "BulkAwardCustomerPoints", scope: :collection

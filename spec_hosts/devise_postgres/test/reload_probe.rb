@@ -10,6 +10,8 @@ before_operations = RailsAiAdmin.operation_registry
 before_work_registry = RailsAiAdmin.work_registry
 before_operation_class = TriageTicketOperation
 before_work_class = TicketReceiptWork
+before_computation_class = TicketReviewSummary
+before_computed_field = TicketAdmin.fields.find { |field| field.name == :review_summary }
 before_field_class = TrimmedTextField
 before_field_registry = RailsAiAdmin.field_registry
 before_field = TicketAdmin.fields.find { |field| field.name == :subject }
@@ -22,14 +24,24 @@ original_resource = resource_file.read
 original_policy = policy_file.read
 field_file = Rails.root.join("app/rails_ai_admin/trimmed_text_field.rb")
 original_field = field_file.read
+computation_file = Rails.root.join("app/rails_ai_admin/ticket_review_summary.rb")
+original_computation = computation_file.read
 
 begin
   # Change real autoloaded source in this isolated packaged host. No private gem
   # state or autoloader cache is patched to simulate a reload.
   resource_file.write(original_resource.sub('  key :tickets', "  key :tickets\n  label \"Reloaded tickets\""))
   policy_file.write(original_policy.sub('def sortable_fields = [ :priority ]', 'def sortable_fields = []').sub('def sortable_fields = [:priority]', 'def sortable_fields = []'))
+  computation_file.write(original_computation.sub('version "1"', 'version "2"'))
   field_file.write(original_field.sub('version "1"', 'version "2"'))
   Rails.application.reloader.reload!
+  raise "Computation class was retained" if TicketReviewSummary.equal?(before_computation_class)
+  raise "Computed contract was retained" if TicketAdmin.fields.find { |field| field.name == :review_summary }.contract == before_computed_field.contract
+  begin
+    before_computed_field.compute({ "state" => "open", "priority" => 0, "internal_note" => nil }.freeze, time_zone: "UTC")
+    raise "Stale computation accepted a reloaded class"
+  rescue RailsAiAdmin::ConfigurationError
+  end
   raise "Field class was retained" if TrimmedTextField.equal?(before_field_class)
   raise "Field registry was retained" if RailsAiAdmin.field_registry.equal?(before_field_registry)
   raise "Field schema version was retained" if TicketAdmin.fields.find { |field| field.name == :subject }.contract == before_field.contract
@@ -63,10 +75,11 @@ begin
   context = RailsAiAdmin::Context.new(actor: actor, tenant: tenant, security_version: actor.security_version)
   adapter = RailsAiAdmin::Authorization::PunditAdapter.new
   raise "Old policy field grant survived reload" unless adapter.fields(context: context, resource: TicketAdmin, action: :sort).empty?
-  puts "Development reload passed: fresh field/resource/model/policy/context, registry replacement, host SDK hooks preserved"
+  puts "Development reload passed: fresh computed/field/resource/model/policy/context, registry replacement, host SDK hooks preserved"
 ensure
   resource_file.write(original_resource)
   policy_file.write(original_policy)
   field_file.write(original_field)
+  computation_file.write(original_computation)
   Rails.application.reloader.reload!
 end

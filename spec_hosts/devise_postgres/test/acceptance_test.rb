@@ -77,6 +77,21 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
     assert_select "dd", text: "Triaged"
   end
 
+  def test_packaged_computed_dependency_grants_are_not_implicit
+    login
+    get "/operations/tickets/#{@ticket.id}"
+    assert_response :success
+    assert_select "dd", text: "open · P0 · restricted note"
+    @staff.update!(role: "viewer")
+    get "/operations/tickets/#{@ticket.id}"
+    assert_response :success
+    assert_select "dt", text: "Review summary", count: 0
+    refute_includes response.body, "restricted note"
+    context = RailsAiAdmin::Context.new(actor: @staff, tenant: @tenant, security_version: @staff.security_version.to_s)
+    assert_includes TicketPolicy.new(context, @ticket).readable_fields, :review_summary
+    refute RailsAiAdmin::Authorization::Access.new(context, TicketAdmin).project(@ticket).key?("review_summary")
+  end
+
   def test_real_devise_session_pundit_scope_and_uuid_update_replay
     login
     get "/operations/tickets"
@@ -224,7 +239,7 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
       context = RailsAiAdmin::Context.new(actor: @staff, tenant: @tenant, security_version: @staff.security_version.to_s)
       assert RailsAiAdmin::TestKit.assert_access(context: context, resource: TicketAdmin, action: :update, record: @ticket, allowed: role != "viewer")
       assert RailsAiAdmin::TestKit.assert_access(context: context, resource: TicketAdmin, action: :destroy, record: @ticket, allowed: role == "admin")
-      readable = %i[id subject state priority] + (role == "viewer" ? [] : [ :internal_note ])
+      readable = %i[id subject state priority] + (role == "viewer" ? [] : %i[internal_note review_summary])
       writable = role == "viewer" ? [] : %i[subject state priority internal_note]
       assert RailsAiAdmin::TestKit.assert_field_grants(context: context, resource: TicketAdmin, record: @ticket,
         expected: { read: readable, write: writable, search: [ :subject ], sort: [ :priority ] })

@@ -19,7 +19,7 @@ class TicketPolicy
   def read_operation_receipt?(operation) = %i[triage bulk_triage].include?(operation) && %w[operator admin].include?(context.actor.role) && (record.is_a?(Class) || show?)
   def deliver_operation_work?(operation, kind) = %i[triage bulk_triage].include?(operation) && %w[operator admin].include?(context.actor.role) && (record.is_a?(Class) || show?) && %w[tickets.triaged tickets.closed].include?(kind)
   def readable_fields
-    fields = %i[id subject state priority]
+    fields = %i[id subject state priority review_summary]
     context.actor.role == "viewer" ? fields : fields + [ :internal_note ]
   end
   def writable_fields = %w[operator admin].include?(context.actor.role) ? %i[subject state priority internal_note] : []

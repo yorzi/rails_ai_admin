@@ -76,6 +76,23 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
     assert_select "[data-custom-field=trimmed_text]", text: "Café"
   end
 
+  def test_packaged_computed_summary_is_derived_and_cannot_be_written
+    login
+    get "/staff/customers/#{@customer.id}"
+    assert_select "dd", text: "Active · 0 points"
+    get "/staff/customers/#{@customer.id}/edit"
+    assert_select "input[name='record[status_summary]']", count: 0
+    token = css_select("input[name=authenticity_token]").first["value"]
+    intent = css_select("input[name=intent_ref]").first["value"]
+    patch "/staff/customers/#{@customer.id}", params: { authenticity_token: token, intent_ref: intent, record: { status_summary: "Forged" } }
+    assert_response :unprocessable_content
+    assert_equal 0, @customer.reload.points
+    patch "/staff/customers/#{@customer.id}", params: { authenticity_token: css_select("input[name=authenticity_token]").first["value"], intent_ref: intent, record: { points: "8", active: "false" } }
+    assert_response :see_other
+    get "/staff/customers/#{@customer.id}"
+    assert_select "dd", text: "Inactive · 8 points"
+  end
+
   def test_host_policy_matrix_and_field_grants
     anonymous = Struct.new(:session).new({})
     assert RailsAiAdmin::TestKit.assert_unauthenticated(adapter: AdminContext.new, controller: anonymous)
@@ -84,7 +101,7 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
       context = RailsAiAdmin::Context.new(actor: @user, tenant: @account, security_version: @user.security_version.to_s)
       assert RailsAiAdmin::TestKit.assert_access(context: context, resource: CustomerAdmin, action: :update, record: @customer, allowed: role == "admin")
       assert RailsAiAdmin::TestKit.assert_field_grants(context: context, resource: CustomerAdmin, record: @customer,
-        expected: { read: %i[id name active points created_at], write: role == "admin" ? %i[name active points] : [], search: [ :name ], sort: [ :name ] })
+        expected: { read: %i[id name active points created_at status_summary], write: role == "admin" ? %i[name active points] : [], search: [ :name ], sort: [ :name ] })
       assert RailsAiAdmin::TestKit.assert_hidden(context: context, resource: CustomerAdmin, field: :secret)
     end
     context = RailsAiAdmin::Context.new(actor: @user, tenant: @account, security_version: @user.security_version.to_s)
