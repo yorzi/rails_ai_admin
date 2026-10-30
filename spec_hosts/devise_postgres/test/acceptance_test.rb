@@ -258,6 +258,36 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
     refute ActiveRecord::Base.connection.tables.any? { |name| name.start_with?("rails_ai_admin_assistant_") }
   end
 
+  def test_devise_timeout_recovery_renews_only_the_original_unconsumed_intent
+    login
+    token, intent = edit_intent
+    travel 31.minutes do
+      get "/operations/tickets"
+      assert_response :redirect
+      follow_redirect!
+      assert_response :unauthorized
+      patch "/operations/tickets/#{@ticket.id}", params: { authenticity_token: token, intent_ref: intent, record: { subject: "Not yet saved" } }
+      assert_response :unprocessable_content
+      assert_equal "session", response.headers["X-RailsAiAdmin-Form-Recovery"]
+      assert_equal "Support task", @ticket.reload.subject
+      login
+      get "/operations/tickets/forms/recover", headers: { "X-RailsAiAdmin-Recovery-Intent" => intent }
+      assert_response :success
+      assert_equal "ready", response.headers["X-RailsAiAdmin-Form-Recovery"]
+      assert_select "input[name=intent_ref][value='#{intent}']"
+      assert_select "a[href='/staff_users/sign_in'][target=_blank]"
+      assert_equal 1, RailsAiAdmin::OperationRun.count
+      assert_empty RailsAiAdmin::AuditEvent.where(status: "succeeded")
+      patch "/operations/tickets/#{@ticket.id}", params: { authenticity_token: csrf, intent_ref: intent, record: { subject: "Explicit recovery after Devise timeout" } }
+      assert_response :see_other
+      assert_equal "Explicit recovery after Devise timeout", @ticket.reload.subject
+      assert_equal 1, @ticket.lock_version
+      get "/operations/tickets/forms/recover", headers: { "X-RailsAiAdmin-Recovery-Intent" => intent }
+      assert_response :not_found
+      assert_equal 1, RailsAiAdmin::AuditEvent.where(status: "succeeded").count
+    end
+  end
+
   def test_devise_timeout_ends_access_without_reusing_the_admin_context
     login
     token, intent = edit_intent

@@ -97,6 +97,33 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
     end
   end
 
+  def test_authenticated_recovery_reuses_the_original_intent_after_session_loss
+    login
+    get "/staff/customers/#{@customer.id}/edit"
+    ref = css_select("input[name=intent_ref]").first["value"]
+    reset!
+    get "/login"
+    anonymous_csrf = css_select("input[name=authenticity_token]").first["value"]
+    patch "/staff/customers/#{@customer.id}", params: { authenticity_token: anonymous_csrf, intent_ref: ref, record: { name: "Must not execute" } }
+    assert_response :unprocessable_content
+    assert_equal "session", response.headers["X-RailsAiAdmin-Form-Recovery"]
+    assert_equal "Packaged Customer", @customer.reload.name
+    login
+    get "/staff/customers/forms/recover", headers: { "X-RailsAiAdmin-Recovery-Intent" => ref }
+    assert_response :success
+    assert_equal "ready", response.headers["X-RailsAiAdmin-Form-Recovery"]
+    assert_select "input[name=intent_ref][value='#{ref}']"
+    assert_select "a[href='/login'][target=_blank][rel='noopener noreferrer']"
+    assert_equal 1, RailsAiAdmin::OperationRun.count
+    assert_empty RailsAiAdmin::AuditEvent.where(status: "succeeded")
+    patch "/staff/customers/#{@customer.id}", params: { authenticity_token: css_select("input[name=authenticity_token]").first["value"], intent_ref: ref, record: { name: "Explicit recovered save" } }
+    assert_response :see_other
+    assert_equal "Explicit recovered save", @customer.reload.name
+    get "/staff/customers/forms/recover", headers: { "X-RailsAiAdmin-Recovery-Intent" => ref }
+    assert_response :not_found
+    assert_equal 1, RailsAiAdmin::AuditEvent.where(status: "succeeded").count
+  end
+
   def test_packaged_no_ai_crud_and_boundaries
     spec = Gem.loaded_specs.fetch("rails_ai_admin")
     assert_includes spec.full_gem_path, "/gems/rails_ai_admin-"
