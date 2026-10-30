@@ -66,25 +66,26 @@ These were integration hazards in the admin implementation, not established Rail
 bugs. Ruby's integer parsing and SQLite's explicit LIKE escape behavior also need
 adapter-side handling; the current coercion/query code covers those cases.
 
-## Verify Assistant Storage Isolation Before Integration
+## Share RubyLLM's Tool Call and Usage Tables
 
 RubyLLM 2.1.1 permits custom Chat/Message class mappings. Its released message macro
-still maps ToolCall and Usage associations to shared SDK classes/tables, and has
-no `tool_call_class` keyword. Host B public reflection confirmed those targets;
-the keyword is rejected. Pending approvals also directly query the SDK ToolCall
-class. Custom Chat/Message models therefore do not by themselves satisfy this
-project's Engine-owned ToolCall storage requirement.
+maps ToolCall and Usage associations to RubyLLM's own `ruby_llm_tool_calls` and
+`ruby_llm_usages` tables, and has no `tool_call_class` keyword. RubyLLM owns those
+supporting tables while applications own chats and messages, so admin Chat uses
+Engine-owned Chat/Message tables and shares the ToolCall/Usage tables.
 
-This is a concrete gap in our proposed integration, not a violated RubyLLM promise.
-Resolve it with supported released APIs or a reviewed upstream extension before
-enabling admin Chat. Do not override SDK global table names, patch private methods
-or silently share product tool-call rows. The current conventional admin does not
-create admin Chat/ToolCall records and does not claim this proof is complete.
+Rows stay isolated per chat. The associations are polymorphic, and chat-level
+lookups such as pending approvals filter by the message class and the chat's own
+message ids. A probe with admin and product chats sharing the same ids kept their
+tool calls, pending approvals and usages apart and rejected a cross-chat approval.
+Read these rows only through the admin's own associations. Do not override SDK
+table names or patch private methods. The usage ledger is shared, so choose the
+admin's usage owner deliberately to keep admin spend out of product totals.
 
 The checkout's `docs/reference/dependency-contracts.md` links the owning released
-persistence sources. No provider key or network call was used for the mapping probe.
+persistence sources. No provider key or network call was used for the probes.
 
-DEP-001 and DEP-006 are resolved for the selected 1.0.2 package. Remaining storage,
+DEP-001, DEP-006 and DEP-007 are resolved for the selected 1.0.2 package. Remaining storage,
 provider and integration evidence must still be established. Keep unconfirmed
 findings labelled as such and reproduce them against a released package before
 proposing a dependency fix.

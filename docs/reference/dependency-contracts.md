@@ -51,30 +51,33 @@ Rails defects. The admin also explicitly parses integer strings in base ten and
 supplies a LIKE escape clause for SQLite literal wildcard searches; those behaviors
 are adapter responsibilities.
 
-## RubyLLM isolation remains a later proof
+## RubyLLM isolation
 
 The selected released RubyLLM package's Railtie installs Active Record support,
 inflection and default instrumentation/accounting hooks when loaded in a Rails
 process. Source inspection alone does not prove a collision in a real host.
-Future admin Chat/Message/ToolCall tables must remain separate from host product
+Future admin Chat/Message tables must remain separate from host product
 conversations, and provider settings must use a verified released isolation API.
-The 2.1.1 `acts_as_message` macro maps ToolCall and Usage associations to shared
-SDK classes/tables. It accepts custom Chat mapping, but no `tool_call_class`
-keyword. Public reflection in Host B confirmed `ruby_llm_tool_calls` and
-`ruby_llm_usages` table targets; passing that keyword raises `ArgumentError`.
-The released `pending_approvals` also directly queries the SDK ToolCall class.
-Thus custom Chat/Message mappings alone do not satisfy the plan's Engine-owned
-ToolCall requirement. This is a concrete integration gap in our proposed design,
-not a violated upstream promise. Resolve it through supported released extension
-APIs or a reviewed upstream change before enabling admin Chat; do not change the
-SDK's global table name, monkey patch private methods or silently share host rows.
-Unreleased main-branch queue/claim/approval behavior is not an accepted dependency
+
+ToolCall and Usage rows are isolated per chat, not per table. The 2.1.1
+`acts_as_message` macro maps those associations to RubyLLM's own
+`ruby_llm_tool_calls` and `ruby_llm_usages` tables and has no `tool_call_class`
+keyword; Host B public reflection confirmed both. That matches RubyLLM's ownership
+model, where it owns supporting tables and applications own chats and messages, so
+the admin adopts the shared tables instead of Engine-owned copies. The associations
+are polymorphic, and chat-level lookups such as `pending_approvals` filter by the
+message class's `polymorphic_name` and the chat's own message ids. A probe in
+RubyLLM's dummy app with two chat/message pairs sharing the same ids kept tool
+calls, pending approvals and usages apart and rejected a cross-chat `approve`.
+Admin code reads these rows only through its own associations; do not change the
+SDK's global table names or monkey patch private methods. The usage ledger is
+shared, so pick the admin's usage owner deliberately. Unreleased main-branch queue/claim/approval behavior is not an accepted dependency
 of this slice. No paid-provider or durable-continuation evidence is claimed.
 
 Owning source: [RubyLLM 2.1.1 Railtie](https://github.com/crmne/ruby_llm/blob/v2.1.1/lib/ruby_llm/railtie.rb).
 The [released persistence macros](https://github.com/crmne/ruby_llm/blob/v2.1.1/lib/ruby_llm/active_record/acts_as.rb)
 and [Chat persistence](https://github.com/crmne/ruby_llm/blob/v2.1.1/lib/ruby_llm/active_record/chat_methods.rb)
-own the ToolCall/Usage mapping constraint.
+own the shared ToolCall/Usage mapping and its polymorphic scoping.
 
 ## Frontend policy contract
 

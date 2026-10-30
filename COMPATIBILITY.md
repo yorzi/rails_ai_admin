@@ -27,8 +27,8 @@ Host A conventional packaged boot did not load RubyLLM/rails_tool_views constant
 AI/runtime tables, access provider keys or call a provider. A host already using
 both SDKs (Host B) preserved its product Chat/Message, Surface and global settings
 through conventional admin CRUD/member/collection operations and development reload. Full admin Chat/Surface and
-continuation coexistence still needs separate acceptance. Released SDK ToolCall
-storage is shared by default; Engine-owned ToolCall storage is unresolved.
+continuation coexistence still needs separate acceptance. Admin ToolCall/Usage
+rows use RubyLLM's shared tables, isolated per chat by polymorphic scoping.
 
 Unsupported in this slice: MySQL, composite keys, multiple/parameterized mounts,
 shards, cross-pool atomic writes, global operations, custom CRUD replacement,

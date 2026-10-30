@@ -88,7 +88,7 @@
 1. **Ruby 常量改为 `RailsAiAdmin`**，AI 子命名空间改为 `RailsAiAdmin::Assistant`；这样不需要修改 Host 的 Zeitwerk/ActiveSupport inflection（§3.7）。
 2. **Host 扩展文件放在独立的 `app/rails_ai_admin/`**，采用带 `Admin` 后缀的顶层常量（`OrderAdmin`）。这样能避开 ActiveAdmin 被 Zeitwerk ignore 的 `app/admin`、Graphiti/JSONAPI 的 `*Resource`、Administrate 的 `*Dashboard`，迁移期间新旧后台可以共存（§3.7）。
 3. **前端资产以预构建、命名空间化的 CSS/ESM 随 Gem 发布**；Admin layout 是独立文档，不依赖 Host 的 importmap/jsbundling/Tailwind，并兼容严格 CSP（§2.2、§8.3）。这能大幅压缩 §9.2 的前端组合矩阵。
-4. **Admin 会话使用 Engine 自有 Chat/Message/ToolCall 表**，绝不写入 Host 产品的 `Chat`；Provider 凭据经 `RubyLLM.context` 隔离，不修改 Host 的全局 `RubyLLM.configure`（§3.4、§6.4）。
+4. **Admin 会话使用 Engine 自有 Chat/Message 表**，绝不写入 Host 产品的 `Chat`；ToolCall/Usage 行使用 RubyLLM 自有的共享表，按多态类型与会话隔离（2026-10-30 修正，见 §3.4）；Provider 凭据经 `RubyLLM.context` 隔离，不修改 Host 的全局 `RubyLLM.configure`（§3.4、§6.4）。
 5. **业务写入工具禁止“记住审批”**（RubyLLM main 的 `remember: true`），也不能复用跨调用的 tool 级批准（§6.4）。
 6. **新增 HTTP 路由契约、保留 slug、Host Test Kit 与 “AI 可见性报告”**（§4.6、§4.7），并补充 Audit Explorer、countless/keyset 分页、关联列排序等功能项（§5）。
 7. **新增 SPIKE-06（`rails_tool_views` 全局配置共存）与 SPIKE-07（预构建资产跨 Propshaft/Sprockets/CSP）**，以及相应的 ADR、风险与 Phase 0/1 任务。
@@ -315,14 +315,17 @@ rails_ai_admin/
 
 **先做 ADR**：是否用独立 `AdminConversation` 包装 RubyLLM Chat，还是由用户注入 `chat_model`；比较安装复杂度、升级迁移成本、数据所有权。不可在未定模型下直接写永久 migrations。
 
-**v0.3 推荐起点**：使用 Engine 自有的 `RailsAiAdmin::Assistant::Chat`/`Message`/`ToolCall` 类（表名 `rails_ai_admin_assistant_*`），通过 RubyLLM 2.1.1 已发布的 `acts_as_chat(message_class:)`、`acts_as_message(chat_class:)` 等选项接入。actor/tenant/security epoch 直接作为 Chat 列保存，不再另包一层 `AdminConversation`。理由：
+**v0.3 推荐起点**（2026-10-30 修正）：使用 Engine 自有的 `RailsAiAdmin::Assistant::Chat`/`Message` 类（表名 `rails_ai_admin_assistant_*`），通过 RubyLLM 2.1.1 已发布的 `acts_as_chat(message_class:)`、`acts_as_message(chat_class:)` 等选项接入。ToolCall 与 Usage 不建 Engine 自有表，使用 RubyLLM 自有的 `ruby_llm_tool_calls`/`ruby_llm_usages`。actor/tenant/security epoch 直接作为 Chat 列保存，不再另包一层 `AdminConversation`。理由：
 
 - 目标受众里有已经用 RubyLLM 做产品功能的团队。若 Admin 会话写入 Host 产品的 `Chat` 表，客服或运营人员看到的客户数据就可能出现在终端用户可读的会话里，这是数据边界错误，不只是命名问题。
-- Engine 自有表才能保证 §3.5 的同连接事务、§7.5.1 的旧会话失效与独立保留期。
+- Engine 自有 Chat/Message 表才能保证 §3.5 的同连接事务、§7.5.1 的旧会话失效与独立保留期。
+- **ToolCall/Usage 隔离在行级，不在表级**。RubyLLM 的所有权模型是：应用拥有 Chat/Message，RubyLLM 拥有 ToolCall、Usage 等支撑表。`acts_as_message` 固定映射到 `RubyLLM::ActiveRecord::ToolCall`/`Usage`，没有 `tool_call_class:` 选项，也不应向上游提议增加。这些关联是多态的（`as: :message`/`as: :chat`/`as: :result`），会话级查询（2.1.1 的 `pending_approvals`/`find_tool_call`，main 的 `chat_approvals.rb`/`run_claims.rb`）同时按 `message_type` 与本会话的 message id 过滤。`tool_call_id` 全局唯一，冲突时由 `add_message` 重新分配。2026-10-30 在 RubyLLM dummy app 中以 id 相同的两组 Chat/Message 实测：tool calls、`pending_approvals`、usages 互不可见，跨会话 `approve` 报 `Unknown tool call`，删除一方会话不影响另一方（DEP-007，已解决）。
+- 不覆盖 SDK 表名、不 monkey patch 私有方法。Admin 会话只经自身 Chat/Message 关联读取 ToolCall/Usage，绝不直接查询全表。
+- **Usage 归属须有意设置**：共享 usage ledger 按 `owner:`/`RubyLLM.with_usage_owner` 归属。若 Admin 用量记在与产品相同的 owner 下，`current_user.ruby_llm_usages.sum(:total_cost)` 之类的 owner 级汇总会包含 Admin 支出；按 §6.4 成本归属单独选择 owner。
 - “注入 Host chat_model”保留为 P1 高级选项，但只接受专用于 Admin 的类，doctor 检查它不是 Host 产品正在使用的会话类。
 - RubyLLM 的模型目录表（若 Host 已有）可只读复用。是否需要 Engine 自有目录，以及 2.1.1 的生成器与 Engine 自有类能否共存，并入 SPIKE-01 验证，不在本轮假设。
 
-**存储/隐私**：所有表前缀 `rails_ai_admin_`；外键/索引可迁移；支持 UUID/Bigint；按 actor/tenant 加索引；审计日志与聊天保留期分开；日志不存访问凭据、密码、原始大文件或默认完整 Prompt。
+**存储/隐私**：Engine 自有表前缀 `rails_ai_admin_`（RubyLLM 自有的 `ruby_llm_*` 表除外：删除 Admin 消息会删除其 tool calls，usages 保留并清空关联）；外键/索引可迁移；支持 UUID/Bigint；按 actor/tenant 加索引；审计日志与聊天保留期分开；日志不存访问凭据、密码、原始大文件或默认完整 Prompt。
 
 ### 3.5 事务、队列和身份边界（首次写入前必须确定）
 
@@ -821,7 +824,7 @@ SPIKE-06 须在两个 packaged Host 中各加一个 Host 自有的产品 Surface
 - 默认不让模型看到 API Key、Rails Secrets、加密列、密码 hash、Session、完整 Audit 等。
 - 角色/系统 Prompt、领域知识文件和 Resource 工具说明均版本化，支持 Host 覆盖并纳入测试；Prompt 本身不是权限控制机制。
 - **Provider 配置隔离**：Admin 的每次调用都在 `RubyLLM.context { |c| … }`（2.1.1 已发布）中进行，凭据来自 Host 的 credentials/secret store，经 `config.ai.credentials_resolver.call(context)` 按租户解析；不读写 Host 的全局 `RubyLLM.configure`，也不影响 Host 产品自己的 Provider 设置。
-- **会话存储隔离**：见 §3.4，Admin 会话绝不写入 Host 产品的 Chat 表。
+- **会话存储隔离**：见 §3.4，Admin 会话绝不写入 Host 产品的 Chat 表。ToolCall/Usage 行存于 RubyLLM 自有的共享表，按多态类型与会话隔离；契约测试覆盖 Admin 与产品会话 id 相同时 tool calls、`pending_approvals`、`approve` 与 usages 互不可见。
 - **禁止“记住审批”**：RubyLLM main（未发布）新增 `approve(..., remember: true)`，之后同一工具在该会话中免审批运行。Admin 的业务写入工具必须拒绝 remember，并在每次调用时要求 §4.3.2 的 intent 级批准；只读工具不需要审批，也就无所谓 remember。升级到包含该能力的版本时加契约测试。
 - **RubyLLM MCP 客户端（2.1.1 已含）不在 1.0 启用**：远程 MCP 工具会引入新的网络能力与身份边界，与 §6.8 “不进入首版”的列表一致。
 

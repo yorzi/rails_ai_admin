@@ -77,9 +77,9 @@ Continue the shared execution contracts while the full Phase 1 evidence remains 
    CI/security/browser matrices after their prerequisites exist.
 4. Continue the documented rails_tool_views 1.0.2 host-owned shared-runtime
    integration; DEP-001/006 are closed, while admin Surface acceptance is open.
-   Resolve the released RubyLLM shared ToolCall/usage persistence constraint
-   against the plan's Engine-owned tables before claiming isolated admin Chat.
-   The existing explicit Chat/Message mappings do not by themselves prove it.
+   DEP-007 is closed: admin Chat uses Engine-owned Chat/Message tables and
+   RubyLLM's shared ToolCall/Usage tables, isolated per chat. Admin Chat still
+   needs its own contract test for that isolation once it exists.
 
 ## Remaining product work
 
