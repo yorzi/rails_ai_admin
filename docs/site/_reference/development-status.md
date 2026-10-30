@@ -58,6 +58,12 @@ flows, rechecks current query grants and recovers empty later HTML pages with a
 bounded same-scope requery. These hints are neither URLs nor authority; saved
 views and the wider navigation roadmap remain separate work.
 
+[Custom Controllers and Status Pages]({% link _advanced/custom-controllers.md %})
+adds a host-owned Rails controller base with fresh Context/access/Runner helpers,
+explicit mounted-engine routes and fixed independent status presentation. It
+does not inherit host controller concerns automatically or replace arbitrary
+exception handling. Default record denials retain anti-enumeration 404.
+
 Not implemented in this slice: associations, nested attributes, uploads/private
 attachments, imports/exports, all-filtered or 10,000-target batch manifests,
 metrics dashboards, saved views, global custom operations, custom CRUD handler
@@ -90,6 +96,26 @@ The checkout's `COMPATIBILITY.md` and `ROADMAP.md` identify executed evidence an
 remaining milestones. In-repository tests, packaged-consumer tests, actual browser
 checks, paid providers, human usability work and independent security review are
 different evidence. Do not substitute one for another.
+
+The native-session consumer now also has an Order model/resource and ordinary
+host-owned review workbench under /staff/workbench/orders/:id. Native actions and
+the workbench share ReviewOrderOperation and its input-bound intent/receipt;
+packaged cases cover decimal/date/false input, validation/readonly state,
+scoped role/tenant restrictions, one execution with cross-UI replay and stale/
+tampered confirmation rejection. Admin-only review notes and hidden payment tokens
+remain outside unauthorized projections. See the concrete source map in
+[Custom Controllers and Status Pages]({% link _advanced/custom-controllers.md %}).
+The Order host's actual reload probe replaced controller/resource/operation/
+registry and observed new HTTP code while rejecting old-version approval without
+business mutation. Production eager loading and rendering of every current
+catalog key passed. Chrome exercised explicit workbench review/confirmation,
+readonly approved-edit denial and generic Order same-UUID session recovery with
+decimal/date/false input, empty local/session storage and a single explicit Save.
+The custom layout's CSP nonce matches its header; its preview uses ordinary Rails
+full-page confirmation, and the checked 390px dark workbench had no horizontal
+overflow. This targeted author-controlled evidence establishes no Surface, AI,
+provider or independent user behavior, and does not close broader Phase 2 work or
+release Gates.
 
 The native-session SQLite consumer and independent Devise/Pundit/PostgreSQL support
 consumer provide packaged integration evidence for this limited slice. Host B also

@@ -113,13 +113,25 @@ collection form/review/failure, selection and job-show context contracts are now
 revision 2. See [List Navigation]({% link _core_features/list-navigation.md %}) for
 the exact helper and query/header boundaries.
 
+`status_layout` and `status_page` have revision-1 contracts for fixed
+@admin_status and the optional validated @status_sign_in_path. They render
+independently of normal resource navigation and keep Turbo reload metadata.
+Status override failure falls back to a fixed plain response without changing its
+HTTP status/session marker. Avoid record/exception lookups, arbitrary text/return
+URLs or resource-menu rendering there. Other noncataloged host error handling
+remains outside this API. See
+[Custom Controllers and Status Pages]({% link _advanced/custom-controllers.md %}).
+
 ## Preserve Form and Authority Boundaries
 
 Copying a standard template grants no authority. Keep current helper permission
 checks, field projections and normal Rails escaping. Do not turn text into raw
 HTML with `raw`/`html_safe` or use record getters to rebuild a hidden field.
 Layouts must retain the permission-aware navigation helpers, CSRF/CSP metadata,
-asset helpers, one document shell and `yield`.
+asset helpers, one document shell and `yield`. Host custom layouts loading the
+prebuilt Turbo bundle need meta[name=csp-nonce] populated by the public
+admin_csp_nonce helper; it matches the response header and authorizes Turbo's
+progress-bar style without unsafe-inline.
 
 Use normal Rails form helpers and keep CSRF, endpoint/method and server-issued
 intent bindings. Retain `intent_ref`, applicable `expected_version`, reviewed

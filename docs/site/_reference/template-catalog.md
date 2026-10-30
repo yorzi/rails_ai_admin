@@ -24,10 +24,10 @@ permission. Keep existing authority helpers, escaping, CSRF, intent/confirmation
 bindings and failure handling. See
 [Template Overrides]({% link _advanced/template-overrides.md %}) for copying,
 compatibility statuses and upgrade review. Field-type-specific partials take
-precedence over global field defaults. No Surface wrapper is cataloged. Plain controller error responses also remain
-outside this template catalog.
+precedence over global field defaults. No Surface wrapper is cataloged. Non-HTML plain status responses and host exceptions_app handling remain
+outside this ERB template catalog.
 
-The current catalog contains 24 entries. resource_new/resource_edit/resource_form
+The current catalog contains 26 entries. resource_new/resource_edit/resource_form
 use contract revision 4; other navigation-aware templates and resource_errors/input_fields
 use revision 2; remaining entries use revision 1. Source bytes and context revision
 can change independently; always inspect the installed version when upgrading.
@@ -48,9 +48,17 @@ hint, never route/record authority. resource_index also receives sortable_fields
 Use registered helpers from [List Navigation]({% link _core_features/list-navigation.md %})
 and preserve hidden return fields, recovery-header data and discard notices.
 
+status_layout/status_page use revision 1 and render fixed @admin_status with
+optional validated @status_sign_in_path, independently of resource navigation.
+A failing status override falls back to fixed plain text with the same HTTP
+status/session marker. See
+[Custom Controllers and Status Pages]({% link _advanced/custom-controllers.md %}).
+
 | Key | Revision | Destination | Assigns | Locals |
 | --- | --- | --- | --- | --- |
 | `layout` | 2 | `layouts/rails_ai_admin/application.html.erb` | `context`, `admin_csp_nonce`, `list_navigation` | None |
+| `status_layout` | 1 | `layouts/rails_ai_admin/status.html.erb` | `admin_status` | None |
+| `status_page` | 1 | `rails_ai_admin/statuses/show.html.erb` | `admin_status`, `status_sign_in_path` | None |
 | `dashboard` | 1 | `rails_ai_admin/dashboard/index.html.erb` | `context` | None |
 | `resource_index` | 2 | `rails_ai_admin/resources/index.html.erb` | `context`, `resource`, `page`, `columns`, `rows`, `searchable`, `selectable`, `sortable_fields`, `list_navigation` | None |
 | `resource_show` | 2 | `rails_ai_admin/resources/show.html.erb` | `context`, `resource`, `record`, `values`, `fields`, `operations`, `list_navigation` | None |

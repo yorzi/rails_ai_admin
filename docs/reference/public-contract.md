@@ -248,6 +248,38 @@ need review. Only standard `app/views/rails_ai_admin` and
 New/edit wrappers apply to GET, validation and conflict and keep the existing
 shared full form. Global field display/input defaults are overrideable; explicit
 field-type partials win. Scope/field/action decisions, CSRF, intent/confirmation,
-escaping, dirty-form and flow IDs remain part of the review. Surface wrappers and
-plain status/controller extension contracts remain future work. See ADR 0011 and
+escaping, dirty-form and flow IDs remain part of the review. Fixed HTML statuses
+add status_layout/status_page, bringing the catalog to 26 entries; non-HTML plain
+responses and future Surface wrappers remain outside it. See ADR 0011/0015 and
 the site template guide/catalog for exact paths and bounds.
+
+
+## Host controllers and fixed statuses
+
+`RailsAiAdmin::CustomController` inherits fresh admin authentication, CSRF,
+private responses/security headers and action-parameter filtering. It selects
+`layout false` and retains host route/view lookup. Protected entry points are
+admin_context, admin_access(registered_key), admin_operation_runner, admin_routes,
+admin_csp_nonce and admin_status(kind). admin_routes/admin_csp_nonce are also view
+helpers. Resolving Access grants nothing; use current scoped lookup and field
+projection. Writes use the shared Runner with explicit command/target binding.
+
+Use the mounted admin_routes proxy for Engine links, including SCRIPT_NAME;
+unqualified helpers remain the host's. Optional engine-prefix host routes are
+registered with Engine.routes.prepend in an initializer before drawing. Initial
+Started-URL redaction outside the Engine mount remains the host's responsibility.
+Host layouts loading the prebuilt bundle need csp-nonce meta from admin_csp_nonce.
+
+`Presentation::Status.fetch` accepts only authentication_required (401), forbidden
+(403), not_found (404), conflict (409), invalid_query/invalid_request (422),
+unavailable (503) and error (500). Explicit forbidden is for a host page decision;
+normal hidden/unknown records and unknown access codes still produce matching
+anti-enumeration 404. Exception/request/business text and return URLs are not
+inputs. `return admin_status(kind)` is required to halt subsequent action work.
+HTML/Turbo uses minimal fixed HTML with reload metadata and no resource navigation;
+non-HTML stays plain text. A failing status override falls back to fixed plain
+text with the same HTTP status/session marker, never a false recovery-ready marker.
+Unhandled action exceptions remain the host's error-handling responsibility.
+
+See ADR 0015 and the custom-controller guide for the packaged Order example,
+ordinary HTML preview/303 confirmation contract and extension trust boundary.

@@ -30,12 +30,12 @@ this file records current scope without rewriting its historical review claims.
   titles agree across pages/selections/jobs, virtual input/query targets are
   rejected and fake virtual preflight changes are excluded. Actual packaged
   summaries and source reload advance the Field Registry/CRUD-008 contracts.
-- Individual template override generator with 24 explicit current paths/context
+- Individual template override generator with 26 explicit current paths/context
   contracts, source/context metadata, preservation of existing edits and bounded
   doctor upgrade diagnostics. New/edit failure wrappers and field defaults obey
   Rails precedence. Packaged Host A rendered every catalogued host override;
   Host B verified its subset on both pipelines and actual template reload.
-  This advances RAA-0209/0211; Surface/status/controller extensions remain open.
+  This advances RAA-0209/0211; future Surface templates remain open.
 - Per-view output flags, global hidden resource fields and optional current view
   permission masks applied before recursive computation dependencies. Generic
   Runner writes also enforce create/edit masks. Authorized readonly form context,
@@ -56,6 +56,14 @@ this file records current scope without rewriting its historical review claims.
   and empty HTML pages clamp within the same authorized filter. Unicode state
   survives open-tab recovery via a bounded ASCII header. Packaged hosts and Chrome
   verify these flows (RAA-0207/0212 and LIST-016; ADR 0014).
+- Public CustomController for host-owned Rails pages/layouts/partials with fresh
+  Context, explicit Access/Runner/mounted-route helpers and a CSP nonce helper.
+  Fixed minimal status pages preserve denial codes, anti-enumeration, Turbo reload
+  and plain fallback if a host override breaks. Packaged Order CRUD/workbench adds
+  the third domain alongside Customer/Ticket, with cross-page confirmation/replay,
+  exact decimal/date/false values, readonly state, real source reload and native
+  recovery. Chrome covers the actual preview/confirmation and recovery paths
+  (further RAA-0202/0206/0209/0211 and three-domain evidence; ADR 0015).
 - Server-owned intents with input/identity/epoch/version/expiry binding, database
   serialization, replay, atomic domain/audit/receipt, callback rollback handling
   and separate post-commit warning (synchronous parts of RAA-0112/0113).
@@ -100,10 +108,13 @@ documentation and advisory scanning. No remote CI run has occurred.
 
 ## Next implementation checkpoint
 
-Finish the remaining Phase 2 contracts: status/controller extension points and three
-distinct domain-resource acceptance. Scalar/computed fields, conventional overrides,
-grouped forms, generic open-tab recovery and structured list navigation have local
-evidence; Phase 2 and release gates remain open.
+Complete the remaining Phase 2 DSL/presentation contracts and their traceability:
+resource filters, named scopes, configurable navigation and the broader browser/
+I18n/accessibility evidence. Status/controller extension and the third domain now
+have local evidence; this does not close the full Phase 2 or release gates.
+Prepare the narrow Order Review shared-operation/Surface proof after its relevant
+prerequisites are verified; the existing ordinary Order workbench supplies its
+conventional execution baseline.
 
 Continue the shared execution contracts while the full Phase 1 evidence remains open:
 
@@ -127,9 +138,10 @@ Continue the shared execution contracts while the full Phase 1 evidence remains 
 
 ## Remaining product work
 
-- Phase 2: finish status/controller extension points and three-domain-resource
-  acceptance. Generic open-tab recovery
-  has local evidence; persistent drafts and custom-operation recovery stay open.
+- Phase 2: complete filters/scopes/navigation DSL and remaining presentation/
+  browser evidence. Three-domain CRUD, status/controller extension and generic
+  open-tab recovery have local evidence; persistent drafts and custom-operation
+  recovery stay open.
 - Early proof: ordinary Order Review and one trusted Surface through the same
   Operation, then an offline released RubyLLM loop and continuation faults.
 - Phases 3–4: associations, batch/selection, CSV, private files, audit explorer,

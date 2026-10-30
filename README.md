@@ -27,6 +27,12 @@ Use [Template Overrides](docs/site/_advanced/template-overrides.md) to copy one
 public presentation template and review source/context drift with doctor. Host
 overrides remain trusted Rails code and must preserve the execution boundary.
 
+Build ordinary host-owned Rails pages with the public
+[Custom Controller and Status API](docs/site/_advanced/custom-controllers.md).
+Scoped Access and the shared Runner preserve the execution boundary; host routes,
+layouts and partials remain ordinary Rails. The native-session packaged consumer
+includes an Order review workbench that shares its operation with native pages.
+
 ## Develop
 
 ```sh

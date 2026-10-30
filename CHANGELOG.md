@@ -88,6 +88,15 @@
 - Reject malformed search/page encodings and control searches before database
   serialization. Declare the already-resolved base64 codec as a direct dependency.
 
+- Add public host CustomController entry points for current Context, scoped Access,
+  shared Runner, mounted routes and layout CSP nonce without replacing host helpers.
+- Add eight fixed minimal status kinds with HTML/Turbo reload, anti-enumeration,
+  status-template plain fallback and two individual override catalog entries.
+- Add packaged Order CRUD and a host-owned review workbench sharing the native
+  operation/intent, plus real controller/operation reload and browser recovery proof.
+- Return CONFLICT for unique-index rejection with full transaction rollback. Isolate
+  temporary mounted-route probes so randomized tests use the real host prefix.
+
 Assistant/Surface adapters, global actions, custom CRUD replacement, 10,000-target
 batch materialization, associations, files, CSV and metrics dashboards are not implemented. Release gates remain open.
 

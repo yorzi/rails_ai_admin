@@ -93,6 +93,13 @@ search/sort/page hints through native record and operation flows, with fresh que
 grants and bounded empty-page recovery. Return hints never choose an external
 URL or grant record/list authority.
 
+## Build a Host-Owned Admin Page
+
+[Custom Controllers and Status Pages]({% link _advanced/custom-controllers.md %})
+connects ordinary host Rails controllers/partials to fresh admin Context, explicit
+scoped access and the shared Runner. Fixed status pages preserve HTTP/denial
+boundaries without rendering normal resource navigation.
+
 ## Current Scope
 
 The current slice implements scalar CRUD, synchronous member operations and

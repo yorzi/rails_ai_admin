@@ -216,6 +216,49 @@ from the same UUID intent header: ASCII Base64URL UTF-8 JSON, 2,048 encoded byte
 See [List Navigation]({% link _core_features/list-navigation.md %}) for native
 flow retention and the registered template helpers.
 
+## Host Custom Controllers and Fixed Statuses
+
+A host controller subclasses `RailsAiAdmin::CustomController` (default layout
+false), owns its routes/views/partials/layout and inherits fresh authentication,
+CSRF, security headers and action-parameter filtering. Host ApplicationController
+concerns are not inherited automatically. Protected admin_context returns fresh
+Context; admin_access(key) resolves only a registered resource and grants no
+action; callers explicitly authorize/find/project. admin_operation_runner uses the
+same shared Runner; admin_routes is the mounted proxy, also a registered view
+helper. Protected/view helper admin_csp_nonce returns an immutable copy of the
+current prepared response nonce. Custom layouts loading prebuilt Turbo must set
+meta[name=csp-nonce] from this helper so its injected progress style passes CSP;
+no-JavaScript layouts do not need that Turbo meta. It does not authorize content.
+Host route helpers remain host-owned. Optional engine-prefix host routes
+use Engine.routes.prepend in an initializer before draw, not late route mutation.
+Initial URL redaction outside the engine prefix remains a host responsibility.
+
+Protected `admin_status(kind)` renders a fixed snapshot and does not halt an
+action. Use `return admin_status(...)` when selecting a response before business
+work. Only these known String/Symbol kinds are supported:
+
+| Kind | HTTP | Code |
+| --- | --- | --- |
+| authentication_required | 401 | UNAUTHENTICATED |
+| forbidden | 403 | FORBIDDEN |
+| not_found | 404 | NOT_FOUND |
+| conflict | 409 | CONFLICT |
+| invalid_query | 422 | INVALID_QUERY |
+| invalid_request | 422 | INVALID_REQUEST |
+| unavailable | 503 | UNAVAILABLE |
+| error | 500 | ERROR |
+
+`Presentation::Status.fetch(kind)` returns immutable kind/http_status/code/title/
+message. Exceptions, record values, arbitrary messages and client return URLs
+are not status inputs. Explicit host-selected forbidden is 403; default record
+AccessDenied mapping still uses anti-enumeration 404 for ordinary unknown/denied
+records. HTML/Turbo uses minimal independent status HTML with reload metadata and
+no resource navigation/registry lookup. Non-HTML remains plain text, not JSON.
+Failed status overrides fall back to fixed plain text with the original HTTP
+status/session marker, never a ready recovery marker. Arbitrary action exceptions
+and host exceptions_app handling are not replaced. See
+[Custom Controllers and Status Pages]({% link _advanced/custom-controllers.md %}).
+
 ## Reload and Compatibility
 
 Class names resolve fresh on invocation. A metadata mismatch with an existing

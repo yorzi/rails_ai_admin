@@ -85,10 +85,22 @@ admin's usage owner deliberately to keep admin spend out of product totals.
 The checkout's `docs/reference/dependency-contracts.md` links the owning released
 persistence sources. No provider key or network call was used for the probes.
 
-DEP-001, DEP-006 and DEP-007 are resolved for the selected 1.0.2 package. Remaining storage,
+DEP-001 closes against the documented rails_tool_views 1.0.2 runtime contract;
+DEP-006 is its released installer fix. DEP-007 is the accepted RubyLLM 2.1.1
+storage-ownership decision, not a rails_tool_views version fix. Remaining storage,
 provider and integration evidence must still be established. Keep unconfirmed
 findings labelled as such and reproduce them against a released package before
 proposing a dependency fix.
+
+## Isolate Rails Route Probes
+
+Rails 8.1.4 shares mounted-helper definitions between route sets. A fake route set
+mounting a live Engine before real lazy routes are drawn can capture its fake
+prefix. Installer probes draw the actual host first and isolate the Engine route
+set used by scratch applications, without mutating Rails private helper modules.
+This is a test/integration constraint, not an established upstream defect or a
+claim of support for independent hosts/mounts in one process. The supported
+integration uses one named host mount.
 
 ## Next Steps
 

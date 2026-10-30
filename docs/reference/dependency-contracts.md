@@ -100,3 +100,14 @@ The installer still generates configuration scaffolding. The fixture retains its
 reviewed host-owned product initializer instead of treating generated defaults as
 an automatic merge. Admin Chat/Surface and continuation have their own remaining
 acceptance gates.
+
+## Isolate route-inspection probes
+
+Rails 8.1.4 shares mounted-helper definitions across route sets. Mounting a live
+Engine in a fake route set before the real application's lazy routes are drawn
+can leave its mounted proxy bound to the fake prefix. Our installer probes draw
+the real host first and isolate the engine route set used by fake applications.
+They do not mutate Rails private helper modules. Packaged hosts exercise the
+actual mount and real development reload separately. This is an integration/test
+constraint, not a claim that supported one-host mounting is broken or that
+multiple independent hosts/mounts in one process are supported.
