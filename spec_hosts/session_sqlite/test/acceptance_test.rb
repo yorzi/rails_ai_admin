@@ -63,6 +63,19 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
     assert RailsAiAdmin::TestKit.assert_isolated(context: context, resource: CustomerAdmin, foreign_id: Customer.where.not(account_id: @account.id).first.id)
   end
 
+  def test_packaged_custom_type_partial_and_normalization
+    login
+    get "/staff/customers/#{@customer.id}/edit"
+    assert_select "input[data-custom-field=trimmed_text]"
+    token = css_select("input[name=authenticity_token]").first["value"]
+    intent = css_select("input[name=intent_ref]").first["value"]
+    patch "/staff/customers/#{@customer.id}", params: { authenticity_token: token, intent_ref: intent, record: { name: "  Cafe\u0301  " } }
+    assert_response :see_other
+    assert_equal "Café", @customer.reload.name
+    get "/staff/customers/#{@customer.id}"
+    assert_select "[data-custom-field=trimmed_text]", text: "Café"
+  end
+
   def test_host_policy_matrix_and_field_grants
     anonymous = Struct.new(:session).new({})
     assert RailsAiAdmin::TestKit.assert_unauthenticated(adapter: AdminContext.new, controller: anonymous)

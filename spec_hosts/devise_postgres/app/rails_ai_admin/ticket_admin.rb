@@ -5,8 +5,8 @@ class TicketAdmin < RailsAiAdmin::Resource
   title :subject
   fields do
     id :id
-    text :subject, required: true, nullable: false, searchable: :prefix, sortable: true
-    enum :state, values: %w[open triaged closed], nullable: false
+    field :subject, type: :trimmed_text, required: true, nullable: false, searchable: :prefix, sortable: true
+    select :state, choices: [ [ "Open", "open" ], [ "Triaged", "triaged" ], [ "Closed", "closed" ] ], nullable: false
     integer :priority, sortable: true
     textarea :internal_note
   end

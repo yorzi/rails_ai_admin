@@ -4,10 +4,10 @@ class CustomerAdmin < RailsAiAdmin::Resource
   title :name
   fields do
     id :id
-    text :name, required: true, nullable: false, searchable: :prefix, sortable: true
+    field :name, type: :trimmed_text, required: true, nullable: false, searchable: :prefix, sortable: true
     boolean :active
     integer :points
-    datetime :created_at, readonly: true
+    readonly :created_at, type: :datetime
   end
   operation :award_points, handler: "AwardCustomerPoints"
   operation :bulk_award_points, handler: "BulkAwardCustomerPoints", scope: :collection

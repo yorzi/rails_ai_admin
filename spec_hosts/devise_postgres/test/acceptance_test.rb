@@ -56,6 +56,27 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
     refute_includes response.body, "Support task"
   end
 
+  def test_packaged_custom_field_and_fixed_select_validation
+    login
+    token, intent = edit_intent
+    assert_select "input[data-custom-field=trimmed_text]"
+    assert_select "select[name='record[state]'] option[value=triaged]", text: "Triaged"
+    patch "/operations/tickets/#{@ticket.id}", params: { authenticity_token: token, intent_ref: intent,
+      record: { subject: "  Reviewed task  ", state: "unknown" } }
+    assert_response :unprocessable_content
+    assert_select "input[data-custom-field=trimmed_text][value='  Reviewed task  ']"
+    assert_select "select[name='record[state]'] option[selected][disabled][value=unknown]"
+    assert_equal "Support task", @ticket.reload.subject
+    patch "/operations/tickets/#{@ticket.id}", params: { authenticity_token: csrf, intent_ref: intent,
+      record: { subject: "  Reviewed task  ", state: "triaged" } }
+    assert_response :see_other
+    assert_equal "Reviewed task", @ticket.reload.subject
+    assert_equal "triaged", @ticket.state
+    get "/operations/tickets/#{@ticket.id}"
+    assert_select "[data-custom-field=trimmed_text]", text: "Reviewed task"
+    assert_select "dd", text: "Triaged"
+  end
+
   def test_real_devise_session_pundit_scope_and_uuid_update_replay
     login
     get "/operations/tickets"

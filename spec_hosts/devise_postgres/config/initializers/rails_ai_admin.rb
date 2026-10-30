@@ -1,4 +1,5 @@
 RailsAiAdmin.configure do |config|
+  config.field_types = { trimmed_text: "TrimmedTextField" }
   config.context_adapter = "AdminContext"
   config.authorization_adapter = "RailsAiAdmin::Authorization::PunditAdapter"
   config.resources = [ "TicketAdmin", "ClosedTicketAdmin" ]
