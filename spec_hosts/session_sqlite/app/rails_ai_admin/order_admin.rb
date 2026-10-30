@@ -2,6 +2,7 @@ class OrderAdmin < RailsAiAdmin::Resource
   model "Order"
   key :orders
   title :number
+  navigation group: "Commerce", icon: "shopping-bag", order: 10
   fields do
     id :id, create: false, tab: "Order", panel: "Context"
     text :number, required: true, nullable: false, max_length: 32, searchable: :prefix, sortable: true, tab: "Order", panel: "Commercial details"

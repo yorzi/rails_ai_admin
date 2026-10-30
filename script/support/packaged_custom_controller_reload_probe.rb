@@ -9,6 +9,10 @@ raise "Use the copied session host in development" unless Rails.application.conf
 raise "Use the installed gem" unless Gem.loaded_specs.fetch("rails_ai_admin").full_gem_path.include?("/gems/rails_ai_admin-")
 controller_path = Rails.root.join("app/controllers/order_reviews_controller.rb")
 operation_path = Rails.root.join("app/rails_ai_admin/review_order_operation.rb")
+resource_path = Rails.root.join("app/rails_ai_admin/order_admin.rb")
+original_resource = resource_path.read
+modified_resource = original_resource.sub('navigation group: "Commerce"', 'navigation group: "Commerce Reloaded", label: "Reloaded orders"')
+raise "Navigation reload fixture did not match source" if modified_resource == original_resource
 original_controller = controller_path.read
 original_operation = operation_path.read
 modified_controller = original_controller.sub("  def show\n", "  def show\n    response.headers['X-Host-Controller-Reload'] = 'reloaded'\n")
@@ -37,6 +41,7 @@ begin
   wire = document(session).at_css("input[name=confirmed_input]")["value"]
   token = document(session).at_css("meta[name=csrf-token]")["content"]
   before_controller, before_resource, before_operation, before_registry = OrderReviewsController, OrderAdmin, ReviewOrderOperation, RailsAiAdmin.registry
+  resource_path.write(modified_resource)
   controller_path.write(modified_controller)
   operation_path.write(modified_operation)
   Rails.application.reloader.reload!
@@ -44,14 +49,21 @@ begin
   raise "Resource class retained" if OrderAdmin.equal?(before_resource)
   raise "Operation class retained" if ReviewOrderOperation.equal?(before_operation)
   raise "Registry retained" if RailsAiAdmin.registry.equal?(before_registry)
+  session.get "/staff/orders"
+  raise "Reloaded navigation was not rendered" unless session.response.status == 200 && session.response.body.include?("Commerce Reloaded") && session.response.body.include?("Reloaded orders")
   session.get path
   raise "Reloaded host code did not handle HTTP" unless session.response.status == 200 && session.response.headers["X-Host-Controller-Reload"] == "reloaded"
   session.post "#{path}/execute", params: { authenticity_token: token, intent_ref: intent_ref, confirmed_input: wire }
   raise "Old approval was not rejected" unless session.response.status == 409
   raise "Old approval changed business state" unless Order.find(order_id).state == "draft" && Order.find(order_id).lock_version.zero?
   raise "Old approval wrote success audit" if RailsAiAdmin::AuditEvent.where(correlation_ref: intent_ref, status: "succeeded").exists?
-  puts "Real host controller/resource/operation/registry reload passed; HTTP used new code and rejected the original approval without a business write"
+  puts "Real host controller/resource/navigation/operation/registry reload passed; HTTP used new code and rejected the original approval without a business write"
 ensure
+  if resource_path.read == modified_resource
+    resource_path.write(original_resource)
+  elsif resource_path.read != original_resource
+    raise "Concurrent host resource changes preserved"
+  end
   if controller_path.read == modified_controller
     controller_path.write(original_controller)
   elsif controller_path.read != original_controller

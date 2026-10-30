@@ -98,6 +98,24 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
     end
   end
 
+  def test_resource_menu_groups_icons_and_hidden_alias_preserve_native_authority
+    login
+    get "/staff"
+    assert_response :success
+    assert_select "nav[aria-label='Admin resources'] h2", text: "People"
+    assert_select "nav[aria-label='Admin resources'] h2", text: "Commerce"
+    assert_select "nav a[href='/staff/customers'] svg[aria-hidden=true][focusable=false]"
+    assert_select "nav a[href='/staff/orders'] svg[aria-hidden=true][focusable=false]"
+    assert_select "nav a[href='/staff/directory']", count: 0
+    assert_select ".raa-cards a[href='/staff/directory']", count: 0
+    get "/staff/directory"
+    assert_response :success
+    get "/staff/directory/#{@customer.id}"
+    assert_response :success
+    get "/staff/customers/#{@customer.id}"
+    assert_select "nav a[href='/staff/customers'][aria-current=location]"
+  end
+
   def test_order_native_crud_preserves_decimal_date_false_and_denies_readonly_input
     login
     get "/staff/orders/new"

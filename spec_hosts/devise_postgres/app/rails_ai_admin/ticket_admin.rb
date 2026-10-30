@@ -3,6 +3,7 @@ class TicketAdmin < RailsAiAdmin::Resource
   key :tickets
   policy "TicketPolicy"
   title :subject
+  navigation group: "Support", label: "Support queue", icon: "life-buoy"
   fields do
     id :id, create: false, tab: "Review", panel: "Context"
     field :subject, type: :trimmed_text, required: true, nullable: false, searchable: :prefix, sortable: true, tab: "Ticket", panel: "Details"

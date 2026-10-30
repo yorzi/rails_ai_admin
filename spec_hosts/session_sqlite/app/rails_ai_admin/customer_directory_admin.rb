@@ -4,6 +4,7 @@ class CustomerDirectoryAdmin < RailsAiAdmin::Resource
   label "Customer directory"
   title :name
   readonly
+  navigation false
   fields do
     id :id
     text :name, searchable: :prefix, sortable: true

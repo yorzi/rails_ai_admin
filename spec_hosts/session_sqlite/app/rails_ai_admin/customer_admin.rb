@@ -2,6 +2,7 @@ class CustomerAdmin < RailsAiAdmin::Resource
   model "Customer"
   key :customers
   title :name
+  navigation group: "People", icon: "users", order: 0
   fields do
     id :id, create: false, tab: "Account", panel: "Context"
     field :name, type: :trimmed_text, required: true, nullable: false, searchable: :prefix, sortable: true, tab: "Identity", panel: "Customer", help_text: "Use the preferred customer name."

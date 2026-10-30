@@ -43,6 +43,26 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
     assert_response :see_other
   end
 
+  def test_resource_menu_uses_current_pundit_grants_and_stable_registered_links
+    login
+    get "/operations"
+    assert_response :success
+    assert_select "nav[aria-label='Admin resources'] h2", text: "Support"
+    assert_select "nav a[href='/operations/tickets']", text: "Support queue"
+    assert_select "nav a[href='/operations/closed_tickets']", text: "Closed archive"
+    assert_select "nav a[href='/operations/tickets'] svg[aria-hidden=true][focusable=false]"
+    get "/operations/tickets/#{@ticket.id}"
+    assert_select "nav a[href='/operations/tickets'][aria-current=location]"
+    @staff.update!(role: "suspended")
+    get "/operations"
+    assert_response :success
+    assert_select ".raa-cards li", count: 0
+    refute_includes response.body, "Support queue"
+    assert_select "nav[aria-label='Admin resources'] h2", count: 0
+    get "/operations/tickets/#{@ticket.id}"
+    assert_response :not_found
+  end
+
   def edit_intent
     get "/operations/tickets/#{@ticket.id}/edit"
     assert_response :success
