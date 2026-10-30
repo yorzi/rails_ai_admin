@@ -9,10 +9,11 @@ module RailsAiAdmin
     wrap_parameters false
     layout "rails_ai_admin/application"
     helper RailsAiAdmin::FieldsHelper
+    helper RailsAiAdmin::NavigationHelper
     prepend_before_action :secure_headers
     before_action :authenticate_admin
     after_action :notice_discarded_list_settings
-    helper_method :admin_csp_nonce, :list_page_path, :encoded_return_state, :navigation_state, :navigation_params, :list_return_path, :list_return_label, :return_state_discarded?, :return_navigation_fields, :visible_resources, :allowed_action?, :record_label, :collection_jobs_available?
+    helper_method :resource_navigation, :admin_csp_nonce, :list_page_path, :encoded_return_state, :navigation_state, :navigation_params, :list_return_path, :list_return_label, :return_state_discarded?, :return_navigation_fields, :visible_resources, :allowed_action?, :record_label, :collection_jobs_available?
 
     rescue_from AccessDenied, with: :deny_access
     rescue_from ConfigurationError do
@@ -124,6 +125,12 @@ module RailsAiAdmin
       return unless response.redirect? && return_state_discarded?
       message = "Some list settings are no longer available."
       flash[:notice] = [ flash[:notice], message ].compact.join(" ") unless flash[:notice].to_s.include?(message)
+    end
+
+    # Request-only memoization; no menu/grant snapshot survives authentication.
+    def resource_navigation
+      @resource_navigation ||= Navigation::Menu.build(context: @context,
+        resources: RailsAiAdmin.registry.resources, current_key: @resource&.key)
     end
 
     def visible_resources

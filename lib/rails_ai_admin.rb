@@ -24,6 +24,7 @@ require_relative "rails_ai_admin/input_schema"
 require_relative "rails_ai_admin/forms/plan"
 require_relative "rails_ai_admin/operation"
 require_relative "rails_ai_admin/work"
+require_relative "rails_ai_admin/navigation/settings"
 require_relative "rails_ai_admin/resource"
 require_relative "rails_ai_admin/resource_identity"
 require_relative "rails_ai_admin/registry"
@@ -35,6 +36,7 @@ require_relative "rails_ai_admin/authorization/adapter"
 require_relative "rails_ai_admin/authorization/pundit_adapter"
 require_relative "rails_ai_admin/authorization/access"
 require_relative "rails_ai_admin/navigation/list_state"
+require_relative "rails_ai_admin/navigation/menu"
 
 # Provides an isolated admin engine. The host supplies all authority.
 module RailsAiAdmin

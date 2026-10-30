@@ -1,0 +1,8 @@
+<% groups.each_with_index do |group, index| %>
+  <div class="raa-nav-group" <%= tag.attributes(role: (group.label ? "group" : nil), aria: { labelledby: (group.label ? "raa-nav-group-#{index}" : nil) }) %>>
+    <% if group.label %><h2 id="raa-nav-group-<%= index %>" class="raa-nav-group-label"><%= group.label %></h2><% end %>
+    <% group.entries.each do |entry| %>
+      <%= link_to resources_path(resource: entry.key), aria: { current: (entry.current ? "location" : nil) } do %><%= navigation_icon(entry.icon) %><span><%= entry.label %></span><% end %>
+    <% end %>
+  </div>
+<% end %>

@@ -12,6 +12,7 @@ module RailsAiAdmin
         "layout" => [ "layouts/rails_ai_admin/application.html.erb", %i[context admin_csp_nonce], [] ],
         "status_layout" => [ "layouts/rails_ai_admin/status.html.erb", %i[admin_status], [] ],
         "status_page" => [ "rails_ai_admin/statuses/show.html.erb", %i[admin_status status_sign_in_path], [] ],
+        "resource_navigation" => [ "rails_ai_admin/shared/_navigation.html.erb", [], %i[groups] ],
         "dashboard" => [ "rails_ai_admin/dashboard/index.html.erb", %i[context], [] ],
         "resource_index" => [ "rails_ai_admin/resources/index.html.erb", %i[context resource page columns rows searchable selectable sortable_fields], [] ],
         "resource_show" => [ "rails_ai_admin/resources/show.html.erb", %i[context resource record values fields operations], [] ],
@@ -39,7 +40,11 @@ module RailsAiAdmin
       ENTRIES = DEFINITIONS.map do |key, (path, assigns, locals)|
         navigation = %w[layout resource_index resource_show resource_new resource_edit resource_form resource_destroy operation_form operation_confirmation operation_failure collection_form collection_confirmation collection_failure job_show selection].include?(key)
         assigns += [ :list_navigation ] if navigation
-        revision = if %w[resource_new resource_edit resource_form].include?(key)
+        revision = if key == "layout"
+          3
+        elsif key == "dashboard"
+          2
+        elsif %w[resource_new resource_edit resource_form].include?(key)
           4
         elsif navigation || %w[resource_errors input_fields].include?(key)
           2

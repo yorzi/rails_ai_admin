@@ -85,6 +85,18 @@ class SelectionsTest < Minitest::Test
     end
   end
 
+  def test_cosmetic_menu_changes_preserve_an_existing_manifest_and_current_record_grants
+    with_selection_policy do |builder|
+      selection = capture(builder)
+      settings = RailsAiAdmin::Navigation::Settings.new(group: "Renamed", label: "New menu", icon: "grid", order: -8, hidden: true)
+      TestResource.stub(:navigation, settings) do
+        assert_equal selection.manifest_digest, builder.revalidate(context: context, selection_ref: selection.selection_ref).manifest_digest
+        TestPolicy.deny_show = true
+        assert_raises(RailsAiAdmin::AccessDenied) { builder.revalidate(context: context, selection_ref: selection.selection_ref) }
+      end
+    end
+  end
+
   def test_bounds_bad_id_shapes_and_duplicate_canonical_targets_are_rejected_before_persistence
     with_selection_policy do |builder|
       [ [], [ @customer.id ] * 101, [ @customer.id, "0#{@customer.id}" ], [ "#{@customer.id}junk" ], [ nil ], [ true ], [ {} ], "all", [ "a" * 151 ], [ "1\n" ] ].each do |ids|

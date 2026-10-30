@@ -15,11 +15,11 @@
   <header class="raa-header"><%= link_to RailsAiAdmin.configuration.title, root_path %><span>Development preview</span></header>
   <div class="raa-shell">
     <nav aria-label="Admin resources">
-      <%= link_to "Overview", root_path %>
-      <% if collection_jobs_available? %><%= link_to "Collection jobs", collection_jobs_path %><% end %>
-      <% visible_resources.each do |resource| %>
-        <%= link_to resource.label, resources_path(resource: resource.key), aria: { current: (params[:resource] == resource.key.to_s ? "page" : nil) } %>
-      <% end %>
+      <div class="raa-nav-primary">
+        <%= link_to "Overview", root_path, aria: { current: (controller_path == "rails_ai_admin/dashboard" ? "page" : nil) } %>
+        <% if collection_jobs_available? %><%= link_to "Collection jobs", collection_jobs_path, aria: { current: (controller_path == "rails_ai_admin/collection_jobs" ? "location" : nil) } %><% end %>
+      </div>
+      <%= render "rails_ai_admin/shared/navigation", groups: resource_navigation %>
     </nav>
     <main id="raa-main" tabindex="-1">
       <% if return_state_discarded? %><p class="raa-notice" role="status">Some list settings are no longer available. Return links use the current permitted list.</p><% end %>

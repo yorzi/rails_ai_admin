@@ -10,6 +10,7 @@ module RailsAiAdmin
         child.instance_variable_set(:@disabled_actions, [])
         child.instance_variable_set(:@operations, {})
         child.instance_variable_set(:@operation_scopes, {})
+        child.instance_variable_set(:@navigation, Navigation::Settings.new)
       end
 
       def model(name = nil)
@@ -36,6 +37,17 @@ module RailsAiAdmin
       def policy(name = nil)
         @policy_name = name if name
         @policy_name
+      end
+
+      # Cosmetic configuration never grants or revokes direct resource access.
+      def navigation(value = :read, **options)
+        return @navigation if value == :read && options.empty?
+        unless value == :read || value == false && options.empty?
+          raise ConfigurationError, "Use navigation options or navigation false"
+        end
+        @navigation = Navigation::Settings.new(**(value == false ? { hidden: true } : options))
+      rescue ArgumentError
+        raise ConfigurationError, "Unknown navigation option", cause: nil
       end
 
       def readonly(value = true)
@@ -89,6 +101,9 @@ module RailsAiAdmin
         raise ConfigurationError, "A resource must declare fields and a title" if fields.empty? || !title || !@fields.key?(title)
         raise ConfigurationError, "A resource cannot declare lock_version as a field" if @fields.key?(:lock_version)
         Fields::DependencyGraph.validate!(fields)
+        # Fail at registration rather than on every menu render; explicit labels
+        # were already bounded when declared.
+        Navigation::Settings.caption(label) unless navigation.hidden || navigation.label
         @policy_name&.freeze
         @fields.freeze
         @disabled_actions.freeze
