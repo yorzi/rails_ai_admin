@@ -10,4 +10,5 @@ class CustomerAdmin < RailsAiAdmin::Resource
     datetime :created_at, readonly: true
   end
   operation :award_points, handler: "AwardCustomerPoints"
+  operation :bulk_award_points, handler: "BulkAwardCustomerPoints", scope: :collection
 end

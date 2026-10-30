@@ -10,4 +10,6 @@
   <td><%= target.id %></td><td><%= target.expected_version %></td>
 </tr><% end %></tbody></table></div>
 <p>Changes to a selected record require a fresh selection. Unselected and newly matching records are never added automatically.</p>
-<p>Collection execution and job controls are still in development.</p>
+<% @operations.each do |operation| %>
+  <p><%= link_to operation.description, collection_operation_form_path(resource: @resource.key, operation: operation.key, selection_ref: @selection.selection_ref), class: "raa-button" %></p>
+<% end %>

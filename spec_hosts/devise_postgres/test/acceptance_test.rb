@@ -9,10 +9,11 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
   include ActiveSupport::Testing::TimeHelpers
 
   def setup
-    RailsAiAdmin::SelectionItem.delete_all
-    RailsAiAdmin::Selection.delete_all
+    RailsAiAdmin::BatchItem.delete_all
     RailsAiAdmin::WorkItem.delete_all
     RailsAiAdmin::OperationRun.delete_all
+    RailsAiAdmin::SelectionItem.delete_all
+    RailsAiAdmin::Selection.delete_all
     RailsAiAdmin::AuditEvent.delete_all
     SupportTicket.delete_all
     TenantMembership.delete_all
@@ -290,5 +291,45 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
     get path
     assert_response :not_found
     refute_includes response.body, "Support task"
+  end
+  def test_packaged_uuid_collection_admission_partial_cancel_and_outbox_are_distinct
+    second = SupportTicket.create!(tenant: @tenant, subject: "Second selected ticket")
+    login
+    get "/operations/tickets"
+    token = css_select("form#raa-selection input[name=authenticity_token]").first["value"]
+    post "/operations/tickets/selections", params: { authenticity_token: token, target_ids: [ @ticket.id, second.id ] }
+    assert_response :see_other
+    get URI(response.location).path
+    ref = RailsAiAdmin::Selection.first.id
+    path = "/operations/tickets/operations/bulk_triage"
+    get path, params: { selection_ref: ref }
+    token = csrf
+    post "#{path}/preflight", params: { authenticity_token: token, selection_ref: ref, input: { decision: "triage", review_note: "Private batch note" } }
+    assert_response :success
+    confirmation = { authenticity_token: csrf, intent_ref: css_select("input[name=intent_ref]").first["value"],
+      selection_ref: ref, confirmed_input: css_select("input[name=confirmed_input]").first["value"] }
+    post "#{path}/execute", params: confirmation
+    assert_response :see_other
+    job_path = URI(response.location).path
+    get job_path
+    assert_response :success
+    refute_includes response.body, "Private batch note"
+    assert_equal 0, RailsAiAdmin::WorkItem.count
+    RailsAiAdmin::Collections::Dispatcher.new.run(confirmation[:intent_ref], limit: 1)
+    get job_path
+    token = css_select("form[action='#{job_path}/cancel'] input[name=authenticity_token]").first["value"]
+    post "#{job_path}/cancel", params: { authenticity_token: token }
+    assert_response :see_other
+    get job_path
+    assert_response :success
+    assert_includes response.body, "Partially succeeded"
+    assert_equal 1, SupportTicket.where(id: [ @ticket.id, second.id ], state: "triaged").count
+    assert_equal 1, RailsAiAdmin::WorkItem.where(status: "pending").count
+    assert_equal 1, RailsAiAdmin::AuditEvent.where(status: "succeeded").count
+    child = RailsAiAdmin::OperationRun.where(parent_run_id: confirmation[:intent_ref], status: "succeeded").first
+    assert_nil child.confirmed_at
+    post "#{path}/execute", params: confirmation
+    assert_response :see_other
+    assert_equal 2, RailsAiAdmin::BatchItem.count
   end
 end

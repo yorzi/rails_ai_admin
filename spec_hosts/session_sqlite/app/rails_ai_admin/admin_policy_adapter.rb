@@ -19,10 +19,12 @@ class AdminPolicyAdapter < RailsAiAdmin::Authorization::Adapter
   end
 
   def operation_fields(context:, resource:, operation:, record: nil)
-    context.actor.role == "admin" && operation == :award_points ? [ :amount ] : []
+    context.actor.role == "admin" && %i[award_points bulk_award_points].include?(operation) ? [ :amount ] : []
   end
 
+  def cancel_operation?(context:, resource:, operation:) = context.actor.role == "admin" && operation == :bulk_award_points
+
   def read_operation_receipt?(context:, resource:, operation:, record:)
-    context.actor.role == "admin" && operation == :award_points
+    context.actor.role == "admin" && %i[award_points bulk_award_points].include?(operation)
   end
 end

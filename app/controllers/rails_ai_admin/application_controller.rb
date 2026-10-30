@@ -10,7 +10,7 @@ module RailsAiAdmin
     layout "rails_ai_admin/application"
     before_action :secure_headers
     before_action :authenticate_admin
-    helper_method :visible_resources, :allowed_action?, :record_label
+    helper_method :visible_resources, :allowed_action?, :record_label, :collection_jobs_available?
 
     rescue_from AccessDenied, with: :deny_access
     rescue_from ConfigurationError do
@@ -70,6 +70,17 @@ module RailsAiAdmin
       Authorization::Access.new(@context, resource).authorize!(action, record)
     rescue AccessDenied
       false
+    end
+
+    def collection_jobs_available?
+      RailsAiAdmin.registry.resources.any? do |resource|
+        RailsAiAdmin.operation_registry.custom(resource).any? do |definition|
+          next false unless definition.scope == :collection
+          Authorization::Access.new(@context, resource).authorize_receipt!(definition.key, nil)
+        rescue AccessDenied
+          false
+        end
+      end
     end
 
     def record_label(resource, record)

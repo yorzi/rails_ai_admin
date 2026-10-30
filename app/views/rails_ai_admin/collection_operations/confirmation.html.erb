@@ -1,0 +1,20 @@
+<h1>Review collection changes</h1>
+<p><%= @definition.description %></p>
+<p><%= pluralize(@proposal.targets.size, "fixed target") %>. Each target commits independently. Cancellation preserves committed changes.</p>
+<h2>Confirmed input</h2>
+<dl class="raa-details"><% @proposal.values.each do |name, value| %><dt><%= name.humanize %></dt><dd><%= value %></dd><% end %></dl>
+<h2>Target previews</h2>
+<% @proposal.targets.each do |target| %>
+  <section><h3><%= target.label %></h3><p>ID: <%= target.id %></p>
+    <% if target.changes.empty? %><p>No readable field differences were supplied. Domain checks still run during execution.</p><% else %>
+      <dl class="raa-details"><% target.changes.each do |name, change| %><dt><%= name.humanize %></dt><dd><%= change["before"] %> → <%= change["after"] %></dd><% end %></dl>
+    <% end %>
+  </section>
+<% end %>
+<%= form_with url: collection_operation_execute_path(resource: @resource.key, operation: @definition.key), method: :post, local: true, data: { turbo: false } do |form| %>
+  <%= hidden_field_tag :intent_ref, @proposal.intent.id %>
+  <%= hidden_field_tag :selection_ref, @proposal.intent.selection_id %>
+  <%= hidden_field_tag :confirmed_input, @wire_input %>
+  <%= form.submit "Confirm and queue" %>
+<% end %>
+<p><%= link_to "Edit inputs", collection_operation_form_path(resource: @resource.key, operation: @definition.key, selection_ref: @proposal.intent.selection_id) %></p>

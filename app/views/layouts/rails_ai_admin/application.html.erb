@@ -16,6 +16,7 @@
   <div class="raa-shell">
     <nav aria-label="Admin resources">
       <%= link_to "Overview", root_path %>
+      <% if collection_jobs_available? %><%= link_to "Collection jobs", collection_jobs_path %><% end %>
       <% visible_resources.each do |resource| %>
         <%= link_to resource.label, resources_path(resource: resource.key), aria: { current: (params[:resource] == resource.key.to_s ? "page" : nil) } %>
       <% end %>

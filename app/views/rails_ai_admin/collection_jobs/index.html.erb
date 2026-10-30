@@ -1,0 +1,4 @@
+<h1>Collection jobs</h1>
+<p>Your latest accessible runs in the current tenant.</p>
+<% if @jobs.empty? %><p>No accessible collection runs.</p><% end %>
+<ul><% @jobs.each do |job| %><li><%= link_to job.description, collection_job_path(job_ref: job.job_ref) %> — <%= job.status.humanize %></li><% end %></ul>

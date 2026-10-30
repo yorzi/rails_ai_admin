@@ -11,4 +11,5 @@ class TicketAdmin < RailsAiAdmin::Resource
     textarea :internal_note
   end
   operation :triage, handler: "TriageTicketOperation"
+  operation :bulk_triage, handler: "BulkTriageTicketsOperation", scope: :collection
 end

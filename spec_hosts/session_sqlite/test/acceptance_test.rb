@@ -5,10 +5,11 @@ require "rails_ai_admin/test_kit"
 
 class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
   def setup
-    RailsAiAdmin::SelectionItem.delete_all
-    RailsAiAdmin::Selection.delete_all
+    RailsAiAdmin::BatchItem.delete_all
     RailsAiAdmin::WorkItem.delete_all
     RailsAiAdmin::OperationRun.delete_all
+    RailsAiAdmin::SelectionItem.delete_all
+    RailsAiAdmin::Selection.delete_all
     RailsAiAdmin::AuditEvent.delete_all
     Customer.delete_all
     User.delete_all
@@ -114,5 +115,38 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
     get path
     assert_response :not_found
     refute_includes response.body, "Packaged Customer"
+  end
+  def test_packaged_collection_confirmation_worker_receipt_and_replay
+    login
+    get "/staff/customers"
+    token = css_select("form#raa-selection input[name=authenticity_token]").first["value"]
+    post "/staff/customers/selections", params: { authenticity_token: token, target_ids: [ @customer.id ] }
+    get URI(response.location).path
+    ref = RailsAiAdmin::Selection.first.id
+    path = "/staff/customers/operations/bulk_award_points"
+    get path, params: { selection_ref: ref }
+    token = css_select("input[name=authenticity_token]").first["value"]
+    post "#{path}/preflight", params: { authenticity_token: token, selection_ref: ref, input: { amount: "08" } }
+    assert_response :success
+    confirmation = { authenticity_token: css_select("input[name=authenticity_token]").first["value"],
+      intent_ref: css_select("input[name=intent_ref]").first["value"], selection_ref: ref,
+      confirmed_input: css_select("input[name=confirmed_input]").first["value"] }
+    post "#{path}/execute", params: confirmation
+    assert_response :see_other
+    job_path = URI(response.location).path
+    assert_equal 0, @customer.reload.points
+    get job_path
+    assert_response :success
+    assert_includes response.body, "Queued"
+    result = RailsAiAdmin::Collections::Dispatcher.new.run(confirmation[:intent_ref])
+    assert_equal "succeeded", result.status
+    assert_equal 8, @customer.reload.points
+    post "#{path}/execute", params: confirmation
+    assert_response :see_other
+    assert_equal 8, @customer.reload.points
+    assert_equal 1, RailsAiAdmin::AuditEvent.where(status: "succeeded").count
+    get job_path
+    assert_response :success
+    assert_includes response.body, "Succeeded"
   end
 end

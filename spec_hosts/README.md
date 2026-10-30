@@ -24,6 +24,7 @@ do not put a real password in command arguments or an inline export.
 ```sh
 bundle exec ruby script/packaged_support_smoke.rb
 bundle exec ruby script/packaged_recovery_smoke.rb
+bundle exec ruby script/packaged_collection_recovery_smoke.rb
 RAA_ASSET_PIPELINE=sprockets bundle exec ruby script/packaged_support_smoke.rb
 ```
 
@@ -61,6 +62,15 @@ Native checkbox POST/CSRF captures fixed IDs/current versions and redirects to a
 fresh-label preview. Tests revoke the host selection grant and verify denial;
 Host B retains its UUID identity. Capture creates no business run or audit and
 does not exercise collection execution or jobs.
+
+Both hosts register a collection variant of the reviewed member command. Native
+review/confirmation queues one parent approval; explicit workers commit each target
+independently and job views separate business receipts from follow-up delivery.
+Host A rebuilds fresh account/user job context. Host B proves partial cancellation
+retains committed tickets and their pending Work, with no child approval fields.
+The collection recovery script kills/reaps a confirmed live transaction and exits
+workers after durable claim or commit; fresh processes recover once per target.
+The scripts install no scheduler and establish no production queue durability.
 
 The legacy-admin migration host and independent user/security acceptance remain
 required. These author-controlled fixtures do not close release gates.

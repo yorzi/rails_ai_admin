@@ -61,6 +61,7 @@ jobs:
         run: |
           bundle exec ruby script/packaged_support_smoke.rb
           bundle exec ruby script/packaged_recovery_smoke.rb
+          bundle exec ruby script/packaged_collection_recovery_smoke.rb
       - name: Sprockets plus jsbundling consumer
         if: matrix.database == 'postgres'
         env:

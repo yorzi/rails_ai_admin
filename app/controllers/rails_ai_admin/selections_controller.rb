@@ -12,6 +12,15 @@ module RailsAiAdmin
     def show
       @selection = Selections::Builder.new.revalidate(context: @context, selection_ref: params[:selection_ref])
       @resource = RailsAiAdmin.registry.fetch(@selection.resource_key)
+      access = Authorization::Access.new(@context, @resource)
+      @operations = RailsAiAdmin.operation_registry.custom(@resource).select do |definition|
+        next false unless definition.scope == :collection
+        access.authorize!(definition.key)
+        definition.fields(access, nil)
+        true
+      rescue AccessDenied
+        false
+      end
     end
   end
 end
