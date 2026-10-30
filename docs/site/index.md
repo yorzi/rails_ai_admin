@@ -79,6 +79,13 @@ files. The [catalog]({% link _reference/template-catalog.md %}) specifies its
 assigns/locals contract; doctor reports source/context drift for upgrade review.
 Host edits still own their permission, escaping and confirmation behavior.
 
+## Recover an Open Generic Form
+
+[Form Session Recovery]({% link _advanced/form-recovery.md %}) can retain the
+current create/update DOM after marked authentication/CSRF failure. Fresh sign-in,
+manual Resume and explicit Save are required; refreshing or closing the page
+loses this memory-only preservation.
+
 ## Current Scope
 
 The current slice implements scalar CRUD, synchronous member operations and

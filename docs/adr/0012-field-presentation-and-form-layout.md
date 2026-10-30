@@ -60,3 +60,7 @@ FormData, server 422 input retention/summary navigation and a 390px dark layout.
 A no-JavaScript document was checked as server markup; no assistive-technology or
 cross-browser certification is claimed. Session timeout/draft recovery, controller/
 status extension points and three-domain-resource acceptance remain open.
+
+ADR 0013 supplies bounded generic open-tab session recovery without a persistent
+draft store. New/edit/shared form contexts now use revision 3; inspect the current
+catalog rather than treating this earlier milestone's revisions as permanent.

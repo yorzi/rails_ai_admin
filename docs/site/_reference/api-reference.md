@@ -22,6 +22,7 @@ The [RDoc reference]({{ '/api/' | relative_url }}) opens on `RailsAiAdmin` and h
 | Inspect schema-only suggestions | `SchemaSuggestions` (no registration or exposure) |
 | Check host policy | `Authorization::Adapter`, `Authorization::PunditAdapter`, `Authorization::Access` |
 | Coerce input | `InputSchema` |
+| Reopen an eligible generic UI form | `Operations::Runner#resume_form`, `Operations::Runner::FormSession` |
 | Declare/execute synchronous member operations | `Operation`, `Operations::Registry`, `Operations::Runner`, `Operations::Result` |
 | Persist/deliver post-commit intent | `Work`, `Outbox::Writer`, `Outbox::Dispatcher`, `Outbox::DeliveryContext`, `Outbox::RequestDigest` |
 | Bound a list query | `Queries::List` |

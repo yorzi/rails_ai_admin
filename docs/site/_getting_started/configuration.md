@@ -148,6 +148,19 @@ writing. When no admin mount exists, a different route occupying the
 `rails_ai_admin` name is also rejected. The engine does not install login/logout
 routes or redirect to a guessed host sign-in page.
 
+## Connect the Optional Recovery Sign-In Link
+
+`config.authentication_path` defaults to nil. Set it to a fixed internal host
+path such as `/users/sign_in` to offer a new-tab sign-in link for paused generic
+create/update forms. Include the full host relative-URL-root prefix when used.
+Only conservative slash-separated alphanumeric/underscore/hyphen segments are
+accepted; query strings, fragments and external URLs are rejected. With nil,
+users sign in manually through the host.
+
+[Form Session Recovery]({% link _advanced/form-recovery.md %}) retains input only
+in the original open DOM and requires manual Resume plus explicit Save. It does
+not provide persistent drafts, login routes or automatic write replay.
+
 ## Next Steps
 
 * [Durable Outbox]({% link _advanced/durable-outbox.md %}) configures Work and a fresh job-context resolver.

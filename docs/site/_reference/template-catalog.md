@@ -27,8 +27,9 @@ compatibility statuses and upgrade review. Field-type-specific partials take
 precedence over global field defaults. No Surface wrapper is cataloged. Plain controller error responses also remain
 outside this template catalog.
 
-The current catalog contains 23 entries. resource_new/resource_edit/resource_form/
-resource_errors/input_fields use contract revision 2; other entries use revision 1. Source bytes and context revision
+The current catalog contains 24 entries. resource_new/resource_edit/resource_form
+use contract revision 3; resource_errors/input_fields use revision 2; other entries
+use revision 1. Source bytes and context revision
 can change independently; always inspect the installed version when upgrading.
 
 resource_errors form/fields locals and input_fields plan are optional.
@@ -36,16 +37,23 @@ Generic resource form assigns keep form_fields/form_values writable-only;
 form_plan adds separately authorized readonly output. field_row receives a plan
 entry and preserves editable/readonly help/error rendering.
 
+form_recovery has no explicit assigns/locals, but requires its enclosing
+raa-form-recovery controller and notice/message/resume targets. Keep the form's
+recovery route/intent/time-zone/current editable-field values and Turbo bindings;
+its link uses the fixed configured host authentication_path. See
+[Form Session Recovery]({% link _advanced/form-recovery.md %}).
+
 | Key | Revision | Destination | Assigns | Locals |
 | --- | --- | --- | --- | --- |
 | `layout` | 1 | `layouts/rails_ai_admin/application.html.erb` | `context`, `admin_csp_nonce` | None |
 | `dashboard` | 1 | `rails_ai_admin/dashboard/index.html.erb` | `context` | None |
 | `resource_index` | 1 | `rails_ai_admin/resources/index.html.erb` | `context`, `resource`, `page`, `columns`, `rows`, `searchable`, `selectable` | None |
 | `resource_show` | 1 | `rails_ai_admin/resources/show.html.erb` | `context`, `resource`, `record`, `values`, `fields`, `operations` | None |
-| `resource_new` | 2 | `rails_ai_admin/resources/new.html.erb` | `context`, `resource`, `record`, `operation`, `intent`, `form_fields`, `form_values`, `form_plan`, `errors`, `failure_code`, `needs_reload` | None |
-| `resource_edit` | 2 | `rails_ai_admin/resources/edit.html.erb` | `context`, `resource`, `record`, `operation`, `intent`, `form_fields`, `form_values`, `form_plan`, `errors`, `failure_code`, `needs_reload` | None |
-| `resource_form` | 2 | `rails_ai_admin/resources/form.html.erb` | `context`, `resource`, `record`, `operation`, `intent`, `form_fields`, `form_values`, `form_plan`, `errors`, `failure_code`, `needs_reload` | None |
+| `resource_new` | 3 | `rails_ai_admin/resources/new.html.erb` | `context`, `resource`, `record`, `operation`, `intent`, `form_fields`, `form_values`, `form_plan`, `errors`, `failure_code`, `needs_reload` | None |
+| `resource_edit` | 3 | `rails_ai_admin/resources/edit.html.erb` | `context`, `resource`, `record`, `operation`, `intent`, `form_fields`, `form_values`, `form_plan`, `errors`, `failure_code`, `needs_reload` | None |
+| `resource_form` | 3 | `rails_ai_admin/resources/form.html.erb` | `context`, `resource`, `record`, `operation`, `intent`, `form_fields`, `form_values`, `form_plan`, `errors`, `failure_code`, `needs_reload` | None |
 | `resource_destroy` | 1 | `rails_ai_admin/resources/confirm_destroy.html.erb` | `context`, `resource`, `record`, `intent`, `errors`, `failure_code`, `needs_reload` | None |
+| `form_recovery` | 1 | `rails_ai_admin/resources/_recovery.html.erb` | None | None |
 | `resource_errors` | 2 | `rails_ai_admin/resources/_errors.html.erb` | `errors`, `failure_code`, `needs_reload` | `form`, `fields` |
 | `field_index` | 1 | `rails_ai_admin/fields/_index.html.erb` | None | `field`, `value`, `text` |
 | `field_show` | 1 | `rails_ai_admin/fields/_show.html.erb` | None | `field`, `value`, `text` |

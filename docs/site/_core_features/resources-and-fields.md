@@ -190,7 +190,10 @@ first server-invalid section, reveal native invalid controls and route error-sum
 links to their field's section before focusing it. Help/error IDs are connected
 through aria-describedby. Preserve those attributes and handlers in overrides.
 These controls do not supply persistent session drafts; leaving the page can
-still lose unsaved input.
+still lose unsaved input. [Form Session Recovery]({% link _advanced/form-recovery.md %})
+can pause a marked authentication/CSRF failure on an open generic form, then
+reauthenticate and manually restore current editable input before explicit Save.
+Refreshing or closing the original DOM is outside that preservation boundary.
 
 ## Preserve Scalar Meaning
 

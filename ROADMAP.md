@@ -30,7 +30,7 @@ this file records current scope without rewriting its historical review claims.
   titles agree across pages/selections/jobs, virtual input/query targets are
   rejected and fake virtual preflight changes are excluded. Actual packaged
   summaries and source reload advance the Field Registry/CRUD-008 contracts.
-- Individual template override generator with 23 explicit current paths/context
+- Individual template override generator with 24 explicit current paths/context
   contracts, source/context metadata, preservation of existing edits and bounded
   doctor upgrade diagnostics. New/edit failure wrappers and field defaults obey
   Rails precedence. Packaged Host A rendered every catalogued host override;
@@ -43,6 +43,13 @@ this file records current scope without rewriting its historical review claims.
   writable-only legacy assigns. Native errors link to visible editable inputs;
   Chrome checks cover hidden invalid controls, keyboard focus, FormData and 422
   input retention (parts of RAA-0204/0208/0210/0212; ADR 0012).
+- Open generic create/update forms pause on marked authentication/CSRF failures,
+  keep input only in the existing DOM and resume after explicit host sign-in.
+  Recovery reauthorizes and renews the original unconsumed intent within one hour;
+  fresh CSRF/current editable fields require another explicit Save. Both packaged
+  hosts and Chrome cover session loss, unchanged/stale versions, pending edits
+  and replay identity. Persistent drafts and custom-operation recovery remain
+  open (further RAA-0212/CRUD-022; ADR 0013).
 - Server-owned intents with input/identity/epoch/version/expiry binding, database
   serialization, replay, atomic domain/audit/receipt, callback rollback handling
   and separate post-commit warning (synchronous parts of RAA-0112/0113).
@@ -87,9 +94,11 @@ documentation and advisory scanning. No remote CI run has occurred.
 
 ## Next implementation checkpoint
 
-Finish the remaining Phase 2 contracts: form/session recovery, remaining status/controller extension points and three
+Finish the remaining Phase 2 contracts: return locations/list navigation,
+remaining status/controller extension points and three
 distinct domain-resource acceptance. Scalar/computed fields and the conventional
-template override workflow and per-view grouped forms have local evidence; Phase 2 and release gates remain open.
+template override workflow, per-view grouped forms and generic open-tab recovery
+have local evidence; Phase 2 and release gates remain open.
 
 Continue the shared execution contracts while the full Phase 1 evidence remains open:
 
@@ -113,8 +122,9 @@ Continue the shared execution contracts while the full Phase 1 evidence remains 
 
 ## Remaining product work
 
-- Phase 2: finish field presentation controls, remaining status/controller
-  extension points, form/session recovery and three-resource acceptance.
+- Phase 2: finish return locations/list navigation, remaining status/controller
+  extension points and three-domain-resource acceptance. Generic open-tab recovery
+  has local evidence; persistent drafts and custom-operation recovery stay open.
 - Early proof: ordinary Order Review and one trusted Surface through the same
   Operation, then an offline released RubyLLM loop and continuation faults.
 - Phases 3–4: associations, batch/selection, CSV, private files, audit explorer,

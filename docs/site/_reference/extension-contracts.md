@@ -173,6 +173,29 @@ Bounds are 128 entries, eight tabs, 16 panels per tab, 256 KiB per scalar value
 and 1 MiB of values per plan. Empty denied groups are omitted. With no JavaScript
 all sections remain visible; optional tabs/error navigation do not persist drafts.
 
+## Generic Form Recovery Contract
+
+`Operations::Runner#resume_form(context:, resource:, intent_ref:)` returns a trusted
+`Runner::FormSession(intent, record)` for eligible proposed, unbound, unapproved
+root UI create/update forms. It requires the original actor/tenant, current
+authentication/scope/action/field grants, unchanged resource fingerprint and update
+version, and an absolute one-hour created_at window. It renews the same intent's
+security version/expiry, with no input/draft, approval, new intent or execution.
+Children/selections/custom commands/delete/completed requests are excluded.
+
+Native recovery uses GET /:resource/forms/recover with the UUID only in
+X-RailsAiAdmin-Recovery-Intent, no draft payload. Explicit session/ready response
+markers bind the Turbo recovery flow; ready is emitted only after successful
+form rendering, never for unsuccessful/render-error responses. Ordinary
+validation 422 is unchanged.
+`config.authentication_path` is nil or a fixed conservative internal host path,
+including a relative URL root prefix if needed. The original open DOM alone keeps
+input; manual Resume snapshots the current DOM after fresh HTML/binding
+validation, transfers only currently editable scalar controls into new CSRF HTML
+and requires explicit Save. Disconnect aborts pending recovery. No persistent draft or no-JavaScript
+preservation is supplied. See
+[Form Session Recovery]({% link _advanced/form-recovery.md %}).
+
 ## Reload and Compatibility
 
 Class names resolve fresh on invocation. A metadata mismatch with an existing

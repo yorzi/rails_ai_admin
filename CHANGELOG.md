@@ -71,6 +71,14 @@
 - Add the field-row override and advance changed form context revisions to 2.
 
 
+- Preserve open generic forms on explicitly marked session/CSRF failures and add
+  manual reauthentication recovery with a fresh CSRF form, current editable fields
+  and the same unconsumed intent. Bound recovery to one hour and require Save.
+- Keep snapshots in the open DOM only; preserve edits while recovery waits and
+  reject stale/completed/foreign intents without reissuing or replaying a write.
+- Add the recovery partial/host login-path setting, private response handshake and
+  revision 3 new/edit/shared-form contracts. Verify actual Devise timeout recovery.
+
 Assistant/Surface adapters, global actions, custom CRUD replacement, 10,000-target
 batch materialization, associations, files, CSV and metrics dashboards are not implemented. Release gates remain open.
 

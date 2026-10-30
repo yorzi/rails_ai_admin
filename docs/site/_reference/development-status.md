@@ -45,8 +45,12 @@ allowlisted page/layout/partial copies with explicit context metadata and bounde
 source/contract inspection. CURRENT metadata does not certify host edits. Per-view field flags, optional
 presentation narrowing and bounded form plans now support escaped help text,
 tabs/panels and separately authorized readonly context. Writable-only prefills
-do not reveal unreadable database values; no persistent session-draft feature
-is supplied. These changes do not close Phase 2 or any release Gate.
+do not reveal unreadable database values.
+[Form Session Recovery]({% link _advanced/form-recovery.md %}) now preserves only
+the original open generic create/update DOM across marked authentication/CSRF
+failures, with fresh authentication, same-intent renewal, manual Resume and
+explicit Save. Persistent session drafts and custom-operation/delete recovery
+remain unavailable. These changes do not close Phase 2 or any release Gate.
 
 Not implemented in this slice: associations, nested attributes, uploads/private
 attachments, imports/exports, all-filtered or 10,000-target batch manifests,

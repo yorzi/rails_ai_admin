@@ -91,10 +91,18 @@ accessibility IDs. Type-specific partials still own their field input/display.
 `input_fields` accepts optional `plan` for grouped rendering, falling back to a
 writable-only plan from fields/values. `resource_errors` accepts optional `form`
 and `fields` locals for summary-to-control links. The resource_new/resource_edit/
-resource_form/resource_errors/input_fields catalog contracts are revision 2;
-existing revision-1 copies require context/source review rather than a header-only
-update. See [Resources and Fields]({% link _core_features/resources-and-fields.md %})
+resource_form catalog contracts are revision 3; resource_errors/input_fields are
+revision 2. Existing older copies require context/source review rather than a
+header-only update. See [Resources and Fields]({% link _core_features/resources-and-fields.md %})
 for view masks, readonly context and the no-JavaScript fallback.
+
+The `form_recovery` partial has no explicit assigns/locals; it uses the configured
+host authentication path within its enclosing raa-form-recovery controller. Keep
+notice/message/resume targets and the form's recovery URL/intent/time-zone/current
+editable-field data values and Turbo event bindings. The partial alone does not
+restore a form. Recovery needs fresh CSRF HTML, the same intent and manual Resume,
+then explicit Save; copying an old hidden field must not replace fresh security
+metadata. See [Form Session Recovery]({% link _advanced/form-recovery.md %}).
 
 ## Preserve Form and Authority Boundaries
 
