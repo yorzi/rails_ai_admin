@@ -12,15 +12,46 @@ module RailsAiAdmin
     prepend_before_action :secure_headers
     before_action :authenticate_admin
     after_action :notice_discarded_list_settings
-    helper_method :list_page_path, :encoded_return_state, :navigation_state, :navigation_params, :list_return_path, :list_return_label, :return_state_discarded?, :return_navigation_fields, :visible_resources, :allowed_action?, :record_label, :collection_jobs_available?
+    helper_method :admin_csp_nonce, :list_page_path, :encoded_return_state, :navigation_state, :navigation_params, :list_return_path, :list_return_label, :return_state_discarded?, :return_navigation_fields, :visible_resources, :allowed_action?, :record_label, :collection_jobs_available?
 
     rescue_from AccessDenied, with: :deny_access
     rescue_from ConfigurationError do
-      render plain: "Administration is not configured safely. Contact the host maintainer.", status: :service_unavailable
+      admin_status(:unavailable)
     end
     rescue_from ActionController::InvalidAuthenticityToken do
       mark_form_recovery
-      render plain: "Invalid request", status: :unprocessable_content
+      admin_status(:invalid_request)
+    end
+
+    protected
+
+    # Layouts loading the prebuilt Turbo bundle need this nonce in csp-nonce meta.
+    def admin_csp_nonce
+      raise ConfigurationError, "Admin security headers have not been prepared" unless @admin_csp_nonce.is_a?(String) && @admin_csp_nonce.present?
+      String.new(@admin_csp_nonce).freeze
+    end
+
+    # Like Rails render, this does not halt an action. Callers must return when
+    # selecting a status instead of continuing toward business work.
+    def admin_status(kind)
+      @admin_status = Presentation::Status.fetch(kind)
+      response.headers.delete("X-RailsAiAdmin-Form-Recovery") if response.headers["X-RailsAiAdmin-Form-Recovery"] == "ready"
+      @status_sign_in_path = nil
+      if @admin_status.kind == "authentication_required"
+        path = RailsAiAdmin.configuration.authentication_path
+        @status_sign_in_path = String.new(path).freeze if path.is_a?(String) && path.valid_encoding? && path.ascii_only? && path.match?(Configuration::INTERNAL_PATH)
+      end
+      if request.format.html? || request.format.turbo_stream?
+        begin
+          render template: "rails_ai_admin/statuses/show", layout: "rails_ai_admin/status", formats: [ :html ],
+            content_type: "text/html", status: @admin_status.http_status
+        rescue StandardError
+          self.response_body = nil
+          render plain: @admin_status.message, content_type: "text/plain", status: @admin_status.http_status
+        end
+      else
+        render plain: @admin_status.message, status: @admin_status.http_status
+      end
     end
 
     private
@@ -46,20 +77,9 @@ module RailsAiAdmin
     end
 
     def deny_access(error)
-      status = case error.code
-      when "UNAUTHENTICATED" then :unauthorized
-      when "INVALID_QUERY" then :unprocessable_content
-      when "CONFLICT", "SELECTION_EXPIRED", "SELECTION_INVALIDATED" then :conflict
-      else :not_found
-      end
-      message = case status
-      when :unauthorized then "Authentication required"
-      when :unprocessable_content then "Invalid query"
-      when :conflict then "The records or request have changed. Reload and try again."
-      else "Not found"
-      end
-      mark_form_recovery if status == :unauthorized
-      render plain: message, status: status
+      status = Presentation::Status.for_code(error.code)
+      mark_form_recovery if status.kind == "authentication_required"
+      admin_status(status.kind)
     end
 
     def mark_form_recovery

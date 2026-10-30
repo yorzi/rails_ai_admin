@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="turbo-visit-control" content="reload">
+  <title><%= @admin_status.title %> · Administration</title>
+  <%= stylesheet_link_tag "rails_ai_admin" %>
+</head>
+<body class="raa">
+  <main id="raa-main" class="raa-status-page" tabindex="-1"><%= yield %></main>
+</body>
+</html>

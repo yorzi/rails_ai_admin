@@ -10,6 +10,8 @@ module RailsAiAdmin
       Entry = Data.define(:key, :path, :revision, :assigns, :locals)
       DEFINITIONS = {
         "layout" => [ "layouts/rails_ai_admin/application.html.erb", %i[context admin_csp_nonce], [] ],
+        "status_layout" => [ "layouts/rails_ai_admin/status.html.erb", %i[admin_status], [] ],
+        "status_page" => [ "rails_ai_admin/statuses/show.html.erb", %i[admin_status status_sign_in_path], [] ],
         "dashboard" => [ "rails_ai_admin/dashboard/index.html.erb", %i[context], [] ],
         "resource_index" => [ "rails_ai_admin/resources/index.html.erb", %i[context resource page columns rows searchable selectable sortable_fields], [] ],
         "resource_show" => [ "rails_ai_admin/resources/show.html.erb", %i[context resource record values fields operations], [] ],

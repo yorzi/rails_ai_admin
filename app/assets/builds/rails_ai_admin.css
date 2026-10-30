@@ -50,3 +50,6 @@
 .raa .raa-field-help { color:var(--raa-muted); font-size:.9rem; }
 .raa .raa-field output { display:block; overflow-wrap:anywhere; padding:.6rem 0; }
 .raa [hidden] { display:none !important; }
+
+.raa .raa-status-page { max-width:48rem; margin:4rem auto; }
+.raa .raa-status-code { color:var(--raa-muted); font-weight:600; }

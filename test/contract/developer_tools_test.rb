@@ -192,55 +192,69 @@ class DeveloperToolsTest < Minitest::Test
     end
   end
 
+  # Rails shares mounted helper definitions across RouteSets. Draw the real
+  # application's mount first, then isolate mutable engine routes in fake probes.
+  def with_isolated_engine_routes
+    Rails.application.routes.url_helpers.rails_ai_admin_path if Rails.application
+    isolated_routes = ActionDispatch::Routing::RouteSet.new
+    RailsAiAdmin::Engine.instance.stub(:routes, ->(*) { isolated_routes }) { yield }
+  end
+
   def test_install_preserves_reviewed_extra_scaffolds_even_when_forced
-    Dir.mktmpdir("raa-install-", File.expand_path("../../tmp", __dir__)) do |directory|
-      FileUtils.mkdir_p(File.join(directory, "config"))
-      File.write(File.join(directory, "config/routes.rb"), "Rails.application.routes.draw do\nend\n")
-      application = Struct.new(:root, :routes).new(Pathname.new(directory), ActionDispatch::Routing::RouteSet.new)
-      capture_io { RailsAiAdmin::Generators::InstallGenerator.new([], { force: true }, destination_root: directory, application: application).invoke_all }
-      paths = %w[app/rails_ai_admin/admin_policy_adapter.rb app/rails_ai_admin/example_admin.rb test/rails_ai_admin/access_test.rb]
-      paths.each { |path| File.open(File.join(directory, path), "a") { |file| file.puts "# reviewed host extension" } }
-      application.routes.draw { mount RailsAiAdmin::Engine => "/admin", as: :rails_ai_admin }
-      capture_io { RailsAiAdmin::Generators::InstallGenerator.new([], { force: true }, destination_root: directory, application: application).invoke_all }
-      paths.each { |path| assert_includes File.read(File.join(directory, path)), "# reviewed host extension" }
-      assert_equal 5, Dir[File.join(directory, "db/migrate/*.rb")].size
-      assert_equal 1, File.read(File.join(directory, "config/routes.rb")).scan("mount RailsAiAdmin::Engine").size
+    with_isolated_engine_routes do
+      Dir.mktmpdir("raa-install-", File.expand_path("../../tmp", __dir__)) do |directory|
+        FileUtils.mkdir_p(File.join(directory, "config"))
+        File.write(File.join(directory, "config/routes.rb"), "Rails.application.routes.draw do\nend\n")
+        application = Struct.new(:root, :routes).new(Pathname.new(directory), ActionDispatch::Routing::RouteSet.new)
+        capture_io { RailsAiAdmin::Generators::InstallGenerator.new([], { force: true }, destination_root: directory, application: application).invoke_all }
+        paths = %w[app/rails_ai_admin/admin_policy_adapter.rb app/rails_ai_admin/example_admin.rb test/rails_ai_admin/access_test.rb]
+        paths.each { |path| File.open(File.join(directory, path), "a") { |file| file.puts "# reviewed host extension" } }
+        application.routes.draw { mount RailsAiAdmin::Engine => "/admin", as: :rails_ai_admin }
+        capture_io { RailsAiAdmin::Generators::InstallGenerator.new([], { force: true }, destination_root: directory, application: application).invoke_all }
+        paths.each { |path| assert_includes File.read(File.join(directory, path)), "# reviewed host extension" }
+        assert_equal 5, Dir[File.join(directory, "db/migrate/*.rb")].size
+        assert_equal 1, File.read(File.join(directory, "config/routes.rb")).scan("mount RailsAiAdmin::Engine").size
+      end
     end
   end
 
   def test_install_rejects_unsupported_alias_before_writing_any_scaffolds
-    Dir.mktmpdir("raa-install-", File.expand_path("../../tmp", __dir__)) do |directory|
-      FileUtils.mkdir_p(File.join(directory, "config"))
-      source = "Rails.application.routes.draw do\n  mount(RailsAiAdmin::Engine => '/staff', as: :staff_admin)\nend\n"
-      File.write(File.join(directory, "config/routes.rb"), source)
-      routes = ActionDispatch::Routing::RouteSet.new
-      routes.draw { mount RailsAiAdmin::Engine => "/staff", as: :staff_admin }
-      application = Struct.new(:root, :routes).new(Pathname.new(directory), routes)
-      assert_raises(Rails::Generators::Error) do
-        capture_io { RailsAiAdmin::Generators::InstallGenerator.new([], { force: true }, destination_root: directory, application: application).invoke_all }
+    with_isolated_engine_routes do
+      Dir.mktmpdir("raa-install-", File.expand_path("../../tmp", __dir__)) do |directory|
+        FileUtils.mkdir_p(File.join(directory, "config"))
+        source = "Rails.application.routes.draw do\n  mount(RailsAiAdmin::Engine => '/staff', as: :staff_admin)\nend\n"
+        File.write(File.join(directory, "config/routes.rb"), source)
+        routes = ActionDispatch::Routing::RouteSet.new
+        routes.draw { mount RailsAiAdmin::Engine => "/staff", as: :staff_admin }
+        application = Struct.new(:root, :routes).new(Pathname.new(directory), routes)
+        assert_raises(Rails::Generators::Error) do
+          capture_io { RailsAiAdmin::Generators::InstallGenerator.new([], { force: true }, destination_root: directory, application: application).invoke_all }
+        end
+        assert_equal source, File.read(File.join(directory, "config/routes.rb"))
+        refute File.exist?(File.join(directory, "app"))
+        refute File.exist?(File.join(directory, "db"))
       end
-      assert_equal source, File.read(File.join(directory, "config/routes.rb"))
-      refute File.exist?(File.join(directory, "app"))
-      refute File.exist?(File.join(directory, "db"))
     end
   end
 
   def test_mount_inspection_uses_actual_final_route_names_and_rejects_parameters
-    routes = ActionDispatch::Routing::RouteSet.new
-    routes.draw { self.mount(::RailsAiAdmin::Engine, at: "/staff", as: "rails_ai_admin") }
-    assert_equal [ "rails_ai_admin" ], RailsAiAdmin::Generators::EngineMounts.names(routes)
-    routes.draw do
-      namespace :ops do
-        mount RailsAiAdmin::Engine => "/staff", as: :rails_ai_admin
+    with_isolated_engine_routes do
+      routes = ActionDispatch::Routing::RouteSet.new
+      routes.draw { self.mount(::RailsAiAdmin::Engine, at: "/staff", as: "rails_ai_admin") }
+      assert_equal [ "rails_ai_admin" ], RailsAiAdmin::Generators::EngineMounts.names(routes)
+      routes.draw do
+        namespace :ops do
+          mount RailsAiAdmin::Engine => "/staff", as: :rails_ai_admin
+        end
       end
-    end
-    assert_equal [ "ops_rails_ai_admin" ], RailsAiAdmin::Generators::EngineMounts.names(routes)
-    routes.draw do
-      scope "/:locale" do
-        mount RailsAiAdmin::Engine => "/staff", as: :rails_ai_admin
+      assert_equal [ "ops_rails_ai_admin" ], RailsAiAdmin::Generators::EngineMounts.names(routes)
+      routes.draw do
+        scope "/:locale" do
+          mount RailsAiAdmin::Engine => "/staff", as: :rails_ai_admin
+        end
       end
+      assert_equal [ :unsupported ], RailsAiAdmin::Generators::EngineMounts.names(routes)
     end
-    assert_equal [ :unsupported ], RailsAiAdmin::Generators::EngineMounts.names(routes)
   end
 
   def test_install_rejects_a_name_owned_by_a_different_endpoint_before_writing

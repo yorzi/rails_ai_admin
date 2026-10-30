@@ -1,0 +1,4 @@
+<h1>Host custom page</h1>
+<%= render "card", values: @values %>
+<%= link_to "Host root", root_path, data: { host_root: true } %>
+<%= link_to "Engine record", @engine_link, data: { engine_record: true } %>

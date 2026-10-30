@@ -1,0 +1,4 @@
+<p class="raa-status-code"><%= @admin_status.http_status %> · <%= @admin_status.code %></p>
+<h1><%= @admin_status.title %></h1>
+<p><%= @admin_status.message %></p>
+<% if @status_sign_in_path %><p><%= link_to "Sign in", @status_sign_in_path, data: { turbo: false } %></p><% end %>
