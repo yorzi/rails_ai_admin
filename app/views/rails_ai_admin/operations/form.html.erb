@@ -1,9 +1,9 @@
 <div id="<%= @flow_id %>">
 <p><%= link_to @resource.label, resources_path(resource: @resource.key) %></p>
 <h1><%= @definition.description %></h1>
-<%= render "rails_ai_admin/resources/errors" %>
 <%= form_with url: operation_preflight_path(resource: @resource.key, id: @record.id, operation: @definition.key), method: :post, local: true, scope: :input, namespace: "raa_#{@resource.key}_#{@record.id}_#{@definition.key}", data: { controller: "raa-dirty-form", action: "input->raa-dirty-form#change submit->raa-dirty-form#submit turbo:submit-end->raa-dirty-form#finish" } do |form| %>
   <%= hidden_field_tag :expected_version, @record.lock_version %>
+  <%= render "rails_ai_admin/resources/errors", form: form, fields: @form_fields %>
   <%= render "rails_ai_admin/shared/input_fields", form: form, fields: @form_fields, values: @form_values, errors: @errors %>
   <div class="raa-actions"><%= form.submit "Review operation", data: { turbo_submits_with: "Preparing review…" } %>
   <%= link_to "Cancel", resource_path(resource: @resource.key, id: @record.id) %></div>

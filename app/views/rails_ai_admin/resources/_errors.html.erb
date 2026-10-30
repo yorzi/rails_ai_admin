@@ -1,8 +1,14 @@
 <% if @failure_code || @errors.any? %>
-  <div class="raa-errors" role="alert" tabindex="-1">
+  <% form_builder = local_assigns[:form] %>
+  <% editable = Array(local_assigns[:fields]).index_by { |field| field.name.to_s } %>
+  <div class="raa-errors" role="alert" tabindex="-1" data-controller="raa-error-summary">
     <h2>Changes were not saved</h2>
     <% if @failure_code %><p><%= @failure_code.humanize %>.</p><% end %>
-    <ul><% @errors.each do |name, messages| %><% messages.each do |message| %><li><%= name.humanize %> <%= message %></li><% end %><% end %></ul>
+    <ul><% @errors.each do |name, messages| %><% messages.each do |message| %><li>
+      <% if form_builder && editable[name] %>
+        <a href="#<%= form_builder.field_id(name) %>" data-action="click->raa-error-summary#reveal" data-raa-target-field="<%= form_builder.field_id(name) %>"><%= editable[name].label %> <%= message %></a>
+      <% else %><%= name.humanize %> <%= message %><% end %>
+    </li><% end %><% end %></ul>
     <% if @needs_reload %><p>This form cannot be submitted again. Open a fresh form to review the latest record and permissions.</p><% end %>
   </div>
 <% end %>

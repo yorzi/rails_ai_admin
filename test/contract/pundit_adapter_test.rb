@@ -2,6 +2,7 @@
 
 require "test_helper"
 require "support/database"
+require "minitest/mock"
 
 class ScopedAdminCustomerPolicy
   attr_reader :context, :record
@@ -101,6 +102,19 @@ class PunditAdapterTest < Minitest::Test
   def test_scope_may_be_explicitly_inherited_from_a_parent_policy
     assert_equal [ @customer.id ], @adapter.scope(context: context, resource: InheritedScopeAdmin, relation: Customer.all).pluck(:id)
   end
+  def test_optional_presentation_policy_is_additive_and_receives_the_view
+    assert_nil @adapter.presentation_fields(context: context, resource: PunditCustomerAdmin, view: :edit, record: @customer)
+    assert_empty @adapter.presentation_fields(context: context, resource: TestResource, view: :edit)
+    policy = ScopedAdminCustomerPolicy.new(context, @customer)
+    policy.define_singleton_method(:presentation_fields) { |view| view == :edit ? [ :name ] : [] }
+    ScopedAdminCustomerPolicy.stub(:new, policy) do
+      assert_equal [ :name ], @adapter.presentation_fields(context: context, resource: PunditCustomerAdmin, view: :edit, record: @customer)
+      assert_empty @adapter.presentation_fields(context: context, resource: PunditCustomerAdmin, view: :index, record: @customer)
+      policy.singleton_class.send(:private, :presentation_fields)
+      assert_raises(RailsAiAdmin::ConfigurationError) { @adapter.presentation_fields(context: context, resource: PunditCustomerAdmin, view: :edit, record: @customer) }
+    end
+  end
+
   def test_mapping_diagnostics_do_not_grant_access
     assert @adapter.configured?(PunditCustomerAdmin)
     assert @adapter.configured?(InheritedScopeAdmin)

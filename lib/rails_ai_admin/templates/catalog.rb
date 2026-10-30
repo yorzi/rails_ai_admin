@@ -13,15 +13,16 @@ module RailsAiAdmin
         "dashboard" => [ "rails_ai_admin/dashboard/index.html.erb", %i[context], [] ],
         "resource_index" => [ "rails_ai_admin/resources/index.html.erb", %i[context resource page columns rows searchable selectable], [] ],
         "resource_show" => [ "rails_ai_admin/resources/show.html.erb", %i[context resource record values fields operations], [] ],
-        "resource_new" => [ "rails_ai_admin/resources/new.html.erb", %i[context resource record operation intent form_fields form_values errors failure_code needs_reload], [] ],
-        "resource_edit" => [ "rails_ai_admin/resources/edit.html.erb", %i[context resource record operation intent form_fields form_values errors failure_code needs_reload], [] ],
-        "resource_form" => [ "rails_ai_admin/resources/form.html.erb", %i[context resource record operation intent form_fields form_values errors failure_code needs_reload], [] ],
+        "resource_new" => [ "rails_ai_admin/resources/new.html.erb", %i[context resource record operation intent form_fields form_values form_plan errors failure_code needs_reload], [] ],
+        "resource_edit" => [ "rails_ai_admin/resources/edit.html.erb", %i[context resource record operation intent form_fields form_values form_plan errors failure_code needs_reload], [] ],
+        "resource_form" => [ "rails_ai_admin/resources/form.html.erb", %i[context resource record operation intent form_fields form_values form_plan errors failure_code needs_reload], [] ],
         "resource_destroy" => [ "rails_ai_admin/resources/confirm_destroy.html.erb", %i[context resource record intent errors failure_code needs_reload], [] ],
-        "resource_errors" => [ "rails_ai_admin/resources/_errors.html.erb", %i[errors failure_code needs_reload], [] ],
+        "resource_errors" => [ "rails_ai_admin/resources/_errors.html.erb", %i[errors failure_code needs_reload], %i[form fields] ],
         "field_index" => [ "rails_ai_admin/fields/_index.html.erb", [], %i[field value text] ],
         "field_show" => [ "rails_ai_admin/fields/_show.html.erb", [], %i[field value text] ],
         "field_form" => [ "rails_ai_admin/fields/_input.html.erb", [], %i[field form value input_options] ],
-        "input_fields" => [ "rails_ai_admin/shared/_input_fields.html.erb", %i[resource], %i[form fields values errors] ],
+        "field_row" => [ "rails_ai_admin/fields/_row.html.erb", [], %i[form entry errors] ],
+        "input_fields" => [ "rails_ai_admin/shared/_input_fields.html.erb", %i[resource], %i[form fields values errors plan] ],
         "operation_form" => [ "rails_ai_admin/operations/form.html.erb", %i[context resource record definition flow_id form_fields form_values errors failure_code needs_reload], [] ],
         "operation_confirmation" => [ "rails_ai_admin/operations/confirmation.html.erb", %i[context resource record definition flow_id proposal form_fields form_values wire_input], [] ],
         "operation_failure" => [ "rails_ai_admin/operations/failure.html.erb", %i[context resource failure_code], [] ],
@@ -33,7 +34,8 @@ module RailsAiAdmin
         "selection" => [ "rails_ai_admin/selections/show.html.erb", %i[context resource selection operations], [] ]
       }.freeze
       ENTRIES = DEFINITIONS.map do |key, (path, assigns, locals)|
-        Entry.new(key.freeze, path.freeze, 1, assigns.freeze, locals.freeze)
+        revision = %w[resource_new resource_edit resource_form resource_errors input_fields].include?(key) ? 2 : 1
+        Entry.new(key.freeze, path.freeze, revision, assigns.freeze, locals.freeze)
       end.freeze
 
       def initialize(source_root: Engine.root.join("app/views"), entries: ENTRIES)

@@ -17,16 +17,16 @@ module RailsAiAdmin
         @deadline = monotonic + MAX_SECONDS
       end
 
-      def values
-        result = @fields.values.to_h { |field| [ field.name.to_s, value(field) ] }
+      def values(fields: @fields.values)
+        result = fields.to_h { |field| [ field.name.to_s, value(field) ] }
         check_deadline!
         result
       end
 
       def value(field)
         check_deadline!
-        return @cache[field.name] if @cache.key?(field.name)
         raise AccessDenied unless @fields[field.name].equal?(field)
+        return @cache[field.name] if @cache.key?(field.name)
         unless field.virtual?
           scalar = @access.read_attribute(@record, field)
           check_deadline!

@@ -38,23 +38,19 @@ module RailsAiAdmin
         raise AccessDenied
       end
 
-      def fields(action, record = nil, operation: nil)
-        names = @adapter.fields(context: context, resource: resource, action: action, record: record)
-        raise ConfigurationError, "Policy fields must be an array" unless names.is_a?(Array)
-        names = names.map(&:to_sym)
-        selected = resource.fields.select do |field|
-          names.include?(field.name) &&
-            (action != :write || field.name.to_s != resource.model_class.primary_key) &&
-            (action != :write || field.writable?(operation || :update)) &&
-            (action != :search || !field.virtual? && field.options[:searchable]) &&
-            (action != :sort || !field.virtual? && field.options[:sortable])
-        end
-        action == :read ? Fields::DependencyGraph.readable(selected) : selected
+      VIEWS = %i[index show create edit].freeze
+
+      def fields(action, record = nil, operation: nil, view: nil)
+        view = write_view(operation, view) if action == :write
+        granted = permission_fields(action, record, operation: operation, view: view)
+        action == :read && view ? granted.select { |field| field.visible_on?(view) } : granted
       end
 
-      def project(record)
+      def project(record, view: nil)
         authorize!(:show, record)
-        Fields::Projection.new(self, record, fields(:read, record)).values
+        granted = permission_fields(:read, record, view: view)
+        visible = view ? granted.select { |field| field.visible_on?(view) } : granted
+        Fields::Projection.new(self, record, granted).values(fields: visible)
       end
 
       def authorize_selection!
@@ -66,13 +62,18 @@ module RailsAiAdmin
 
       # Scalar declarations cannot turn arbitrary model methods into read actions.
       # Host overrides of real attribute getters remain trusted application code.
-      def read_value(record, field)
-        return read_attribute(record, field) unless field.virtual?
+      def read_value(record, field, view: nil)
+        unless resource.fields.any? { |candidate| candidate.equal?(field) }
+          raise ConfigurationError, "Read fields must belong to the current resource"
+        end
         authorize!(:show, record)
-        Fields::Projection.new(self, record, fields(:read, record)).value(field)
+        granted = permission_fields(:read, record, view: view)
+        raise AccessDenied if view && !field.visible_on?(view)
+        Fields::Projection.new(self, record, granted).value(field)
       end
 
       def read_attribute(record, field)
+        raise AccessDenied if field.hidden?
         raise ConfigurationError, "Computed fields do not invoke model methods" if field.virtual?
         name = field.name.to_s
         primary_key = record.class.primary_key
@@ -86,13 +87,13 @@ module RailsAiAdmin
       end
 
       # Shared title contract for native pages, fixed selections and job entries.
-      def record_label(record, values: nil)
+      def record_label(record, values: nil, view: :show)
         fallback = "Record ##{record.id}"
         authorize!(:show, record)
-        field = fields(:read, record).find { |candidate| candidate.name == resource.title }
+        field = fields(:read, record, view: view).find { |candidate| candidate.name == resource.title }
         return fallback unless field
         return fallback if values && !values.key?(field.name.to_s)
-        value = values ? values.fetch(field.name.to_s) : read_value(record, field)
+        value = values ? values.fetch(field.name.to_s) : read_value(record, field, view: view)
         field.format(value, time_zone: context.time_zone).truncate(120)
       rescue AccessDenied
         fallback
@@ -125,6 +126,48 @@ module RailsAiAdmin
           resource: resource, operation: operation.to_sym, record: record) == true
         raise AccessDenied unless allowed
         true
+      end
+      private
+
+      def write_view(operation, view)
+        expected = operation.to_sym == :create ? :create : :edit if operation
+        expected ||= :edit
+        raise ConfigurationError, "Write presentation must match its lifecycle" if view && view != expected
+        expected
+      end
+
+      def permission_fields(action, record, operation: nil, view: nil)
+        raise ConfigurationError, "Unknown presentation view" if view && !VIEWS.include?(view)
+        names = @adapter.fields(context: context, resource: resource, action: action, record: record)
+        unless names.is_a?(Array) && names.all? { |name| name.is_a?(String) || name.is_a?(Symbol) }
+          raise ConfigurationError, "Policy fields must be an array of names"
+        end
+        names = names.map(&:to_sym)
+        selected = resource.fields.select do |field|
+          !field.hidden? && names.include?(field.name) &&
+            (action != :write || field.name.to_s != resource.model_class.primary_key) &&
+            (action != :write || field.writable?(operation || :update)) &&
+            (action != :search || !field.virtual? && field.options[:searchable]) &&
+            (action != :sort || !field.virtual? && field.options[:sortable])
+        end
+        mask = presentation_mask(record, view) if view
+        selected = selected.select { |field| mask.include?(field.name) } if mask
+        action == :read ? Fields::DependencyGraph.readable(selected) : selected
+      end
+
+      def presentation_mask(record, view)
+        return unless @adapter.respond_to?(:presentation_fields, true)
+        raise ConfigurationError, "Presentation policy must be public" unless @adapter.respond_to?(:presentation_fields)
+        names = ActiveRecord::Base.while_preventing_writes { @adapter.presentation_fields(context: context, resource: resource, view: view, record: record) }
+        return if names.nil?
+        unless names.is_a?(Array) && names.all? { |name| name.is_a?(String) || name.is_a?(Symbol) }
+          raise ConfigurationError, "Presentation policy must return nil or field names"
+        end
+        names.map(&:to_sym)
+      rescue ConfigurationError
+        raise
+      rescue StandardError
+        raise ConfigurationError, "Presentation policy failed", cause: nil
       end
     end
   end

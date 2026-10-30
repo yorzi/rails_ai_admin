@@ -1,11 +1,23 @@
-<% fields.each do |field| %>
-  <div class="raa-field">
-    <%= form.label field.name, field.label %>
-    <% value = values[field.name.to_s] %>
-    <% error_id = "raa_#{@resource.key}_#{field.name}_error" %>
-    <% input_options = { aria: { invalid: errors.key?(field.name.to_s), describedby: errors.key?(field.name.to_s) ? error_id : nil } } %>
-    <% value = String.new(value) if value.is_a?(String) %>
-    <%= render partial: field.form_partial || "rails_ai_admin/fields/input", locals: { field: field, form: form, value: value, input_options: input_options } %>
-    <% if errors[field.name.to_s] %><p class="raa-field-error" id="<%= error_id %>"><%= errors[field.name.to_s].join(", ") %></p><% end %>
-  </div>
-<% end %>
+<% plan = local_assigns[:plan] || RailsAiAdmin::Forms::Plan.new(fields: fields, values: values) %>
+<% prefix = form.field_id(:raa_layout) %>
+<div class="raa-form-layout" data-controller="raa-tabs" data-action="raa:reveal->raa-tabs#reveal">
+  <% if plan.tabbed? %>
+    <nav class="raa-tab-links" aria-label="Form sections" data-raa-tabs-target="list">
+      <% plan.tabs.each_with_index do |tab, index| %><a href="#<%= prefix %>--panel-<%= index %>" id="<%= prefix %>--tab-<%= index %>" data-raa-tabs-target="tab" data-action="click->raa-tabs#choose keydown->raa-tabs#keydown"><%= tab.label %></a><% end %>
+    </nav>
+  <% end %>
+  <% plan.tabs.each_with_index do |tab, index| %>
+    <section id="<%= prefix %>--panel-<%= index %>" data-raa-tabs-target="panel">
+      <% if tab.label %><h2><%= tab.label %></h2><% end %>
+      <% tab.panels.each do |panel| %>
+        <% if panel.label %>
+          <fieldset class="raa-form-panel"><legend><%= panel.label %></legend>
+          <% panel.entries.each do |entry| %><%= render "rails_ai_admin/fields/row", form: form, entry: entry, errors: errors %><% end %>
+          </fieldset>
+        <% else %>
+          <% panel.entries.each do |entry| %><%= render "rails_ai_admin/fields/row", form: form, entry: entry, errors: errors %><% end %>
+        <% end %>
+      <% end %>
+    </section>
+  <% end %>
+</div>

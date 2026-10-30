@@ -311,9 +311,9 @@ module RailsAiAdmin
           reject!(changes.code, errors: names.any? ? names.to_h { |name| [ name, [ "is invalid" ] ] } : { "base" => [ "operation was rejected" ] })
         end
         raise ConfigurationError, "Preflight must return a field-value hash without mutating its target" unless changes.is_a?(Hash) && !record.has_changes_to_save?
-        readable = access.fields(:read, record)
+        readable = access.fields(:read, record, view: :show)
         original = begin
-          access.project(record)
+          access.project(record, view: :show)
         rescue AccessDenied
           {}
         end

@@ -9,7 +9,7 @@ module RailsAiAdmin
   # only narrow the permissions returned by the host policy.
   class Field
     TYPES = %i[id text textarea integer decimal boolean date datetime enum select].freeze
-    OPTIONS = %i[readonly required nullable values max_length searchable sortable create edit label choices].freeze
+    OPTIONS = %i[readonly required nullable values max_length searchable sortable create edit label choices index show hidden help_text tab panel].freeze
     Descriptor = Data.define(:name, :type, :scalar_type, :options, :scalar_json_schema)
     attr_reader :name, :type, :scalar_type, :options, :dependencies
 
@@ -22,7 +22,7 @@ module RailsAiAdmin
       raise ConfigurationError, "Unknown field type" unless TYPES.include?(@scalar_type) && (plugin || TYPES.include?(@type))
       raise ConfigurationError, "Unknown field option" unless (options.keys - OPTIONS).empty?
       configure_computation!(compute, depends_on, options)
-      defaults = { readonly: @scalar_type == :id, nullable: true, required: false, max_length: 2000, create: true, edit: true }
+      defaults = { readonly: @scalar_type == :id, nullable: true, required: false, max_length: 2000, create: true, edit: true, index: true, show: true, hidden: false }
       defaults.merge!(readonly: true, create: false, edit: false, searchable: false, sortable: false) if virtual?
       @options = immutable_copy(defaults.merge(options))
       validate_options!
@@ -58,7 +58,15 @@ module RailsAiAdmin
     end
 
     def writable?(operation)
-      !options[:readonly] && options[operation.to_sym == :create ? :create : :edit]
+      !hidden? && !options[:readonly] && options[operation.to_sym == :create ? :create : :edit]
+    end
+
+    def hidden? = options[:hidden]
+
+    def visible_on?(view)
+      return false if hidden?
+      raise ConfigurationError, "Unknown field presentation view" unless %i[index show create edit].include?(view)
+      options.fetch(view)
     end
 
     # Formats an already-authorized scalar for conventional pages.
@@ -175,18 +183,24 @@ module RailsAiAdmin
       end
       @dependencies = dependencies.map(&:to_sym).freeze
       raise ConfigurationError, "Computed dependencies must be distinct" unless @dependencies.uniq.size == @dependencies.size
-      if options.any? { |key, value| %i[readonly].include?(key) && value != true || %i[create edit searchable sortable].include?(key) && value != false }
-        raise ConfigurationError, "Virtual fields are readonly and cannot write, search or sort"
+      if options.any? { |key, value| %i[readonly].include?(key) && value != true || %i[searchable sortable].include?(key) && value != false }
+        raise ConfigurationError, "Virtual fields are readonly and cannot search or sort"
       end
       @computation = Fields::Computation::Definition.new(String.new(handler).freeze)
       @computation_metadata = immutable_copy(@computation.metadata)
     end
 
     def validate_options!
-      unless %i[readonly nullable required create edit].all? { |key| [ true, false ].include?(options[key]) } &&
+      unless %i[readonly nullable required create edit index show hidden].all? { |key| [ true, false ].include?(options[key]) } &&
           options[:max_length].is_a?(Integer) && (1..65_536).cover?(options[:max_length]) &&
-          (options[:label].nil? || options[:label].is_a?(String) && options[:label].length.between?(1, 200))
+          (options[:label].nil? || options[:label].is_a?(String) && options[:label].length.between?(1, 200) && options[:label].valid_encoding?)
         raise ConfigurationError, "Field flags, label or length are invalid"
+      end
+      { help_text: 500, tab: 80, panel: 80 }.each do |key, limit|
+        value = options[key]
+        unless value.nil? || value.is_a?(String) && value.valid_encoding? && value.length.between?(1, limit)
+          raise ConfigurationError, "Field presentation text must be bounded plain text"
+        end
       end
       return unless %i[enum select].include?(scalar_type)
       if options[:choices]

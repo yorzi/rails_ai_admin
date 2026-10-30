@@ -17,6 +17,12 @@ module RailsAiAdmin
         []
       end
 
+      # Optional per-view narrowing, never a replacement for read/write grants.
+      # nil adds no restriction; [] hides every field in that view.
+      def presentation_fields(context:, resource:, view:, record: nil)
+        nil
+      end
+
       # Custom operation inputs are independent of ordinary attribute write grants.
       def operation_fields(context:, resource:, operation:, record: nil)
         []

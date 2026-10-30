@@ -7,11 +7,11 @@ module RailsAiAdmin
 
     def index
       @page = Queries::List.new(@context, @resource).call(search: params[:q], sort: params[:sort], direction: params.fetch(:direction, "asc"), page: params.fetch(:page, "1"))
-      @columns = @access.fields(:read)
+      @columns = @access.fields(:read, view: :index)
       @rows = @page.records.map do |record|
         @access.authorize!(:show, record)
-        values = @access.project(record)
-        { id: record.id, label: record_label(@resource, record, values: values), values: values }
+        values = @access.project(record, view: :index)
+        { id: record.id, label: record_label(@resource, record, values: values, view: :index), values: values }
       end
       @searchable = @access.fields(:search).any?
       @selectable = begin
@@ -23,8 +23,8 @@ module RailsAiAdmin
 
     def show
       @record = @access.find!(params[:id])
-      @values = @access.project(@record)
-      @fields = @access.fields(:read, @record)
+      @values = @access.project(@record, view: :show)
+      @fields = @access.fields(:read, @record, view: :show)
       @operations = RailsAiAdmin.operation_registry.custom(@resource).select { |definition| definition.scope == :member }.select do |definition|
         @access.authorize!(definition.key, @record)
         definition.fields(@access, @record)
@@ -65,8 +65,7 @@ module RailsAiAdmin
       @operation = operation
       @record = operation == :create ? @access.relation.new : @access.find!(params[:id], action: operation)
       @access.authorize!(operation, @record)
-      @form_fields = operation == :destroy ? [] : @access.fields(:write, @record, operation: operation)
-      @form_values = form_projection
+      build_form_plan(operation) unless operation == :destroy
       @errors = {}
       @intent = runner.prepare(context: @context, resource: @resource, operation: operation,
         target_id: operation == :create ? nil : @record.id, expected_version: operation == :create ? nil : @record.lock_version)
@@ -88,9 +87,11 @@ module RailsAiAdmin
         @record = operation == :create ? @access.relation.new : @access.find!(params[:id], action: operation)
         @access.authorize!(operation, @record)
         @intent = OperationRun.find_by!(id: params[:intent_ref], actor_ref: @context.actor_ref, tenant_ref: @context.tenant_ref)
-        @form_fields = operation == :destroy ? [] : @access.fields(:write, @record, operation: operation)
-        @form_values = form_projection.merge(input.is_a?(Hash) ? input.slice(*@form_fields.map { |field| field.name.to_s }).select { |_, value| !value.is_a?(Hash) && !value.is_a?(Array) } : {})
-        @errors, @failure_code = result.errors, result.code
+        build_form_plan(operation, input) unless operation == :destroy
+        names = operation == :destroy ? [] : @form_fields.map { |field| field.name.to_s }
+        @errors = result.errors.slice("base", *names)
+        @errors["base"] ||= [ "Some inputs are no longer available" ] if (result.errors.keys - [ "base" ] - names).any?
+        @failure_code = result.code
         @needs_reload = result.code != "VALIDATION_FAILED"
         render operation == :destroy ? :confirm_destroy : operation == :create ? :new : :edit,
           status: result.code == "VALIDATION_FAILED" ? :unprocessable_content : :conflict
@@ -105,10 +106,22 @@ module RailsAiAdmin
       value.is_a?(ActionController::Parameters) ? value.to_unsafe_h : {}
     end
 
-    def form_projection
-      @access.project(@record)
-    rescue AccessDenied
-      {}
+    def build_form_plan(operation, input = nil)
+      view = operation == :create ? :create : :edit
+      @form_fields = @access.fields(:write, @record, operation: operation)
+      readable_values = begin
+        @access.project(@record, view: view)
+      rescue AccessDenied
+        {}
+      end
+      names = @form_fields.map { |field| field.name.to_s }
+      @form_values = readable_values.slice(*names)
+      if input.is_a?(Hash)
+        @form_values.merge!(input.stringify_keys.slice(*names).reject { |_, value| value.is_a?(Hash) || value.is_a?(Array) })
+      end
+      readonly_fields = @access.fields(:read, @record, view: view).select { |field| readable_values.key?(field.name.to_s) && !names.include?(field.name.to_s) }
+      readonly_values = readable_values.slice(*readonly_fields.map { |field| field.name.to_s })
+      @form_plan = Forms::Plan.new(fields: @form_fields, values: @form_values, readonly_fields: readonly_fields, readonly_values: readonly_values, order: @resource.fields)
     end
   end
 end

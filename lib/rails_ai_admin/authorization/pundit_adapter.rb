@@ -52,6 +52,17 @@ module RailsAiAdmin
         policy_error!(resource, error)
       end
 
+      def presentation_fields(context:, resource:, view:, record: nil)
+        klass = policy_class(resource)
+        return [] unless klass
+        policy = klass.new(context, record || resource.model_class)
+        return unless policy.respond_to?(:presentation_fields, true)
+        raise ConfigurationError, "Presentation policy must be public" unless policy.respond_to?(:presentation_fields)
+        policy.presentation_fields(view)
+      rescue StandardError => error
+        policy_error!(resource, error)
+      end
+
       # Reports whether an explicit policy and its owned/inherited Scope exist.
       # This checks metadata only; it does not attest any authorization decision.
       def configured?(resource)

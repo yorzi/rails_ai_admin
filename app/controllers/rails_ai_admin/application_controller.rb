@@ -84,8 +84,8 @@ module RailsAiAdmin
       end
     end
 
-    def record_label(resource, record, values: nil)
-      Authorization::Access.new(@context, resource).record_label(record, values: values)
+    def record_label(resource, record, values: nil, view: :show)
+      Authorization::Access.new(@context, resource).record_label(record, values: values, view: view)
     end
   end
 end

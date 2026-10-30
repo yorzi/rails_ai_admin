@@ -1,9 +1,9 @@
 <p><%= link_to "Selected records", selection_path(selection_ref: @selection.selection_ref) %></p>
 <h1><%= @definition.description %></h1>
 <p><%= pluralize(@selection.targets.size, "fixed target") %>. Review before queueing changes.</p>
-<% if @failure_code %><div class="raa-errors" role="alert"><h2><%= @failure_code %></h2><% @errors.each do |name, errors| %><p><%= name.humanize %>: <%= errors.join(", ") %></p><% end %></div><% end %>
-<%= form_with scope: :input, url: collection_operation_preflight_path(resource: @resource.key, operation: @definition.key), method: :post, local: true, data: { turbo: false } do |form| %>
+<%= form_with scope: :input, url: collection_operation_preflight_path(resource: @resource.key, operation: @definition.key), method: :post, local: true, namespace: "raa_#{@resource.key}_#{@selection.selection_ref}_#{@definition.key}", data: { turbo: false, controller: "raa-dirty-form", action: "input->raa-dirty-form#change submit->raa-dirty-form#submit" } do |form| %>
   <%= hidden_field_tag :selection_ref, @selection.selection_ref %>
+  <%= render "rails_ai_admin/resources/errors", form: form, fields: @form_fields %>
   <%= render "rails_ai_admin/shared/input_fields", form: form, fields: @form_fields, values: @form_values, errors: @errors %>
   <%= form.submit "Review changes" %>
 <% end %>

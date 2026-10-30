@@ -188,7 +188,7 @@ class ComputedFieldsTest < Minitest::Test
         resource_for { virtual :summary, type: :text, depends_on: dependencies, compute: "ComputedFieldsTest::Summary" }.validate!
       end
     end
-    [ { readonly: false }, { searchable: :prefix }, { sortable: true }, { create: true }, { edit: true } ].each do |options|
+    [ { readonly: false }, { searchable: :prefix }, { sortable: true } ].each do |options|
       assert_raises(RailsAiAdmin::ConfigurationError) do
         resource_for { virtual :summary, type: :text, depends_on: [ :name ], compute: "ComputedFieldsTest::Summary", **options }.validate!
       end

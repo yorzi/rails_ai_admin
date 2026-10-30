@@ -69,7 +69,7 @@ module RailsAiAdmin
         unless atomic_models.all? { |name| name.is_a?(String) && name.match?(/\A[A-Z]\w*(?:::[A-Z]\w*)*\z/) }
           raise ConfigurationError, "atomic_models must contain model class-name strings"
         end
-        raise ConfigurationError, "Operation inputs cannot be readonly" if input.any? { |field| field.options[:readonly] }
+        raise ConfigurationError, "Operation inputs cannot be readonly or hidden" if input.any? { |field| field.options[:readonly] || field.hidden? }
         raise ConfigurationError, "Operation must implement perform" if instance_method(:perform).owner == Operation
         unless respond_to?(:new) && accepts_arguments?(method(:new), 0) && accepts_arguments?(instance_method(:initialize), 0) &&
             %i[preflight perform].all? { |name| public_instance_methods.include?(name) } && accepts_arguments?(instance_method(:preflight), 3) && accepts_arguments?(instance_method(:perform), perform_arity)
