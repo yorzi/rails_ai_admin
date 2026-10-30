@@ -34,7 +34,9 @@ tenant_ref:, security_version:)`, which reconstructs current authority rather th
 trusting stored refs/epoch as permission.
 
 Resources declare `model`, `key`, `label`, `title`, optional `policy`, `readonly`, `disable`,
-`fields` and explicit member `operation` handlers. Field types are id/text/textarea/integer/decimal/boolean/date/datetime/enum.
+`fields` and explicit member `operation` handlers. Core scalar types are id/text/textarea/integer/decimal/boolean/date/datetime/enum/select.
+Registered `Fields::Type` classes refine scalars through `config.field_types`
+class-name strings and optional trusted field partials (ADR 0009).
 Fields use explicit readonly/required/nullable/create/edit/searchable/sortable
 flags. Search/sort grants are independent of read/write. Resources do not scan
 model tables at boot. Reserved slugs are rejected by the registry.
@@ -43,7 +45,15 @@ Scalar projection and record titles require a model attribute (or the single
 primary-key `id` alias) before invoking its getter. Arbitrary model methods cannot
 be exposed as scalar fields; a missing attribute fails closed with
 `ConfigurationError`. Overrides of real attribute getters remain trusted host
-Ruby and must be safe to read. This is not a general virtual-field API.
+Ruby and must be safe to read; ordinary AR writes are prevented in getters.
+`virtual :summary, type:, depends_on:, compute:` provides readonly scalar
+computation through a named `Fields::Computation` subclass. Every recursive
+read dependency and the virtual field need independent current grants. The
+computation gets only frozen declared scalar snapshots, not a model or context.
+Graph validation, projection bounds, fresh class/version checks and the usual
+scalar/plugin coercion apply. Virtual fields cannot be write/search/sort or
+Operation/Work input targets; arbitrary model methods remain inaccessible.
+See ADR 0010 and the computed field guide for exact bounds/trust responsibilities.
 
 `Context.new(actor:, tenant:, security_version:, time_zone: "UTC")` requires
 stable typed identities. No request/job authority is cached across invocations.

@@ -49,6 +49,13 @@
 - Exercise custom fields in both packaged consumers and initialize domain fixture
   schema before transactional request tests so fresh databases are deterministic.
 
+- Add bounded readonly computed fields with declared dependency graphs, recursive
+  read grants, immutable scalar snapshots and fresh versioned host computations.
+- Share cached row projections and formatted titles across pages, selections and
+  jobs; block physical-getter writes and reject fabricated virtual previews.
+- Verify graph/size/time bounds, dependency denial, current result projection,
+  query counts, stale contracts and actual computation reload in packaged hosts.
+
 Assistant/Surface adapters, global actions, custom CRUD replacement, 10,000-target
 batch materialization, associations, files, CSV and metrics dashboards are not implemented. Release gates remain open.
 

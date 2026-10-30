@@ -5,7 +5,11 @@ Status: foundation implementation; API may change before release.
 The isolated `RailsAiAdmin::Engine` owns admin routes and execution evidence.
 The host owns authentication, SQL policy scopes, domain models and services.
 Resources explicitly declare exposed scalar fields. Field declarations never
-widen a policy decision. No arbitrary constant, SQL or template comes from input.
+widen a policy decision. Readonly virtual fields compute from declared scalar
+snapshots only when their own and all recursive dependency grants survive. A
+bounded acyclic graph and per-projection cache preserve the read boundary; model
+getters/computations prevent ordinary AR writes, without sandboxing trusted Ruby.
+No arbitrary constant, SQL or template comes from input.
 
 A host context adapter returns a fresh `Context` for each request. References
 include the `raa:` namespace, object type and key. There is no mutable global

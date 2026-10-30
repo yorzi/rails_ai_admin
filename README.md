@@ -19,7 +19,9 @@ effects should remain readonly until their host boundary is redesigned and teste
 
 See [Field Types](docs/site/_core_features/field-types.md) for custom normalization,
 validation, fixed Select labels and authorized form/index/show partials. Plugins
-refine a core scalar; they do not grant access or expose virtual model methods.
+refine a core scalar; they do not grant access. [Computed Fields](docs/site/_core_features/computed-fields.md)
+derive readonly values from declared, currently readable scalar dependencies.
+Neither API exposes arbitrary model methods.
 
 ## Develop
 

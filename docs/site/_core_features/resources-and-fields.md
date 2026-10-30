@@ -45,10 +45,12 @@ reference, not an instruction to add business columns. No schema inference runs
 at boot. The current types are `id`, `text`, `textarea`, `integer`, `decimal`,
 `boolean`, `date`, `datetime`, `enum` and `select`. Registered scalar
 [Field Types]({% link _core_features/field-types.md %}) can refine coercion, validation
-and field presentation. Money, associations, files and virtual/computed fields
-remain unimplemented.
+and field presentation. [Computed Fields]({% link _core_features/computed-fields.md %})
+adds readonly virtual scalars over explicit currently authorized dependencies.
+Money, associations and files remain unimplemented.
 
-The runtime checks that a scalar projection or title names a model attribute
+For physical fields, the runtime checks that a scalar projection or title names
+a model attribute
 before calling its getter. The single primary-key `id` alias is also supported.
 A method such as `destroy` cannot become a display field through a declaration;
 a missing attribute raises `ConfigurationError`. Overrides of real attribute
@@ -127,6 +129,7 @@ keyset pagination, saved views and association sorting are future work.
 
 ## Next Steps
 
+* [Computed Fields]({% link _core_features/computed-fields.md %}) derives readonly values from granted scalar dependencies.
 * [Field Types]({% link _core_features/field-types.md %}) adds pure scalar refinements and field partials.
 * [Configuration]({% link _getting_started/configuration.md %}) separates field grants from declarations.
 * [Operations]({% link _core_features/operations.md %}) describes safe writes and retries.

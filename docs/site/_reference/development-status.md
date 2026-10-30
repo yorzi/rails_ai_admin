@@ -36,6 +36,10 @@ action/scope checks or constitute an AI exposure report. Registered scalar field
 types now supply pure normalization/validation, constrained wire schemas and
 field-level partials; [Field Types]({% link _core_features/field-types.md %})
 documents this limited extension contract.
+[Computed Fields]({% link _core_features/computed-fields.md %}) adds versioned
+readonly scalar computations over explicit recursively granted dependencies, with
+graph/snapshot/output/budget limits and per-record projection caching. It supplies
+no virtual writes/search/sort or general model-method invocation.
 
 Not implemented in this slice: associations, nested attributes, uploads/private
 attachments, imports/exports, all-filtered or 10,000-target batch manifests,

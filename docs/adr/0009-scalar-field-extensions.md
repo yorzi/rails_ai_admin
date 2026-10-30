@@ -48,3 +48,7 @@ See the [field guide](../site/_core_features/field-types.md) and
 [extension reference](../site/_reference/extension-contracts.md). Contract/request
 regressions, both packaged hosts and real development reload exercise this API;
 local evidence does not close browser, independent adoption or release gates.
+
+Follow-up, 2026-10-30: ADR 0010 adds bounded readonly Virtual/computed fields
+through dependency snapshots. Full-page overrides and the other remaining
+extension/Phase 2 requirements above are still open.

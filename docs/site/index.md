@@ -66,8 +66,10 @@ optimistic locking and a shared database connection pool.
 [Field Types]({% link _core_features/field-types.md %}) shows class-name
 registration, pure normalization/validation and field partials. The
 [extension contract]({% link _reference/extension-contracts.md %}) records the
-exact scalar/schema and rendering boundaries. Plugins preserve current policy
-grants and attribute-only projection.
+exact scalar/schema and rendering boundaries.
+[Computed Fields]({% link _core_features/computed-fields.md %}) derives readonly
+values from declared, recursively authorized scalar dependencies. Physical fields
+keep their actual-attribute guard; neither extension grants additional authority.
 
 ## Current Scope
 

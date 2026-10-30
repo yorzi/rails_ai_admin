@@ -21,8 +21,15 @@ this file records current scope without rewriting its historical review claims.
   normalization, typed validation, intersected wire schemas and escaped formatting.
   Form/index/show partials receive authorized scalars; record-specific denied fields
   do not invoke a renderer. Fixed Select labels and readonly shorthand are covered
-  in contracts and both packaged hosts. This advances RAA-0203/0208; virtual fields
-  and broader override/plugin compatibility remain open.
+  in contracts and both packaged hosts. This advances RAA-0203/0208; broader
+  override/plugin compatibility remains open.
+- Readonly virtual fields with named computations, bounded acyclic declared
+  dependencies, recursive current read grants and immutable scalar snapshots.
+  Projections cache shared dependencies once; physical getters and computation
+  prevent ordinary AR writes. Pure hooks remain trusted Ruby. Current formatted
+  titles agree across pages/selections/jobs, virtual input/query targets are
+  rejected and fake virtual preflight changes are excluded. Actual packaged
+  summaries and source reload advance the Field Registry/CRUD-008 contracts.
 - Server-owned intents with input/identity/epoch/version/expiry binding, database
   serialization, replay, atomic domain/audit/receipt, callback rollback handling
   and separate post-commit warning (synchronous parts of RAA-0112/0113).
@@ -67,10 +74,10 @@ documentation and advisory scanning. No remote CI run has occurred.
 
 ## Next implementation checkpoint
 
-Finish the remaining Phase 2 contracts: declared virtual/computed field dependencies,
+Finish the remaining Phase 2 contracts: field presentation controls,
 form recovery/structure, a reviewable full-page override workflow and three distinct
-domain-resource acceptance. The scalar extension milestone is complete locally;
-its broader phase and release gates remain open.
+domain-resource acceptance. Scalar extension and computed projection milestones
+are complete locally; Phase 2 and release gates remain open.
 
 Continue the shared execution contracts while the full Phase 1 evidence remains open:
 
@@ -94,8 +101,8 @@ Continue the shared execution contracts while the full Phase 1 evidence remains 
 
 ## Remaining product work
 
-- Phase 2: finish virtual/computed fields, full-page overrides, form recovery and
-  three-resource acceptance beyond the implemented scalar plugin/partial contract.
+- Phase 2: finish field presentation controls, full-page overrides, form recovery
+  and three-resource acceptance beyond the scalar plugin/computed-field contracts.
 - Early proof: ordinary Order Review and one trusted Surface through the same
   Operation, then an offline released RubyLLM loop and continuation faults.
 - Phases 3–4: associations, batch/selection, CSV, private files, audit explorer,

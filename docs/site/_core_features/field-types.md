@@ -77,7 +77,9 @@ field.format("<Alice>") # => "<Alice>"
 Formatting returns plain text; Rails escapes it when rendering the page. The
 resource declaration and plugin grant no permission. Current read/write/search/
 sort grants and operation-input grants still determine whether a field is used.
-The field must name an actual model attribute, including for readonly display.
+Physical fields must name actual model attributes, including readonly display.
+[Computed Fields]({% link _core_features/computed-fields.md %}) supplies the separate
+readonly virtual declaration over currently authorized scalar dependencies.
 
 ## Keep Hooks Pure and Stateless
 
@@ -201,8 +203,9 @@ integers and submitted labels are rejected. Blank select input becomes nil only
 when nullable; otherwise it fails. A stored obsolete value can appear as a disabled
 form option, which does not grant permission to submit it. A readonly declaration
 still names a real attribute and excludes it from writes, regardless of a host
-write grant. It cannot expose a virtual method such as `destroy` or a computed
-field.
+write grant. It cannot expose an arbitrary method such as `destroy` or a computed
+field through a physical declaration. Use the separate computed-field API for
+a reviewed readonly derivation.
 
 ## Version Changes Deliberately
 
@@ -216,6 +219,7 @@ its definitions reload. No migration of old intent evidence is supplied.
 
 ## Next Steps
 
+* [Computed Fields]({% link _core_features/computed-fields.md %}) derives readonly values without widening dependency grants.
 * [Extension Contracts]({% link _reference/extension-contracts.md %}) lists exact signatures and support limits.
 * [Resources and Fields]({% link _core_features/resources-and-fields.md %}) explains separate exposure and query grants.
 * [Operations]({% link _core_features/operations.md %}) explains fingerprinted confirmation and replay.
