@@ -1,0 +1,18 @@
+class OrderAdmin < RailsAiAdmin::Resource
+  model "Order"
+  key :orders
+  title :number
+  fields do
+    id :id, create: false, tab: "Order", panel: "Context"
+    text :number, required: true, nullable: false, max_length: 32, searchable: :prefix, sortable: true, tab: "Order", panel: "Commercial details"
+    decimal :total, required: true, nullable: false, tab: "Order", panel: "Commercial details", help_text: "An exact nonnegative amount with at most two fractional digits."
+    select :state, choices: [ [ "Draft", "draft" ], [ "Approved", "approved" ], [ "Rejected", "rejected" ] ], readonly: true, create: false, edit: true, tab: "Order", panel: "Review"
+    readonly :review_note, type: :textarea, create: false, edit: true, tab: "Order", panel: "Review"
+    readonly :reviewed_at, type: :datetime, create: false, edit: true, tab: "Order", panel: "Review"
+    date :delivery_on, tab: "Delivery", panel: "Schedule"
+    boolean :expedited, nullable: false, tab: "Delivery", panel: "Schedule"
+    text :secret_payment_token, hidden: true
+    virtual :review_summary, type: :text, depends_on: %i[number state total], compute: "OrderReviewSummary", edit: true, tab: "Order", panel: "Context"
+  end
+  operation :review_order, handler: "ReviewOrderOperation"
+end

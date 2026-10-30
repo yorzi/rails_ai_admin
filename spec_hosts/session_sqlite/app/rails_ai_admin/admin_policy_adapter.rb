@@ -4,12 +4,28 @@ class AdminPolicyAdapter < RailsAiAdmin::Authorization::Adapter
   end
 
   def allowed?(context:, action:, resource:, record: nil)
+    if resource.key == :orders && %i[update destroy review_order].include?(action)
+      return context.actor.role == "admin" && record && record.state == "draft"
+    end
     %i[index show].include?(action) || context.actor.role == "admin"
   end
 
   def select_records?(context:, resource:) = context.actor.role == "admin"
 
   def fields(context:, resource:, action:, record: nil)
+    if resource.key == :orders
+      case action
+      when :read then %i[id number state total delivery_on expedited reviewed_at review_summary] + (context.actor.role == "admin" ? [ :review_note ] : [])
+      when :write then context.actor.role == "admin" ? %i[number state total delivery_on expedited] : []
+      when :search, :sort then [ :number ]
+      else []
+      end
+    else
+      customer_fields(context: context, action: action)
+    end
+  end
+
+  def customer_fields(context:, action:)
     case action
     when :read then %i[id name active points created_at status_summary]
     when :write then context.actor.role == "admin" ? %i[name active points] : []
@@ -19,12 +35,14 @@ class AdminPolicyAdapter < RailsAiAdmin::Authorization::Adapter
   end
 
   def operation_fields(context:, resource:, operation:, record: nil)
+    return context.actor.role == "admin" ? %i[decision note] : [] if resource.key == :orders && operation == :review_order
     context.actor.role == "admin" && %i[award_points bulk_award_points].include?(operation) ? [ :amount ] : []
   end
 
   def cancel_operation?(context:, resource:, operation:) = context.actor.role == "admin" && operation == :bulk_award_points
 
   def read_operation_receipt?(context:, resource:, operation:, record:)
+    return context.actor.role == "admin" if resource.key == :orders && operation == :review_order
     context.actor.role == "admin" && %i[award_points bulk_award_points].include?(operation)
   end
 end

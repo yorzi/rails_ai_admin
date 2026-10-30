@@ -56,6 +56,8 @@ ensure
   run!(env, target, "bundle", "exec", "ruby", override_probe, "restore")
 end
 
+run!(env.merge("RAILS_ENV" => "development"), target, "bundle", "exec", "ruby", File.join(root, "script/support/packaged_custom_controller_reload_probe.rb"))
+
 production = env.merge("RAILS_ENV" => "production")
 run!(production, target, "bundle", "exec", "rails", "assets:precompile")
 run!(production, target, "bundle", "exec", "rails", "runner", "raise unless Rails.application.config.eager_load; raise unless Ai.name == 'Ai'; puts 'Production eager-load passed'")

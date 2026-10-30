@@ -1,0 +1,1 @@
+<dl class="raa-details"><% fields.each do |field| %><dt><%= field.label %></dt><dd><%= admin_field_value(field, values[field.name.to_s], view: :show) %></dd><% end %></dl>

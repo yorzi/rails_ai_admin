@@ -27,8 +27,8 @@ when "prepare"
     path = Rails.root.join("app/views", entry.path)
     header, *lines = path.read.lines
     body = lines.join
-    body = if entry.key == "layout"
-      body.sub('<body class="raa">', '<body class="raa" data-raa-override="layout">')
+    body = if %w[layout status_layout].include?(entry.key)
+      body.sub('<body class="raa">', %(<body class="raa" data-raa-override="#{entry.key}">))
     else
       %(<span data-raa-override="#{entry.key}"></span>\n#{body})
     end

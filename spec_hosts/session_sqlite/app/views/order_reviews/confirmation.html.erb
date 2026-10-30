@@ -1,0 +1,10 @@
+<h1>Confirm order review</h1>
+<p>Review this exact order, version and proposed input. Nothing has been saved yet.</p>
+<%= render "summary", fields: @fields, values: @values %>
+<dl class="raa-details"><% @proposal.values.each do |name, value| %><dt><%= name.humanize %></dt><dd><%= value %></dd><% end %></dl>
+<%= form_with url: admin_routes.order_review_execute_path(id: @order.id), method: :post do |form| %>
+  <%= hidden_field_tag :intent_ref, @proposal.intent.id %>
+  <%= hidden_field_tag :confirmed_input, @wire_input %>
+  <%= form.submit "Confirm order review" %>
+<% end %>
+<p><%= link_to "Edit decision", admin_routes.order_review_path(id: @order.id) %></p>

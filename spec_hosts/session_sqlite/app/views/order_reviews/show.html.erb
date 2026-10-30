@@ -1,0 +1,12 @@
+<p><%= link_to "Orders", admin_routes.resources_path(resource: :orders) %></p>
+<h1>Order review workbench</h1>
+<%= render "summary", fields: @fields, values: @values %>
+<% if @can_review %>
+  <h2>Prepare a decision</h2>
+  <%= form_with url: admin_routes.order_review_preview_path(id: @order.id), scope: :input, method: :post, namespace: "host_order_review_#{@order.id}", data: { turbo: false, controller: "raa-dirty-form", action: "input->raa-dirty-form#change submit->raa-dirty-form#submit turbo:submit-end->raa-dirty-form#finish" } do |form| %>
+    <%= hidden_field_tag :expected_version, @order.lock_version %>
+    <% if @errors.any? %><div class="raa-errors" role="alert">Review the input errors before trying again.</div><% end %>
+    <%= render "rails_ai_admin/shared/input_fields", form: form, fields: @form_fields, values: @form_values, errors: @errors %>
+    <%= form.submit "Review this decision" %>
+  <% end %>
+<% else %><p>Order review is not currently available under your permissions or this order's state.</p><% end %>

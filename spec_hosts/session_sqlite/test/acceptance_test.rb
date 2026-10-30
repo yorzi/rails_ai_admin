@@ -13,6 +13,7 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
     RailsAiAdmin::SelectionItem.delete_all
     RailsAiAdmin::Selection.delete_all
     RailsAiAdmin::AuditEvent.delete_all
+    Order.delete_all
     Customer.delete_all
     User.delete_all
     Account.delete_all
@@ -95,6 +96,133 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
       assert_response :success
       assert_select "[data-raa-override=job_index]"
     end
+  end
+
+  def test_order_native_crud_preserves_decimal_date_false_and_denies_readonly_input
+    login
+    get "/staff/orders/new"
+    assert_response :success
+    ref = css_select("input[name=intent_ref]").first["value"]
+    input = { number: "ORD-100", total: "-1.25", delivery_on: "2026-11-02", expedited: "false" }
+    post "/staff/orders", params: { authenticity_token: css_select("input[name=authenticity_token]").first["value"], intent_ref: ref, record: input }
+    assert_response :unprocessable_content
+    assert_select "input[name='record[total]'][value='-1.25']"
+    assert_equal 0, Order.count
+    input[:total] = "123.456"
+    post "/staff/orders", params: { authenticity_token: css_select("input[name=authenticity_token]").first["value"], intent_ref: ref, record: input }
+    assert_response :unprocessable_content
+    assert_equal 0, Order.count
+    input[:total] = "123.45"
+    post "/staff/orders", params: { authenticity_token: css_select("input[name=authenticity_token]").first["value"], intent_ref: ref, record: input }
+    assert_response :see_other
+    order = Order.find_by!(number: "ORD-100")
+    assert_equal @account.id, order.account_id
+    assert_equal BigDecimal("123.45"), order.total
+    assert_equal Date.new(2026, 11, 2), order.delivery_on
+    refute order.expedited
+    assert_equal "draft", order.state
+    get "/staff/orders/#{order.id}/edit"
+    assert_response :success
+    assert_select "input[name='record[state]']", count: 0
+    assert_select "select[name='record[state]']", count: 0
+    ref = css_select("input[name=intent_ref]").first["value"]
+    @user.increment!(:security_version)
+    get "/staff/orders/forms/recover", headers: { "X-RailsAiAdmin-Recovery-Intent" => ref }
+    assert_response :success
+    assert_equal "ready", response.headers["X-RailsAiAdmin-Form-Recovery"]
+    assert_equal @user.security_version.to_s, RailsAiAdmin::OperationRun.find(ref).security_version
+    assert_select "input[name='record[total]'][value='123.45']"
+    assert_select "input[name='record[delivery_on]'][value='2026-11-02']"
+    assert_select "select[name='record[expedited]'] option[selected][value=false]"
+    patch "/staff/orders/#{order.id}", params: { authenticity_token: css_select("input[name=authenticity_token]").first["value"], intent_ref: ref, record: { state: "approved" } }
+    assert_response :unprocessable_content
+    assert_equal "draft", order.reload.state
+    patch "/staff/orders/#{order.id}", params: { authenticity_token: css_select("input[name=authenticity_token]").first["value"], intent_ref: ref, record: { delivery_on: "2026-02-30" } }
+    assert_response :unprocessable_content
+    assert_equal Date.new(2026, 11, 2), order.reload.delivery_on
+    patch "/staff/orders/#{order.id}", params: { authenticity_token: css_select("input[name=authenticity_token]").first["value"], intent_ref: ref, record: { total: "0", expedited: "true" } }
+    assert_response :see_other
+    assert_equal BigDecimal("0"), order.reload.total
+    assert order.expedited
+    get "/staff/orders/#{order.id}"
+    assert_response :success
+    assert_includes response.body, "ORD-100 · draft · 0.0"
+    get "/staff/orders/#{order.id}/confirm_destroy"
+    delete "/staff/orders/#{order.id}", params: { authenticity_token: css_select("input[name=authenticity_token]").first["value"], intent_ref: css_select("input[name=intent_ref]").first["value"] }
+    assert_response :see_other
+    refute Order.exists?(order.id)
+    assert_equal 3, RailsAiAdmin::AuditEvent.where(resource_key: "orders", status: "succeeded").count
+  end
+
+  def test_host_order_workbench_and_native_action_consume_the_same_confirmed_intent_once
+    login
+    order = Order.create!(account: @account, number: "ORD-REVIEW", total: "123.45", secret_payment_token: "private-payment-fixture")
+    path = "/staff/workbench/orders/#{order.id}"
+    get path
+    assert_response :success
+    assert_select "h1", text: "Order review workbench"
+    assert_select "form[data-turbo=false]"
+    nonce = css_select("meta[name=csp-nonce]").first["content"]
+    assert_includes response.headers["Content-Security-Policy"], "'nonce-#{nonce}'"
+    refute_includes response.body, "private-payment-fixture"
+    post "#{path}/preview", params: { authenticity_token: css_select("input[name=authenticity_token]").first["value"], expected_version: 0, input: { decision: "approve", note: "   " } }
+    assert_response :unprocessable_content
+    assert_equal "draft", order.reload.state
+    assert_empty RailsAiAdmin::OperationRun.where(resource_key: "orders")
+    post "#{path}/preview", params: { authenticity_token: css_select("input[name=authenticity_token]").first["value"], expected_version: 0, input: { decision: "approve", note: "  Checked total and delivery  " } }
+    assert_response :success
+    assert_select "h1", text: "Confirm order review"
+    assert_equal "draft", order.reload.state
+    ref = css_select("input[name=intent_ref]").first["value"]
+    wire = css_select("input[name=confirmed_input]").first["value"]
+    global_csrf = css_select("meta[name=csrf-token]").first["content"]
+    post "/staff/orders/#{order.id}/operations/review_order/execute", params: { authenticity_token: global_csrf, intent_ref: ref, confirmed_input: wire }
+    assert_response :see_other
+    post "#{path}/execute", params: { authenticity_token: global_csrf, intent_ref: ref, confirmed_input: wire }
+    assert_response :see_other
+    assert_equal "approved", order.reload.state
+    assert_equal "Checked total and delivery", order.review_note
+    assert order.reviewed_at
+    assert_equal 1, order.lock_version
+    assert_equal 1, RailsAiAdmin::OperationRun.where(resource_key: "orders").count
+    assert_equal 1, RailsAiAdmin::AuditEvent.where(resource_key: "orders", operation: "review_order", status: "succeeded", correlation_ref: ref).count
+    get "/staff/orders/#{order.id}/edit"
+    assert_response :not_found
+    post "#{path}/execute", params: { authenticity_token: global_csrf, intent_ref: ref, confirmed_input: JSON.generate(decision: "reject", note: "Changed after confirmation") }
+    assert_response :conflict
+    assert_equal "approved", order.reload.state
+    assert_equal 1, order.lock_version
+  end
+
+  def test_order_workbench_rechecks_tenant_role_and_version_without_secret_projection
+    login
+    order = Order.create!(account: @account, number: "ORD-LOCAL", total: "9.99", review_note: "Admin-only order context")
+    foreign_account = Account.where.not(id: @account.id).first
+    foreign = Order.create!(account: foreign_account, number: "ORD-FOREIGN", total: "8.88", secret_payment_token: "private foreign payment")
+    get "/staff/workbench/orders/#{foreign.id}"
+    assert_response :not_found
+    refute_includes response.body, "ORD-FOREIGN"
+    refute_includes response.body, "private foreign payment"
+    path = "/staff/workbench/orders/#{order.id}"
+    get path
+    token = css_select("input[name=authenticity_token]").first["value"]
+    order.update!(total: "10.00")
+    post "#{path}/preview", params: { authenticity_token: token, expected_version: 0, input: { decision: "approve", note: "Old version" } }
+    assert_response :conflict
+    assert_equal "draft", order.reload.state
+    assert_empty RailsAiAdmin::OperationRun.where(resource_key: "orders")
+    @user.update!(role: "viewer")
+    get path
+    assert_response :success
+    viewer_csrf = css_select("meta[name=csrf-token]").first["content"]
+    assert_select "form", count: 0
+    refute_includes response.body, "Admin-only order context"
+    get "/staff/orders/#{order.id}/edit"
+    assert_response :not_found
+    post "#{path}/preview", params: { authenticity_token: viewer_csrf, expected_version: order.lock_version, input: { decision: "approve", note: "Forbidden review" } }
+    assert_response :not_found
+    assert_equal "draft", order.reload.state
+    assert_empty RailsAiAdmin::AuditEvent.where(resource_key: "orders", status: "succeeded")
   end
 
   def test_unicode_list_navigation_survives_edit_recovery_and_filtered_page_deletion

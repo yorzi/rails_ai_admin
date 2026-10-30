@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csp-nonce" content="<%= admin_csp_nonce %>">
+  <meta name="turbo-cache-control" content="no-cache"><%= csrf_meta_tags %>
+  <title>Order review workbench</title>
+  <%= stylesheet_link_tag "rails_ai_admin" %>
+  <%= javascript_include_tag "rails_ai_admin", type: "module", defer: true %>
+</head>
+<body class="raa"><main id="raa-main"><%= yield %></main></body>
+</html>
