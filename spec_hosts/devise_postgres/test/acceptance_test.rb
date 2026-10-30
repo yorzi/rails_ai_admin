@@ -258,6 +258,35 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
     refute ActiveRecord::Base.connection.tables.any? { |name| name.start_with?("rails_ai_admin_assistant_") }
   end
 
+  def test_unicode_list_state_and_current_sort_survive_packaged_recovery_and_save
+    login
+    @ticket.update!(subject: "客户 🚀 task")
+    state = { "q" => "客户 🚀", "sort" => "priority", "direction" => "desc" }
+    get "/operations/tickets", params: state
+    assert_response :success
+    assert_select "th[aria-sort=descending] a", text: "Priority"
+    view = css_select("main a").find { |node| node.text.start_with?("View ") }
+    assert_equal state, Rack::Utils.parse_nested_query(URI(view["href"]).query)["return_to"]
+    get view["href"]
+    get css_select("main a").find { |node| node.text == "Edit" }["href"]
+    assert_response :success
+    ref = css_select("input[name=intent_ref]").first["value"]
+    form = css_select("form[data-raa-form-recovery-return-state-value]").first
+    assert_nil URI(form["action"]).query
+    encoded = form["data-raa-form-recovery-return-state-value"]
+    assert encoded.ascii_only?
+    get "/operations/tickets/forms/recover", headers: { "X-RailsAiAdmin-Recovery-Intent" => ref, "X-RailsAiAdmin-Return-State" => encoded }
+    assert_response :success
+    assert_select "input[name='return_to[q]'][value='客户 🚀']"
+    patch "/operations/tickets/#{@ticket.id}", params: { authenticity_token: csrf, intent_ref: ref, return_to: state, record: { subject: "Saved outside original search" } }
+    assert_response :see_other
+    assert_equal state, Rack::Utils.parse_nested_query(URI(response.location).query)["return_to"]
+    follow_redirect!
+    back = css_select("main a").find { |node| node.text == "Tickets" }
+    assert_equal state, Rack::Utils.parse_nested_query(URI(back["href"]).query)
+    assert_equal "Saved outside original search", @ticket.reload.subject
+  end
+
   def test_devise_timeout_recovery_renews_only_the_original_unconsumed_intent
     login
     token, intent = edit_intent

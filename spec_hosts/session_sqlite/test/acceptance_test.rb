@@ -97,6 +97,40 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
     end
   end
 
+  def test_unicode_list_navigation_survives_edit_recovery_and_filtered_page_deletion
+    login
+    @customer.update!(name: "客户 🚀 00")
+    25.times { |index| Customer.create!(account: @account, name: "客户 🚀 #{(index + 1).to_s.rjust(2, '0')}") }
+    state = { "q" => "客户 🚀", "sort" => "name", "direction" => "desc", "page" => "2" }
+    get "/staff/customers", params: state
+    assert_response :success
+    view = css_select("main a").find { |node| node.text.start_with?("View ") }
+    assert_equal state, Rack::Utils.parse_nested_query(URI(view["href"]).query)["return_to"]
+    get view["href"]
+    edit = css_select("main a").find { |node| node.text == "Edit" }
+    get edit["href"]
+    assert_response :success
+    ref = css_select("input[name=intent_ref]").first["value"]
+    encoded = css_select("form[data-raa-form-recovery-return-state-value]").first["data-raa-form-recovery-return-state-value"]
+    assert encoded.ascii_only?
+    get "/staff/customers/forms/recover", headers: { "X-RailsAiAdmin-Recovery-Intent" => ref, "X-RailsAiAdmin-Return-State" => encoded }
+    assert_response :success
+    assert_select "input[name='return_to[q]'][value='客户 🚀']"
+    cancel = css_select("main a").find { |node| node.text == "Cancel" }
+    assert_equal state, Rack::Utils.parse_nested_query(URI(cancel["href"]).query)
+    get "/staff/customers/#{@customer.id}/confirm_destroy", params: { return_to: state }
+    assert_response :success
+    delete "/staff/customers/#{@customer.id}", params: { authenticity_token: css_select("input[name=authenticity_token]").first["value"], intent_ref: css_select("input[name=intent_ref]").first["value"], return_to: state }
+    assert_response :see_other
+    follow_redirect!
+    assert_response :see_other
+    assert_equal state.except("page"), Rack::Utils.parse_nested_query(URI(response.location).query)
+    follow_redirect!
+    assert_response :success
+    assert_select "tbody tr", count: 25
+    refute_includes response.body, "Other tenant"
+  end
+
   def test_authenticated_recovery_reuses_the_original_intent_after_session_loss
     login
     get "/staff/customers/#{@customer.id}/edit"
