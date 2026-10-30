@@ -115,6 +115,11 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
     refute_includes response.body, "private fixture"
     assert_match(/nonce-/, response.headers["Content-Security-Policy"])
     get "/staff/customers/#{@customer.id}/edit"
+    assert_select ".raa-tab-links a", count: 2
+    assert_select "section[hidden]", count: 0
+    assert_select "fieldset legend", text: "Rewards"
+    assert_select "output", minimum: 2
+    assert_select ".raa-field-help", text: "Use whole points."
     token = css_select("input[name=authenticity_token]").first["value"]
     intent = css_select("input[name=intent_ref]").first["value"]
     patch "/staff/customers/#{@customer.id}", params: { authenticity_token: token, intent_ref: intent, record: { name: "Installed from gem", points: "08" } }

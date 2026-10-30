@@ -4,12 +4,12 @@ class TicketAdmin < RailsAiAdmin::Resource
   policy "TicketPolicy"
   title :subject
   fields do
-    id :id
-    field :subject, type: :trimmed_text, required: true, nullable: false, searchable: :prefix, sortable: true
-    select :state, choices: [ [ "Open", "open" ], [ "Triaged", "triaged" ], [ "Closed", "closed" ] ], nullable: false
-    integer :priority, sortable: true
-    textarea :internal_note
-    virtual :review_summary, type: :text, max_length: 2500, depends_on: %i[state priority internal_note], compute: "TicketReviewSummary"
+    id :id, create: false, tab: "Review", panel: "Context"
+    field :subject, type: :trimmed_text, required: true, nullable: false, searchable: :prefix, sortable: true, tab: "Ticket", panel: "Details"
+    select :state, choices: [ [ "Open", "open" ], [ "Triaged", "triaged" ], [ "Closed", "closed" ] ], nullable: false, tab: "Review", panel: "Classification"
+    integer :priority, sortable: true, tab: "Review", panel: "Classification", help_text: "Use an integer priority."
+    textarea :internal_note, tab: "Review", panel: "Notes", help_text: "Only current operators and administrators can read this note."
+    virtual :review_summary, type: :text, max_length: 2500, depends_on: %i[state priority internal_note], compute: "TicketReviewSummary", edit: true, tab: "Review", panel: "Context"
   end
   operation :triage, handler: "TriageTicketOperation"
   operation :bulk_triage, handler: "BulkTriageTicketsOperation", scope: :collection

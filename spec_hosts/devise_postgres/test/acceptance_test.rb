@@ -96,7 +96,15 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
 
   def test_packaged_custom_field_and_fixed_select_validation
     login
+    get "/operations/tickets"
+    assert_response :success
+    refute_includes response.body, "restricted note"
     token, intent = edit_intent
+    assert_select ".raa-tab-links a", count: 2
+    assert_select "section[hidden]", count: 0
+    assert_select "fieldset legend", text: "Classification"
+    assert_select "output", text: "open · P0 · restricted note"
+    assert_select ".raa-field-help", text: "Use an integer priority."
     assert_select "input[data-custom-field=trimmed_text]"
     assert_select "select[name='record[state]'] option[value=triaged]", text: "Triaged"
     patch "/operations/tickets/#{@ticket.id}", params: { authenticity_token: token, intent_ref: intent,

@@ -22,6 +22,9 @@ class TicketPolicy
     fields = %i[id subject state priority review_summary]
     context.actor.role == "viewer" ? fields : fields + [ :internal_note ]
   end
+  def presentation_fields(view)
+    view == :index ? (readable_fields + writable_fields).uniq - [ :internal_note ] : nil
+  end
   def writable_fields = %w[operator admin].include?(context.actor.role) ? %i[subject state priority internal_note] : []
   def searchable_fields = [ :subject ]
   def sortable_fields = [ :priority ]
