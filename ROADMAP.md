@@ -31,8 +31,11 @@ this file records current scope without rewriting its historical review claims.
 - Fixed Selection manifests with canonical ID/version membership, owner/tenant/
   epoch/expiry and stable model/table/key fingerprints. Native capture/preview,
   independent selection grants and current-authority revalidation are implemented.
-  No collection admission, batch mutation or job approval is supplied yet
-  (prerequisite portions of RAA-0305/0312).
+  Bounded collection Operations now consume one parent approval, admit durable
+  child work and execute each target through the shared Runner with leases,
+  current class/record grants, cancellation and safe job views. Real claim-loss,
+  precommit-death and postcommit-response-loss probes recover without duplicate
+  business writes (initial portions of RAA-0305/0306/0312/0401).
 - Closed install/resource generators with an unregistered example, default-deny
   policy and runnable anonymous test. Resource schema suggestions remain comments;
   sensitive/encrypted/relationship/internal fields are omitted. Install checks
@@ -60,19 +63,21 @@ documentation and advisory scanning. No remote CI run has occurred.
 
 Continue the shared execution contracts while the full Phase 1 evidence remains open:
 
-1. Extend the shared Operation contract to collection/global actions, custom CRUD
-   replacement and asynchronous business execution. Bind the implemented bounded
-   selection manifest to one parent approval, then add
-   item-level fencing/cancellation and job/result views. Keep reconciliation and
-   downstream delivery guarantees distinct. External effects in domain callbacks
-   remain unsupported; retries cannot create a second business intent.
+1. Extend the shared Operation contract to global actions and custom CRUD
+   replacement. Complete 10,000-target async manifest materialization, broader
+   batch/job workflows and retention beyond the implemented 100-target leased
+   collection path. Keep reconciliation and downstream guarantees distinct.
+   External effects in domain callbacks remain unsupported; recovery reuses the
+   same admitted intent rather than creating another approval.
 2. Finish the asset/browser/CSP matrix beyond the existing Host A Chrome spot
    checks, layout/theme tokens and configurable host paths. Later TestKit and
    doctor expansions must cover each new surface; AI exposure reports are open.
 3. Close the initial ADR/threat/requirement traceability and relevant spikes with
    evidence. Add the allowed-failure Rails main prewarning and complete the wider
    CI/security/browser matrices after their prerequisites exist.
-4. Resolve the released RubyLLM shared ToolCall/usage persistence constraint
+4. Continue the documented rails_tool_views 1.0.2 host-owned shared-runtime
+   integration; DEP-001/006 are closed, while admin Surface acceptance is open.
+   Resolve the released RubyLLM shared ToolCall/usage persistence constraint
    against the plan's Engine-owned tables before claiming isolated admin Chat.
    The existing explicit Chat/Message mappings do not by themselves prove it.
 

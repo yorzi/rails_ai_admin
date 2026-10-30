@@ -50,8 +50,9 @@ stable typed identities. No request/job authority is cached across invocations.
 The host is responsible for changing its security version on revocation.
 
 See the operation contract for the native form/preflight/confirmation routes,
-registered default CRUD, member handlers and durable post-commit Work. Collection/
-global handlers, CRUD replacement, asynchronous business execution, assistant APIs,
+registered default CRUD, member handlers and durable post-commit Work. Registered
+collection handlers additionally support bounded asynchronous per-target execution.
+Global handlers, CRUD replacement, assistant APIs,
 exports and associations remain unimplemented. A published dependency API is not
 an implemented admin feature.
 
@@ -181,6 +182,44 @@ Native `POST /:resource/selections` captures checked IDs and redirects with 303 
 `GET /selections/:selection_ref`. These forms work without JavaScript. Selection
 expiry or identity/epoch/digest changes give controlled 409 responses; missing or
 inaccessible targets remain generic 404. Normal capture/view creates no
-OperationRun, business audit or WorkItem. Collection preflight/admission, 10,000-item
-async manifests, cancellation, cleanup and job execution remain roadmap work.
+OperationRun, business audit or WorkItem. Explicit collection preflight/admission
+can then create a parent approval and durable per-target work. Larger 10,000-item
+manifests, all-filtered materialization and retention remain roadmap work.
 See the Fixed Selections guide for exact snapshot fields and host examples.
+
+
+## Collection admission and item execution
+
+Register `operation :key, handler: "ClassName", scope: :collection` for a per-target
+Operation over one fixed Selection (1–100 targets currently). `Collections::Runner`
+provides typed `preflight`, human `admit` and independently authorized `cancel`;
+see the operation contract and Collection Operations guide for exact signatures.
+Admission returns a queued job ref, not business success. Parent/input/manifest/
+operation/owner/deadline bindings are persisted once. Children have no independent
+approval and cannot execute through public member routes/Runner entry points.
+
+Worker infrastructure uses `Collections::Dispatcher#run(job_ref, limit: 100)` and
+`#scan_pending!(limit: 100, inline: false)`. Host `resolve_job` must reconstruct
+current identity and membership. Every item rechecks class and record grants,
+versions and owner/generation/lease/deadline; its business/audit/receipt/outbox and
+BatchItem completion commit together through the existing Runner. Stale successes
+and failure audits cannot finalize another lease. Metadata admission, cancellation,
+claim and worker execution refuse an already open external transaction. A handler's
+normal joining transaction still belongs to the framework item transaction.
+
+`cancel_operation?(context:, resource:, operation:)` defaults false; Pundit maps
+`cancel_operation?(operation)` on the explicit model-class policy. Current parent
+receipt authority uses `read_operation_receipt?` with nil/class, while current item
+labels/results additionally need scoped show/receipt/field grants. Payloads are
+bounded to 4 KiB, stored once and never returned by job views. They are not secret
+storage. Aggregate preview is bounded to 256 KiB with a cooperative 30-second budget.
+Cancellation retains committed items and their Work; queueing and effects remain
+separate statuses. Unknown admission/cancel commit results retain the existing
+job ref for recovery; do not create another intent assuming rollback.
+
+Schedule `rails_ai_admin:collections:scan` or bounded `:drain` recovery. Optional
+`collection_auto_dispatch = true` accelerates enqueue after commit; it does not
+replace persistent host queues and recurring scans. The job UI is an owner/tenant
+view, not a complete cross-user administration or reconciliation center. Global
+operations, custom CRUD replacement, 10,000-target materialization and retention
+remain incomplete.

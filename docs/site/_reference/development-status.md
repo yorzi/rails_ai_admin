@@ -27,14 +27,18 @@ operation-input/receipt/delivery grants and a typed durable outbox with stable
 request binding, leases and bounded recovery. Fixed Selection manifests now
 capture/revalidate up to 100 explicit canonical IDs and record versions through
 separate default-deny selection permission and native no-JavaScript previews.
-These capabilities still
-require host-specific validation. Field-grant snapshots do not substitute for
+Collection operations now bind those manifests to one parent approval and
+durable per-target child intents/items. A worker uses the shared Runner with fresh
+authority, lease fencing and independent target transactions; native job receipts
+and cancellation preserve committed results. These capabilities still require
+host-specific validation. Field-grant snapshots do not substitute for
 action/scope checks or constitute an AI exposure report.
 
 Not implemented in this slice: associations, nested attributes, uploads/private
-attachments, imports/exports, batch actions, metrics dashboards, saved views,
-collection/global custom operations, custom CRUD handler replacement, asynchronous
-business execution, general reconciliation UI, assistant installation,
+attachments, imports/exports, all-filtered or 10,000-target batch manifests,
+metrics dashboards, saved views, global custom operations, custom CRUD handler
+replacement, a full job center/retention workflow, general reconciliation UI,
+assistant installation,
 Chat, provider calls, Surface dispatch and continuation. ActionPolicy integration
 and advanced field plugins remain future work. Host-owned Devise authentication
 is demonstrated in a packaged consumer; the engine does not provide accounts or
@@ -42,15 +46,21 @@ login routes.
 
 Fixed selections persist only owner/contract/count/digest/expiry and target
 ID/version/position metadata. They do not persist queries, labels or business
-payload, create OperationRun/audit/job records, approve an operation or implement
-collection admission/execution. They are a prerequisite for the planned
-asynchronous batch workflows, not a narrowed replacement for that scope. See
-[Fixed Selections]({% link _core_features/selections.md %}) for current boundaries.
+payload. Capture itself creates no OperationRun/audit/job records and approves
+no operation. The separate collection preflight persists bounded typed input on
+a parent intent; human confirmation admits its exact targets, and each target
+commits independently. Hosts must provide fresh job contexts, persistent queues
+and recurring scans; automatic dispatch defaults to false. See
+[Fixed Selections]({% link _core_features/selections.md %}) and
+[Collection Operations]({% link _core_features/collection-operations.md %}). The
+bounded implementation remains a prerequisite for the full planned batch workflow,
+not a narrowed replacement for that scope.
 
 Durable Work delivers one declared effect for an already committed operation.
 The host must schedule scans, rebuild current authority and verify the actual
 downstream idempotency/unknown-outcome protocol. It does not prove downstream
-exactly-once behavior or complete the asynchronous-workflow roadmap.
+exactly-once behavior or complete the asynchronous-workflow roadmap. A collection
+item can succeed while its separate Work remains pending or needs reconciliation.
 
 The checkout's `COMPATIBILITY.md` and `ROADMAP.md` identify executed evidence and
 remaining milestones. In-repository tests, packaged-consumer tests, actual browser

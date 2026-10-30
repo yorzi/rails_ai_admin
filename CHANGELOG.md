@@ -32,8 +32,13 @@
 - Bind operation/selection identity to the physical table and primary-key contract,
   preventing stale references from changing meaning after a model remapping.
 
-Assistant/Surface adapters, collection/global actions, custom CRUD replacement,
-asynchronous business execution, associations, files,
-batch, CSV and metrics dashboards are not implemented. Release gates remain open.
+- Add asynchronous fixed-manifest collection operations with one parent approval,
+  current collection/record grants, leased item transactions, fenced receipts,
+  bounded recovery, partial cancellation and native job/result controls.
+- Select rails_tool_views 1.0.2, close DEP-001/DEP-006 and verify the released
+  installer preserves an existing custom mount without route restoration.
+
+Assistant/Surface adapters, global actions, custom CRUD replacement, 10,000-target
+batch materialization, associations, files, CSV and metrics dashboards are not implemented. Release gates remain open.
 
 No gem has been published.

@@ -1,11 +1,13 @@
 # Operation contract (development)
 
 The current execution boundary is `RailsAiAdmin::Operations::Runner` for default
-CRUD and registered synchronous member operations. A durable outbox separately
-delivers one declared external effect for a committed operation. Collection/global
-custom operations, custom CRUD overrides, asynchronous business execution, batch,
-Chat and Surface adapters remain unimplemented. Their broader design in the
-development plan is not an implemented API.
+CRUD and registered synchronous member operations. `RailsAiAdmin::Collections::Runner`
+adds parent approval and durable asynchronous execution of the same per-record
+handler over an exact bounded Selection. A durable outbox separately delivers one
+declared external effect for a committed operation. Global/custom CRUD operations,
+all-filtered/10,000-target manifests, a full job center/retention workflow, Chat and
+Surface adapters remain unimplemented. The full development plan and release
+Gates remain required.
 
 ## Prepare and execute
 
@@ -53,6 +55,8 @@ with string keys. `version` defaults to `"1"`, `description` to a class-derived
 label and `max_duration` to five seconds (at most 30). `atomic_models` contains
 additional model class-name strings whose pools must match the operation pool.
 A readonly resource or disabled custom action cannot admit its write command.
+`scope: :collection` uses the same handler contract through the separate Collection
+Runner below; public member preparation/execution cannot execute it or its children.
 
 `preflight(context, record, input)` returns proposed values by resource field name.
 The framework supplies readable original values, filters the returned fields and
@@ -91,6 +95,7 @@ success.
 | Typed operation inputs | `operation_fields(context:, resource:, operation:, record:)` | `permitted_operation_fields(operation)` |
 | Committed custom receipt | `read_operation_receipt?(context:, resource:, operation:, record:)` | `read_operation_receipt?(operation)` |
 | Post-commit effect | `deliver_work?(context:, resource:, operation:, work_kind:, record:)` | `deliver_operation_work?(operation, kind)` |
+| Cancel collection remainder | `cancel_operation?(context:, resource:, operation:)` | `cancel_operation?(operation)` on model class |
 
 Operation input grants do not come from ordinary `:write` fields. Missing grants
 deny; required schema inputs must all be permitted. Custom receipt reads use
@@ -163,8 +168,8 @@ connection are rejected. External effects belong after commit.
 hard-interrupt arbitrary Ruby or SQL. A detected pre-commit timeout rolls back;
 this is not a hard execution sandbox.
 
-The operation fingerprint includes the resource policy mapping and operation
-definition/version/schema. Changed contracts invalidate existing development
+The operation fingerprint includes physical model/table/primary-key identity,
+resource policy mapping and operation definition/version/schema. Changed contracts invalidate existing development
 form/proposal intents. Method bodies are not automatically hashed; bump versions
 deliberately when semantics change. Reopen the
 form and review the latest permissions rather than editing persisted evidence to
@@ -313,7 +318,172 @@ leave an unknown outcome. Database durability, fencing and declared idempotency
 are not downstream exactly-once proof. Reconcile with the actual downstream
 system; do not edit state or create fresh keys assuming nothing happened.
 
-This slice adds no general reconciliation UI, asynchronous business workflow
+This slice adds no general reconciliation UI, general-purpose asynchronous workflow
 engine, Chat/Surface delivery or external-provider guarantee. Full roadmap/release
 Gates remain required. See `docs/adr/0006-custom-operations-and-outbox.md` and the
 public Durable Outbox guide for the current boundaries.
+
+
+## Fixed-manifest collection review and admission
+
+Register a distinct custom key with `scope: :collection` and an `Operation` handler
+class-name string. It remains a per-target `preflight(ctx, record, input)` /
+`perform(ctx, record, input)` handler; collection execution is always asynchronous.
+A Selection contains at most 100 explicit canonical IDs/versions. Capture is
+metadata-only and creates no OperationRun/audit/job or human approval.
+
+Given a live Selection and current context:
+
+```ruby
+collections = RailsAiAdmin::Collections::Runner.new
+proposal = collections.preflight(
+  context: context, resource: CustomerAdmin, operation: :award_points,
+  selection_ref: selection.selection_ref, input: { "amount" => "8" }
+)
+raise proposal.code if proposal.is_a?(RailsAiAdmin::Collections::Result)
+```
+
+This example requires a registered collection `:award_points` handler with required
+integer `:amount`; the public Collection Operations guide supplies its complete
+resource/handler example. The return is `Collections::Runner::Proposal(intent,
+values, targets)` or a handled `Collections::Result`. Targets have `id`, current
+permitted `label` and readable `changes`. Configuration failures can raise. Lookup,
+authorization, input and handler preview use the ordinary Active Record read-only
+guard, not a trusted-Ruby sandbox. The entire preview path must remain pure.
+Proposal preflight runs outside the parent lock with a cooperative aggregate
+30-second budget as well as each handler max_duration; it does not hard-interrupt
+Ruby or SQL.
+
+Preflight revalidates Selection ownership/epoch/expiry/contract/exact target
+versions and current selection/index/show/scope/read grants. It checks command and
+operation-input grants at class level, then for every target through the shared
+Runner preview. Custom adapters receive `record: nil` at class level; Pundit uses
+the explicitly mapped policy with the model class. Required inputs must be granted
+at each applicable boundary. The parent binds the exact ID/version manifest,
+Selection digest, operation/resource fingerprint, input digest, owner/tenant/epoch,
+origin and approval expiry.
+
+The parent stores normalized typed wire input once, at most 4 KiB; preview changes
+are bounded to 256 KiB. Selection rows remain metadata-only. Input payloads are
+not copied to child intents or audit/job views. Exclude secrets/credentials and
+review host SQL/debug/application logging independently of framework redaction.
+
+After deliberate human review only:
+
+```ruby
+admitted = collections.admit(
+  context: context, intent_ref: proposal.intent.id,
+  input: proposal.values, human_confirmed: true
+)
+raise admitted.code unless admitted.accepted?
+```
+
+Native handling additionally supplies `binding: { resource_key:, operation:,
+selection_id: }` to bind the endpoint. Admission locks the parent, verifies
+approval input and the still-live Selection metadata/digest, exact scope/show/
+versions and current class/per-target command/input grants. It consumes approval
+without repeating host preflight or title projection under the lock, then
+atomically creates its child intents/BatchItems, parent confirmation and admission
+audit. It performs no business mutation. The parent owns the only human approval;
+children have no independent confirmed/approved fields. Public member/child
+execution is rejected; only a server-created admitted lease can enter the shared
+Runner worker boundary. Lease claims are not public HTTP authority.
+
+Same-parent/same-input admission replay returns the existing job with `replayed:
+true`. It requires current parent receipt permission and checks the complete bound
+typed schema/digest, not fresh operation-input grants or command preconditions.
+Failed coercion or changed input gives generic `IDEMPOTENCY_CONFLICT` without
+field errors. Proposed/unexecuted work still needs current command/input grants.
+Separate parent intents do not deduplicate by digest alone.
+
+`Collections::Result` exposes `code`, `job_ref`, `status`, `errors`, `replayed` and
+`warning`. `accepted?` means a queued/existing job was accepted; `success?` means
+the aggregate status is `succeeded`. Admission's `QUEUED` is not business success.
+If admission commit/read recovery cannot establish the durable outcome,
+`OUTCOME_UNKNOWN` returns the same job_ref with status `unknown`. Check the job
+and retry the same intent/input rather than issuing new approval. A known
+committed receipt remains preserved.
+
+## Collection item transactions, deadlines and cancellation
+
+`Collections::Dispatcher#run(job_ref, limit: 100)` visits at most 100 items outside
+any existing database transaction. It claims one live item per parent at a time,
+assigning a lease owner and increasing generation. The worker calls host
+`resolve_job(actor_ref:, tenant_ref:, security_version:)` to reconstruct fresh
+authority; it compares current owner/tenant/epoch with the approved parent. There
+is no system-actor fallback.
+
+The internal shared Runner transaction locks parent/item, verifies approved
+manifest and child identity, current class-level (`record: nil`) and per-record
+command/input grants, exact target version, lease owner/generation/expiry and
+execution deadline. Class-level command/input revocation returns
+`AUTHORIZATION_REVOKED` and stops remaining work. Execution does not reconsume the
+Selection or require select_records? again. Target mutation, audit,
+receipt, optional outbox intent, item success and parent aggregate commit
+atomically. A final lease/deadline check follows output projection and item
+metadata before transaction exit. Failure-audit metadata also has a final lease
+check, and a stale job stops before another claim. A stale owner cannot finalize
+a newer generation. Each item commits
+independently, so a later failure does not undo an earlier success. Declared
+`atomic_models` still require one pool and host-owned scoping/locks. Standard
+joining transactions are allowed; handler `requires_new` is rejected. Persisted
+attribute changes must advance `lock_version`, just as in member execution.
+
+Domain, OperationRun, AuditEvent, WorkItem, BatchItem, Selection and SelectionItem
+must share one SQLite/PostgreSQL pool with a single primary key and standard
+`lock_version`. No cross-pool atomicity, MySQL or composite-key support is added.
+External effects belong in declared post-commit Work, not the item transaction.
+
+| Operation setting | Default | Collection constraint |
+| --- | --- | --- |
+| `max_duration` | 5 seconds | Positive and at most 30 seconds |
+| `lease_duration` | 60 seconds | 5..3,600 seconds and greater than max_duration |
+| `execution_window` | 1 hour | 60 seconds..7 days |
+| `max_attempts` | 3 | Integer 1..10 |
+
+Approval/Selection expiry controls admission. An admitted job has its own
+execution deadline; consuming approval does not make the job depend on the old
+intent TTL. Deadline expiry stops remaining work. Handler duration/deadline checks
+are cooperative, not a hard interrupt for Ruby/SQL. Ordinary handler errors may
+retry with bounded backoff within attempts/deadline; validation/version conflicts
+are not fresh approval.
+
+`Runner#cancel(context:, job_ref:)` requires the independent class-level
+`cancel_operation?` grant as well as parent ownership/current epoch/contract.
+Cancelling a proposed parent blocks admission. Cancelling an admitted run stops
+uncommitted items and preserves every committed target, receipt, audit and Work.
+Cancellation and item commit serialize on the same parent lock. Terminal status
+is retained. Cancellation is not rollback or downstream effect recall.
+
+Current aggregate statuses include queued/running/succeeded/failed/
+partially_succeeded/cancelled. Inspect item codes, too: expiry or cancellation after
+some successes can leave a partially_succeeded aggregate. Known committed success
+survives post-commit callback warnings. Business success and Work delivery remain
+separate; outbox scans/delivery permissions and downstream idempotency are still
+required, and database durability is not downstream exactly-once proof.
+
+## Collection recovery and native receipts
+
+`config.collection_auto_dispatch` defaults to false. Enabling it adds an
+after-commit Active Job enqueue accelerator only. Hosts must provide a persistent
+queue and recurring `rails_ai_admin:collections:scan`; `collections:drain` visits
+up to 100 due runs inline. `Dispatcher#scan_pending!(limit: 100, inline: false)`
+accepts 1..1,000 and recovers queued/expired-lease items after queue loss or process
+death. Work delivery has its own scan; collection workers do not deliver it.
+
+The no-JavaScript native flow is Selection preview -> collection input -> pure
+review -> explicit Confirm and queue -> HTTP 303 job detail. Relative paths are
+`GET /:resource/operations/:operation`, POST to its `/preflight` and `/execute`,
+`GET /jobs/:job_ref` and CSRF-protected `POST /jobs/:job_ref/cancel`. `GET /jobs`
+lists up to 50 recent accessible owner/tenant/epoch runs; this is not a full job
+center, scheduler or retention system.
+
+`Collections::Queries#fetch(context:, job_ref:)` returns current receipt metadata,
+counts and permitted entries. Parent reads use class-level receipt permission;
+entries use current record scope/show/receipt/read grants, not the command's
+old precondition. Hidden records are omitted and hidden title fields become
+`Record #id`. Work status visibility also needs its independent delivery grant.
+Input payloads and historical before/after snapshots are not returned. `recent`
+uses the same current owner/tenant/epoch/receipt boundary. Full global/batch,
+10,000-target manifests, retention, general reconciliation and AI/Surface work
+remain in the plan; this slice closes no full release Gate.

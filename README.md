@@ -4,9 +4,10 @@ A self-hosted Rails admin engine with explicitly registered resources and one
 policy-checked, audited execution boundary for conventional CRUD.
 
 **Unreleased development.** Current code supplies scalar conventional CRUD,
-synchronous member operations, fixed Selection previews and a durable outbox for
-one declared post-commit effect. Chat, trusted Surfaces, associations, CSV, private files, batch actions,
-metrics dashboards and asynchronous business execution remain future work. The
+synchronous member operations, fixed Selection previews, bounded asynchronous
+collection operations and a durable outbox for one declared post-commit effect.
+Chat, trusted Surfaces, associations, CSV, private files, metrics dashboards and
+the broader batch/job-center workflows remain future work. The
 development plan describes the target product, not the supported feature set.
 
 The engine supports custom policy adapters and an optional Pundit adapter with
@@ -126,8 +127,8 @@ retry. Leases/fencing and persistent payloads do not establish downstream
 exactly-once execution. Read the [Durable Outbox guide](docs/site/_advanced/durable-outbox.md)
 before enabling a real transport. Preflight's Active Record write guard is not a
 trusted-Ruby sandbox, and operation duration checks do not hard-interrupt Ruby/SQL.
-Collection/global operations, CRUD handler replacement, async business execution
-and AI/Surface dispatch remain unavailable; complete release Gates remain open.
+Global operations, CRUD handler replacement and AI/Surface dispatch remain
+unavailable; complete release Gates remain open.
 
 ## Fixed Selection Previews
 
@@ -139,10 +140,30 @@ or same-count replacements cannot expand a captured manifest. Labels are freshly
 projected; only IDs/versions/positions and parent binding metadata are persisted.
 
 Capture is not operation approval and creates no OperationRun, business audit,
-Work item or job. There is no collection execution/admission API yet. This is the
-fixed-target prerequisite for the full planned async batch workflow; complete
-scope and release Gates remain required. See
-[Fixed Selections](docs/site/_core_features/selections.md).
+Work item or job. See [Fixed Selections](docs/site/_core_features/selections.md).
+
+## Asynchronous Collection Operations
+
+Register an `Operation` with `scope: :collection` to apply its per-record handler
+to a fixed Selection of at most 100 targets. Native input, pure review and explicit
+**Confirm and queue** create one approved parent with durable child intents/items;
+admission performs no domain mutation. Each worker attempt rebuilds current host
+authority and commits a target change, audit, receipt, optional outbox and item
+completion in one transaction. Public member execution cannot execute child intents.
+
+Items commit independently. Cancellation stops remaining uncommitted items and
+preserves committed changes and their Work. Approval expiry controls admission;
+a separate execution deadline bounds the admitted run. Job receipts use separate
+current receipt grants; cancellation needs its own `cancel_operation?` grant.
+The parent stores bounded typed input once, so exclude credentials and secrets.
+
+`collection_auto_dispatch` defaults to false. The host supplies `resolve_job`, a
+persistent queue and recurring `rails_ai_admin:collections:scan` (or bounded
+`collections:drain`); after-commit enqueue only accelerates recovery. Read
+[Collection Operations](docs/site/_core_features/collection-operations.md) before
+enabling workers. All-filtered/10,000-target manifests, global operations, a full
+job center and retention remain planned; this bounded slice does not close the
+full roadmap or release Gates.
 
 ## Read the Contracts
 

@@ -65,7 +65,7 @@ optimistic locking and a shared database connection pool.
 
 The current slice implements scalar CRUD, synchronous member operations and
 durable post-commit delivery intent. Chat, trusted Surfaces, CSV, associations,
-private files, collection/global actions and asynchronous business workflows remain
+private files, global actions and larger asynchronous business workflows remain
 future milestones.
 Read [development status]({% link _reference/development-status.md %}) before treating
 a target API in the plan as implemented.

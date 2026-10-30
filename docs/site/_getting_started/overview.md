@@ -58,8 +58,8 @@ the native-session SQLite host. These are author-controlled synthetic consumers,
 not independent users or production adoption.
 
 It does not implement the full development plan. Associations, CSV, private files,
-batch operations, dashboards with metrics, saved views, collection/global actions,
-custom CRUD overrides, asynchronous business execution, Chat and Surface workflows
+larger batch workflows, dashboards with metrics, saved views, global actions,
+custom CRUD overrides, broader asynchronous business workflows, Chat and Surface workflows
 remain later milestones. Work delivers a committed fact after the domain
 transaction; it is not a parallel asynchronous business-operation path.
 
@@ -71,6 +71,10 @@ not install AI tables, configure providers or require a model key. There is no
 Outbox delivery has its own fresh context/permission, record-version policy,
 deadline, lease and receipt. It requires recurring host scans and real downstream
 idempotency; a database row or an after-commit hook is not exactly-once proof.
+
+The current collection path supports one fixed selection of at most 100 targets,
+one parent approval and independently committed leased items, with native review,
+job results and cancellation. It does not complete the broader batch roadmap.
 
 ## Next Steps
 

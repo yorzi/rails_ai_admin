@@ -40,10 +40,25 @@ identity, digest and expiry; they retain neither a query to expand later nor lab
 Current scope/show/field and independent selection authority apply on every view.
 Joined scopes are deduplicated by authorized primary keys inside SQL before the
 outer bound. Selection capture creates no approval, business run, audit or work.
-Collection admission must later bind its exact digest, inputs and operation version.
+Collection admission binds that exact digest, typed inputs and operation version.
+One parent OperationRun consumes human approval atomically with child intents and
+BatchItems. It stores one bounded wire payload and the approved fixed manifest;
+children carry no independent human approval. Workers resolve current authority
+and recheck collection-level and per-record command/input grants. Public member
+execution refuses parent/child collection intents.
 
-Collection/global actions, custom CRUD replacement, asynchronous business
-execution, cross-pool atomicity and external calls in domain transactions remain
+Each item holds the parent/item locks, uses the existing Runner domain/audit/
+receipt/outbox transaction, then performs a final lease/deadline check after safe
+projection and completion metadata. Failure receipts/audits are fenced too. A
+parent has one live in-flight item; cancellation serializes on that parent and
+retains already committed items and Work. Approval TTL constrains admission,
+while an independent deadline constrains execution. Pending scans recover lost
+queues and expired leases. These entry points must own their transaction.
+Native collection review, explicit queueing and current-authority job views use
+these same boundaries; they do not provide a separate business executor.
+
+Global actions, custom CRUD replacement, 10,000-target materialization, a full
+job/reconciliation center, cross-pool atomicity and external calls in domain transactions remain
 unimplemented/unsupported; they remain requirements in the full plan.
 
 RubyLLM and rails_tool_views are bounded runtime dependencies. Conventional boot

@@ -2,6 +2,11 @@
 
 Status: implementation decision; owner review and full release gates remain open.
 
+Follow-up: ADR 0008 implements the bounded collection admission/item-execution
+path described here. Earlier unsupported-slice statements below record this
+original decision; global operations, larger manifests and full job/retention
+work remain open.
+
 ## Decision
 
 Implement synchronous member-level custom `Operation` handlers through the same

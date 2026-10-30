@@ -107,7 +107,10 @@ normalize to the same target, such as integer `7` and string `"07"` on an intege
 key, are rejected rather than silently deduplicated. Empty, oversized, malformed
 or wildcard inputs such as `"all"` are not a query-selection API. Every requested
 target must be currently visible; capture does not silently drop unauthorized or
-missing IDs and save a smaller set.
+missing IDs and save a smaller set. Authorized joins may duplicate rows; lookup
+derives a DISTINCT primary-key subquery from the complete policy scope, then
+loads only those IDs with a bound. It does not broaden the saved selection or
+expand an unscoped query into new targets.
 
 The domain model, `Selection` and `SelectionItem` must share one SQLite or
 PostgreSQL connection pool. The model needs one primary key and standard
@@ -142,9 +145,11 @@ change causes conflict before showing a replacement label; newly matching record
 and same-count target replacements cannot make an old manifest valid.
 
 A successful check is a fresh read, **not a record lock or authorization for a
-later write**. State can change immediately afterwards. Any future execution path
-must bind the exact manifest and recheck target versions/current permissions in its
-own transaction. This implementation does not provide that execution/admission API.
+later write**. State can change immediately afterwards. The separate
+[Collection Operations]({% link _core_features/collection-operations.md %}) flow
+binds the exact manifest at parent approval and checks each target version/current
+permission again in its execution transaction. Passing a selection to a member
+API cannot create a batch executor.
 
 ## Interpret Expiry and Invalidations
 
@@ -165,7 +170,7 @@ its generic unavailable response. Capture/revalidation perform their target look
 under an Active Record read-only guard. As with other trusted host callbacks,
 that guard is not a Ruby sandbox or proof that arbitrary policy code is pure.
 
-## Keep Storage and Future Execution Separate
+## Keep Capture and Operation Admission Separate
 
 The immutable parent row stores owner/tenant/security version, resource fingerprint,
 count, digest and expiry. Item rows store only target ID, expected version and
@@ -174,15 +179,20 @@ Parent/item model instances are readonly after persistence through the normal mo
 API; direct SQL/database administrators remain outside that boundary. No selection
 editing or automatic refresh of expired manifests is supplied.
 
-This is the fixed-target prerequisite for future asynchronous batch workflows.
-Collection execution, execution admission, per-item business receipts, jobs and
-all-filtered capture are not implemented here. Capturing a manifest is not human
-confirmation for any operation, and passing one to existing member APIs does not
-create a supported batch executor. The full planned batch/async scope and release
-Gates remain required; the present bounded slice does not narrow those goals.
+This manifest is the fixed-target prerequisite for bounded asynchronous collection
+operations. Their separate preflight creates a parent intent; explicit human
+confirmation admits durable child intents/items. Capture itself supplies neither
+approval nor execution authority. The original selection must still be valid at
+admission; admitted execution uses its approved exact manifest and a separate job
+deadline rather than extending the selection.
+
+All-filtered capture, 10,000-target manifests and a complete job center remain
+planned. The full batch/async scope and release Gates remain required; this
+bounded implementation does not narrow those goals.
 
 ## Next Steps
 
-* [Operations]({% link _core_features/operations.md %}) explains the current member-only write/confirmation contract.
+* [Collection Operations]({% link _core_features/collection-operations.md %}) binds a manifest to explicit approval and per-item execution.
+* [Operations]({% link _core_features/operations.md %}) explains synchronous member commands and confirmation.
 * [Configuration]({% link _getting_started/configuration.md %}) establishes current context and complete scopes.
 * [Development Status]({% link _reference/development-status.md %}) separates implemented prerequisites from remaining workflows.

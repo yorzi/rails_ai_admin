@@ -60,8 +60,10 @@ not guarantee execution will succeed.
 ## Register a Member Operation
 
 An operation encapsulates host domain behavior that is not ordinary attribute
-editing. The current API supports synchronous member operations only, with
-required human confirmation. Input declarations use the same scalar Field DSL:
+editing. Member operations execute synchronously with required human
+confirmation. [Collection Operations]({% link _core_features/collection-operations.md %})
+use the same per-record handler through a separate fixed-manifest approval and
+durable asynchronous execution path. Input declarations use the same scalar Field DSL:
 
 ```ruby
 class TriageTicketOperation < RailsAiAdmin::Operation
@@ -106,8 +108,9 @@ operation :triage,
 
 The handler is a class-name string and resolves through the registry. It cannot
 replace `create`, `update` or `destroy`. A readonly resource also denies custom
-write actions. Collection/global operations, custom CRUD overrides and asynchronous
-business execution remain unavailable.
+write actions. Use `scope: :collection` only with the separate Collection Runner;
+member endpoints cannot execute its parent or child intents. Global operations
+and custom CRUD overrides remain unavailable.
 
 ## Grant Command, Inputs, Receipts and Delivery Separately
 
