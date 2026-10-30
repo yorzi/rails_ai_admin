@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "rails_ai_admin/schema_suggestions"
+require "rails_ai_admin/templates/inspector"
 
 module RailsAiAdmin
   # Reports support boundaries without probing credentials or calling providers.
@@ -27,6 +28,7 @@ module RailsAiAdmin
           "#{@work_registry.definitions.size} outbox handlers; #{collections} collection handlers; auto_dispatch=#{config.outbox_auto_dispatch}/#{config.collection_auto_dispatch}. Schedule both pending scans and verify persistent queues/downstream idempotency."),
         Check.new("coexistence", :review, "The host owns rails_tool_views shared runtime configuration; admin Surface/continuation acceptance remains open.")
       ]
+      result.concat(override_checks)
       if @work_registry.definitions.any? || collections > 0
         result << adapter_check("job_context", config.context_adapter, { resolve_job: [ 0, %i[actor_ref tenant_ref security_version] ] })
         result << Check.new("work_delivery_policy", :review, "Delivery and receipt grants are independent of command preconditions; default denies. Verify fresh tenant/epoch, record-version policy and one effect per item in host tests.")
@@ -62,6 +64,18 @@ module RailsAiAdmin
     end
 
     private
+
+    def override_checks
+      return [ Check.new("overrides", :review, "Run doctor inside the host to inspect standard app/views override metadata.") ] unless @application
+      findings = Templates::Inspector.new(root: @application.root).checks
+      return [ Check.new("overrides", :ok, "No standard-path admin template overrides found; custom view paths require host review.") ] if findings.empty?
+      findings.map do |finding|
+        Check.new("override:#{finding.key.gsub(/[^a-zA-Z0-9_\/.-]/, '_')[0, 200]}", finding.status,
+          "#{finding.code}: #{finding.path.inspect}; source version=#{finding.source_version || 'untracked'}. Source/context metadata only; review host edits for authority, CSRF and escaping. Custom view paths are not inspected.")
+      end
+    rescue ConfigurationError, SystemCallError
+      [ Check.new("overrides", :error, "Cannot inspect standard host override paths; no template was evaluated.") ]
+    end
 
     def selection_check
       installed = [ Selection, SelectionItem, BatchItem ].all?(&:table_exists?)

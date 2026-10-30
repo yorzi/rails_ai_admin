@@ -1,0 +1,51 @@
+# frozen_string_literal: true
+
+require "digest"
+
+module RailsAiAdmin
+  module Templates
+    # Explicit public presentation paths. Revision changes track context/locals
+    # compatibility even when the template bytes themselves do not change.
+    class Catalog
+      Entry = Data.define(:key, :path, :revision, :assigns, :locals)
+      DEFINITIONS = {
+        "layout" => [ "layouts/rails_ai_admin/application.html.erb", %i[context admin_csp_nonce], [] ],
+        "dashboard" => [ "rails_ai_admin/dashboard/index.html.erb", %i[context], [] ],
+        "resource_index" => [ "rails_ai_admin/resources/index.html.erb", %i[context resource page columns rows searchable selectable], [] ],
+        "resource_show" => [ "rails_ai_admin/resources/show.html.erb", %i[context resource record values fields operations], [] ],
+        "resource_new" => [ "rails_ai_admin/resources/new.html.erb", %i[context resource record operation intent form_fields form_values errors failure_code needs_reload], [] ],
+        "resource_edit" => [ "rails_ai_admin/resources/edit.html.erb", %i[context resource record operation intent form_fields form_values errors failure_code needs_reload], [] ],
+        "resource_form" => [ "rails_ai_admin/resources/form.html.erb", %i[context resource record operation intent form_fields form_values errors failure_code needs_reload], [] ],
+        "resource_destroy" => [ "rails_ai_admin/resources/confirm_destroy.html.erb", %i[context resource record intent errors failure_code needs_reload], [] ],
+        "resource_errors" => [ "rails_ai_admin/resources/_errors.html.erb", %i[errors failure_code needs_reload], [] ],
+        "field_index" => [ "rails_ai_admin/fields/_index.html.erb", [], %i[field value text] ],
+        "field_show" => [ "rails_ai_admin/fields/_show.html.erb", [], %i[field value text] ],
+        "field_form" => [ "rails_ai_admin/fields/_input.html.erb", [], %i[field form value input_options] ],
+        "input_fields" => [ "rails_ai_admin/shared/_input_fields.html.erb", %i[resource], %i[form fields values errors] ],
+        "operation_form" => [ "rails_ai_admin/operations/form.html.erb", %i[context resource record definition flow_id form_fields form_values errors failure_code needs_reload], [] ],
+        "operation_confirmation" => [ "rails_ai_admin/operations/confirmation.html.erb", %i[context resource record definition flow_id proposal form_fields form_values wire_input], [] ],
+        "operation_failure" => [ "rails_ai_admin/operations/failure.html.erb", %i[context resource failure_code], [] ],
+        "collection_form" => [ "rails_ai_admin/collection_operations/new.html.erb", %i[context resource definition selection form_fields form_values errors failure_code], [] ],
+        "collection_confirmation" => [ "rails_ai_admin/collection_operations/confirmation.html.erb", %i[context resource definition proposal wire_input], [] ],
+        "collection_failure" => [ "rails_ai_admin/collection_operations/failure.html.erb", %i[context resource failure_code uncertain_job_ref], [] ],
+        "job_index" => [ "rails_ai_admin/collection_jobs/index.html.erb", %i[context jobs], [] ],
+        "job_show" => [ "rails_ai_admin/collection_jobs/show.html.erb", %i[context resource job], [] ],
+        "selection" => [ "rails_ai_admin/selections/show.html.erb", %i[context resource selection operations], [] ]
+      }.freeze
+      ENTRIES = DEFINITIONS.map do |key, (path, assigns, locals)|
+        Entry.new(key.freeze, path.freeze, 1, assigns.freeze, locals.freeze)
+      end.freeze
+
+      def initialize(source_root: Engine.root.join("app/views"), entries: ENTRIES)
+        @source_root = Pathname.new(source_root).expand_path
+        @entries = entries.freeze
+      end
+
+      def entries = @entries
+      def fetch(key) = entries.find { |entry| entry.key == key.to_s } || raise(ConfigurationError, "Unknown override key; use --list")
+      def for_path(path) = entries.find { |entry| entry.path == path }
+      def source_path(entry) = @source_root.join(entry.path)
+      def source_digest(entry) = Digest::SHA256.file(source_path(entry)).hexdigest
+    end
+  end
+end

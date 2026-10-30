@@ -70,7 +70,7 @@ module RailsAiAdmin
       @errors = {}
       @intent = runner.prepare(context: @context, resource: @resource, operation: operation,
         target_id: operation == :create ? nil : @record.id, expected_version: operation == :create ? nil : @record.lock_version)
-      render operation == :destroy ? :confirm_destroy : :form
+      render operation == :destroy ? :confirm_destroy : operation == :create ? :new : :edit
     end
 
     def submit(operation)
@@ -92,7 +92,7 @@ module RailsAiAdmin
         @form_values = form_projection.merge(input.is_a?(Hash) ? input.slice(*@form_fields.map { |field| field.name.to_s }).select { |_, value| !value.is_a?(Hash) && !value.is_a?(Array) } : {})
         @errors, @failure_code = result.errors, result.code
         @needs_reload = result.code != "VALIDATION_FAILED"
-        render operation == :destroy ? :confirm_destroy : :form,
+        render operation == :destroy ? :confirm_destroy : operation == :create ? :new : :edit,
           status: result.code == "VALIDATION_FAILED" ? :unprocessable_content : :conflict
       end
     rescue ActiveRecord::RecordNotFound

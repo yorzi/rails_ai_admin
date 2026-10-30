@@ -12,6 +12,7 @@ module Dummy
     config.load_defaults 8.1
     config.root = File.expand_path("..", __dir__)
     config.eager_load = false
+    config.enable_reloading = false
     config.secret_key_base = "synthetic-test-only-secret-" * 4
     config.hosts = [ "www.example.com", "127.0.0.1", "localhost" ]
     config.action_dispatch.show_exceptions = :none
