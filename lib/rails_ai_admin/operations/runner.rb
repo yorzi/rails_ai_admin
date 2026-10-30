@@ -237,7 +237,7 @@ module RailsAiAdmin
         when ExecutionContext::DeadlineExceeded
           audit_failure(context, run, "TIMEOUT", origin) unless admission
           Result.new(code: "TIMEOUT")
-        when ActiveRecord::StaleObjectError, ActiveRecord::Deadlocked, ActiveRecord::LockWaitTimeout
+        when ActiveRecord::StaleObjectError, ActiveRecord::RecordNotUnique, ActiveRecord::Deadlocked, ActiveRecord::LockWaitTimeout
           Result.new(code: "CONFLICT")
         when ActiveRecord::StatementInvalid
           if defined?(SQLite3::BusyException) && error.cause.is_a?(SQLite3::BusyException)

@@ -20,6 +20,22 @@ class OperationTest < Minitest::Test
     @runner.execute(context: context, intent_ref: intent.id, input: input, human_confirmed: human, origin: origin)
   end
 
+  def test_database_unique_rejection_returns_a_conflict_and_rolls_back_the_second_create
+    index_name = "raa_contract_unique_customer_name"
+    Customer.connection.add_index(:customers, [ :account_id, :name ], unique: true, name: index_name)
+    first = @runner.prepare(context: context, resource: TestResource, operation: :create)
+    second = @runner.prepare(context: context, resource: TestResource, operation: :create)
+    assert @runner.execute(context: context, intent_ref: first.id, input: { name: "Unique database value" }, human_confirmed: true).success?
+    result = @runner.execute(context: context, intent_ref: second.id, input: { name: "Unique database value" }, human_confirmed: true)
+    assert_equal "CONFLICT", result.code
+    assert_equal 1, Customer.where(account_id: 1, name: "Unique database value").count
+    assert_equal "proposed", second.reload.status
+    assert_equal 1, RailsAiAdmin::AuditEvent.where(status: "succeeded").count
+    assert_nil second.input_digest
+  ensure
+    Customer.connection.remove_index(:customers, name: index_name) if Customer.connection.index_exists?(:customers, [ :account_id, :name ], name: index_name)
+  end
+
   def test_success_commits_domain_receipt_confirmation_and_audit_together
     intent = prepare
     result = execute(intent)
