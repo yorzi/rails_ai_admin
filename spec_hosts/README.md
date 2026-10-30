@@ -74,3 +74,18 @@ The scripts install no scheduler and establish no production queue durability.
 
 The legacy-admin migration host and independent user/security acceptance remain
 required. These author-controlled fixtures do not close release gates.
+
+The packaged smoke scripts have a separate override mode. They explicitly generate
+all 22 catalog entries only inside the copied temporary host, add inert markers,
+rerun native HTTP acceptance and check source/context metadata and preserved edits.
+Render notifications record only catalog keys, never locals or response content.
+Host A must actually render every key, including failure/job paths; Host B reports
+its exercised subset and tests live stale metadata on both pipelines. An ensure
+step removes only probe-owned files whose digest still matches; changed files are
+preserved for review. The normal installer does not copy any view tree.
+
+The recovery script also generates one temporary Host B show override, authenticates
+through Devise, changes its body and explicitly reloads Rails. It verifies a fresh
+controller and the changed rendered body, then removes the owned override. This is
+actual development-mode evidence; dummy request tests use ordinary test-mode
+reloading settings so filesystem edits do not invalidate fixture transactions.

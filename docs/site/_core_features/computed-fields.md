@@ -183,8 +183,9 @@ A live computation detecting changed metadata fails closed until definitions
 reload. There is no migration that rewrites old approval evidence.
 
 This supports bounded, readonly scalar computation, not arbitrary model methods,
-SQL-calculated sorting, association traversal, full-page overrides or completion
-of Phase 2. The remaining product roadmap and release Gates still apply.
+SQL-calculated sorting, association traversal or completion of Phase 2.
+[Template Overrides]({% link _advanced/template-overrides.md %}) has a separate
+cataloged presentation contract. The remaining product roadmap and release Gates still apply.
 
 ## Next Steps
 

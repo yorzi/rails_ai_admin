@@ -185,7 +185,8 @@ sandbox. Do not query a record or render extra confidential fields from a partia
 The formatter returns bounded plain String text (at most 16 KiB); the engine strips
 HTML-safe status before normal escaping. Keep `<%= text %>` escaping and do not
 mark plugin output `html_safe` or render it with `raw`. There is no ViewComponent
-adapter or full-page override contract in this API.
+adapter in this field API. [Template Overrides]({% link _advanced/template-overrides.md %})
+provides a separate cataloged page/layout/partial contract.
 
 ## Use String Select Values and Readonly Attributes
 

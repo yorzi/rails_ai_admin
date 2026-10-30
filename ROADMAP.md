@@ -30,6 +30,12 @@ this file records current scope without rewriting its historical review claims.
   titles agree across pages/selections/jobs, virtual input/query targets are
   rejected and fake virtual preflight changes are excluded. Actual packaged
   summaries and source reload advance the Field Registry/CRUD-008 contracts.
+- Individual template override generator with 22 explicit current paths/context
+  contracts, source/context metadata, preservation of existing edits and bounded
+  doctor upgrade diagnostics. New/edit failure wrappers and field defaults obey
+  Rails precedence. Packaged Host A rendered every catalogued host override;
+  Host B verified its subset on both pipelines and actual template reload.
+  This advances RAA-0209/0211; Surface/status/controller extensions remain open.
 - Server-owned intents with input/identity/epoch/version/expiry binding, database
   serialization, replay, atomic domain/audit/receipt, callback rollback handling
   and separate post-commit warning (synchronous parts of RAA-0112/0113).
@@ -75,9 +81,9 @@ documentation and advisory scanning. No remote CI run has occurred.
 ## Next implementation checkpoint
 
 Finish the remaining Phase 2 contracts: field presentation controls,
-form recovery/structure, a reviewable full-page override workflow and three distinct
-domain-resource acceptance. Scalar extension and computed projection milestones
-are complete locally; Phase 2 and release gates remain open.
+form/session recovery, remaining status/controller extension points and three
+distinct domain-resource acceptance. Scalar/computed fields and the conventional
+template override workflow have local evidence; Phase 2 and release gates remain open.
 
 Continue the shared execution contracts while the full Phase 1 evidence remains open:
 
@@ -101,8 +107,8 @@ Continue the shared execution contracts while the full Phase 1 evidence remains 
 
 ## Remaining product work
 
-- Phase 2: finish field presentation controls, full-page overrides, form recovery
-  and three-resource acceptance beyond the scalar plugin/computed-field contracts.
+- Phase 2: finish field presentation controls, remaining status/controller
+  extension points, form/session recovery and three-resource acceptance.
 - Early proof: ordinary Order Review and one trusted Surface through the same
   Operation, then an offline released RubyLLM loop and continuation faults.
 - Phases 3–4: associations, batch/selection, CSV, private files, audit explorer,

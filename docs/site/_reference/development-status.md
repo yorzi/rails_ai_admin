@@ -40,6 +40,9 @@ documents this limited extension contract.
 readonly scalar computations over explicit recursively granted dependencies, with
 graph/snapshot/output/budget limits and per-record projection caching. It supplies
 no virtual writes/search/sort or general model-method invocation.
+[Template Overrides]({% link _advanced/template-overrides.md %}) now provides
+allowlisted page/layout/partial copies with explicit context metadata and bounded
+source/contract inspection. CURRENT metadata does not certify host edits.
 
 Not implemented in this slice: associations, nested attributes, uploads/private
 attachments, imports/exports, all-filtered or 10,000-target batch manifests,

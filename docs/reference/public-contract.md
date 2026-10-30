@@ -233,3 +233,21 @@ replace persistent host queues and recurring scans. The job UI is an owner/tenan
 view, not a complete cross-user administration or reconciliation center. Global
 operations, custom CRUD replacement, 10,000-target materialization and retention
 remain incomplete.
+
+## Conventional template overrides
+
+`bin/rails generate rails_ai_admin:override --list` describes the current public
+paths and explicit context. Generate one key, keep its first-line source/version/
+context header and review the trusted host body. Existing files are never replaced,
+even with `--force`; revoke preserves them too. Doctor compares source SHA and
+context revision without evaluating ERB; `CURRENT` is metadata agreement, not
+host-body safety or a compatibility certificate. Stale/manual/incomplete findings
+need review. Only standard `app/views/rails_ai_admin` and
+`app/views/layouts/rails_ai_admin` namespaces are inspected.
+
+New/edit wrappers apply to GET, validation and conflict and keep the existing
+shared full form. Global field display/input defaults are overrideable; explicit
+field-type partials win. Scope/field/action decisions, CSRF, intent/confirmation,
+escaping, dirty-form and flow IDs remain part of the review. Surface wrappers and
+plain status/controller extension contracts remain future work. See ADR 0011 and
+the site template guide/catalog for exact paths and bounds.

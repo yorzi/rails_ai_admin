@@ -49,3 +49,6 @@ packaged Host B verifies this behavior without changing host SDK configuration.
 This completes bounded readonly scalar computation, not full-page overrides,
 form/session recovery, all field presentation controls or the three-domain-resource
 Phase 2 acceptance. See the [computed field guide](../site/_core_features/computed-fields.md).
+
+Follow-up: ADR 0011 supplies the conventional template override workflow. The
+other Phase 2 acceptance and future Surface/controller requirements remain open.

@@ -13,8 +13,9 @@ description: Check the supported scalar field extension signatures and trust bou
 
 The current extension surface refines explicit scalar fields and supports bounded
 readonly computations from declared authorized dependencies. It does not expose
-arbitrary record lookup, full-page overrides, an extension generator or a
-ViewComponent-specific adapter. Start with
+arbitrary record lookup, a field/computation extension generator or a
+ViewComponent-specific adapter. Cataloged page/layout/partial copies use the
+separate [Template Overrides]({% link _advanced/template-overrides.md %}) contract. Start with
 [Field Types]({% link _core_features/field-types.md %}) and
 [Computed Fields]({% link _core_features/computed-fields.md %}).
 

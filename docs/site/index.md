@@ -71,6 +71,14 @@ exact scalar/schema and rendering boundaries.
 values from declared, recursively authorized scalar dependencies. Physical fields
 keep their actual-attribute guard; neither extension grants additional authority.
 
+## Customize Cataloged Templates
+
+[Template Overrides]({% link _advanced/template-overrides.md %}) copies one
+allowlisted page, layout or partial into the host without replacing existing
+files. The [catalog]({% link _reference/template-catalog.md %}) specifies its
+assigns/locals contract; doctor reports source/context drift for upgrade review.
+Host edits still own their permission, escaping and confirmation behavior.
+
 ## Current Scope
 
 The current slice implements scalar CRUD, synchronous member operations and

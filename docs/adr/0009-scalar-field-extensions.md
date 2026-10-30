@@ -52,3 +52,6 @@ local evidence does not close browser, independent adoption or release gates.
 Follow-up, 2026-10-30: ADR 0010 adds bounded readonly Virtual/computed fields
 through dependency snapshots. Full-page overrides and the other remaining
 extension/Phase 2 requirements above are still open.
+
+Follow-up: ADR 0011 adds individual overrides for the current conventional page
+and field templates. Surface wrappers and remaining extension contracts are open.

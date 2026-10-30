@@ -1,0 +1,56 @@
+---
+layout: default
+title: Template Catalog
+nav_order: 7
+guide: false
+description: Find public override keys, destination paths and explicit Rails context contracts.
+---
+
+# {{ page.title }}
+
+{{ page.description }}
+{: .fs-6 .fw-300 }
+
+Use `bin/rails generate rails_ai_admin:override --list` for the installed catalog,
+then generate one key. Paths below are relative to `app/views/`. Assign names
+represent instance variables (for example, context means `@context`); locals are
+explicit partial arguments. Values may be nil for a particular request/failure
+path. `@record` provides identity/version/policy context, not permission to read
+arbitrary attributes. Display business content only from the authorized
+projection/form/row/target values supplied by the flow.
+
+This catalog does not make templates a Ruby sandbox or grant action/field
+permission. Keep existing authority helpers, escaping, CSRF, intent/confirmation
+bindings and failure handling. See
+[Template Overrides]({% link _advanced/template-overrides.md %}) for copying,
+compatibility statuses and upgrade review. Field-type-specific partials take
+precedence over global field defaults. No Surface wrapper is cataloged. Plain controller error responses also remain
+outside this template catalog.
+
+The current entries have contract revision 1. Source bytes and context revision
+can change independently; always inspect the installed version when upgrading.
+
+| Key | Destination | Assigns | Locals |
+| --- | --- | --- | --- |
+| `layout` | `layouts/rails_ai_admin/application.html.erb` | `context`, `admin_csp_nonce` | None |
+| `dashboard` | `rails_ai_admin/dashboard/index.html.erb` | `context` | None |
+| `resource_index` | `rails_ai_admin/resources/index.html.erb` | `context`, `resource`, `page`, `columns`, `rows`, `searchable`, `selectable` | None |
+| `resource_show` | `rails_ai_admin/resources/show.html.erb` | `context`, `resource`, `record`, `values`, `fields`, `operations` | None |
+| `resource_new` | `rails_ai_admin/resources/new.html.erb` | `context`, `resource`, `record`, `operation`, `intent`, `form_fields`, `form_values`, `errors`, `failure_code`, `needs_reload` | None |
+| `resource_edit` | `rails_ai_admin/resources/edit.html.erb` | `context`, `resource`, `record`, `operation`, `intent`, `form_fields`, `form_values`, `errors`, `failure_code`, `needs_reload` | None |
+| `resource_form` | `rails_ai_admin/resources/form.html.erb` | `context`, `resource`, `record`, `operation`, `intent`, `form_fields`, `form_values`, `errors`, `failure_code`, `needs_reload` | None |
+| `resource_destroy` | `rails_ai_admin/resources/confirm_destroy.html.erb` | `context`, `resource`, `record`, `intent`, `errors`, `failure_code`, `needs_reload` | None |
+| `resource_errors` | `rails_ai_admin/resources/_errors.html.erb` | `errors`, `failure_code`, `needs_reload` | None |
+| `field_index` | `rails_ai_admin/fields/_index.html.erb` | None | `field`, `value`, `text` |
+| `field_show` | `rails_ai_admin/fields/_show.html.erb` | None | `field`, `value`, `text` |
+| `field_form` | `rails_ai_admin/fields/_input.html.erb` | None | `field`, `form`, `value`, `input_options` |
+| `input_fields` | `rails_ai_admin/shared/_input_fields.html.erb` | `resource` | `form`, `fields`, `values`, `errors` |
+| `operation_form` | `rails_ai_admin/operations/form.html.erb` | `context`, `resource`, `record`, `definition`, `flow_id`, `form_fields`, `form_values`, `errors`, `failure_code`, `needs_reload` | None |
+| `operation_confirmation` | `rails_ai_admin/operations/confirmation.html.erb` | `context`, `resource`, `record`, `definition`, `flow_id`, `proposal`, `form_fields`, `form_values`, `wire_input` | None |
+| `operation_failure` | `rails_ai_admin/operations/failure.html.erb` | `context`, `resource`, `failure_code` | None |
+| `collection_form` | `rails_ai_admin/collection_operations/new.html.erb` | `context`, `resource`, `definition`, `selection`, `form_fields`, `form_values`, `errors`, `failure_code` | None |
+| `collection_confirmation` | `rails_ai_admin/collection_operations/confirmation.html.erb` | `context`, `resource`, `definition`, `proposal`, `wire_input` | None |
+| `collection_failure` | `rails_ai_admin/collection_operations/failure.html.erb` | `context`, `resource`, `failure_code`, `uncertain_job_ref` | None |
+| `job_index` | `rails_ai_admin/collection_jobs/index.html.erb` | `context`, `jobs` | None |
+| `job_show` | `rails_ai_admin/collection_jobs/show.html.erb` | `context`, `resource`, `job` | None |
+| `selection` | `rails_ai_admin/selections/show.html.erb` | `context`, `resource`, `selection`, `operations` | None |

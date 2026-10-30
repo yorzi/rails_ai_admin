@@ -6,8 +6,8 @@ CI configuration is not a completed CI run; no production support is declared.
 | Component / combination | Evidence |
 | --- | --- |
 | Ruby 4.0.9, Rails 8.1.4, JSON 3.1.0, macOS arm64 | Local core and request suites executed |
-| SQLite (`sqlite3` 2.10.2) | 214 tests / 1,276 assertions, including fixed selections/current-authority manifests, table/key identity guards, collection admission/cancel/worker races, late lease guards, receipt replay, outbox fencing, request fingerprints, schema suggestions, installer preservation and atomic rollback |
-| PostgreSQL 17.11 (`pg` 1.7.0), same Ruby/Rails | 214 tests / 1,276 assertions, including native UUID selections/targets, authorized joins/includes, same-pool delivery checks, collection item/admission/outbox contracts, concurrent cancel/claim and contention and atomic rollback |
+| SQLite (`sqlite3` 2.10.2) | 228 tests / 1,541 assertions, including fixed selections/current-authority manifests, table/key identity guards, collection admission/cancel/worker races, late lease guards, receipt replay, outbox fencing, request fingerprints, schema suggestions, installer preservation and atomic rollback |
+| PostgreSQL 17.11 (`pg` 1.7.0), same Ruby/Rails | 228 tests / 1,541 assertions, including native UUID selections/targets, authorized joins/includes, same-pool delivery checks, collection item/admission/outbox contracts, concurrent cancel/claim and contention and atomic rollback |
 | Packaged session / SQLite consumer, Propshaft 1.3.2, host importmap 2.2.3 | Actual `.gem` install, closed generated context, install rerun, schema suggestions with no automatic exposure, login/CSRF/CRUD, native fixed-selection capture/revocation, collection review/queue/results and custom-operation confirmation/replay plus host TestKit matrix (7 tests / 85 assertions), generated anonymous HTTP test (1 / 1), doctor, Zeitwerk, production eager load and precompile |
 | Prebuilt Turbo 8.0.23 / Stimulus 3.2.2 | Reproducible esbuild output; Chrome login/list/show/form validation/save checked; nonce CSP without unsafe-inline; 320px and desktop CRUD spot checks; packaged Sprockets Host B custom-operation Turbo Stream review and explicit confirmation checked in Chrome at 500px, with no console/CSP errors; fixed-selection checkbox capture/303/current preview checked in the packaged Sprockets host at 500px with scrolling confined to the table |
 | Ruby 3.4 and Linux | CI configured; not executed locally or remotely yet |
@@ -39,8 +39,8 @@ partials. Host B tests fixed Select labels, unavailable-value preservation,
 validation recovery and normalized writes on both pipelines. Typed Date/Time and
 exact Decimal proposals confirm/replay through the public Ruby Runner API.
 The full SQLite suite also passed on a newly created database; domain fixture DDL
-is prepared before transactional request tests. RuboCop passed 191 Ruby files;
-19 guide pages passed documentation lint and Jekyll/RDoc build. These are local
+is prepared before transactional request tests. RuboCop passed 201 Ruby files;
+21 guide pages passed documentation lint and Jekyll/RDoc build. These are local
 contracts and package evidence, without new browser/assistive-technology coverage.
 Computed-field contracts additionally cover recursive own/dependency grants,
 unsupported/mutable snapshots, graph/size/cooperative duration bounds, physical
@@ -49,7 +49,21 @@ A 25-row index uses one domain query and computes each title once. Host A derive
 its active/points summary after actual writes; Host B hides a computed review
 summary when a viewer lacks its internal-note dependency, despite an explicit
 summary grant. Real source reload replaces the computation and rejects the old
-field contract. Complete page override workflows remain unsupported.
+field contract.
+
+The template override milestone adds fixed paths/context revisions and metadata
+inspection, never host ERB evaluation. Root contracts cover all 22 copied sources,
+Unicode, exclusive-create races, path/header/inventory bounds and independent
+source/context drift. Native request tests preserve escaping, one layout/form,
+CSRF/intent and new/edit failure wrappers. Packaged Host A additionally passed
+8 tests / 119 assertions with generated host overrides; actual render notifications
+covered all 22 keys. Host B passed 19 tests / 211 assertions in its override mode
+on both pipelines, rendering its 16-key HTTP subset and verifying stale source
+metadata. Actual development reload changed a host template body and controller
+while preserving upstream metadata. These counts are separate from normal host
+acceptance above. Temporary overrides were removed after each mode; no installer
+copies the full view tree. Dynamic/custom view paths, plain status responses and
+future Surface/controller extension contracts remain open.
 
 Unsupported in this slice: MySQL, composite keys, multiple/parameterized mounts,
 shards, cross-pool atomic writes, global operations, custom CRUD replacement,

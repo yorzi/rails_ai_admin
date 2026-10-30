@@ -23,6 +23,10 @@ refine a core scalar; they do not grant access. [Computed Fields](docs/site/_cor
 derive readonly values from declared, currently readable scalar dependencies.
 Neither API exposes arbitrary model methods.
 
+Use [Template Overrides](docs/site/_advanced/template-overrides.md) to copy one
+public presentation template and review source/context drift with doctor. Host
+overrides remain trusted Rails code and must preserve the execution boundary.
+
 ## Develop
 
 ```sh

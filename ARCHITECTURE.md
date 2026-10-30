@@ -16,6 +16,11 @@ include the `raa:` namespace, object type and key. There is no mutable global
 Current context. Configuration stores host class names and freezes after boot;
 Rails `to_prepare` replaces resource, Operation and Work registries after reload.
 
+Conventional host presentation uses normal Rails view precedence and an explicit
+single-template override catalog. Source/context headers and bounded doctor checks
+identify upgrade drift without executing ERB or certifying host edits. Templates
+remain trusted Ruby; authority stays in the Context/Access/Runner boundary.
+
 All business writes use the operation runner. Domain records, intents, audit and
 outbox rows share one Active Record connection pool. Default CRUD and explicitly
 registered member Operations use that boundary, typed inputs, current grants,

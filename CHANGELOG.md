@@ -56,6 +56,13 @@
 - Verify graph/size/time bounds, dependency denial, current result projection,
   query counts, stale contracts and actual computation reload in packaged hosts.
 
+- Add individual template overrides with a public catalog, deterministic source/
+  context headers, exclusive Unicode-preserving copies and non-destructive reruns.
+- Add bounded doctor diagnostics for stale/manual/invalid override metadata without
+  evaluating ERB. Keep host-body review separate from source metadata agreement.
+- Add independent new/edit wrappers for GET/validation/conflict and default field
+  display partials; verify standard host view precedence and live template reload.
+
 Assistant/Surface adapters, global actions, custom CRUD replacement, 10,000-target
 batch materialization, associations, files, CSV and metrics dashboards are not implemented. Release gates remain open.
 
