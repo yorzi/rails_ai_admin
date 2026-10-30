@@ -66,6 +66,10 @@ A resource must declare a string `model`, a unique stable `key`, fields and a
 `exports`, `imports`, `jobs`, `selections`, `settings`, `doctor` and `assets`.
 `lock_version` is execution metadata and cannot be a resource field.
 
+Use [Resource Navigation]({% link _core_features/resource-navigation.md %}) to
+group/label/icon/order sidebar and Overview entries. `navigation false` hides only
+those menu entries; direct authorization and readonly/write rules stay independent.
+
 ## Treat Schema Suggestions as Comments
 
 The resource generator can inspect model schema to suggest supported scalar field

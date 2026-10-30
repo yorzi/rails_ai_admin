@@ -216,6 +216,33 @@ from the same UUID intent header: ASCII Base64URL UTF-8 JSON, 2,048 encoded byte
 See [List Navigation]({% link _core_features/list-navigation.md %}) for native
 flow retention and the registered template helpers.
 
+## Resource Menu Presentation
+
+`Resource.navigation(group: nil, label: nil, icon: nil, order: 0, hidden: false)`
+returns immutable Navigation::Settings; `navigation false` hides only sidebar/
+Overview entry points. It changes no direct action/scope/field authority and is
+excluded from operation/Selection fingerprints. Group/label/fallback Resource.label
+are plain UTF-8 text of 1..80 characters without controls or all-whitespace values.
+Order is Integer -1000..1000; hidden Boolean; icon nil or a fixed String name:
+users/shopping-bag/life-buoy/document/grid. Unknown keys, Procs, URL targets and
+arbitrary SVG/HTML icons are not accepted. Registration rejects a visible
+resource whose fallback Resource.label is outside the caption bounds.
+
+`Navigation::Menu.build(context:, resources:, current_key: nil)` authorizes index
+before evaluating an entry's metadata, removes hidden entries and groups only
+remaining resources. Entry order uses order then registry position; group order
+is first appearance in that sorted list, with each group's entries contiguous.
+Immutable Group(label, entries)/Entry(key, label, icon, current) snapshots hold no
+records/counts/policies. The framework makes no domain/count query; host policies
+may query. `resource_navigation` is a request-memoized view helper using the actual
+resolved resource key for current marking. Named resource routes preserve mount/
+SCRIPT_NAME. Legacy visible_resources still includes all index-authorized entries,
+even navigation-hidden ones, for host override compatibility.
+
+The resource_navigation catalog partial takes groups; layout/dashboard contracts
+are revisions 3/2. See
+[Resource Navigation]({% link _core_features/resource-navigation.md %}).
+
 ## Host Custom Controllers and Fixed Statuses
 
 A host controller subclasses `RailsAiAdmin::CustomController` (default layout

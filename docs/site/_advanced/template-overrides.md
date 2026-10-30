@@ -108,10 +108,17 @@ Navigation-aware templates also receive immutable `@list_navigation`; it carries
 only normalized list hints, not routing or record authority. Keep registered
 navigation helpers, hidden return fields, the recovery encoded return-state/discarded data
 and discard notices instead of routing from raw return_to. resource_index receives
-sortable_fields for permitted sort headers. Layout/index/show/destroy, member and
-collection form/review/failure, selection and job-show context contracts are now
-revision 2. See [List Navigation]({% link _core_features/list-navigation.md %}) for
+sortable_fields for permitted sort headers. The layout is revision 3; index/
+show/destroy, member and collection form/review/failure, selection and job-show
+context contracts are revision 2. See [List Navigation]({% link _core_features/list-navigation.md %}) for
 the exact helper and query/header boundaries.
+
+The `resource_navigation` partial (revision 1) receives immutable groups from
+resource_navigation. Layout revision 3 and dashboard revision 2 use that grouped
+menu for currently index-authorized resources. Legacy visible_resources retains
+hidden-menu entries; adopt the new helper when replacing default menus. See
+[Resource Navigation]({% link _core_features/resource-navigation.md %}) for the
+cosmetic-only hidden/order/group/icon contract.
 
 `status_layout` and `status_page` have revision-1 contracts for fixed
 @admin_status and the optional validated @status_sign_in_path. They render

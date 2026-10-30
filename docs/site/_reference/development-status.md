@@ -64,6 +64,16 @@ explicit mounted-engine routes and fixed independent status presentation. It
 does not inherit host controller concerns automatically or replace arbitrary
 exception handling. Default record denials retain anti-enumeration 404.
 
+[Resource Navigation]({% link _core_features/resource-navigation.md %}) now
+provides static group/label/fixed-icon/order/hidden-menu settings over fresh index
+grants. Immutable request-only snapshots contain no records or counts; hiding a
+menu never changes direct authorization or operation/Selection fingerprints.
+Registration rejects an unusable fallback label. Both packaged hosts render the
+grouped menu from current grants; Host A's real reload observed a renamed menu
+and Host B rendered a host resource_navigation override on both asset pipelines.
+No browser/accessibility check was made for the menu. Filter/scopes DSL, broader
+navigation work and full Phase 2/release Gates remain open.
+
 Not implemented in this slice: associations, nested attributes, uploads/private
 attachments, imports/exports, all-filtered or 10,000-target batch manifests,
 metrics dashboards, saved views, global custom operations, custom CRUD handler
@@ -107,8 +117,9 @@ remain outside unauthorized projections. See the concrete source map in
 [Custom Controllers and Status Pages]({% link _advanced/custom-controllers.md %}).
 The Order host's actual reload probe replaced controller/resource/operation/
 registry and observed new HTTP code while rejecting old-version approval without
-business mutation. Production eager loading and rendering of every current
-catalog key passed. Chrome exercised explicit workbench review/confirmation,
+business mutation. That Order/controller checkpoint passed production eager
+loading and its recorded catalog render probe; new menu-milestone runs are
+reported separately. Chrome exercised explicit workbench review/confirmation,
 readonly approved-edit denial and generic Order same-UUID session recovery with
 decimal/date/false input, empty local/session storage and a single explicit Save.
 The custom layout's CSP nonce matches its header; its preview uses ordinary Rails

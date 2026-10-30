@@ -33,6 +33,10 @@ Scoped Access and the shared Runner preserve the execution boundary; host routes
 layouts and partials remain ordinary Rails. The native-session packaged consumer
 includes an Order review workbench that shares its operation with native pages.
 
+Group, label, order or hide sidebar and Overview entries with
+[Resource Navigation](docs/site/_core_features/resource-navigation.md). The menu
+follows current index grants; hiding an entry changes no direct authorization.
+
 ## Develop
 
 ```sh

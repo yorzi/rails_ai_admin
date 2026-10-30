@@ -100,6 +100,13 @@ connects ordinary host Rails controllers/partials to fresh admin Context, explic
 scoped access and the shared Runner. Fixed status pages preserve HTTP/denial
 boundaries without rendering normal resource navigation.
 
+## Group Authorized Resources
+
+[Resource Navigation]({% link _core_features/resource-navigation.md %}) supplies
+static groups, plain labels, fixed icons and ordering for sidebar/Overview entries.
+A hidden menu remains subject to the same direct route permissions; cosmetic
+settings confer no record or operation authority.
+
 ## Current Scope
 
 The current slice implements scalar CRUD, synchronous member operations and

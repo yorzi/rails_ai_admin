@@ -97,6 +97,14 @@
 - Return CONFLICT for unique-index rejection with full transaction rollback. Isolate
   temporary mounted-route probes so randomized tests use the real host prefix.
 
+- Add static resource menu groups, plain labels, fixed decorative icons, ordering
+  and `navigation false`, built per request from current index grants. Hiding a
+  menu entry grants or revokes nothing and leaves approval/Selection identity intact.
+- Add the resource_navigation partial (catalog now 27 entries) and advance the
+  layout/dashboard contracts to revisions 3/2; legacy visible_resources is kept.
+- Reject an unusable fallback menu label at registration instead of making every
+  admin page unavailable at render time.
+
 Assistant/Surface adapters, global actions, custom CRUD replacement, 10,000-target
 batch materialization, associations, files, CSV and metrics dashboards are not implemented. Release gates remain open.
 

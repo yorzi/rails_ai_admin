@@ -30,7 +30,7 @@ this file records current scope without rewriting its historical review claims.
   titles agree across pages/selections/jobs, virtual input/query targets are
   rejected and fake virtual preflight changes are excluded. Actual packaged
   summaries and source reload advance the Field Registry/CRUD-008 contracts.
-- Individual template override generator with 26 explicit current paths/context
+- Individual template override generator with 27 explicit current paths/context
   contracts, source/context metadata, preservation of existing edits and bounded
   doctor upgrade diagnostics. New/edit failure wrappers and field defaults obey
   Rails precedence. Packaged Host A rendered every catalogued host override;
@@ -64,6 +64,12 @@ this file records current scope without rewriting its historical review claims.
   exact decimal/date/false values, readonly state, real source reload and native
   recovery. Chrome covers the actual preview/confirmation and recovery paths
   (further RAA-0202/0206/0209/0211 and three-domain evidence; ADR 0015).
+- Static resource menu groups, plain labels, fixed decorative icons, ordering and
+  hidden entries built per request from current index grants. Hiding changes no
+  direct authority and stays out of intent/Selection identity; bad fallback labels
+  fail at registration. Both packaged hosts, Host A real reload and Host B
+  overrides on both pipelines verify it; no Chrome/accessibility check yet
+  (navigation part of RAA-0201, further RAA-0209; ADR 0016).
 - Server-owned intents with input/identity/epoch/version/expiry binding, database
   serialization, replay, atomic domain/audit/receipt, callback rollback handling
   and separate post-commit warning (synchronous parts of RAA-0112/0113).
@@ -109,9 +115,10 @@ documentation and advisory scanning. No remote CI run has occurred.
 ## Next implementation checkpoint
 
 Complete the remaining Phase 2 DSL/presentation contracts and their traceability:
-resource filters, named scopes, configurable navigation and the broader browser/
-I18n/accessibility evidence. Status/controller extension and the third domain now
-have local evidence; this does not close the full Phase 2 or release gates.
+resource filters, named scopes and the broader browser/I18n/accessibility
+evidence (including a Chrome/mobile/keyboard check of the new grouped menu).
+Status/controller extension, the third domain and configurable resource menus
+now have local evidence; this does not close the full Phase 2 or release gates.
 Prepare the narrow Order Review shared-operation/Surface proof after its relevant
 prerequisites are verified; the existing ordinary Order workbench supplies its
 conventional execution baseline.
@@ -138,10 +145,10 @@ Continue the shared execution contracts while the full Phase 1 evidence remains 
 
 ## Remaining product work
 
-- Phase 2: complete filters/scopes/navigation DSL and remaining presentation/
-  browser evidence. Three-domain CRUD, status/controller extension and generic
-  open-tab recovery have local evidence; persistent drafts and custom-operation
-  recovery stay open.
+- Phase 2: complete filters/scopes DSL and remaining presentation/browser
+  evidence. Three-domain CRUD, status/controller extension, resource menus and
+  generic open-tab recovery have local evidence; persistent drafts and
+  custom-operation recovery stay open.
 - Early proof: ordinary Order Review and one trusted Surface through the same
   Operation, then an offline released RubyLLM loop and continuation faults.
 - Phases 3–4: associations, batch/selection, CSV, private files, audit explorer,

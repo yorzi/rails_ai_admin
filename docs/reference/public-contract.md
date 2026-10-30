@@ -249,9 +249,23 @@ New/edit wrappers apply to GET, validation and conflict and keep the existing
 shared full form. Global field display/input defaults are overrideable; explicit
 field-type partials win. Scope/field/action decisions, CSRF, intent/confirmation,
 escaping, dirty-form and flow IDs remain part of the review. Fixed HTML statuses
-add status_layout/status_page, bringing the catalog to 26 entries; non-HTML plain
-responses and future Surface wrappers remain outside it. See ADR 0011/0015 and
-the site template guide/catalog for exact paths and bounds.
+add status_layout/status_page; the resource_navigation partial brings the catalog
+to 27 entries. Non-HTML plain responses and future Surface wrappers remain outside
+it. See ADR 0011/0015/0016 and the site template guide/catalog for exact paths and
+bounds.
+
+## Resource menus
+
+`Resource.navigation(group:, label:, icon:, order:, hidden:)` and
+`navigation false` declare immutable, cosmetic `Navigation::Settings`. Text is
+bounded plain UTF-8, order is -1000..1000, hidden is Boolean and icons come from a
+fixed name set. Registration rejects an unusable fallback label for a visible
+entry. `Navigation::Menu.build` authorizes index before reading metadata and
+returns frozen groups/entries without records, counts or stored grants. The
+request-memoized `resource_navigation` helper feeds the layout and dashboard;
+`visible_resources` keeps returning every index-authorized resource. Menu
+settings change no direct authorization and are excluded from operation-intent
+and Selection identity. See ADR 0016 and the Resource Navigation guide.
 
 
 ## Host controllers and fixed statuses

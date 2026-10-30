@@ -6,8 +6,8 @@ CI configuration is not a completed CI run; no production support is declared.
 | Component / combination | Evidence |
 | --- | --- |
 | Ruby 4.0.9, Rails 8.1.4, JSON 3.1.0, macOS arm64 | Local core and request suites executed |
-| SQLite (`sqlite3` 2.10.2) | 289 tests / 2,218 assertions, including fixed selections/current-authority manifests, table/key identity guards, collection admission/cancel/worker races, late lease guards, receipt replay, outbox fencing, request fingerprints, schema suggestions, installer preservation and atomic rollback |
-| PostgreSQL 17.11 (`pg` 1.7.0), same Ruby/Rails | 289 tests / 2,218 assertions, including native UUID selections/targets, authorized joins/includes, same-pool delivery checks, collection item/admission/outbox contracts, concurrent cancel/claim and contention and atomic rollback |
+| SQLite (`sqlite3` 2.10.2) | 302 tests / 2,311 assertions, including fixed selections/current-authority manifests, table/key identity guards, collection admission/cancel/worker races, late lease guards, receipt replay, outbox fencing, request fingerprints, schema suggestions, installer preservation and atomic rollback |
+| PostgreSQL 17.11 (`pg` 1.7.0), same Ruby/Rails | 302 tests / 2,311 assertions, including native UUID selections/targets, authorized joins/includes, same-pool delivery checks, collection item/admission/outbox contracts, concurrent cancel/claim and contention and atomic rollback |
 | Packaged session / SQLite consumer, Propshaft 1.3.2, host importmap 2.2.3 | Actual `.gem` install, closed generated context, install rerun, schema suggestions with no automatic exposure, login/CSRF/CRUD, native fixed-selection capture/revocation, collection review/queue/results and custom-operation confirmation/replay plus host TestKit matrix (12 tests / 203 assertions), generated anonymous HTTP test (1 / 1), doctor, Zeitwerk, production eager load and precompile |
 | Prebuilt Turbo 8.0.23 / Stimulus 3.2.2 | Reproducible esbuild output; Chrome login/list/show/form validation/save checked; nonce CSP without unsafe-inline; 320px and desktop CRUD spot checks; packaged Sprockets Host B custom-operation Turbo Stream review and explicit confirmation checked in Chrome at 500px, with no console/CSP errors; fixed-selection checkbox capture/303/current preview checked in the packaged Sprockets host at 500px with scrolling confined to the table |
 | Ruby 3.4 and Linux | CI configured; not executed locally or remotely yet |
@@ -166,6 +166,21 @@ overflow. Temporary tabs and loopback host were closed/stopped. This does not
 establish custom-operation recovery, Surface/provider behavior or the full browser
 and accessibility matrix. These are three author-controlled domain resources,
 not the plan's three independent migration/adoption samples.
+
+The resource-menu milestone adds static group/label/fixed-icon/order/hidden
+settings over fresh index grants. Contract/request tests cover caption bounds,
+denied-metadata laziness, grouping order, escaping, SCRIPT_NAME, per-request
+grants, hidden direct access, boot-time fallback-label rejection and unchanged
+intent/Selection identity. Review moved fallback-label rejection to registration;
+before that, one unusable label would have made every admin page return 503.
+SQLite and PG both passed 302 tests / 2,311 assertions. Host A normal acceptance
+passed 13 / 214 and overrides 14 / 248 with all 27 catalog entries rendered; its
+real reload renamed the Order menu group/label and HTTP rendered the new menu.
+Both Host B pipelines passed 21 / 251 normal and 22 / 269 override acceptance,
+including Pundit-granted Support entries that disappear for a suspended role,
+rendering a 22-key HTTP subset and inspecting all 27 metadata entries. Production
+eager boots passed for each variant. No Chrome, mobile-layout or screen-reader
+check was made for the menu.
 
 Unsupported in this slice: MySQL, composite keys, multiple/parameterized mounts,
 shards, cross-pool atomic writes, global operations, custom CRUD replacement,

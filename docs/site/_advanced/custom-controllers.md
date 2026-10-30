@@ -169,8 +169,9 @@ Successful confirmation POST returns 303.
 
 The packaged reload probe replaced the host controller, resource, operation and
 registry, observed the new HTTP header and rejected the old version-1 approval
-after version 2 with 409 and no business write. The host's production eager-load
-check and render probe for every current catalog entry also passed.
+after version 2 with 409 and no business write. At that custom-controller
+checkpoint, the host's production eager-load and then-current catalog render
+probes also passed. New resource-menu milestone evidence is recorded separately.
 
 A Chrome check exercised a draft order's workbench preview with normalized note,
 then explicit confirmation produced approved state with one audit/version
