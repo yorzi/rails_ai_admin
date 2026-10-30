@@ -29,7 +29,7 @@ class DirtyFormController extends Controller {
 }
 class FormRecoveryController extends Controller {
   static targets = ["notice", "message", "resume"];
-  static values = { url: String, intent: String, timeZone: String, fields: Array };
+  static values = { url: String, intent: String, timeZone: String, fields: Array, returnState: String };
   connect() {
     this.paused = false;
     this.pending = false;
@@ -86,7 +86,7 @@ class FormRecoveryController extends Controller {
       const url = new URL(this.urlValue, location.href);
       if (url.origin !== location.origin || url.search || url.hash) throw new Error("Invalid recovery path");
       const response = await fetch(url, { method: "GET", mode: "same-origin", credentials: "same-origin", redirect: "error", cache: "no-store", signal: this.abortController.signal,
-        headers: { "Accept": "text/html", "X-RailsAiAdmin-Recovery-Intent": this.intentValue } });
+        headers: { "Accept": "text/html", "X-RailsAiAdmin-Recovery-Intent": this.intentValue, "X-RailsAiAdmin-Return-State": this.returnStateValue } });
       if (!response.ok || response.redirected || response.url !== url.href || response.headers.get("X-RailsAiAdmin-Form-Recovery") !== "ready" ||
           !response.headers.get("Content-Type")?.startsWith("text/html")) throw new Error("Recovery was not authorized");
       const html = await response.text();
@@ -116,6 +116,9 @@ class FormRecoveryController extends Controller {
       notice.hidden = false;
       notice.querySelector('[data-raa-form-recovery-target="message"]').textContent =
         restored.size < values.size ? "Session restored. Some fields are no longer editable; their input was not restored. Review the form, then save explicitly." : "Session restored. Your input is ready for review. Nothing has been saved; submit explicitly when ready.";
+      if (form.dataset.raaFormRecoveryReturnDiscardedValue === "true") {
+        notice.querySelector('[data-raa-form-recovery-target="message"]').textContent += " Some list settings changed; return links use the current permitted list.";
+      }
       form.querySelector('[data-raa-form-recovery-target="resume"]').hidden = true;
       const fresh = document.importNode(form, true);
       const meta = doc.querySelector('meta[name="csrf-token"]');

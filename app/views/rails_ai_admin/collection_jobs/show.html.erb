@@ -1,18 +1,18 @@
-<p><%= link_to "Collection jobs", collection_jobs_path %> · <%= link_to @resource.label, resources_path(resource: @resource.key) %></p>
+<p><%= link_to "Collection jobs", collection_jobs_path %> · <%= link_to list_return_label, list_return_path %></p>
 <h1><%= @job.description %></h1>
 <p>Status: <strong><%= @job.status.humanize %></strong></p>
 <p><%= @job.counts.map { |status, count| "#{status.humanize}: #{count}" }.join(" · ") %></p>
-<p><%= link_to "Refresh status", collection_job_path(job_ref: @job.job_ref) %></p>
+<p><%= link_to "Refresh status", collection_job_path(job_ref: @job.job_ref, **navigation_params) %></p>
 <% if @job.warning %><p class="raa-errors" role="alert">The committed run has a host callback warning. Ask the host maintainer to review it.</p><% end %>
 <% if @job.can_cancel %>
-  <%= button_to "Cancel remaining items", cancel_collection_job_path(job_ref: @job.job_ref), method: :post, data: { turbo: false } %>
+  <%= button_to "Cancel remaining items", cancel_collection_job_path(job_ref: @job.job_ref), method: :post, params: navigation_params, data: { turbo: false } %>
 <% end %>
 <p>Each succeeded item is committed. Follow-up delivery is tracked separately and can remain pending after business success.</p>
 <div class="raa-table-scroll" role="region" aria-label="Current visible item results" tabindex="0"><table>
 <caption>Current visible item results</caption>
 <thead><tr><th scope="col">Record</th><th scope="col">Business status</th><th scope="col">Code</th><th scope="col">Follow-up work</th></tr></thead>
 <tbody><% @job.entries.each do |entry| %><tr>
-<td><%= link_to entry.label, resource_path(resource: @resource.key, id: entry.record_id) %></td>
+<td><%= link_to entry.label, resource_path(resource: @resource.key, id: entry.record_id, **navigation_params) %></td>
 <td><%= entry.status.humanize %><% if entry.warning %> (callback warning)<% end %></td><td><%= entry.code %></td>
 <td><%= entry.work_statuses.map { |status, count| "#{status.humanize}: #{count}" }.join(" · ") %></td>
 </tr><% end %></tbody></table></div>

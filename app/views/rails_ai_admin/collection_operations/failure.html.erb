@@ -1,8 +1,8 @@
 <h1>Collection operation needs review</h1>
 <% if @uncertain_job_ref %>
 <p>The admission outcome is unknown. Check the existing run and retry the same intent after recovery.</p>
-<p><%= link_to "Check existing run", collection_job_path(job_ref: @uncertain_job_ref) %></p>
+<p><%= link_to "Check existing run", collection_job_path(job_ref: @uncertain_job_ref, **navigation_params) %></p>
 <% else %>
 <p>The request could not be admitted: <%= @failure_code %>. Check the current selection and permissions before preparing a new intent.</p>
 <% end %>
-<p><%= link_to "Return to resource", resources_path(resource: @resource.key) %></p>
+<p><%= link_to "Return to resource", list_return_path %></p>

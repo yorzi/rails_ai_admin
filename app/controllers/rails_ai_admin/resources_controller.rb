@@ -6,7 +6,19 @@ module RailsAiAdmin
     before_action :resolve_resource
 
     def index
-      @page = Queries::List.new(@context, @resource).call(search: params[:q], sort: params[:sort], direction: params.fetch(:direction, "asc"), page: params.fetch(:page, "1"))
+      raw = params.to_unsafe_h.slice(*Navigation::ListState::KEYS)
+      @list_navigation = Navigation::ListState.new(@access, raw, strict: true)
+      if return_state_discarded?
+        redirect_to list_return_path, status: :see_other, notice: "Some list settings are no longer available. The current list settings have been restored."
+        return
+      end
+      @page = Queries::List.new(@context, @resource).call(search: navigation_state["q"], sort: navigation_state["sort"], direction: navigation_state.fetch("direction", "asc"), page: navigation_state.fetch("page", "1"), recover_empty_page: true)
+      if @page.number != navigation_state.fetch("page", "1").to_i
+        @list_navigation = Navigation::ListState.new(@access, navigation_state.merge("page" => @page.number.to_s))
+        redirect_to list_return_path, status: :see_other, notice: "That list page is now empty. Showing an available page."
+        return
+      end
+      @sortable_fields = @access.fields(:sort)
       @columns = @access.fields(:read, view: :index)
       @rows = @page.records.map do |record|
         @access.authorize!(:show, record)
@@ -43,7 +55,7 @@ module RailsAiAdmin
     end
 
     def recover_form
-      response.headers["Vary"] = [ response.headers["Vary"], "Cookie", "X-RailsAiAdmin-Recovery-Intent" ].compact.join(", ")
+      response.headers["Vary"] = [ response.headers["Vary"], "Cookie", "X-RailsAiAdmin-Recovery-Intent", "X-RailsAiAdmin-Return-State" ].compact.join(", ")
       session = runner.resume_form(context: @context, resource: @resource,
         intent_ref: request.headers["X-RailsAiAdmin-Recovery-Intent"])
       @intent, @record = session.intent, session.record
@@ -67,6 +79,7 @@ module RailsAiAdmin
     def resolve_resource
       @resource = RailsAiAdmin.registry.fetch(params[:resource])
       @access = Authorization::Access.new(@context, @resource)
+      resolve_list_navigation unless action_name == "index"
     end
 
     def runner
@@ -90,7 +103,7 @@ module RailsAiAdmin
         human_confirmed: true, origin: :ui,
         binding: { resource_key: @resource.key, operation: operation, target_id: params[:id] })
       if result.success?
-        target = operation == :destroy ? resources_path(resource: @resource.key) : resource_path(resource: @resource.key, id: result.record_id)
+        target = operation == :destroy ? list_return_path : resource_path(resource: @resource.key, id: result.record_id, **navigation_params)
         redirect_to target, status: :see_other, notice: result.warning ? "Changes saved, but a host callback failed. Review operation #{params[:intent_ref]} before continuing." : "Changes saved."
       elsif result.code == "NOT_FOUND"
         raise AccessDenied

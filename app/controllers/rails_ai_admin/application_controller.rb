@@ -11,7 +11,8 @@ module RailsAiAdmin
     helper RailsAiAdmin::FieldsHelper
     prepend_before_action :secure_headers
     before_action :authenticate_admin
-    helper_method :visible_resources, :allowed_action?, :record_label, :collection_jobs_available?
+    after_action :notice_discarded_list_settings
+    helper_method :list_page_path, :encoded_return_state, :navigation_state, :navigation_params, :list_return_path, :list_return_label, :return_state_discarded?, :return_navigation_fields, :visible_resources, :allowed_action?, :record_label, :collection_jobs_available?
 
     rescue_from AccessDenied, with: :deny_access
     rescue_from ConfigurationError do
@@ -65,6 +66,44 @@ module RailsAiAdmin
       if is_a?(ResourcesController) && %w[create update].include?(action_name)
         response.headers["X-RailsAiAdmin-Form-Recovery"] = "session"
       end
+    end
+
+    def resolve_list_navigation
+      raw = params[:return_to]
+      raw = raw.to_unsafe_h if raw.is_a?(ActionController::Parameters)
+      access = Authorization::Access.new(@context, @resource)
+      @list_navigation = if action_name == "recover_form"
+        Navigation::ListState.from_header(access, request.headers["X-RailsAiAdmin-Return-State"])
+      else
+        Navigation::ListState.new(access, raw)
+      end
+    end
+
+    def encoded_return_state = @list_navigation&.encoded || ""
+    def navigation_state = @list_navigation&.state || {}
+    def navigation_params = navigation_state.empty? ? {} : { return_to: navigation_state }
+    def return_state_discarded? = @list_navigation&.discarded? == true
+
+    def list_return_path
+      @list_navigation&.index_allowed? ? resources_path(resource: @resource.key, **navigation_state.symbolize_keys) : root_path
+    end
+
+    def list_page_path(page)
+      raise ConfigurationError, "Invalid list page" unless page.is_a?(Integer) && (1..1000).cover?(page)
+      state = page == 1 ? navigation_state.except("page") : navigation_state.merge("page" => page.to_s)
+      resources_path(resource: @resource.key, **state.symbolize_keys)
+    end
+
+    def list_return_label = @list_navigation&.index_allowed? ? @resource.label : "Administration"
+
+    def return_navigation_fields
+      helpers.safe_join(navigation_state.map { |key, value| helpers.hidden_field_tag("return_to[#{key}]", value) })
+    end
+
+    def notice_discarded_list_settings
+      return unless response.redirect? && return_state_discarded?
+      message = "Some list settings are no longer available."
+      flash[:notice] = [ flash[:notice], message ].compact.join(" ") unless flash[:notice].to_s.include?(message)
     end
 
     def visible_resources

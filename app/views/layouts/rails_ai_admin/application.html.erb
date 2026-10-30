@@ -22,6 +22,7 @@
       <% end %>
     </nav>
     <main id="raa-main" tabindex="-1">
+      <% if return_state_discarded? %><p class="raa-notice" role="status">Some list settings are no longer available. Return links use the current permitted list.</p><% end %>
       <% flash.each do |_, message| %><p class="raa-notice" role="status"><%= message %></p><% end %>
       <%= yield %>
     </main>

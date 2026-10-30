@@ -33,6 +33,7 @@ require_relative "rails_ai_admin/request_log_filter"
 require_relative "rails_ai_admin/authorization/adapter"
 require_relative "rails_ai_admin/authorization/pundit_adapter"
 require_relative "rails_ai_admin/authorization/access"
+require_relative "rails_ai_admin/navigation/list_state"
 
 # Provides an isolated admin engine. The host supplies all authority.
 module RailsAiAdmin

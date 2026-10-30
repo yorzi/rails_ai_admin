@@ -17,6 +17,7 @@ Gem::Specification.new do |spec|
   # Prevent an accidental release before the explicit owner approval gate.
   spec.metadata["allowed_push_host"] = "https://unreleased.invalid"
 
+  spec.add_dependency "base64", "~> 0.3"
   spec.add_dependency "rails", ">= 8.1.4", "< 8.2"
   spec.add_dependency "rails_tool_views", "~> 1.0.2"
   spec.add_dependency "json_schemer", "~> 2.5"

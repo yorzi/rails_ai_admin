@@ -37,7 +37,7 @@ module RailsAiAdmin
       if result.success?
         notice = result.work_refs.any? ? "Operation completed. Follow-up work is pending or separately tracked." : "Operation completed."
         notice += " A host callback needs review." if result.warning
-        redirect_to resource_path(resource: @resource.key, id: result.record_id), status: :see_other, notice: notice
+        redirect_to resource_path(resource: @resource.key, id: result.record_id, **navigation_params), status: :see_other, notice: notice
       elsif result.code == "NOT_FOUND"
         raise AccessDenied
       elsif result.code == "VALIDATION_FAILED"
@@ -56,6 +56,7 @@ module RailsAiAdmin
       @definition = RailsAiAdmin.operation_registry.fetch(@resource, params[:operation])
       raise AccessDenied unless @definition.custom? && @definition.scope == :member
       @access = Authorization::Access.new(@context, @resource)
+      resolve_list_navigation
       @flow_id = "raa_operation_#{@resource.key}_#{params[:id]}_#{@definition.key}"
     end
 

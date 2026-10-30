@@ -10,10 +10,11 @@
   <dl class="raa-details"><% @proposal.changes.each do |name, change| %><% field = @resource.fields.find { |entry| entry.name.to_s == name } %><dt><%= field.label %></dt><dd><%= field.format(change["before"], time_zone: @context.time_zone) %> → <%= field.format(change["after"], time_zone: @context.time_zone) %></dd><% end %></dl>
 <% end %>
 <%= form_with url: operation_execute_path(resource: @resource.key, id: @record.id, operation: @definition.key), method: :post, local: true do |form| %>
+  <%= return_navigation_fields %>
   <%= hidden_field_tag :intent_ref, @proposal.intent.id %>
   <%= hidden_field_tag :confirmed_input, @wire_input %>
   <div class="raa-actions"><%= form.submit "Confirm and execute", data: { turbo_submits_with: "Executing…" } %>
-  <%= link_to "Edit input", operation_form_path(resource: @resource.key, id: @record.id, operation: @definition.key) %>
-  <%= link_to "Cancel", resource_path(resource: @resource.key, id: @record.id) %></div>
+  <%= link_to "Edit input", operation_form_path(resource: @resource.key, id: @record.id, operation: @definition.key, **navigation_params) %>
+  <%= link_to "Cancel", resource_path(resource: @resource.key, id: @record.id, **navigation_params) %></div>
 <% end %>
 </div>

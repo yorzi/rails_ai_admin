@@ -1,27 +1,41 @@
 <div class="raa-heading"><h1><%= @resource.label %></h1>
-<% if allowed_action?(@resource, :create) %><%= link_to "New record", new_resource_path(resource: @resource.key), class: "raa-button" %><% end %></div>
+<% if allowed_action?(@resource, :create) %><%= link_to "New record", new_resource_path(resource: @resource.key, **navigation_params), class: "raa-button" %><% end %></div>
 <% if @searchable %>
   <%= form_with url: resources_path(resource: @resource.key), method: :get, local: true, class: "raa-search" do |form| %>
-    <%= form.label :q, "Search" %><%= form.search_field :q, value: params[:q], maxlength: 200 %>
+    <%= form.label :q, "Search" %><%= form.search_field :q, value: navigation_state["q"], maxlength: 200 %>
+    <% navigation_state.slice("sort", "direction").each do |key, value| %><%= hidden_field_tag key, value %><% end %>
     <%= form.submit "Search" %>
   <% end %>
 <% end %>
+<% if navigation_state.any? %><p><%= link_to "Reset list", resources_path(resource: @resource.key) %></p><% end %>
 <% if @selectable %>
   <%= form_with url: capture_selection_path(resource: @resource.key), method: :post, local: true, id: "raa-selection", data: { turbo: false } do |form| %>
+    <%= return_navigation_fields %>
     <p>Select records on this page, then capture their current versions. Up to 100 targets; this does not execute changes.</p>
     <%= form.submit "Capture selection" %>
   <% end %>
 <% end %>
 <div class="raa-table-scroll" role="region" aria-label="Resource records" tabindex="0">
 <table><caption><%= @resource.label %>, page <%= @page.number %></caption>
-<thead><tr><% if @selectable %><th scope="col">Select</th><% end %><% @columns.each do |field| %><th scope="col"><%= field.label %></th><% end %><th scope="col">Actions</th></tr></thead>
+<thead><tr><% if @selectable %><th scope="col">Select</th><% end %><% @columns.each do |field| %>
+  <% sorted = navigation_state["sort"] == field.name.to_s %>
+  <% direction = navigation_state.fetch("direction", "asc") %>
+  <th scope="col"<% if @sortable_fields.include?(field) %> aria-sort="<%= sorted ? (direction == "asc" ? "ascending" : "descending") : "none" %>"<% end %>>
+    <% if @sortable_fields.include?(field) %>
+      <% state = navigation_state.except("page").merge("sort" => field.name.to_s, "direction" => sorted && direction == "asc" ? "desc" : "asc") %>
+      <%= link_to field.label, resources_path(resource: @resource.key, **state.symbolize_keys) %>
+    <% else %><%= field.label %><% end %>
+  </th>
+<% end %><th scope="col">Actions</th></tr></thead>
 <tbody><% @rows.each_with_index do |row, index| %><tr>
   <% if @selectable %><td><%= check_box_tag "target_ids[]", row[:id], false, id: "raa-target-#{index}", form: "raa-selection", aria: { label: "Select #{row[:label].to_s.truncate(120)}" } %></td><% end %>
   <% @columns.each do |field| %><td><%= admin_field_value(field, row[:values][field.name.to_s], view: :index) if row[:values].key?(field.name.to_s) %></td><% end %>
-  <td><%= link_to "View #{row[:label]}", resource_path(resource: @resource.key, id: row[:id]) %></td>
+  <td><%= link_to "View #{row[:label]}", resource_path(resource: @resource.key, id: row[:id], **navigation_params) %></td>
 </tr><% end %></tbody></table></div>
 <% if @rows.empty? %><p>No records match this query.</p><% end %>
 <nav class="raa-pagination" aria-label="Pagination">
-  <% if @page.number > 1 %><%= link_to "Previous", resources_path(resource: @resource.key, q: params[:q], sort: params[:sort], direction: params[:direction], page: @page.number - 1) %><% end %>
-  <% if @page.has_next %><%= link_to "Next", resources_path(resource: @resource.key, q: params[:q], sort: params[:sort], direction: params[:direction], page: @page.number + 1) %><% end %>
+  <% if @page.number > 1 %><%= link_to "Previous", list_page_path(@page.number - 1) %><% end %>
+  <% if @page.has_next && @page.number < 1000 %><%= link_to "Next", list_page_path(@page.number + 1) %><% end %>
 </nav>
+
+<% if @page.has_next && @page.number == 1000 %><p>Narrow your search to view more records within the page limit.</p><% end %>

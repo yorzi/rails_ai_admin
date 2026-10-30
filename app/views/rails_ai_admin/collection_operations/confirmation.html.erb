@@ -13,8 +13,9 @@
 <% end %>
 <%= form_with url: collection_operation_execute_path(resource: @resource.key, operation: @definition.key), method: :post, local: true, data: { turbo: false } do |form| %>
   <%= hidden_field_tag :intent_ref, @proposal.intent.id %>
+  <%= return_navigation_fields %>
   <%= hidden_field_tag :selection_ref, @proposal.intent.selection_id %>
   <%= hidden_field_tag :confirmed_input, @wire_input %>
   <%= form.submit "Confirm and queue" %>
 <% end %>
-<p><%= link_to "Edit inputs", collection_operation_form_path(resource: @resource.key, operation: @definition.key, selection_ref: @proposal.intent.selection_id) %></p>
+<p><%= link_to "Edit inputs", collection_operation_form_path(resource: @resource.key, operation: @definition.key, selection_ref: @proposal.intent.selection_id, **navigation_params) %></p>

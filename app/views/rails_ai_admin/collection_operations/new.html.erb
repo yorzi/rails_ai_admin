@@ -1,7 +1,8 @@
-<p><%= link_to "Selected records", selection_path(selection_ref: @selection.selection_ref) %></p>
+<p><%= link_to "Selected records", selection_path(selection_ref: @selection.selection_ref, **navigation_params) %></p>
 <h1><%= @definition.description %></h1>
 <p><%= pluralize(@selection.targets.size, "fixed target") %>. Review before queueing changes.</p>
 <%= form_with scope: :input, url: collection_operation_preflight_path(resource: @resource.key, operation: @definition.key), method: :post, local: true, namespace: "raa_#{@resource.key}_#{@selection.selection_ref}_#{@definition.key}", data: { turbo: false, controller: "raa-dirty-form", action: "input->raa-dirty-form#change submit->raa-dirty-form#submit" } do |form| %>
+  <%= return_navigation_fields %>
   <%= hidden_field_tag :selection_ref, @selection.selection_ref %>
   <%= render "rails_ai_admin/resources/errors", form: form, fields: @form_fields %>
   <%= render "rails_ai_admin/shared/input_fields", form: form, fields: @form_fields, values: @form_values, errors: @errors %>

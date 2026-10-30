@@ -12,13 +12,17 @@ module RailsAiAdmin
         @resource = resource
       end
 
-      def call(search: nil, sort: nil, direction: "asc", page: "1")
+      def call(search: nil, sort: nil, direction: "asc", page: "1", recover_empty_page: false)
         @access.authorize!(:index)
-        raise AccessDenied, "INVALID_QUERY" unless page.to_s.match?(/\A[1-9]\d{0,3}\z/) && page.to_i <= 1000
+        unless (page.is_a?(String) || page.is_a?(Integer)) && page.to_s.valid_encoding? && page.to_s.ascii_only? && page.to_s.match?(/\A[1-9]\d{0,3}\z/) && page.to_i <= 1000
+          raise AccessDenied, "INVALID_QUERY"
+        end
         raise AccessDenied, "INVALID_QUERY" unless %w[asc desc].include?(direction)
+        unless search.nil? || search.is_a?(String) && search.valid_encoding? && (search.encoding == Encoding::UTF_8 || search.ascii_only?) && search.length <= 200 && !search.match?(/[\x00-\x1f\x7f]/)
+          raise AccessDenied, "INVALID_QUERY"
+        end
         relation = @access.relation
         if search.present?
-          raise AccessDenied, "INVALID_QUERY" unless search.is_a?(String) && search.length <= 200
           fields = @access.fields(:search)
           raise AccessDenied, "INVALID_QUERY" if fields.empty?
           predicates = fields.map do |field|
@@ -43,7 +47,13 @@ module RailsAiAdmin
           relation = relation.reorder(table[primary].asc)
         end
         records = relation.offset((page.to_i - 1) * PAGE_SIZE).limit(PAGE_SIZE + 1).to_a
-        Page.new(records: records.first(PAGE_SIZE), number: page.to_i, has_next: records.size > PAGE_SIZE)
+        number = page.to_i
+        if recover_empty_page && records.empty? && number > 1
+          count = relation.except(:order).limit(number * PAGE_SIZE).count
+          number = [ 1, (count - 1).div(PAGE_SIZE) + 1 ].max
+          records = relation.offset((number - 1) * PAGE_SIZE).limit(PAGE_SIZE + 1).to_a
+        end
+        Page.new(records: records.first(PAGE_SIZE), number: number, has_next: records.size > PAGE_SIZE)
       end
     end
   end
