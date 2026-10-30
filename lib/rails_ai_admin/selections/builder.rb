@@ -132,8 +132,7 @@ module RailsAiAdmin
         access.authorize!(:show, record) unless authorized
         version = record.lock_version
         raise ConfigurationError, "Selection versions must be nonnegative integers" unless version.is_a?(Integer) && version >= 0
-        field = labels && access.fields(:read, record).find { |candidate| candidate.name == access.resource.title }
-        label = field ? access.read_value(record, field).to_s.truncate(120) : "Record ##{record.id}"
+        label = labels ? access.record_label(record) : "Record ##{record.id}"
         Target.new(record.id.to_s.freeze, version, label.freeze)
       end
 

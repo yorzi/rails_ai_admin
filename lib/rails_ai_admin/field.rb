@@ -11,9 +11,9 @@ module RailsAiAdmin
     TYPES = %i[id text textarea integer decimal boolean date datetime enum select].freeze
     OPTIONS = %i[readonly required nullable values max_length searchable sortable create edit label choices].freeze
     Descriptor = Data.define(:name, :type, :scalar_type, :options, :scalar_json_schema)
-    attr_reader :name, :type, :scalar_type, :options
+    attr_reader :name, :type, :scalar_type, :options, :dependencies
 
-    def initialize(name, type:, plugin: nil, **options)
+    def initialize(name, type:, plugin: nil, compute: nil, depends_on: nil, **options)
       @name, @type = name.to_sym, type.to_sym
       @plugin = plugin
       @plugin_metadata = plugin && immutable_copy(plugin.metadata)
@@ -21,7 +21,9 @@ module RailsAiAdmin
       raise ConfigurationError, "Invalid field name" unless @name.to_s.match?(/\A[a-z][a-z0-9_]*\z/)
       raise ConfigurationError, "Unknown field type" unless TYPES.include?(@scalar_type) && (plugin || TYPES.include?(@type))
       raise ConfigurationError, "Unknown field option" unless (options.keys - OPTIONS).empty?
+      configure_computation!(compute, depends_on, options)
       defaults = { readonly: @scalar_type == :id, nullable: true, required: false, max_length: 2000, create: true, edit: true }
+      defaults.merge!(readonly: true, create: false, edit: false, searchable: false, sortable: false) if virtual?
       @options = immutable_copy(defaults.merge(options))
       validate_options!
       @descriptor = Descriptor.new(@name, @type, @scalar_type, @options, immutable_copy(scalar_json_schema))
@@ -32,8 +34,23 @@ module RailsAiAdmin
         schema = @descriptor.scalar_json_schema
       end
       @json_schema = immutable_copy(@options[:nullable] ? { "anyOf" => [ schema, { "type" => "null" } ] } : schema)
-      @contract = immutable_copy(name: @name, type: @type, scalar: @scalar_type, options: @options, plugin: @plugin_metadata, schema: @json_schema)
+      contract = { name: @name, type: @type, scalar: @scalar_type, options: @options, plugin: @plugin_metadata, schema: @json_schema }
+      contract[:computation] = { **@computation_metadata, dependencies: @dependencies } if virtual?
+      @contract = immutable_copy(contract)
       freeze
+    end
+
+    def virtual? = !@computation.nil?
+
+    def compute(values, time_zone:)
+      klass = @computation.handler_class
+      raise ConfigurationError, "Computation changed; reload resource definitions" unless klass.metadata == @computation_metadata
+      result = ActiveRecord::Base.while_preventing_writes { klass.new.call(values, field: @descriptor, time_zone: time_zone) }
+      coerce(result, time_zone: time_zone)
+    rescue ConfigurationError
+      raise
+    rescue StandardError
+      raise ConfigurationError, "Computed field failed its scalar contract", cause: nil
     end
 
     def label
@@ -147,6 +164,23 @@ module RailsAiAdmin
     end
 
     private
+
+    def configure_computation!(handler, dependencies, options)
+      @dependencies = [].freeze
+      return if handler.nil? && dependencies.nil?
+      unless handler.is_a?(String) && handler.length <= 200 && handler.match?(/\A[A-Z]\w*(?:::[A-Z]\w*)*\z/) &&
+          dependencies.is_a?(Array) && dependencies.size.between?(1, Fields::DependencyGraph::MAX_DEPENDENCIES) &&
+          dependencies.all? { |name| (name.is_a?(String) || name.is_a?(Symbol)) && name.to_s.match?(/\A[a-z][a-z0-9_]*\z/) }
+        raise ConfigurationError, "Virtual fields require a computation class name and bounded declared dependencies"
+      end
+      @dependencies = dependencies.map(&:to_sym).freeze
+      raise ConfigurationError, "Computed dependencies must be distinct" unless @dependencies.uniq.size == @dependencies.size
+      if options.any? { |key, value| %i[readonly].include?(key) && value != true || %i[create edit searchable sortable].include?(key) && value != false }
+        raise ConfigurationError, "Virtual fields are readonly and cannot write, search or sort"
+      end
+      @computation = Fields::Computation::Definition.new(String.new(handler).freeze)
+      @computation_metadata = immutable_copy(@computation.metadata)
+    end
 
     def validate_options!
       unless %i[readonly nullable required create edit].all? { |key| [ true, false ].include?(options[key]) } &&

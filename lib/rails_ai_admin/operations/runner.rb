@@ -319,6 +319,7 @@ module RailsAiAdmin
         end
         readable.filter_map do |field|
           name = field.name.to_s
+          next if field.virtual?
           next unless original.key?(name) && (changes.key?(name) || changes.key?(field.name))
           value = changes.key?(name) ? changes[name] : changes[field.name]
           value = field.coerce(value, time_zone: access.context.time_zone)

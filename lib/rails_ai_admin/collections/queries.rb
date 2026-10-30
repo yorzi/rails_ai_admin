@@ -53,8 +53,7 @@ module RailsAiAdmin
         end
         record = access.find!(item.target_id)
         access.authorize_receipt!(parent.operation, record)
-        field = access.fields(:read, record).find { |candidate| candidate.name == access.resource.title }
-        label = field ? access.read_value(record, field).to_s.truncate(120) : "Record ##{record.id}"
+        label = access.record_label(record)
         child = OperationRun.find_by!(id: item.operation_run_id, parent_run_id: parent.id)
         unless child.target_id == item.target_id && child.expected_version == item.expected_version &&
             child.resource_key == parent.resource_key && child.operation == parent.operation && child.input_digest == parent.input_digest &&

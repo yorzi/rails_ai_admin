@@ -42,18 +42,19 @@ module RailsAiAdmin
         names = @adapter.fields(context: context, resource: resource, action: action, record: record)
         raise ConfigurationError, "Policy fields must be an array" unless names.is_a?(Array)
         names = names.map(&:to_sym)
-        resource.fields.select do |field|
+        selected = resource.fields.select do |field|
           names.include?(field.name) &&
             (action != :write || field.name.to_s != resource.model_class.primary_key) &&
             (action != :write || field.writable?(operation || :update)) &&
-            (action != :search || field.options[:searchable]) &&
-            (action != :sort || field.options[:sortable])
+            (action != :search || !field.virtual? && field.options[:searchable]) &&
+            (action != :sort || !field.virtual? && field.options[:sortable])
         end
+        action == :read ? Fields::DependencyGraph.readable(selected) : selected
       end
 
       def project(record)
         authorize!(:show, record)
-        fields(:read, record).to_h { |field| [ field.name.to_s, read_value(record, field) ] }
+        Fields::Projection.new(self, record, fields(:read, record)).values
       end
 
       def authorize_selection!
@@ -66,13 +67,35 @@ module RailsAiAdmin
       # Scalar declarations cannot turn arbitrary model methods into read actions.
       # Host overrides of real attribute getters remain trusted application code.
       def read_value(record, field)
+        return read_attribute(record, field) unless field.virtual?
+        authorize!(:show, record)
+        Fields::Projection.new(self, record, fields(:read, record)).value(field)
+      end
+
+      def read_attribute(record, field)
+        raise ConfigurationError, "Computed fields do not invoke model methods" if field.virtual?
         name = field.name.to_s
         primary_key = record.class.primary_key
         id_alias = name == "id" && primary_key.is_a?(String) && record.has_attribute?(primary_key)
         unless record.has_attribute?(name) || id_alias
           raise ConfigurationError, "Scalar fields must name model attributes"
         end
-        record.public_send(name)
+        ActiveRecord::Base.while_preventing_writes { record.public_send(name) }
+      rescue ActiveRecord::ReadOnlyError
+        raise ConfigurationError, "Scalar attribute getters must not write", cause: nil
+      end
+
+      # Shared title contract for native pages, fixed selections and job entries.
+      def record_label(record, values: nil)
+        fallback = "Record ##{record.id}"
+        authorize!(:show, record)
+        field = fields(:read, record).find { |candidate| candidate.name == resource.title }
+        return fallback unless field
+        return fallback if values && !values.key?(field.name.to_s)
+        value = values ? values.fetch(field.name.to_s) : read_value(record, field)
+        field.format(value, time_zone: context.time_zone).truncate(120)
+      rescue AccessDenied
+        fallback
       end
 
       def operation_fields(operation, record = nil)

@@ -112,14 +112,16 @@ module RailsAiAdmin
 
     def schema_checks(resource, model)
       columns = model.columns_hash
-      invalid = resource.fields.reject do |field|
+      Fields::DependencyGraph.validate!(resource.fields)
+      physical_fields = resource.fields.reject(&:virtual?)
+      invalid = physical_fields.reject do |field|
         column = columns[field.name.to_s]
         column && (SchemaSuggestions::TYPES.key?(column.type) || column.type == :uuid) && !SchemaSuggestions.array?(column) ||
           (field.scalar_type == :id && field.name == :id && model.primary_key.is_a?(String) && columns.key?(model.primary_key))
       end
       result = [ Check.new("schema:#{resource.key}", invalid.empty? ? :ok : :error,
-        "#{invalid.size} declared fields lack supported scalar columns. Check field names/types; virtual fields are not implemented. No records were sampled.") ]
-      mismatches = resource.fields.count do |field|
+        "#{invalid.size} declared fields lack supported scalar columns. Check field names/types; computed fields use declared dependency graphs. No records were sampled.") ]
+      mismatches = physical_fields.count do |field|
         column = columns[field.name.to_s]
         next false unless column
         case field.scalar_type

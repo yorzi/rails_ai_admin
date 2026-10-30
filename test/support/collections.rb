@@ -57,7 +57,7 @@ class CollectionCustomerAdmin < RailsAiAdmin::Resource
 end
 
 module CollectionContractHelpers
-  def with_collection
+  def with_collection(resources: [ "CollectionCustomerAdmin" ], policy: "CollectionContractPolicy")
     CollectionContractPolicy.denied = false
     CollectionContractPolicy.class_grant = true
     CollectionContractPolicy.read_hook = nil
@@ -68,8 +68,8 @@ module CollectionContractHelpers
     OperationJobContext.epoch = "1"
     config = RailsAiAdmin::Configuration.new
     config.context_adapter = "OperationJobContext"
-    config.authorization_adapter = "CollectionContractPolicy"
-    config.resources = [ "CollectionCustomerAdmin" ]
+    config.authorization_adapter = policy
+    config.resources = resources
     config.work_handlers = { "customers.reviewed" => "OperationContractWork" }
     registry = RailsAiAdmin::Registry.new(config.resources)
     operations = RailsAiAdmin::Operations::Registry.new(registry.resources)

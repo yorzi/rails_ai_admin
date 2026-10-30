@@ -88,6 +88,7 @@ module RailsAiAdmin
         end
         raise ConfigurationError, "A resource must declare fields and a title" if fields.empty? || !title || !@fields.key?(title)
         raise ConfigurationError, "A resource cannot declare lock_version as a field" if @fields.key?(:lock_version)
+        Fields::DependencyGraph.validate!(fields)
         @policy_name&.freeze
         @fields.freeze
         @disabled_actions.freeze
@@ -106,6 +107,10 @@ module RailsAiAdmin
       def field(name, type:, **options)
         raise ConfigurationError, "Duplicate field #{name}" if @fields.key?(name.to_sym)
         @fields[name.to_sym] = RailsAiAdmin.field_registry.build(name, type: type, **options)
+      end
+
+      def virtual(name, type:, depends_on:, compute:, **options)
+        field(name, type: type, compute: compute, depends_on: depends_on, **options)
       end
 
       def readonly(name, type: :text, **options)

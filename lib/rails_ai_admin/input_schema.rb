@@ -11,6 +11,7 @@ module RailsAiAdmin
     end
 
     def initialize(fields, partial: false)
+      raise ConfigurationError, "Computed fields cannot be input fields" if fields.any?(&:virtual?)
       @fields = fields.index_by { |field| field.name.to_s }
       @partial = partial
     end

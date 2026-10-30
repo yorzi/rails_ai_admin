@@ -5,6 +5,7 @@ module RailsAiAdmin
     # Pure refinements of an explicitly granted core scalar. Never an authority
     # or record lookup API. Each invocation gets a new, stateless instance.
     class Type
+      extend HookSignatures
       class << self
         def scalar(value = nil)
           @scalar = value.to_sym if value
@@ -37,17 +38,6 @@ module RailsAiAdmin
             raise ConfigurationError, "Field type has an incompatible public constructor or hook signature"
           end
           { handler: name, scalar: scalar, version: version, **partials }
-        end
-
-        private
-
-        def accepts?(method, count, keywords)
-          params = method.parameters
-          minimum = params.count { |kind, _| kind == :req }
-          maximum = params.any? { |kind, _| kind == :rest } ? Float::INFINITY : minimum + params.count { |kind, _| kind == :opt }
-          (minimum..maximum).cover?(count) && (params.filter_map { |kind, key| key if kind == :keyreq } - keywords).empty? &&
-            !params.any? { |kind, _| kind == :nokey } &&
-            (params.any? { |kind, _| kind == :keyrest } || (keywords - params.filter_map { |kind, key| key if %i[key keyreq].include?(kind) }).empty?)
         end
       end
 

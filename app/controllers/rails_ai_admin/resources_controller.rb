@@ -10,7 +10,8 @@ module RailsAiAdmin
       @columns = @access.fields(:read)
       @rows = @page.records.map do |record|
         @access.authorize!(:show, record)
-        { id: record.id, label: record_label(@resource, record), values: @access.project(record) }
+        values = @access.project(record)
+        { id: record.id, label: record_label(@resource, record, values: values), values: values }
       end
       @searchable = @access.fields(:search).any?
       @selectable = begin
