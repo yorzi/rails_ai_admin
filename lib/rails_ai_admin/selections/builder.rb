@@ -39,6 +39,18 @@ module RailsAiAdmin
       # This is a fresh check, not a lock or authorization for a later write.
       # Execution must bind this digest and recheck each item in its transaction.
       def revalidate(context:, selection_ref:, resource: nil, manifest_digest: nil)
+        read_snapshot(context: context, selection_ref: selection_ref, resource: resource, manifest_digest: manifest_digest, labels: true)
+      end
+
+      # Internal admission path: no title projection or domain preflight under
+      # the parent lock. Only exact target checks and the given authorization run.
+      def validate_for_admission(context:, selection_ref:, resource:, manifest_digest:, &authorize_target)
+        read_snapshot(context: context, selection_ref: selection_ref, resource: resource, manifest_digest: manifest_digest, labels: false, &authorize_target)
+      end
+
+      private
+
+      def read_snapshot(context:, selection_ref:, resource:, manifest_digest:, labels:)
         raise AccessDenied, "UNAUTHENTICATED" unless context.is_a?(Context)
         unless selection_ref.is_a?(String) && selection_ref.match?(/\A[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\z/)
           raise AccessDenied
@@ -60,8 +72,11 @@ module RailsAiAdmin
           records = scoped_records(access, items.map(&:target_id)).index_by { |record| record.id.to_s }
           items.map do |item|
             record = records.fetch(item.target_id)
+            access.authorize!(:show, record)
             raise AccessDenied, "CONFLICT" unless record.lock_version == item.expected_version
-            target(access, record)
+            value = target(access, record, labels: labels, authorized: true)
+            yield record if block_given?
+            value
           end.freeze
         end
         snapshot(selection, targets)
@@ -113,11 +128,11 @@ module RailsAiAdmin
         records
       end
 
-      def target(access, record)
-        access.authorize!(:show, record)
+      def target(access, record, labels: true, authorized: false)
+        access.authorize!(:show, record) unless authorized
         version = record.lock_version
         raise ConfigurationError, "Selection versions must be nonnegative integers" unless version.is_a?(Integer) && version >= 0
-        field = access.fields(:read, record).find { |candidate| candidate.name == access.resource.title }
+        field = labels && access.fields(:read, record).find { |candidate| candidate.name == access.resource.title }
         label = field ? access.read_value(record, field).to_s.truncate(120) : "Record ##{record.id}"
         Target.new(record.id.to_s.freeze, version, label.freeze)
       end

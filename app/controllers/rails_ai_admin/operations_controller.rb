@@ -54,7 +54,7 @@ module RailsAiAdmin
     def resolve_operation
       @resource = RailsAiAdmin.registry.fetch(params[:resource])
       @definition = RailsAiAdmin.operation_registry.fetch(@resource, params[:operation])
-      raise AccessDenied unless @definition.custom?
+      raise AccessDenied unless @definition.custom? && @definition.scope == :member
       @access = Authorization::Access.new(@context, @resource)
       @flow_id = "raa_operation_#{@resource.key}_#{params[:id]}_#{@definition.key}"
     end

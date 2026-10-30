@@ -252,4 +252,13 @@ class SelectionsTest < Minitest::Test
       assert_raises(RailsAiAdmin::AccessDenied) { capture(builder, [ @other.id ]) }
     end
   end
+  def test_show_revocation_is_checked_before_reporting_target_version_changes
+    with_selection_policy do |builder|
+      result = capture(builder)
+      @customer.update!(points: 1)
+      TestPolicy.deny_show = true
+      error = assert_raises(RailsAiAdmin::AccessDenied) { builder.revalidate(context: context, selection_ref: result.selection_ref) }
+      assert_equal "NOT_FOUND", error.code
+    end
+  end
 end

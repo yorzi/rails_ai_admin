@@ -82,8 +82,17 @@ module RailsAiAdmin
       def read_operation_receipt?(context:, resource:, operation:, record:)
         klass = policy_class(resource)
         return false unless klass
-        policy = klass.new(context, record)
+        policy = klass.new(context, record || resource.model_class)
         policy.respond_to?(:read_operation_receipt?) && policy.read_operation_receipt?(operation.to_sym) == true
+      rescue StandardError => error
+        policy_error!(resource, error)
+      end
+
+      def cancel_operation?(context:, resource:, operation:)
+        klass = policy_class(resource)
+        return false unless klass
+        policy = klass.new(context, resource.model_class)
+        policy.respond_to?(:cancel_operation?) && policy.cancel_operation?(operation.to_sym) == true
       rescue StandardError => error
         policy_error!(resource, error)
       end

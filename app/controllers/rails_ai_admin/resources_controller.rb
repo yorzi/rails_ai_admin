@@ -24,7 +24,7 @@ module RailsAiAdmin
       @record = @access.find!(params[:id])
       @values = @access.project(@record)
       @fields = @access.fields(:read, @record)
-      @operations = RailsAiAdmin.operation_registry.custom(@resource).select do |definition|
+      @operations = RailsAiAdmin.operation_registry.custom(@resource).select { |definition| definition.scope == :member }.select do |definition|
         @access.authorize!(definition.key, @record)
         definition.fields(@access, @record)
         true

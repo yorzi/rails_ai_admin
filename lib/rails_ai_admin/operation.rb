@@ -37,6 +37,21 @@ module RailsAiAdmin
         @max_duration || 5
       end
 
+      def lease_duration(value = nil)
+        @lease_duration = value if value
+        @lease_duration || 60
+      end
+
+      def execution_window(value = nil)
+        @execution_window = value if value
+        @execution_window || 1.hour
+      end
+
+      def max_attempts(value = nil)
+        @max_attempts = value if value
+        @max_attempts || 3
+      end
+
       def read_only? = false
       def expose_to_ai? = false
       def approval_policy = :required

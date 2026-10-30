@@ -15,6 +15,7 @@ module RailsAiAdmin
 
     def checks
       config = @configuration
+      collections = @registry.resources.sum { |resource| @operation_registry.custom(resource).count { |definition| definition.scope == :collection } }
       result = [
         adapter_check("context", config.context_adapter, { resolve: [ 1, [] ] }),
         adapter_check("policy", config.authorization_adapter, { scope: [ 0, %i[context resource relation] ], allowed?: [ 0, %i[context action resource record] ], fields: [ 0, %i[context resource action record] ] }),
@@ -22,11 +23,11 @@ module RailsAiAdmin
         Check.new("assistant", :unsupported, "Assistant routes/tables are not installed; no provider call is made."),
         Check.new("files", :unsupported, "Private attachment management is not implemented."),
         selection_check,
-        Check.new("queue", @work_registry.definitions.empty? ? :closed : :review,
-          "Durable post-commit outbox; #{ @work_registry.definitions.size } work handlers; auto_dispatch=#{config.outbox_auto_dispatch}. Schedule pending scans and verify downstream idempotency. Async business execution is not implemented."),
-        Check.new("coexistence", :review, "No rails_tool_views global configuration is changed; shared Surface integration is unresolved.")
+        Check.new("queue", @work_registry.definitions.empty? && collections.zero? ? :closed : :review,
+          "#{@work_registry.definitions.size} outbox handlers; #{collections} collection handlers; auto_dispatch=#{config.outbox_auto_dispatch}/#{config.collection_auto_dispatch}. Schedule both pending scans and verify persistent queues/downstream idempotency."),
+        Check.new("coexistence", :review, "The host owns rails_tool_views shared runtime configuration; admin Surface/continuation acceptance remains open.")
       ]
-      if @work_registry.definitions.any?
+      if @work_registry.definitions.any? || collections > 0
         result << adapter_check("job_context", config.context_adapter, { resolve_job: [ 0, %i[actor_ref tenant_ref security_version] ] })
         result << Check.new("work_delivery_policy", :review, "Delivery and receipt grants are independent of command preconditions; default denies. Verify fresh tenant/epoch, record-version policy and one effect per item in host tests.")
       end
@@ -51,7 +52,7 @@ module RailsAiAdmin
             models = definition.handler_class.atomic_models.map(&:constantize)
             valid = models.all? { |related| related.is_a?(Class) && related < ActiveRecord::Base && related.connection_pool.equal?(model.connection_pool) }
             result << Check.new("operation:#{resource.key}:#{definition.key}", valid ? :review : :error,
-              "Declared atomic models share pool=#{valid}; handler/input metadata validated. Trusted Ruby is not a sandbox: test callbacks, preflight purity and external-effect boundaries. Duration checks are cooperative, not a hard SQL/Ruby interrupt.")
+              "Scope=#{definition.scope}; declared atomic models share pool=#{valid}; handler/input metadata validated. Trusted Ruby is not a sandbox: test callbacks, preflight purity and external-effect boundaries. Duration checks are cooperative, not a hard SQL/Ruby interrupt. Collection inputs persist once: minimize payloads, never submit credentials, and review retention.")
           end
         rescue ActiveRecord::ActiveRecordError, NameError, ConfigurationError => error
           result << Check.new("resource:#{resource.key}", :error, "Inspect model/migrations (#{error.class.name}); no record content was printed.")
@@ -63,9 +64,9 @@ module RailsAiAdmin
     private
 
     def selection_check
-      installed = [ Selection, SelectionItem ].all?(&:table_exists?)
+      installed = [ Selection, SelectionItem, BatchItem ].all?(&:table_exists?)
       Check.new("selections", installed ? :review : :error,
-        "Fixed selection tables installed=#{installed}; at most 100 targets with lock_version in one pool. Separate select_records? grant, current scope/show/fields and expiry apply. Selection is not approval or batch execution.")
+        "Fixed selection tables installed=#{installed}; at most 100 targets with lock_version in one pool. Separate select_records? grant, current scope/show/fields and expiry apply. Selection alone is not approval; collection admission/leases require current host policies and persistent queue scans.")
     rescue ActiveRecord::ActiveRecordError
       Check.new("selections", :error, "Cannot inspect selection tables. Check database connectivity and pending engine migrations.")
     end

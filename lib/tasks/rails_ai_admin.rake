@@ -9,6 +9,18 @@ namespace :rails_ai_admin do
     abort "Resolve errors before enabling writes." if checks.any? { |check| check.status == :error }
   end
 
+  namespace :collections do
+    desc "Enqueue up to 100 due collection runs; schedule recurring scans in the host"
+    task scan: :environment do
+      puts "Scheduled #{RailsAiAdmin::Collections::Dispatcher.new.scan_pending!} collection runs."
+    end
+
+    desc "Visit up to 100 collection runs inline; each target commits separately"
+    task drain: :environment do
+      puts "Visited #{RailsAiAdmin::Collections::Dispatcher.new.scan_pending!(inline: true)} collection runs."
+    end
+  end
+
   namespace :work do
     desc "Enqueue up to 100 due outbox items; schedule recurring scans in the host"
     task scan: :environment do

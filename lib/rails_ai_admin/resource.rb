@@ -9,6 +9,7 @@ module RailsAiAdmin
         child.instance_variable_set(:@fields, {})
         child.instance_variable_set(:@disabled_actions, [])
         child.instance_variable_set(:@operations, {})
+        child.instance_variable_set(:@operation_scopes, {})
       end
 
       def model(name = nil)
@@ -57,14 +58,16 @@ module RailsAiAdmin
         unless key.to_s.match?(/\A[a-z][a-z0-9_]*\z/) && !%w[index show create update destroy new edit].include?(key.to_s)
           raise ConfigurationError, "Custom operation needs a distinct stable key"
         end
-        unless handler.is_a?(String) && handler.match?(/\A[A-Z]\w*(?:::[A-Z]\w*)*\z/) && scope == :member && confirmation == :required
-          raise ConfigurationError, "Use a handler class-name string, member scope and required confirmation"
+        unless handler.is_a?(String) && handler.match?(/\A[A-Z]\w*(?:::[A-Z]\w*)*\z/) && %i[member collection].include?(scope) && confirmation == :required
+          raise ConfigurationError, "Use a handler class-name string, member/collection scope and required confirmation"
         end
         raise ConfigurationError, "Duplicate operation #{key}" if @operations.key?(key.to_sym)
         @operations[key.to_sym] = handler.freeze
+        @operation_scopes[key.to_sym] = scope
       end
 
       def operation_declarations = @operations
+      def operation_scopes = @operation_scopes
 
       def fields(&block)
         FieldBuilder.new(@fields).instance_eval(&block) if block
@@ -89,6 +92,7 @@ module RailsAiAdmin
         @fields.freeze
         @disabled_actions.freeze
         @operations.freeze
+        @operation_scopes.freeze
         self
       end
     end

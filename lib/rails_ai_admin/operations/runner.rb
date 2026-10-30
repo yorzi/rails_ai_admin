@@ -8,6 +8,7 @@ module RailsAiAdmin
     class Runner
       ORIGINS = %w[ui surface assistant].freeze
       Proposal = Data.define(:intent, :values, :changes)
+      Preview = Data.define(:target_id, :expected_version, :values, :changes)
 
       def prepare(...)
         result = preflight(...)
@@ -15,9 +16,26 @@ module RailsAiAdmin
         result.intent
       end
 
-      # Issues a server-owned form intent or input-bound proposal. Preparation
-      # performs no domain save/validation/callback and grants no execution right.
       def preflight(context:, resource:, operation:, target_id: nil, expected_version: nil, input: nil, origin: :ui)
+        definition = RailsAiAdmin.operation_registry.fetch(resource, operation)
+        if definition.custom? && definition.scope == :collection
+          raise ConfigurationError, "Collection intents require fixed-manifest preflight and admission"
+        end
+        result = preview(context: context, resource: resource, operation: operation, target_id: target_id,
+          expected_version: expected_version, input: input, origin: origin)
+        return result if result.is_a?(Result)
+        intent = OperationRun.create!(id: SecureRandom.uuid, actor_ref: context.actor_ref,
+          tenant_ref: context.tenant_ref, security_version: context.security_version,
+          resource_key: resource.key.to_s, operation: operation.to_s,
+          operation_version: operation_version(resource, operation), target_id: result.target_id,
+          expected_version: result.expected_version, input_digest: input && InputSchema.digest(result.values),
+          origin: origin.to_s, expires_at: Time.current + RailsAiAdmin.configuration.intent_ttl)
+        Proposal.new(intent, result.values, result.changes)
+      end
+
+      # Computes a safe typed preview without creating an intent or saving domain
+      # data. Collection admission and native member preparation share this path.
+      def preview(context:, resource:, operation:, target_id: nil, expected_version: nil, input: nil, origin: :ui)
         operation = operation.to_s
         check_origin!(origin)
         definition = RailsAiAdmin.operation_registry.fetch(resource, operation)
@@ -35,14 +53,7 @@ module RailsAiAdmin
           [ record, version, values, changes ]
         end
         record, version, values, changes = definition.custom? ? ActiveRecord::Base.while_preventing_writes(&read_proposal) : read_proposal.call
-        intent = OperationRun.create!(id: SecureRandom.uuid, actor_ref: context.actor_ref,
-          tenant_ref: context.tenant_ref, security_version: context.security_version,
-          resource_key: resource.key.to_s, operation: operation,
-          operation_version: operation_version(resource, operation),
-          target_id: operation == "create" ? nil : record.id.to_s, expected_version: version,
-          input_digest: values && InputSchema.digest(values), origin: origin.to_s,
-          expires_at: Time.current + RailsAiAdmin.configuration.intent_ttl)
-        Proposal.new(intent, values || {}, changes)
+        Preview.new(operation == "create" ? nil : record.id.to_s, version, values || {}, changes)
       rescue Rejection => error
         error.result
       rescue ExecutionContext::DeadlineExceeded
@@ -56,13 +67,30 @@ module RailsAiAdmin
       # human_confirmed comes only from a trusted HTTP/Surface adapter, never from
       # an assistant tool parameter. Origin is audit metadata, not authority.
       def execute(context:, intent_ref:, input:, human_confirmed: false, origin: :ui, binding: nil)
+        execute_intent(context: context, intent_ref: intent_ref, input: input, human_confirmed: human_confirmed, origin: origin, binding: binding)
+      end
+
+      # Internal worker entry: its authority is the admitted parent and lease,
+      # never another synthetic human confirmation. No HTTP adapter calls it.
+      def execute_admitted(claim:)
+        raise ConfigurationError, "Expected a collection lease claim" unless claim.is_a?(Collections::Claim)
+        Collections::Contract.ensure_outside_transaction!
+        execute_intent(context: claim.context, intent_ref: claim.operation_run_id,
+          input: claim.payload, origin: claim.origin, admission: claim)
+      rescue AccessDenied => error
+        Result.new(code: error.code)
+      end
+
+      def execute_intent(context:, intent_ref:, input:, human_confirmed: false, origin: :ui, binding: nil, admission: nil)
         run = access = definition = nil
         transaction_body_finished = false
         raise AccessDenied, "UNAUTHENTICATED" unless context.is_a?(Context)
         reject!("NOT_FOUND") unless intent_ref.is_a?(String) && intent_ref.match?(/\A[0-9a-f-]{36}\z/)
         result = OperationRun.transaction(requires_new: true) do
+          admission&.lock!(context)
           run = OperationRun.lock.find_by(id: intent_ref, actor_ref: context.actor_ref, tenant_ref: context.tenant_ref)
           reject!("NOT_FOUND") unless run
+          reject!("NOT_FOUND") if run.parent_run_id && !admission
           check_origin!(origin)
           reject!("APPROVAL_INVALIDATED") unless run.security_version == context.security_version
           reject!("APPROVAL_EXPIRED") unless run.expires_at && run.expires_at > Time.current
@@ -70,6 +98,8 @@ module RailsAiAdmin
           resource = RailsAiAdmin.registry.fetch(run.resource_key)
           definition = RailsAiAdmin.operation_registry.fetch(resource, run.operation)
           ensure_connection!(resource, definition)
+          reject!("NOT_FOUND") if definition.custom? && definition.scope == :collection && !admission
+          admission&.validate_child!(run, resource, definition)
           reject!("APPROVAL_INVALIDATED") unless run.operation_version == operation_version(resource, run.operation)
           access = Authorization::Access.new(context, resource)
           record = load_record(access, run, definition)
@@ -97,7 +127,7 @@ module RailsAiAdmin
             next projection(access, run, record, replayed: true)
           end
           reject!("CONFLICT") unless run.status == "proposed"
-          reject!("APPROVAL_REQUIRED") unless human_confirmed == true
+          reject!("APPROVAL_REQUIRED") unless admission || human_confirmed == true
           if run.operation != "create" && record.lock_version != run.expected_version
             reject!("CONFLICT")
           end
@@ -137,10 +167,11 @@ module RailsAiAdmin
             resource_key: run.resource_key, operation: run.operation, status: "succeeded", code: "OK",
             record_id: record.id.to_s, correlation_ref: run.id, origin: origin.to_s,
             changed_fields: changed_fields, created_at: Time.current)
-          run.update!(status: "succeeded", record_id: record.id.to_s, audit_event_id: audit.id,
-            approved_by_ref: context.actor_ref, approved_digest: digest,
-            confirmed_at: Time.current, completed_at: Time.current)
+          attributes = { status: "succeeded", record_id: record.id.to_s, audit_event_id: audit.id, completed_at: Time.current }
+          attributes.merge!(approved_by_ref: context.actor_ref, approved_digest: digest, confirmed_at: Time.current) unless admission
+          run.update!(attributes)
           receipt = projection(access, run, record)
+          admission&.complete!(run)
           transaction_body_finished = true
           receipt
         end
@@ -150,10 +181,10 @@ module RailsAiAdmin
         return committed if committed
         case error
         when Rejection
-          audit_failure(context, run, error.result.code, origin)
+          audit_failure(context, run, error.result.code, origin) unless admission
           error.result
         when AccessDenied
-          audit_failure(context, run, error.code, origin)
+          audit_failure(context, run, error.code, origin) unless admission
           Result.new(code: error.code)
         when ActiveRecord::RecordInvalid
           allowed = if definition&.custom?
@@ -162,16 +193,16 @@ module RailsAiAdmin
             access&.fields(:write, error.record, operation: run.operation)&.map { |field| field.name.to_s } || []
           end
           errors = error.record.errors.attribute_names.map(&:to_s).intersection(allowed).to_h { |name| [ name, [ "is invalid" ] ] }
-          audit_failure(context, run, "VALIDATION_FAILED", origin)
+          audit_failure(context, run, "VALIDATION_FAILED", origin) unless admission
           Result.new(code: "VALIDATION_FAILED", errors: errors.presence || { "base" => [ "is invalid" ] })
         when ActiveRecord::RecordNotDestroyed, ActiveRecord::RecordNotSaved
-          audit_failure(context, run, "VALIDATION_FAILED", origin)
+          audit_failure(context, run, "VALIDATION_FAILED", origin) unless admission
           Result.new(code: "VALIDATION_FAILED", errors: { "base" => [ "operation was not saved" ] })
         when ActiveRecord::RangeError
-          audit_failure(context, run, "VALIDATION_FAILED", origin)
+          audit_failure(context, run, "VALIDATION_FAILED", origin) unless admission
           Result.new(code: "VALIDATION_FAILED", errors: { "base" => [ "value is out of range" ] })
         when ExecutionContext::DeadlineExceeded
-          audit_failure(context, run, "TIMEOUT", origin)
+          audit_failure(context, run, "TIMEOUT", origin) unless admission
           Result.new(code: "TIMEOUT")
         when ActiveRecord::StaleObjectError, ActiveRecord::Deadlocked, ActiveRecord::LockWaitTimeout
           Result.new(code: "CONFLICT")
@@ -179,20 +210,22 @@ module RailsAiAdmin
           if defined?(SQLite3::BusyException) && error.cause.is_a?(SQLite3::BusyException)
             Result.new(code: "CONFLICT")
           elsif definition&.custom?
-            audit_failure(context, run, "OPERATION_FAILED", origin)
+            audit_failure(context, run, "OPERATION_FAILED", origin) unless admission
             Result.new(code: "OPERATION_FAILED")
           else
             raise
           end
         else
           if definition&.custom? && !error.is_a?(ConfigurationError)
-            audit_failure(context, run, "OPERATION_FAILED", origin)
+            audit_failure(context, run, "OPERATION_FAILED", origin) unless admission
             Result.new(code: "OPERATION_FAILED")
           else
             raise
           end
         end
       end
+
+      private :execute_intent
 
       private
 
@@ -224,7 +257,7 @@ module RailsAiAdmin
 
       def ensure_connection!(resource, definition)
         model = resource.model_class
-        unless model.connection_pool.equal?(OperationRun.connection_pool) && model.connection_pool.equal?(AuditEvent.connection_pool) && model.connection_pool.equal?(WorkItem.connection_pool)
+        unless model.connection_pool.equal?(OperationRun.connection_pool) && model.connection_pool.equal?(AuditEvent.connection_pool) && model.connection_pool.equal?(WorkItem.connection_pool) && model.connection_pool.equal?(BatchItem.connection_pool)
           raise ConfigurationError, "Domain, intent and audit must use the same connection pool"
         end
         unless model.locking_enabled? && model.locking_column == "lock_version" && !model.composite_primary_key?
@@ -336,6 +369,7 @@ module RailsAiAdmin
 
       def audit_failure(context, run, code, origin)
         return unless run && run.actor_ref == context.actor_ref && run.tenant_ref == context.tenant_ref
+        return if run.parent_run_id || run.selection_id
         AuditEvent.create!(actor_ref: context.actor_ref, tenant_ref: context.tenant_ref,
           resource_key: run.resource_key, operation: run.operation, status: "rejected", code: code,
           correlation_ref: run.id, origin: origin.to_s, changed_fields: [], created_at: Time.current)

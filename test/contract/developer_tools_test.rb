@@ -2,6 +2,7 @@
 
 require "test_helper"
 require "support/database"
+require "support/collections"
 require "rails_ai_admin/schema_suggestions"
 require "rails_ai_admin/test_kit"
 require "rails_ai_admin/doctor"
@@ -57,6 +58,7 @@ end
 
 class DeveloperToolsTest < Minitest::Test
   include DatabaseHelpers
+  include CollectionContractHelpers
 
   def setup
     reset_database
@@ -201,7 +203,7 @@ class DeveloperToolsTest < Minitest::Test
       application.routes.draw { mount RailsAiAdmin::Engine => "/admin", as: :rails_ai_admin }
       capture_io { RailsAiAdmin::Generators::InstallGenerator.new([], { force: true }, destination_root: directory, application: application).invoke_all }
       paths.each { |path| assert_includes File.read(File.join(directory, path)), "# reviewed host extension" }
-      assert_equal 4, Dir[File.join(directory, "db/migrate/*.rb")].size
+      assert_equal 5, Dir[File.join(directory, "db/migrate/*.rb")].size
       assert_equal 1, File.read(File.join(directory, "config/routes.rb")).scan("mount RailsAiAdmin::Engine").size
     end
   end
@@ -275,5 +277,14 @@ class DeveloperToolsTest < Minitest::Test
     end
   ensure
     Object.send(:remove_const, :ExampleAdmin) if created
+  end
+  def test_doctor_recognizes_collection_queues_even_without_outbox_handlers
+    with_collection do
+      checks = RailsAiAdmin::Doctor.new(application: nil, work_registry: RailsAiAdmin::Outbox::Registry.new({})).checks
+      queue = checks.find { |check| check.name == "queue" }
+      assert_equal :review, queue.status
+      assert_includes queue.message, "1 collection handlers"
+      assert checks.any? { |check| check.name == "job_context" }
+    end
   end
 end

@@ -12,6 +12,13 @@ module RailsAiAdmin
         def initialize(resource, key, handler_name = nil)
           @resource, @key, @handler_name = resource, key.to_s.freeze, handler_name
           handler_class.validate! if custom?
+          if custom? && scope == :collection
+            klass = handler_class
+            unless klass.lease_duration.is_a?(Numeric) && (5..3600).cover?(klass.lease_duration) && klass.lease_duration > klass.max_duration &&
+                klass.execution_window.is_a?(Numeric) && (60..7.days).cover?(klass.execution_window) && klass.max_attempts.is_a?(Integer) && (1..10).cover?(klass.max_attempts)
+              raise ConfigurationError, "Collection execution needs bounded leases, deadlines and attempts; lease must exceed handler duration"
+            end
+          end
           freeze
         end
 
@@ -24,13 +31,13 @@ module RailsAiAdmin
         end
         def description = custom? ? handler_class.description : key.humanize
         def read_only? = false
-        def scope = key == "create" && !custom? ? :collection : :member
+        def scope = custom? ? resource.operation_scopes.fetch(key.to_sym) : (key == "create" ? :collection : :member)
         def expose_to_ai? = false
         def side_effects? = true
         def approval_policy = custom? || key == "destroy" ? :required : :human_submit
         def idempotency_policy = :intent
         def audit_policy = :required
-        def output_type = :record_ref
+        def output_type = custom? && scope == :collection ? :job_ref : :record_ref
 
         def input_json_schema(access, record)
           InputSchema.new(fields(access, record), partial: key == "update" && !custom?).json_schema
@@ -47,7 +54,8 @@ module RailsAiAdmin
 
         def signature
           custom? ? { handler: handler_name, version: handler_class.version, input: handler_class.input.map { |field| [ field.name, field.type, field.options ] },
-            models: handler_class.atomic_models, duration: handler_class.max_duration } : { builtin: key, version: 1 }
+            models: handler_class.atomic_models, duration: handler_class.max_duration, scope: scope,
+            execution: scope == :collection ? [ handler_class.lease_duration, handler_class.execution_window, handler_class.max_attempts ] : nil } : { builtin: key, version: 1 }
         end
       end
 

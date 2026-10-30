@@ -31,6 +31,10 @@ module RailsAiAdmin
         false
       end
 
+      def cancel_operation?(context:, resource:, operation:)
+        false
+      end
+
       # Capturing/viewing a fixed selection is independent of list/read/write.
       def select_records?(context:, resource:)
         false

@@ -92,11 +92,12 @@ module DatabaseHelpers
     end
     UuidCustomer.delete_all
     ActiveRecord::MigrationContext.new(File.expand_path("../../db/migrate", __dir__)).migrate
-    RailsAiAdmin::SelectionItem.delete_all
-    RailsAiAdmin::Selection.delete_all
+    RailsAiAdmin::BatchItem.delete_all
     Customer.delete_all
     RailsAiAdmin::WorkItem.delete_all
     RailsAiAdmin::OperationRun.delete_all
+    RailsAiAdmin::SelectionItem.delete_all
+    RailsAiAdmin::Selection.delete_all
     RailsAiAdmin::AuditEvent.delete_all
     TestPolicy.denied = false
     TestPolicy.hide_name = false
