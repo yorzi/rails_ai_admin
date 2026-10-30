@@ -53,6 +53,20 @@ FileUtils.rm_f(File.join(target, "app/rails_ai_admin/staff_user_admin.rb"))
 run!(env, target, "bundle", "exec", "rails", "generate", "rails_ai_admin:resource", "StaffUser")
 run!(env, target, "bundle", "exec", "rails", "runner", "source = Rails.root.join('app/rails_ai_admin/staff_user_admin.rb').read; raise unless source.include?('# text :email'); raise if source.match?(/password|security_version|role/); raise unless StaffUserAdmin.readonly? && StaffUserAdmin.fields.map(&:name) == [:id]; raise if RailsAiAdmin.registry.resources.include?(StaffUserAdmin)")
 run!(env, target, "bundle", "exec", "ruby", "test/acceptance_test.rb")
+
+# Exercise every public template through standard app/views resolution in the
+# copied host only. Installation itself never copies the template tree.
+override_probe = File.join(root, "script/support/packaged_override_probe.rb")
+begin
+  run!(env, target, "bundle", "exec", "ruby", override_probe, "prepare")
+  tracker = File.join(root, "script/support/override_render_tracker.rb")
+  FileUtils.cp(tracker, File.join(target, "test/override_render_tracker.rb"))
+  run!(env.merge("RAA_OVERRIDE_ACCEPTANCE" => "1"), target, "bundle", "exec", "ruby", "test/acceptance_test.rb")
+  run!(env, target, "bundle", "exec", "ruby", override_probe, "verify")
+ensure
+  run!(env, target, "bundle", "exec", "ruby", override_probe, "restore")
+end
+
 npm = [ "npm", "ci", "--ignore-scripts" ]
 npm += [ "--offline", "--cache", ENV.fetch("RAA_NPM_CACHE", "/tmp/raa-npm-cache") ] if ENV["RAA_NPM_OFFLINE"] == "1"
 run!(env, target, *npm)

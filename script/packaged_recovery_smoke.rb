@@ -18,6 +18,7 @@ def run!(env, target, *args)
 end
 
 run!(env.merge("RAILS_ENV" => "development"), target, "test/reload_probe.rb")
+run!(env.merge("RAILS_ENV" => "development"), target, File.join(root, "script/support/packaged_template_reload_probe.rb"))
 run!(env, target, "test/recovery_probe.rb", "prepare")
 run!(env, target, "test/recovery_probe.rb", "commit_and_exit")
 run!(env, target, "test/recovery_probe.rb", "verify_replay")

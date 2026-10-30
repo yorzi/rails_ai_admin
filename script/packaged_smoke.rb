@@ -42,6 +42,20 @@ FileUtils.rm_f(File.join(target, "app/rails_ai_admin/user_admin.rb"))
 run!(env, target, "bundle", "exec", "rails", "generate", "rails_ai_admin:resource", "User")
 run!(env, target, "bundle", "exec", "rails", "runner", "source = Rails.root.join('app/rails_ai_admin/user_admin.rb').read; raise unless source.include?('# text :email'); raise if source.match?(/password|account_id|security_version|role/); raise unless UserAdmin.readonly? && UserAdmin.fields.map(&:name) == [:id]; raise if RailsAiAdmin.registry.resources.include?(UserAdmin)")
 run!(env, target, "bundle", "exec", "ruby", "test/acceptance_test.rb")
+
+# Exercise every public template through standard app/views resolution in the
+# copied host only. Installation itself never copies the template tree.
+override_probe = File.join(root, "script/support/packaged_override_probe.rb")
+begin
+  run!(env, target, "bundle", "exec", "ruby", override_probe, "prepare")
+  tracker = File.join(root, "script/support/override_render_tracker.rb")
+  FileUtils.cp(tracker, File.join(target, "test/override_render_tracker.rb"))
+  run!(env.merge("RAA_OVERRIDE_ACCEPTANCE" => "1"), target, "bundle", "exec", "ruby", "test/acceptance_test.rb")
+  run!(env.merge("RAA_REQUIRE_ALL_OVERRIDE_TEMPLATES" => "1"), target, "bundle", "exec", "ruby", override_probe, "verify")
+ensure
+  run!(env, target, "bundle", "exec", "ruby", override_probe, "restore")
+end
+
 production = env.merge("RAILS_ENV" => "production")
 run!(production, target, "bundle", "exec", "rails", "assets:precompile")
 run!(production, target, "bundle", "exec", "rails", "runner", "raise unless Rails.application.config.eager_load; raise unless Ai.name == 'Ai'; puts 'Production eager-load passed'")

@@ -3,6 +3,8 @@ require "minitest/autorun"
 require "action_dispatch/testing/integration"
 require "rails_ai_admin/test_kit"
 
+require_relative "override_render_tracker" if ENV["RAA_OVERRIDE_ACCEPTANCE"] == "1"
+
 class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
   def setup
     RailsAiAdmin::BatchItem.delete_all
@@ -26,6 +28,73 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
     token = css_select("input[name=authenticity_token]").first["value"]
     post "/login", params: { authenticity_token: token, email: @user.email, password: "synthetic-fixture-password" }
     assert_equal 303, response.status
+  end
+
+  if ENV["RAA_OVERRIDE_ACCEPTANCE"] == "1"
+    def test_generated_host_template_precedence_and_form_contract
+      login
+      get "/staff"
+      assert_response :success
+      assert_select "[data-raa-override=layout]"
+      assert_select "[data-raa-override=dashboard]"
+      get "/staff/customers"
+      assert_select "[data-raa-override=resource_index]"
+      assert_select "[data-raa-override=field_index]"
+      get "/staff/customers/#{@customer.id}"
+      assert_select "[data-raa-override=resource_show]"
+      assert_select "[data-raa-override=field_show]"
+      get "/staff/customers/new"
+      assert_select "[data-raa-override=resource_new]"
+      assert_select "[data-raa-override=resource_form]"
+      assert_select "[data-raa-override=field_form]"
+      assert_select "[data-raa-override=input_fields]"
+      get "/staff/customers/#{@customer.id}/edit"
+      assert_select "[data-raa-override=resource_edit]"
+      assert_select "form", count: 1
+      assert_select "input[name=intent_ref]", count: 1
+      assert_select "input[name=authenticity_token]", count: 1
+      token = css_select("input[name=authenticity_token]").first["value"]
+      intent = css_select("input[name=intent_ref]").first["value"]
+      patch "/staff/customers/#{@customer.id}", params: { authenticity_token: token, intent_ref: intent, record: { name: "" } }
+      assert_response :unprocessable_content
+      assert_select "[data-raa-override=resource_edit]"
+      assert_select "[data-raa-override=resource_errors]"
+      assert_equal "Packaged Customer", @customer.reload.name
+      get "/staff/customers/#{@customer.id}/confirm_destroy"
+      assert_response :success
+      assert_select "[data-raa-override=resource_destroy]"
+      assert_equal 1, response.body.scan(/<!DOCTYPE/i).size
+
+      member_path = "/staff/customers/#{@customer.id}/operations/award_points"
+      get member_path
+      post "#{member_path}/preflight", params: { authenticity_token: css_select("input[name=authenticity_token]").first["value"], expected_version: @customer.lock_version, input: { amount: "1" } }
+      assert_response :success
+      confirmation = { authenticity_token: css_select("input[name=authenticity_token]").first["value"], intent_ref: css_select("input[name=intent_ref]").first["value"], confirmed_input: css_select("input[name=confirmed_input]").first["value"] }
+      @customer.update!(points: 1)
+      post "#{member_path}/execute", params: confirmation
+      assert_response :conflict
+      assert_select "[data-raa-override=operation_failure]"
+      assert_equal 1, @customer.reload.points
+
+      get "/staff/customers"
+      post "/staff/customers/selections", params: { authenticity_token: css_select("form#raa-selection input[name=authenticity_token]").first["value"], target_ids: [ @customer.id ] }
+      get URI(response.location).path
+      selection_ref = RailsAiAdmin::Selection.order(:created_at).last.id
+      collection_path = "/staff/customers/operations/bulk_award_points"
+      get collection_path, params: { selection_ref: selection_ref }
+      assert_select "[data-raa-override=collection_form]"
+      post "#{collection_path}/preflight", params: { authenticity_token: css_select("input[name=authenticity_token]").first["value"], selection_ref: selection_ref, input: { amount: "1" } }
+      assert_select "[data-raa-override=collection_confirmation]"
+      confirmation = { authenticity_token: css_select("input[name=authenticity_token]").first["value"], selection_ref: selection_ref, intent_ref: css_select("input[name=intent_ref]").first["value"], confirmed_input: css_select("input[name=confirmed_input]").first["value"] }
+      @customer.update!(points: 2)
+      post "#{collection_path}/execute", params: confirmation
+      assert_response :conflict
+      assert_select "[data-raa-override=collection_failure]"
+      assert_equal 2, @customer.reload.points
+      get "/staff/jobs"
+      assert_response :success
+      assert_select "[data-raa-override=job_index]"
+    end
   end
 
   def test_packaged_no_ai_crud_and_boundaries

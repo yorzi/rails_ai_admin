@@ -5,6 +5,9 @@ require "webmock/minitest"
 require "rails_ai_admin/test_kit"
 WebMock.disable_net_connect!
 
+require_relative "override_render_tracker" if ENV["RAA_OVERRIDE_ACCEPTANCE"] == "1"
+require "rails_ai_admin/templates/inspector" if ENV["RAA_OVERRIDE_ACCEPTANCE"] == "1"
+
 class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
   include ActiveSupport::Testing::TimeHelpers
 
@@ -44,6 +47,41 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
     get "/operations/tickets/#{@ticket.id}/edit"
     assert_response :success
     [ csrf, css_select("input[name=intent_ref]").first["value"] ]
+  end
+
+  if ENV["RAA_OVERRIDE_ACCEPTANCE"] == "1"
+    def test_generated_host_template_precedence_and_live_upgrade_diagnostics
+      login
+      get "/operations/tickets"
+      assert_select "[data-raa-override=layout]"
+      assert_select "[data-raa-override=resource_index]"
+      assert_select "[data-raa-override=field_index]"
+      token, intent = edit_intent
+      assert_select "[data-raa-override=resource_edit]"
+      assert_select "[data-raa-override=resource_form]"
+      assert_select "[data-raa-override=field_form]"
+      patch "/operations/tickets/#{@ticket.id}", params: { authenticity_token: token, intent_ref: intent, record: { subject: "" } }
+      assert_response :unprocessable_content
+      assert_select "[data-raa-override=resource_edit]"
+      assert_select "[data-raa-override=resource_errors]"
+      path = "/operations/tickets/#{@ticket.id}/operations/triage"
+      get path
+      assert_select "[data-raa-override=operation_form]"
+      post "#{path}/preflight", params: { authenticity_token: csrf, expected_version: @ticket.lock_version, input: { decision: "triage" } }
+      assert_response :success
+      assert_select "[data-raa-override=operation_confirmation]"
+      assert_equal "open", @ticket.reload.state
+      source = Rails.root.join("app/views/rails_ai_admin/resources/edit.html.erb")
+      original = source.read
+      begin
+        source.write(original.sub(/"source_sha256":"[0-9a-f]{64}"/, '"source_sha256":"' + "0" * 64 + '"'))
+        check = RailsAiAdmin::Templates::Inspector.new(root: Rails.root).checks.find { |entry| entry.key == "resource_edit" }
+        assert_equal :review, check.status
+        assert_equal "STALE_SOURCE", check.code
+      ensure
+        source.write(original)
+      end
+    end
   end
 
   def test_packaged_dependencies_and_boot_boundaries
