@@ -17,6 +17,7 @@ module RailsAiAdmin
         "resource_edit" => [ "rails_ai_admin/resources/edit.html.erb", %i[context resource record operation intent form_fields form_values form_plan errors failure_code needs_reload], [] ],
         "resource_form" => [ "rails_ai_admin/resources/form.html.erb", %i[context resource record operation intent form_fields form_values form_plan errors failure_code needs_reload], [] ],
         "resource_destroy" => [ "rails_ai_admin/resources/confirm_destroy.html.erb", %i[context resource record intent errors failure_code needs_reload], [] ],
+        "form_recovery" => [ "rails_ai_admin/resources/_recovery.html.erb", [], [] ],
         "resource_errors" => [ "rails_ai_admin/resources/_errors.html.erb", %i[errors failure_code needs_reload], %i[form fields] ],
         "field_index" => [ "rails_ai_admin/fields/_index.html.erb", [], %i[field value text] ],
         "field_show" => [ "rails_ai_admin/fields/_show.html.erb", [], %i[field value text] ],
@@ -34,7 +35,13 @@ module RailsAiAdmin
         "selection" => [ "rails_ai_admin/selections/show.html.erb", %i[context resource selection operations], [] ]
       }.freeze
       ENTRIES = DEFINITIONS.map do |key, (path, assigns, locals)|
-        revision = %w[resource_new resource_edit resource_form resource_errors input_fields].include?(key) ? 2 : 1
+        revision = if %w[resource_new resource_edit resource_form].include?(key)
+          3
+        elsif %w[resource_errors input_fields].include?(key)
+          2
+        else
+          1
+        end
         Entry.new(key.freeze, path.freeze, revision, assigns.freeze, locals.freeze)
       end.freeze
 

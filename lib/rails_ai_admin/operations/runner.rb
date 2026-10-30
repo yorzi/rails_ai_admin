@@ -33,6 +33,39 @@ module RailsAiAdmin
         Proposal.new(intent, result.values, result.changes)
       end
 
+      FormSession = Data.define(:intent, :record)
+      FORM_RECOVERY_WINDOW = 1.hour
+
+      # Reopens an unconsumed native form after fresh authentication. No input,
+      # business write, approval or replacement intent is admitted here.
+      def resume_form(context:, resource:, intent_ref:)
+        raise AccessDenied, "UNAUTHENTICATED" unless context.is_a?(Context)
+        raise AccessDenied unless intent_ref.is_a?(String) && intent_ref.match?(/\A[0-9a-f-]{36}\z/)
+        OperationRun.transaction(requires_new: true) do
+          run = OperationRun.lock.find_by(id: intent_ref, actor_ref: context.actor_ref, tenant_ref: context.tenant_ref)
+          unless run && run.resource_key == resource.key.to_s && %w[create update].include?(run.operation) &&
+              run.origin == "ui" && run.status == "proposed" && run.parent_run_id.nil? && run.selection_id.nil? &&
+              run.input_digest.nil? && run.confirmed_at.nil? && run.approved_by_ref.nil? && run.approved_digest.nil?
+            raise AccessDenied
+          end
+          raise AccessDenied, "APPROVAL_EXPIRED" unless run.created_at && run.created_at > Time.current - FORM_RECOVERY_WINDOW
+          definition = RailsAiAdmin.operation_registry.fetch(resource, run.operation)
+          raise AccessDenied unless !definition.custom? && run.operation_version == operation_version(resource, run.operation)
+          ensure_connection!(resource, definition)
+          access = Authorization::Access.new(context, resource)
+          record = load_record(access, run, definition)
+          access.authorize!(run.operation, record)
+          if run.operation == "update" && run.expected_version != record.lock_version
+            raise AccessDenied, "CONFLICT"
+          end
+          raise AccessDenied unless run.operation != "create" || run.target_id.nil? && run.expected_version.nil?
+          definition.fields(access, record)
+          run.update!(security_version: context.security_version,
+            expires_at: [ Time.current + RailsAiAdmin.configuration.intent_ttl, run.created_at + FORM_RECOVERY_WINDOW ].min)
+          FormSession.new(run, record)
+        end
+      end
+
       # Computes a safe typed preview without creating an intent or saving domain
       # data. Collection admission and native member preparation share this path.
       def preview(context:, resource:, operation:, target_id: nil, expected_version: nil, input: nil, origin: :ui)

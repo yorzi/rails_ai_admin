@@ -1,0 +1,5 @@
+<div class="raa-notice" hidden role="status" tabindex="-1" data-raa-form-recovery-target="notice">
+  <p data-raa-form-recovery-target="message">Your session needs attention. This tab is keeping your unsaved input in memory.</p>
+  <% if RailsAiAdmin.configuration.authentication_path %><p><%= link_to "Sign in in another tab", RailsAiAdmin.configuration.authentication_path, target: "_blank", rel: "noopener noreferrer", data: { turbo: false } %></p><% else %><p>Sign in through the host application in another tab, then return here.</p><% end %>
+  <button type="button" data-raa-form-recovery-target="resume" data-action="raa-form-recovery#resume" disabled>Resume after signing in</button>
+</div>

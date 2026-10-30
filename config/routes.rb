@@ -13,6 +13,7 @@ RailsAiAdmin::Engine.routes.draw do
   get ":resource/:id/operations/:operation", to: "operations#new", as: :operation_form
   post ":resource/:id/operations/:operation/preflight", to: "operations#preflight", as: :operation_preflight
   post ":resource/:id/operations/:operation/execute", to: "operations#execute", as: :operation_execute
+  get ":resource/forms/recover", to: "resources#recover_form", as: :recover_resource_form
   get ":resource/new", to: "resources#new", as: :new_resource
   get ":resource/:id/edit", to: "resources#edit", as: :edit_resource
   get ":resource/:id/confirm_destroy", to: "resources#confirm_destroy", as: :confirm_destroy_resource

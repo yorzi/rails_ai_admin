@@ -42,6 +42,18 @@ module RailsAiAdmin
       prepare_form(:update)
     end
 
+    def recover_form
+      response.headers["Vary"] = [ response.headers["Vary"], "Cookie", "X-RailsAiAdmin-Recovery-Intent" ].compact.join(", ")
+      session = runner.resume_form(context: @context, resource: @resource,
+        intent_ref: request.headers["X-RailsAiAdmin-Recovery-Intent"])
+      @intent, @record = session.intent, session.record
+      @operation = @intent.operation.to_sym
+      build_form_plan(@operation)
+      @errors = {}
+      render @operation == :create ? :new : :edit
+      response.headers["X-RailsAiAdmin-Form-Recovery"] = "ready"
+    end
+
     def confirm_destroy
       prepare_form(:destroy)
     end

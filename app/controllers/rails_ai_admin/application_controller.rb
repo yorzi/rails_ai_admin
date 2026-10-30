@@ -9,7 +9,7 @@ module RailsAiAdmin
     wrap_parameters false
     layout "rails_ai_admin/application"
     helper RailsAiAdmin::FieldsHelper
-    before_action :secure_headers
+    prepend_before_action :secure_headers
     before_action :authenticate_admin
     helper_method :visible_resources, :allowed_action?, :record_label, :collection_jobs_available?
 
@@ -18,6 +18,7 @@ module RailsAiAdmin
       render plain: "Administration is not configured safely. Contact the host maintainer.", status: :service_unavailable
     end
     rescue_from ActionController::InvalidAuthenticityToken do
+      mark_form_recovery
       render plain: "Invalid request", status: :unprocessable_content
     end
 
@@ -56,7 +57,14 @@ module RailsAiAdmin
       when :conflict then "The records or request have changed. Reload and try again."
       else "Not found"
       end
+      mark_form_recovery if status == :unauthorized
       render plain: message, status: status
+    end
+
+    def mark_form_recovery
+      if is_a?(ResourcesController) && %w[create update].include?(action_name)
+        response.headers["X-RailsAiAdmin-Form-Recovery"] = "session"
+      end
     end
 
     def visible_resources

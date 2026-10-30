@@ -4,9 +4,10 @@ module RailsAiAdmin
   # Declares host adapters as names so development reload resolves fresh classes.
   class Configuration
     attr_accessor :context_adapter, :authorization_adapter, :resources, :title, :intent_ttl,
-      :work_handlers, :outbox_auto_dispatch, :collection_auto_dispatch, :field_types
+      :work_handlers, :outbox_auto_dispatch, :collection_auto_dispatch, :field_types, :authentication_path
 
     def initialize
+      @authentication_path = nil
       @context_adapter = nil
       @authorization_adapter = "RailsAiAdmin::Authorization::Adapter"
       @resources = []
@@ -31,6 +32,10 @@ module RailsAiAdmin
         raise ConfigurationError, "work_handlers needs stable string keys/class names and outbox_auto_dispatch must be boolean"
       end
       raise ConfigurationError, "collection_auto_dispatch must be boolean" unless [ true, false ].include?(collection_auto_dispatch)
+      unless authentication_path.nil? || authentication_path.is_a?(String) && authentication_path.match?(/\A\/(?:[a-zA-Z0-9_-]+\/)*[a-zA-Z0-9_-]*\z/)
+        raise ConfigurationError, "authentication_path must be a fixed internal path without query or fragment"
+      end
+      authentication_path&.freeze
       Fields::Registry.new(field_types).validate!
       field_types.each { |key, name| key.freeze; name.freeze }
       field_types.freeze

@@ -96,7 +96,7 @@ class NativeTemplateOverridesTest < ActionDispatch::IntegrationTest
       assert_select "form", count: 1
       assert_select "input[name=intent_ref]", count: 1
       assert_select "input[name=authenticity_token]", count: 1
-      assert_select "form[data-controller=raa-dirty-form]"
+      assert_select "form[data-controller~='raa-dirty-form']"
       assert_select "[data-host-override=field_form][data-host-field=name]"
       token = intent
       csrf = css_select("input[name=authenticity_token]").first["value"]
