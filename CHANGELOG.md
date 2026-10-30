@@ -63,6 +63,14 @@
 - Add independent new/edit wrappers for GET/validation/conflict and default field
   display partials; verify standard host view precedence and live template reload.
 
+- Add per-view resource presentation masks, global hidden fields, plain help text
+  and authorized readonly context in bounded tab/panel form plans. Keep write-only
+  prefills blank and enforce fresh create/edit masks in the shared Runner.
+- Add progressive keyboard tabs, native invalid-control revelation, error-summary
+  focus/links and collision-free help/error IDs. Preserve hidden-panel FormData.
+- Add the field-row override and advance changed form context revisions to 2.
+
+
 Assistant/Surface adapters, global actions, custom CRUD replacement, 10,000-target
 batch materialization, associations, files, CSV and metrics dashboards are not implemented. Release gates remain open.
 

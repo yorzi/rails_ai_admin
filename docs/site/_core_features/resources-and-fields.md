@@ -14,6 +14,7 @@ After reading this guide, you will know:
 
 * How to declare a resource without reflecting every model attribute.
 * How readonly and operation-specific fields narrow writes.
+* How view masks, readonly context and grouped forms preserve current grants.
 * How scalar values are coerced and queried.
 
 ## Declare Only Reviewed Fields
@@ -98,6 +99,98 @@ validations or imply `nullable: false`. Updates are partial: an omitted field ke
 its existing value. The engine retains normal Active Record validations/callbacks.
 It returns generic errors on permitted fields so arbitrary validator messages do
 not expose confidential values.
+
+## Narrow Each View Without Widening Permission
+
+Fields accept Boolean `index`, `show`, `create`, `edit` and `hidden` options.
+Index/show default to true; hidden defaults to false. For example, inside a
+resource's reviewed `fields` block:
+
+```ruby
+text :name, index: false, help_text: "Use the preferred name.",
+  tab: "Identity", panel: "Basics"
+integer :points, tab: "Account", panel: "Rewards"
+boolean :active, readonly: true, create: false, edit: true,
+  tab: "Account", panel: "Context"
+text :secret, hidden: true
+```
+
+`index: false` excludes name from index output and its link title, without
+revoking an underlying read grant. `show` controls detail output. `hidden: true`
+is a global narrowing of resource read/write/search/sort exposure, even when the
+policy grants that field; it is not a hidden HTML input. Ordinary action, scope
+and independent field grants still apply.
+
+Create/edit flags control the corresponding generic writable fields. For readonly
+physical fields they control optional form display, never writes. A computed
+field defaults create/edit to false but can explicitly use true to display
+readonly context. Neither readonly nor virtual fields become writable through
+these flags or policy grants. Showing readonly context requires current show/read
+permission plus the applicable create/edit view permission, including on a new
+record. See [Computed Fields]({% link _core_features/computed-fields.md %}).
+
+A host adapter may add a public presentation mask:
+
+```ruby
+def presentation_fields(context:, resource:, view:, record: nil)
+  return nil unless resource.key == :customers
+  view == :index ? [:id, :name] : nil
+end
+```
+
+An absent method or nil means no additional narrowing; an Array of String/Symbol
+names intersects existing grants. An empty Array allows no fields in that view.
+Pundit policies can supply public `presentation_fields(view)` with the same
+return contract. This is a further restriction, not a substitute for read/write
+permission. Exceptions or invalid return types fail configuration. The callback
+runs under ordinary Active Record write prevention, not a trusted-Ruby sandbox.
+
+The mask intersects read grants **before** recursive computed-dependency checks.
+Exclude a dependency and its computation disappears before the getter/hook runs.
+In contrast, static index/show display flags apply after dependency eligibility:
+a readable name with index false can still feed an explicitly granted summary
+without displaying name itself. Keep every needed dependency in a presentation
+mask, even when its static output flag is false.
+
+`Access#project(record, view: :index)` and `view: :show` use those presentation
+rules. Generic `view: nil` projection ignores index/show flags and the presentation
+callback, while still enforcing show/read grants, hidden and recursive dependency
+authorization. It is not the native page projection. Generic Runner writes always
+choose their create/edit lifecycle mask and recheck it on submission, so a forged
+input or a Ruby write call cannot bypass the mask used by that lifecycle. Custom
+operation-input grants remain a separate contract.
+
+## Build Grouped Forms From Authorized Values
+
+`help_text` is plain text of 1..500 characters; `tab` and `panel` labels are plain
+text of 1..80 characters. All are optional and escaped normally. The form groups
+only currently authorized visible entries, so a removed field cannot leave its
+private tab/panel name behind. Unassigned fields use Details when mixed with
+tabbed fields. Layout supports 128 entries, eight tab groups and 16 panel groups
+per tab, including unnamed fallback groups.
+
+Native generic forms keep `@form_fields` and `@form_values` writable-only.
+`@form_plan` contains authorized editable entries and separate readonly outputs
+in resource declaration order. Editable prefills come only from the current
+readable projection; a write-only field starts blank rather than exposing its
+database value. Validation can echo currently permitted submitted scalar text
+(such as "08") without persisting a draft. Readonly outputs come from current
+read permission and are never replaced by submitted values.
+
+`Forms::Plan` is an immutable scalar presentation snapshot, not an authorization
+API or a place to pass records. Trusted callers supply already authorized fields
+and value maps. Its entry values are bounded scalar copies; denied/unlisted
+values and empty groups are omitted. It supports at most 256 KiB per value and
+1 MiB of values across a plan. Existing [template contracts]({% link _reference/template-catalog.md %})
+distinguish writable-only assigns from this optional richer layout.
+
+Without JavaScript every section remains visible with ordinary anchor navigation.
+With JavaScript, tabs add keyboard Left/Right/Home/End navigation, reveal the
+first server-invalid section, reveal native invalid controls and route error-summary
+links to their field's section before focusing it. Help/error IDs are connected
+through aria-describedby. Preserve those attributes and handlers in overrides.
+These controls do not supply persistent session drafts; leaving the page can
+still lose unsaved input.
 
 ## Preserve Scalar Meaning
 

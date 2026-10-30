@@ -2,7 +2,7 @@
 
 > **工程立项 / 产品需求文档 / 架构设计 / 测试与发布计划 / AI Agent 可执行任务书**  
 > 状态：**Reviewed Proposal · v0.3（第二轮源码级复核完成；尚未实现、运行验证或批准发布）**  
-> 实施检查点（2026-10-30）：常规 CRUD、成员级自定义 Operation/确认与事务 outbox、固定 Selection 捕获/重验与异步集合逐项执行/取消、显式 Pundit 适配器、两个独立 packaged Host、真实重载及崩溃恢复，以及 schema 注释建议、安装预检、Doctor/TestKit 初版已取得本地验收证据；当前依赖已升级 rails_tool_views 1.0.2；标量字段插件注册/规范化/校验/Schema/Partial、固定 Select 与只读字段语法已取得本地证据；有界只读 Virtual/计算字段的依赖授权、快照与重载已验证；常规模板单文件覆盖/源版本与 Context revision/Doctor 漂移诊断已验证（剩余状态页/控制器扩展、表单恢复与 Phase 2 Gate 仍未完成）；完整范围与未完成项见 `ROADMAP.md` / `COMPATIBILITY.md`。以下审查结论保留为立项时历史基线，不能用于推断任何 Gate 已通过。
+> 实施检查点（2026-10-30）：常规 CRUD、成员级自定义 Operation/确认与事务 outbox、固定 Selection 捕获/重验与异步集合逐项执行/取消、显式 Pundit 适配器、两个独立 packaged Host、真实重载及崩溃恢复，以及 schema 注释建议、安装预检、Doctor/TestKit 初版已取得本地验收证据；当前依赖已升级 rails_tool_views 1.0.2；标量字段插件注册/规范化/校验/Schema/Partial、固定 Select 与只读字段语法已取得本地证据；有界只读 Virtual/计算字段的依赖授权、快照与重载已验证；常规模板单文件覆盖/源版本与 Context revision/Doctor 漂移诊断已验证；每视图字段掩码、受权只读上下文、分组表单及渐进增强 Tabs 已取得本地契约与 Chrome 验收（剩余状态页/控制器扩展、会话/表单恢复与 Phase 2 Gate 仍未完成）；完整范围与未完成项见 `ROADMAP.md` / `COMPATIBILITY.md`。以下审查结论保留为立项时历史基线，不能用于推断任何 Gate 已通过。
 > 制定日期：2026-10-29  
 > 复核日期：2026-10-29（Asia/Shanghai）；v0.2 设计复核 + v0.3 对本地 `rails_tool_views`/RubyLLM 源码与上游 Release 的二次核对；两轮均只修改计划，无产品代码  
 > 目标项目：`rails_ai_admin`（项目名已由发起者确定；RubyGems 名称及 GitHub 仓库可用性须在创建前确认）  

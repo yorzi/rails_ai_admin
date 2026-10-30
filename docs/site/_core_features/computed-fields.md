@@ -107,12 +107,17 @@ own grant** survive. A dependency can itself be virtual; all intervening nodes
 and physical leaves must be granted. Denying `:name` hides `:summary` before its
 computation or denied getter runs. Denying only `:summary` also hides it even if
 name/points remain readable. This is not a declassification mechanism for a
-confidential field's aggregate.
+confidential field's aggregate. Optional presentation_fields masks intersect
+grants before this dependency check. Static index/show flags only remove output;
+they do not remove an otherwise granted dependency used by a visible computation.
+See [Resources and Fields]({% link _core_features/resources-and-fields.md %}) for
+per-view and generic projection differences.
 
-Computed fields are always readonly with create/edit/search/sort disabled.
-Declarations that try to widen those options fail configuration; returning them
-in write/search/sort policy grants cannot enable those capabilities. Forged input
-cannot assign the computed value. Query search/sort remains based on eligible
+Computed fields are always readonly and cannot search/sort. Create/edit default
+to false but may explicitly be true for readonly form context, with current
+show/read/view permission. Those flags never permit assignment. Declarations that
+try to remove readonly or enable search/sort fail configuration; policy grants
+cannot make the computation writable or queryable. Forged input cannot assign it. Query search/sort remains based on eligible
 physical fields, not arbitrary Ruby methods or generated SQL expressions.
 
 ## Validate the Dependency Graph Without Reading Domain Data

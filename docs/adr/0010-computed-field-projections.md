@@ -52,3 +52,5 @@ Phase 2 acceptance. See the [computed field guide](../site/_core_features/comput
 
 Follow-up: ADR 0011 supplies the conventional template override workflow. The
 other Phase 2 acceptance and future Surface/controller requirements remain open.
+ADR 0012 adds optional readonly create/edit display and per-view permission/output
+resolution; generic input/query prohibitions remain.

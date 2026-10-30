@@ -30,12 +30,19 @@ this file records current scope without rewriting its historical review claims.
   titles agree across pages/selections/jobs, virtual input/query targets are
   rejected and fake virtual preflight changes are excluded. Actual packaged
   summaries and source reload advance the Field Registry/CRUD-008 contracts.
-- Individual template override generator with 22 explicit current paths/context
+- Individual template override generator with 23 explicit current paths/context
   contracts, source/context metadata, preservation of existing edits and bounded
   doctor upgrade diagnostics. New/edit failure wrappers and field defaults obey
   Rails precedence. Packaged Host A rendered every catalogued host override;
   Host B verified its subset on both pipelines and actual template reload.
   This advances RAA-0209/0211; Surface/status/controller extensions remain open.
+- Per-view output flags, global hidden resource fields and optional current view
+  permission masks applied before recursive computation dependencies. Generic
+  Runner writes also enforce create/edit masks. Authorized readonly form context,
+  scalar-only grouped form plans, plain help text and progressive tabs preserve
+  writable-only legacy assigns. Native errors link to visible editable inputs;
+  Chrome checks cover hidden invalid controls, keyboard focus, FormData and 422
+  input retention (parts of RAA-0204/0208/0210/0212; ADR 0012).
 - Server-owned intents with input/identity/epoch/version/expiry binding, database
   serialization, replay, atomic domain/audit/receipt, callback rollback handling
   and separate post-commit warning (synchronous parts of RAA-0112/0113).
@@ -80,10 +87,9 @@ documentation and advisory scanning. No remote CI run has occurred.
 
 ## Next implementation checkpoint
 
-Finish the remaining Phase 2 contracts: field presentation controls,
-form/session recovery, remaining status/controller extension points and three
+Finish the remaining Phase 2 contracts: form/session recovery, remaining status/controller extension points and three
 distinct domain-resource acceptance. Scalar/computed fields and the conventional
-template override workflow have local evidence; Phase 2 and release gates remain open.
+template override workflow and per-view grouped forms have local evidence; Phase 2 and release gates remain open.
 
 Continue the shared execution contracts while the full Phase 1 evidence remains open:
 

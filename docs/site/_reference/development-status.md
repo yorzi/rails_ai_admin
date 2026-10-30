@@ -42,7 +42,11 @@ graph/snapshot/output/budget limits and per-record projection caching. It suppli
 no virtual writes/search/sort or general model-method invocation.
 [Template Overrides]({% link _advanced/template-overrides.md %}) now provides
 allowlisted page/layout/partial copies with explicit context metadata and bounded
-source/contract inspection. CURRENT metadata does not certify host edits.
+source/contract inspection. CURRENT metadata does not certify host edits. Per-view field flags, optional
+presentation narrowing and bounded form plans now support escaped help text,
+tabs/panels and separately authorized readonly context. Writable-only prefills
+do not reveal unreadable database values; no persistent session-draft feature
+is supplied. These changes do not close Phase 2 or any release Gate.
 
 Not implemented in this slice: associations, nested attributes, uploads/private
 attachments, imports/exports, all-filtered or 10,000-target batch manifests,

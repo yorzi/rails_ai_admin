@@ -119,9 +119,10 @@ plugin scalar coercion, formatting and normal escaping.
 
 A virtual field needs its own current read grant and every recursive dependency's
 grant. Missing any graph node hides the field before evaluation. No declassification
-or arbitrary model-method access is supplied. Create/edit/search/sort remain false
-and readonly true even if a policy returns those names; widening declarations
-fail configuration. Virtual fields are forbidden in Operation/Work input schemas.
+or arbitrary model-method access is supplied. Readonly stays true and search/sort
+stay false. Create/edit default false but may be true for authorized readonly
+form display; they never permit assignment. Widening readonly/search/sort
+declarations fail configuration. Virtual fields are forbidden in Operation/Work input schemas.
 Graph registration validates declared dependencies/cycles without domain queries:
 up to 128 total resource fields, 20 direct dependencies per computed node and eight
 virtual levels. One projection cache reuses nodes and physical reads per record;
@@ -142,6 +143,35 @@ dependencies and physical titles, also use that guard. Trusted Ruby purity and n
 extra I/O/lookup remain host responsibilities. Native
 failures return a generic unavailable response. Virtual preflight change entries
 are excluded; actual current results are recomputed after business execution.
+
+## View Masks and Form Plans
+
+Fields accept Boolean index/show/create/edit/hidden flags. Index/show default true;
+hidden defaults false and removes resource read/write/search/sort exposure.
+Create/edit permit lifecycle inputs only when the field is writable; for readonly
+or virtual fields they can opt into readonly form context under show/read/view
+permission. Help text is escaped plain text of 1..500 characters; tab/panel labels
+are 1..80 characters each. Layout metadata remains part of Field.contract.
+
+The optional public adapter call is
+`presentation_fields(context:, resource:, view:, record: nil)`; Pundit calls its
+explicit policy's `presentation_fields(view)`. Missing/nil adds no restriction;
+a String/Symbol-name Array intersects ordinary grants. Empty means no fields.
+The mask applies before recursive dependency checks; static index/show output
+flags apply afterwards. Generic `Access#project(record, view: nil)` does not use
+view masks/index/show flags; hidden/read/show/dependency grants still apply.
+Generic write fields automatically use create/edit lifecycle masks, including
+Runner submission rechecks. Readonly and virtual writes remain denied.
+
+Native generic forms expose writable-only @form_fields/@form_values. @form_plan
+is a `Forms::Plan` with immutable Entry(field, editable, value), Panel(label,
+entries) and Tab(label, panels) values. Callers supply already-authorized fields/
+values and separate readonly_fields/readonly_values; the plan does not authorize
+or query records. Write-only fields receive no database prefill; readonly output
+needs current show/read/lifecycle-view grants and ignores submitted replacements.
+Bounds are 128 entries, eight tabs, 16 panels per tab, 256 KiB per scalar value
+and 1 MiB of values per plan. Empty denied groups are omitted. With no JavaScript
+all sections remain visible; optional tabs/error navigation do not persist drafts.
 
 ## Reload and Compatibility
 

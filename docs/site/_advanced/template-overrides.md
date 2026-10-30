@@ -81,6 +81,21 @@ entry.locals # => [:field, :value, :text]
 entry.assigns # => []
 ```
 
+Generic resource forms now supply `@form_plan` alongside writable-only
+`@form_fields`/`@form_values`. The plan also contains separately authorized
+readonly outputs; write-only fields have blank database prefills. Do not rebuild
+those outputs from @record. The global `field_row` partial receives `form`, `entry`
+and `errors`; it owns editable-versus-readonly rendering, help/error links and
+accessibility IDs. Type-specific partials still own their field input/display.
+
+`input_fields` accepts optional `plan` for grouped rendering, falling back to a
+writable-only plan from fields/values. `resource_errors` accepts optional `form`
+and `fields` locals for summary-to-control links. The resource_new/resource_edit/
+resource_form/resource_errors/input_fields catalog contracts are revision 2;
+existing revision-1 copies require context/source review rather than a header-only
+update. See [Resources and Fields]({% link _core_features/resources-and-fields.md %})
+for view masks, readonly context and the no-JavaScript fallback.
+
 ## Preserve Form and Authority Boundaries
 
 Copying a standard template grants no authority. Keep current helper permission

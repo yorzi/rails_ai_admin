@@ -3,9 +3,9 @@
 Status: implemented development contract; the full Phase 2 and release gates
 remain open.
 
-Conventional presentation has a fixed catalog of 22 current templates: layout,
+Conventional presentation has a fixed catalog of 23 current templates: layout,
 resource landing/list/show/new/edit/shared form/delete/errors, field display/input
-partials, member and collection operation wrappers, fixed selection and job pages.
+and row partials, member and collection operation wrappers, fixed selection and job pages.
 Each entry names its path, explicit assigns/locals and a context revision. Surface
 wrappers are unavailable until their actual integration exists; plain controller
 error responses are not catalogued templates.
@@ -42,12 +42,15 @@ content must come from authorized projections, not unrestricted record getters.
 
 Contract/native tests cover preservation, a deterministic creation race, Unicode,
 header validation, source/context drift, path bounds, actual rendering and form
-failure paths. Packaged Host A render notifications proved all 22 standard-path
+failure paths. Packaged Host A render notifications proved all 23 standard-path
 host overrides were used by HTTP requests. Host B verified its own subset on both
 pipelines plus live stale metadata and actual development template reload. The
 fixtures remove their temporary overrides after verification. Installer defaults
 never copy the catalog tree into a host.
 
 This advances RAA-0209/0211 and the generator/doctor upgrade contract. It does not
-complete status/controller escape hatches, field presentation controls, session
+complete status/controller escape hatches, session
 recovery, three-domain-resource Phase 2 acceptance or future Surface wrappers.
+
+ADR 0012 adds authorized grouped form plans and advances the affected form context
+revisions to 2; inspect the installed catalog for each entry’s current revision.
