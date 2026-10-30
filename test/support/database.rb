@@ -63,7 +63,7 @@ RailsAiAdmin.prepare!
 Dir[File.expand_path("../../app/models/rails_ai_admin/*.rb", __dir__)].sort.each { |path| require path }
 
 module DatabaseHelpers
-  def reset_database
+  def self.prepare_schema
     ActiveRecord::Migration.verbose = false
     unless Customer.table_exists?
       ActiveRecord::Schema.define do
@@ -90,6 +90,9 @@ module DatabaseHelpers
         end
       end
     end
+  end
+
+  def reset_database
     UuidCustomer.delete_all
     ActiveRecord::MigrationContext.new(File.expand_path("../../db/migrate", __dir__)).migrate
     RailsAiAdmin::BatchItem.delete_all
@@ -109,3 +112,7 @@ module DatabaseHelpers
     @other = Customer.create!(account_id: 2, name: "Other tenant")
   end
 end
+
+# Create domain fixture tables before Rails transactional tests start. DDL rolled
+# back by the first request test can otherwise leave stale table-existence caches.
+DatabaseHelpers.prepare_schema

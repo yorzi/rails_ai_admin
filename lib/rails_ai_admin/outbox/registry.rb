@@ -11,7 +11,7 @@ module RailsAiAdmin
         end
 
         def fingerprint
-          InputSchema.digest(handler: handler_name, version: handler_class.version, fields: handler_class.input.map { |field| [ field.name, field.type, field.options ] },
+          InputSchema.digest(handler: handler_name, version: handler_class.version, fields: handler_class.input.map(&:contract),
             idempotent: handler_class.idempotent, lease: handler_class.lease_duration, attempts: handler_class.max_attempts,
             max_age: handler_class.max_age, record_version: handler_class.record_version_policy)
         end

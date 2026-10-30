@@ -115,14 +115,14 @@ module RailsAiAdmin
       invalid = resource.fields.reject do |field|
         column = columns[field.name.to_s]
         column && (SchemaSuggestions::TYPES.key?(column.type) || column.type == :uuid) && !SchemaSuggestions.array?(column) ||
-          (field.type == :id && field.name == :id && model.primary_key.is_a?(String) && columns.key?(model.primary_key))
+          (field.scalar_type == :id && field.name == :id && model.primary_key.is_a?(String) && columns.key?(model.primary_key))
       end
       result = [ Check.new("schema:#{resource.key}", invalid.empty? ? :ok : :error,
         "#{invalid.size} declared fields lack supported scalar columns. Check field names/types; virtual fields are not implemented. No records were sampled.") ]
       mismatches = resource.fields.count do |field|
         column = columns[field.name.to_s]
         next false unless column
-        case field.type
+        case field.scalar_type
         when :datetime then !%i[datetime timestamp].include?(column.type)
         when :date then column.type != :date
         when :boolean then column.type != :boolean

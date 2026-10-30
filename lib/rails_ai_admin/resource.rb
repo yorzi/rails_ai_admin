@@ -103,11 +103,17 @@ module RailsAiAdmin
         @fields = fields
       end
 
+      def field(name, type:, **options)
+        raise ConfigurationError, "Duplicate field #{name}" if @fields.key?(name.to_sym)
+        @fields[name.to_sym] = RailsAiAdmin.field_registry.build(name, type: type, **options)
+      end
+
+      def readonly(name, type: :text, **options)
+        field(name, type: type, **options.merge(readonly: true))
+      end
+
       Field::TYPES.each do |type|
-        define_method(type) do |name, **options|
-          raise ConfigurationError, "Duplicate field #{name}" if @fields.key?(name.to_sym)
-          @fields[name.to_sym] = Field.new(name, type: type, **options)
-        end
+        define_method(type) { |name, **options| field(name, type: type, **options) }
       end
     end
   end

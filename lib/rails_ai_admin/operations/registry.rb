@@ -53,7 +53,7 @@ module RailsAiAdmin
         end
 
         def signature
-          custom? ? { handler: handler_name, version: handler_class.version, input: handler_class.input.map { |field| [ field.name, field.type, field.options ] },
+          custom? ? { handler: handler_name, version: handler_class.version, input: handler_class.input.map(&:contract),
             models: handler_class.atomic_models, duration: handler_class.max_duration, scope: scope,
             execution: scope == :collection ? [ handler_class.lease_duration, handler_class.execution_window, handler_class.max_attempts ] : nil } : { builtin: key, version: 1 }
         end

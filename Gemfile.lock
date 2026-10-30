@@ -2,6 +2,7 @@ PATH
   remote: .
   specs:
     rails_ai_admin (0.1.0.dev)
+      json_schemer (~> 2.5)
       rails (>= 8.1.4, < 8.2)
       rails_tool_views (~> 1.0.2)
       ruby_llm (>= 2.1.1, < 3)

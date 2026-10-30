@@ -8,6 +8,7 @@ module RailsAiAdmin
     protect_from_forgery with: :exception
     wrap_parameters false
     layout "rails_ai_admin/application"
+    helper RailsAiAdmin::FieldsHelper
     before_action :secure_headers
     before_action :authenticate_admin
     helper_method :visible_resources, :allowed_action?, :record_label, :collection_jobs_available?

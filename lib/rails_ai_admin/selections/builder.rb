@@ -139,7 +139,7 @@ module RailsAiAdmin
 
       def resource_version(resource)
         InputSchema.digest(key: resource.key, identity: ResourceIdentity.call(resource), policy: resource.policy, readonly: resource.readonly?,
-          adapter: RailsAiAdmin.configuration.authorization_adapter, fields: resource.fields.map { |field| [ field.name, field.type, field.options ] })
+          adapter: RailsAiAdmin.configuration.authorization_adapter, fields: resource.fields.map(&:contract))
       end
 
       def manifest_digest(version, targets)

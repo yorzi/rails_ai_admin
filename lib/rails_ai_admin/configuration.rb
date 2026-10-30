@@ -4,7 +4,7 @@ module RailsAiAdmin
   # Declares host adapters as names so development reload resolves fresh classes.
   class Configuration
     attr_accessor :context_adapter, :authorization_adapter, :resources, :title, :intent_ttl,
-      :work_handlers, :outbox_auto_dispatch, :collection_auto_dispatch
+      :work_handlers, :outbox_auto_dispatch, :collection_auto_dispatch, :field_types
 
     def initialize
       @context_adapter = nil
@@ -15,6 +15,7 @@ module RailsAiAdmin
       @work_handlers = {}
       @outbox_auto_dispatch = false
       @collection_auto_dispatch = false
+      @field_types = {}
     end
 
     # Validates and freezes the boot configuration without reading domain tables.
@@ -30,6 +31,9 @@ module RailsAiAdmin
         raise ConfigurationError, "work_handlers needs stable string keys/class names and outbox_auto_dispatch must be boolean"
       end
       raise ConfigurationError, "collection_auto_dispatch must be boolean" unless [ true, false ].include?(collection_auto_dispatch)
+      Fields::Registry.new(field_types).validate!
+      field_types.each { |key, name| key.freeze; name.freeze }
+      field_types.freeze
       work_handlers.each { |kind, name| kind.freeze; name.freeze }
       work_handlers.freeze
       resources.each(&:freeze)

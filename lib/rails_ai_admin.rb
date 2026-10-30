@@ -12,6 +12,9 @@ require_relative "rails_ai_admin/error"
 require_relative "rails_ai_admin/configuration"
 require_relative "rails_ai_admin/context"
 require_relative "rails_ai_admin/field"
+require_relative "rails_ai_admin/fields/type"
+require_relative "rails_ai_admin/fields/registry"
+require_relative "rails_ai_admin/fields/scalar_schema"
 require_relative "rails_ai_admin/input_schema"
 require_relative "rails_ai_admin/operation"
 require_relative "rails_ai_admin/work"
@@ -44,6 +47,11 @@ module RailsAiAdmin
       @registry ||= Registry.new([])
     end
 
+    def field_registry
+      return @field_registry if @field_registry&.matches?(configuration.field_types)
+      Fields::Registry.new(configuration.field_types)
+    end
+
     def operation_registry
       @operation_registry ||= Operations::Registry.new([])
     end
@@ -54,10 +62,11 @@ module RailsAiAdmin
 
     # Rebuilds the registry from reloadable host constant names.
     def prepare!
+      fields = Fields::Registry.new(configuration.field_types).validate!
       resources = Registry.new(configuration.resources)
       operations = Operations::Registry.new(resources.resources)
       work = Outbox::Registry.new(configuration.work_handlers)
-      @registry, @operation_registry, @work_registry = resources, operations, work
+      @registry, @operation_registry, @work_registry, @field_registry = resources, operations, work, fields
     end
   end
 end
