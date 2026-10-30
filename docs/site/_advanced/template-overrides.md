@@ -91,7 +91,7 @@ accessibility IDs. Type-specific partials still own their field input/display.
 `input_fields` accepts optional `plan` for grouped rendering, falling back to a
 writable-only plan from fields/values. `resource_errors` accepts optional `form`
 and `fields` locals for summary-to-control links. The resource_new/resource_edit/
-resource_form catalog contracts are revision 3; resource_errors/input_fields are
+resource_form catalog contracts are revision 4; resource_errors/input_fields are
 revision 2. Existing older copies require context/source review rather than a
 header-only update. See [Resources and Fields]({% link _core_features/resources-and-fields.md %})
 for view masks, readonly context and the no-JavaScript fallback.
@@ -103,6 +103,15 @@ editable-field data values and Turbo event bindings. The partial alone does not
 restore a form. Recovery needs fresh CSRF HTML, the same intent and manual Resume,
 then explicit Save; copying an old hidden field must not replace fresh security
 metadata. See [Form Session Recovery]({% link _advanced/form-recovery.md %}).
+
+Navigation-aware templates also receive immutable `@list_navigation`; it carries
+only normalized list hints, not routing or record authority. Keep registered
+navigation helpers, hidden return fields, the recovery encoded return-state/discarded data
+and discard notices instead of routing from raw return_to. resource_index receives
+sortable_fields for permitted sort headers. Layout/index/show/destroy, member and
+collection form/review/failure, selection and job-show context contracts are now
+revision 2. See [List Navigation]({% link _core_features/list-navigation.md %}) for
+the exact helper and query/header boundaries.
 
 ## Preserve Form and Authority Boundaries
 

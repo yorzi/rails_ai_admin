@@ -50,6 +50,12 @@ this file records current scope without rewriting its historical review claims.
   hosts and Chrome cover session loss, unchanged/stale versions, pending edits
   and replay identity. Persistent drafts and custom-operation recovery remain
   open (further RAA-0212/CRUD-022; ADR 0013).
+- Structured per-resource list hints preserve search/sort/page through CRUD,
+  member review, selections and collection/job controls. Current grants narrow
+  hints, routes are generated internally, sort links use stable PK tie-breaking,
+  and empty HTML pages clamp within the same authorized filter. Unicode state
+  survives open-tab recovery via a bounded ASCII header. Packaged hosts and Chrome
+  verify these flows (RAA-0207/0212 and LIST-016; ADR 0014).
 - Server-owned intents with input/identity/epoch/version/expiry binding, database
   serialization, replay, atomic domain/audit/receipt, callback rollback handling
   and separate post-commit warning (synchronous parts of RAA-0112/0113).
@@ -94,11 +100,10 @@ documentation and advisory scanning. No remote CI run has occurred.
 
 ## Next implementation checkpoint
 
-Finish the remaining Phase 2 contracts: return locations/list navigation,
-remaining status/controller extension points and three
-distinct domain-resource acceptance. Scalar/computed fields and the conventional
-template override workflow, per-view grouped forms and generic open-tab recovery
-have local evidence; Phase 2 and release gates remain open.
+Finish the remaining Phase 2 contracts: status/controller extension points and three
+distinct domain-resource acceptance. Scalar/computed fields, conventional overrides,
+grouped forms, generic open-tab recovery and structured list navigation have local
+evidence; Phase 2 and release gates remain open.
 
 Continue the shared execution contracts while the full Phase 1 evidence remains open:
 
@@ -122,8 +127,8 @@ Continue the shared execution contracts while the full Phase 1 evidence remains 
 
 ## Remaining product work
 
-- Phase 2: finish return locations/list navigation, remaining status/controller
-  extension points and three-domain-resource acceptance. Generic open-tab recovery
+- Phase 2: finish status/controller extension points and three-domain-resource
+  acceptance. Generic open-tab recovery
   has local evidence; persistent drafts and custom-operation recovery stay open.
 - Early proof: ordinary Order Review and one trusted Surface through the same
   Operation, then an offline released RubyLLM loop and continuation faults.

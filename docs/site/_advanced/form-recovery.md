@@ -61,10 +61,18 @@ The recovery request, relative to the engine mount, is:
 The UUID is not placed in a query string or form URL. The GET carries no draft
 input or proposed business values; the host resolves the current authenticated
 Context normally. The response is private/no-store and varies by Cookie and the
-recovery-intent header. A successful HTML response carries
+recovery-intent and return-state headers. A successful HTML response carries
 `X-RailsAiAdmin-Form-Recovery: ready` only after successful form rendering.
 Unsuccessful or render-error responses are not marked ready. A success response
 alone without that marker is not sufficient for the client to replace its form.
+
+List settings use a separate `X-RailsAiAdmin-Return-State` header containing the
+server's ASCII Base64URL-encoded UTF-8 JSON hint. It is not draft input, a URL or
+authority. Invalid state is discarded and current search/sort grants are checked;
+the form action/recovery URL remain queryless. A refreshed-form discard flag
+keeps the changed-list-settings notice visible after in-tab recovery. See
+[List Navigation]({% link _core_features/list-navigation.md %}) for bounds and
+normalized return paths.
 
 ## Reopen Only an Eligible Original Intent
 

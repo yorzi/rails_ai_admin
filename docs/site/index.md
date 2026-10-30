@@ -86,6 +86,13 @@ current create/update DOM after marked authentication/CSRF failure. Fresh sign-i
 manual Resume and explicit Save are required; refreshing or closing the page
 loses this memory-only preservation.
 
+## Return to a Current List
+
+[List Navigation]({% link _core_features/list-navigation.md %}) carries bounded
+search/sort/page hints through native record and operation flows, with fresh query
+grants and bounded empty-page recovery. Return hints never choose an external
+URL or grant record/list authority.
+
 ## Current Scope
 
 The current slice implements scalar CRUD, synchronous member operations and

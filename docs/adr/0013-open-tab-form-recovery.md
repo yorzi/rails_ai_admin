@@ -71,3 +71,6 @@ These checks do not certify every browser or assistive technology.
 The catalog adds `form_recovery` (revision 1); new/edit/shared form revisions
 advance to 3. This advances CRUD-022 and RAA-0212 without closing the remaining
 return-location, status/controller extension and three-domain-resource gates.
+
+ADR 0014 adds a separate bounded ASCII list-state hint header while keeping the
+UUID/business action unchanged. Fresh form contexts advance to revision 4.

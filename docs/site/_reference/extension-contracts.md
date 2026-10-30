@@ -196,6 +196,26 @@ and requires explicit Save. Disconnect aborts pending recovery. No persistent dr
 preservation is supplied. See
 [Form Session Recovery]({% link _advanced/form-recovery.md %}).
 
+## List Navigation Hints
+
+`Navigation::ListState.new(access, raw, strict: false)` normalizes only q/sort/
+direction/page String scalar settings; search rejects invalid encoding and C0/DEL
+control characters before database use. Its immutable state is not a URL, saved
+query or authority. Native return_to accepts a Hash only and builds a current
+resource index path, or dashboard if index is denied. Current search/sort grants
+are rechecked; removed options reset page. Direct HTML index syntax/undeclared
+sort errors stay 422; revoked eligible options redirect to permitted settings.
+
+`Queries::List#call(..., recover_empty_page: false)` remains strict and does not
+recover by default. Native HTML opts in to a single bounded same-scope/filter
+count (requested page * 25, maximum 25,000) and clamped requery for empty later
+pages, then redirects canonically. Recovery is best-effort under concurrency.
+Form recovery carries encoded state through X-RailsAiAdmin-Return-State separately
+from the same UUID intent header: ASCII Base64URL UTF-8 JSON, 2,048 encoded bytes/
+1,024 decoded bytes maximum. Invalid hints are discarded, never used as URLs.
+See [List Navigation]({% link _core_features/list-navigation.md %}) for native
+flow retention and the registered template helpers.
+
 ## Reload and Compatibility
 
 Class names resolve fresh on invocation. A metadata mismatch with an existing

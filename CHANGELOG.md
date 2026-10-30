@@ -79,6 +79,15 @@
 - Add the recovery partial/host login-path setting, private response handshake and
   revision 3 new/edit/shared-form contracts. Verify actual Devise timeout recovery.
 
+- Preserve structured resource list hints through CRUD, member review, selections
+  and collection job controls without accepting arbitrary redirect URLs.
+- Add authorized sortable headers, stable pagination/return links and bounded
+  same-filter empty-page recovery. Revalidate stale settings with a visible fallback.
+- Carry Unicode list hints through open-tab recovery using a bounded ASCII codec;
+  retain the original business intent and fresh hidden security fields.
+- Reject malformed search/page encodings and control searches before database
+  serialization. Declare the already-resolved base64 codec as a direct dependency.
+
 Assistant/Surface adapters, global actions, custom CRUD replacement, 10,000-target
 batch materialization, associations, files, CSV and metrics dashboards are not implemented. Release gates remain open.
 

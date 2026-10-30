@@ -6,18 +6,18 @@ CI configuration is not a completed CI run; no production support is declared.
 | Component / combination | Evidence |
 | --- | --- |
 | Ruby 4.0.9, Rails 8.1.4, JSON 3.1.0, macOS arm64 | Local core and request suites executed |
-| SQLite (`sqlite3` 2.10.2) | 260 tests / 1,803 assertions, including fixed selections/current-authority manifests, table/key identity guards, collection admission/cancel/worker races, late lease guards, receipt replay, outbox fencing, request fingerprints, schema suggestions, installer preservation and atomic rollback |
-| PostgreSQL 17.11 (`pg` 1.7.0), same Ruby/Rails | 260 tests / 1,803 assertions, including native UUID selections/targets, authorized joins/includes, same-pool delivery checks, collection item/admission/outbox contracts, concurrent cancel/claim and contention and atomic rollback |
-| Packaged session / SQLite consumer, Propshaft 1.3.2, host importmap 2.2.3 | Actual `.gem` install, closed generated context, install rerun, schema suggestions with no automatic exposure, login/CSRF/CRUD, native fixed-selection capture/revocation, collection review/queue/results and custom-operation confirmation/replay plus host TestKit matrix (8 tests / 106 assertions), generated anonymous HTTP test (1 / 1), doctor, Zeitwerk, production eager load and precompile |
+| SQLite (`sqlite3` 2.10.2) | 278 tests / 2,047 assertions, including fixed selections/current-authority manifests, table/key identity guards, collection admission/cancel/worker races, late lease guards, receipt replay, outbox fencing, request fingerprints, schema suggestions, installer preservation and atomic rollback |
+| PostgreSQL 17.11 (`pg` 1.7.0), same Ruby/Rails | 278 tests / 2,047 assertions, including native UUID selections/targets, authorized joins/includes, same-pool delivery checks, collection item/admission/outbox contracts, concurrent cancel/claim and contention and atomic rollback |
+| Packaged session / SQLite consumer, Propshaft 1.3.2, host importmap 2.2.3 | Actual `.gem` install, closed generated context, install rerun, schema suggestions with no automatic exposure, login/CSRF/CRUD, native fixed-selection capture/revocation, collection review/queue/results and custom-operation confirmation/replay plus host TestKit matrix (9 tests / 122 assertions), generated anonymous HTTP test (1 / 1), doctor, Zeitwerk, production eager load and precompile |
 | Prebuilt Turbo 8.0.23 / Stimulus 3.2.2 | Reproducible esbuild output; Chrome login/list/show/form validation/save checked; nonce CSP without unsafe-inline; 320px and desktop CRUD spot checks; packaged Sprockets Host B custom-operation Turbo Stream review and explicit confirmation checked in Chrome at 500px, with no console/CSP errors; fixed-selection checkbox capture/303/current preview checked in the packaged Sprockets host at 500px with scrolling confined to the table |
 | Ruby 3.4 and Linux | CI configured; not executed locally or remotely yet |
-| Independent packaged Host B: Devise 5.0.4 / Pundit 2.5.2 / PostgreSQL | Real login/CSRF/logout/timeout, role/tenant grants, UUID replay/selection, independent selection grants, collection partial cancellation, separate parent/item grants and synthetic outbox effects, alias scope, product SDK coexistence and TestKit matrix: 19 tests / 223 assertions; generated anonymous HTTP test (1 / 1). Existing mount in a `draw` route file preserved |
+| Independent packaged Host B: Devise 5.0.4 / Pundit 2.5.2 / PostgreSQL | Real login/CSRF/logout/timeout, role/tenant grants, UUID replay/selection, independent selection grants, collection partial cancellation, separate parent/item grants and synthetic outbox effects, alias scope, product SDK coexistence and TestKit matrix: 20 tests / 237 assertions; generated anonymous HTTP test (1 / 1). Existing mount in a `draw` route file preserved |
 | Host B Propshaft 1.3.2 or Sprockets 4.4.1 / sprockets-rails 3.5.2, jsbundling-rails 1.3.1 | Both production precompiles and eager boots passed; host esbuild 0.25.12 bundle built; each variant passed Host B acceptance. These are two variants of one host |
 | Host B development reload and process recovery | Real source reload replaced computation/field/model/resource/policy/context/Operation/Work classes and registries; a changed plugin version rejected old field contracts; killed precommit transaction rolled back domain/claim/audit; response-loss replay returned one receipt. Separate worker processes died before/after synthetic effects: expired-lease idempotent replay applied once, non-idempotent pre-effect retry succeeded, and unknown non-idempotent outcome required reconciliation without resend |
 | Real providers / persisted Chat / Surface / continuation | Not implemented or tested; no paid calls |
 
 Runtime bounds: Ruby >= 3.4; Rails >= 8.1.4 and < 8.2; rails_tool_views ~> 1.0.2;
-RubyLLM >= 2.1.1 and < 3; json_schemer ~> 2.5; turbo-rails ~> 2.0; stimulus-rails ~> 1.3. These bounds
+RubyLLM >= 2.1.1 and < 3; json_schemer ~> 2.5; base64 ~> 0.3; turbo-rails ~> 2.0; stimulus-rails ~> 1.3. These bounds
 are candidate dependency constraints, not proof every resolvable combination works.
 The lockfile records actual resolution, including Linux/source platform metadata.
 
@@ -39,8 +39,8 @@ partials. Host B tests fixed Select labels, unavailable-value preservation,
 validation recovery and normalized writes on both pipelines. Typed Date/Time and
 exact Decimal proposals confirm/replay through the public Ruby Runner API.
 The full SQLite suite also passed on a newly created database; domain fixture DDL
-is prepared before transactional request tests. RuboCop passed 207 Ruby files;
-22 guide pages passed documentation lint and Jekyll/RDoc build. These are local
+is prepared before transactional request tests. RuboCop passed 210 Ruby files;
+23 guide pages passed documentation lint and Jekyll/RDoc build. These are local
 contracts and package evidence; they do not establish assistive-technology coverage.
 Computed-field contracts additionally cover recursive own/dependency grants,
 unsupported/mutable snapshots, graph/size/cooperative duration bounds, physical
@@ -56,8 +56,8 @@ inspection, never host ERB evaluation. Root contracts cover all 24 copied source
 Unicode, exclusive-create races, path/header/inventory bounds and independent
 source/context drift. Native request tests preserve escaping, one layout/form,
 CSRF/intent and new/edit failure wrappers. Packaged Host A additionally passed
-9 tests / 140 assertions with generated host overrides; actual render notifications
-covered all 24 keys. Host B passed 20 tests / 241 assertions in its override mode
+10 tests / 156 assertions with generated host overrides; actual render notifications
+covered all 24 keys. Host B passed 21 tests / 255 assertions in its override mode
 on both pipelines, rendering its 18-key HTTP subset and verifying stale source
 metadata. Actual development reload changed a host template body and controller
 while preserving upstream metadata. These counts are separate from normal host
@@ -104,6 +104,29 @@ remained empty in the isolated browser context. Expected HTTP 422/409 network
 messages appeared; no application JS/CSP error was seen. The temporary browser
 tabs and host were stopped. This does not prove native 401 interaction in Chrome,
 no-JavaScript input recovery, persistent drafts or custom-operation recovery.
+
+List navigation contracts additionally cover bounded structured hints, routing/
+URL injection rejection, current index/search/sort grants, one-step stale-setting
+redirects, same-filter/tenant empty-page clamping, PK tie-breaking across pages,
+unchanged command replay identity and state across member/selection/collection/
+job/cancel flows. Actual PostgreSQL NUL search and invalid UTF-8 page probes exposed
+framework input-validation gaps; guards now return INVALID_QUERY before adapter
+serialization. base64 0.3.0 is now a direct dependency for the ASCII header codec;
+no resolved package version changed in this milestone.
+
+Packaged Host A verifies a Unicode page-2 list, recovery and deleting the final
+matching row into a canonical filtered page 1. Host B verifies Unicode/current
+sort through recovery and an explicit UUID update on both asset pipelines.
+Chrome in Host A checked Chinese/emoji search + descending sort + page 2 through
+show/edit, real session rotation/CSRF pause, the same-intent Resume and Save. An
+edit that removed the final match returned to filtered page 1 with a notice.
+Sort toggling and actual browser Back restored query/direction. Injecting a bad
+encoded hint into the synthetic form produced a visible fallback notice, no
+navigation fields, a safe default Cancel link and no business mutation; input
+remained in the open DOM. The expected CSRF 422 network message appeared; no
+application JS/CSP error was seen. Temporary tabs and host were closed/stopped.
+Empty-page counts cap matching relation rows at 25,000, not physical SQL scanning;
+concurrent changes remain best-effort, and no scale/browser matrix is certified.
 
 Unsupported in this slice: MySQL, composite keys, multiple/parameterized mounts,
 shards, cross-pool atomic writes, global operations, custom CRUD replacement,

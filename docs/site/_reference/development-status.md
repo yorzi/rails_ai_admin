@@ -52,6 +52,12 @@ failures, with fresh authentication, same-intent renewal, manual Resume and
 explicit Save. Persistent session drafts and custom-operation/delete recovery
 remain unavailable. These changes do not close Phase 2 or any release Gate.
 
+[List Navigation]({% link _core_features/list-navigation.md %}) now retains
+bounded search/sort/page hints across native resource/operation/selection/job
+flows, rechecks current query grants and recovers empty later HTML pages with a
+bounded same-scope requery. These hints are neither URLs nor authority; saved
+views and the wider navigation roadmap remain separate work.
+
 Not implemented in this slice: associations, nested attributes, uploads/private
 attachments, imports/exports, all-filtered or 10,000-target batch manifests,
 metrics dashboards, saved views, global custom operations, custom CRUD handler

@@ -26,6 +26,7 @@ The [RDoc reference]({{ '/api/' | relative_url }}) opens on `RailsAiAdmin` and h
 | Declare/execute synchronous member operations | `Operation`, `Operations::Registry`, `Operations::Runner`, `Operations::Result` |
 | Persist/deliver post-commit intent | `Work`, `Outbox::Writer`, `Outbox::Dispatcher`, `Outbox::DeliveryContext`, `Outbox::RequestDigest` |
 | Bound a list query | `Queries::List` |
+| Normalize non-authoritative return hints | `Navigation::ListState` |
 | Capture/revalidate fixed targets | `Selections::Builder`, `Selections::Builder::Snapshot`, `Selections::Builder::Target` |
 | Review/admit/cancel collection operations | `Collections::Runner`, `Collections::Runner::Proposal`, `Collections::Result` |
 | Recover admitted collection items | `Collections::Dispatcher` |

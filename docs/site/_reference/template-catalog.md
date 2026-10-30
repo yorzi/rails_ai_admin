@@ -28,8 +28,8 @@ precedence over global field defaults. No Surface wrapper is cataloged. Plain co
 outside this template catalog.
 
 The current catalog contains 24 entries. resource_new/resource_edit/resource_form
-use contract revision 3; resource_errors/input_fields use revision 2; other entries
-use revision 1. Source bytes and context revision
+use contract revision 4; other navigation-aware templates and resource_errors/input_fields
+use revision 2; remaining entries use revision 1. Source bytes and context revision
 can change independently; always inspect the installed version when upgrading.
 
 resource_errors form/fields locals and input_fields plan are optional.
@@ -43,16 +43,21 @@ recovery route/intent/time-zone/current editable-field values and Turbo bindings
 its link uses the fixed configured host authentication_path. See
 [Form Session Recovery]({% link _advanced/form-recovery.md %}).
 
+Navigation-aware entries receive list_navigation as an immutable plain list
+hint, never route/record authority. resource_index also receives sortable_fields.
+Use registered helpers from [List Navigation]({% link _core_features/list-navigation.md %})
+and preserve hidden return fields, recovery-header data and discard notices.
+
 | Key | Revision | Destination | Assigns | Locals |
 | --- | --- | --- | --- | --- |
-| `layout` | 1 | `layouts/rails_ai_admin/application.html.erb` | `context`, `admin_csp_nonce` | None |
+| `layout` | 2 | `layouts/rails_ai_admin/application.html.erb` | `context`, `admin_csp_nonce`, `list_navigation` | None |
 | `dashboard` | 1 | `rails_ai_admin/dashboard/index.html.erb` | `context` | None |
-| `resource_index` | 1 | `rails_ai_admin/resources/index.html.erb` | `context`, `resource`, `page`, `columns`, `rows`, `searchable`, `selectable` | None |
-| `resource_show` | 1 | `rails_ai_admin/resources/show.html.erb` | `context`, `resource`, `record`, `values`, `fields`, `operations` | None |
-| `resource_new` | 3 | `rails_ai_admin/resources/new.html.erb` | `context`, `resource`, `record`, `operation`, `intent`, `form_fields`, `form_values`, `form_plan`, `errors`, `failure_code`, `needs_reload` | None |
-| `resource_edit` | 3 | `rails_ai_admin/resources/edit.html.erb` | `context`, `resource`, `record`, `operation`, `intent`, `form_fields`, `form_values`, `form_plan`, `errors`, `failure_code`, `needs_reload` | None |
-| `resource_form` | 3 | `rails_ai_admin/resources/form.html.erb` | `context`, `resource`, `record`, `operation`, `intent`, `form_fields`, `form_values`, `form_plan`, `errors`, `failure_code`, `needs_reload` | None |
-| `resource_destroy` | 1 | `rails_ai_admin/resources/confirm_destroy.html.erb` | `context`, `resource`, `record`, `intent`, `errors`, `failure_code`, `needs_reload` | None |
+| `resource_index` | 2 | `rails_ai_admin/resources/index.html.erb` | `context`, `resource`, `page`, `columns`, `rows`, `searchable`, `selectable`, `sortable_fields`, `list_navigation` | None |
+| `resource_show` | 2 | `rails_ai_admin/resources/show.html.erb` | `context`, `resource`, `record`, `values`, `fields`, `operations`, `list_navigation` | None |
+| `resource_new` | 4 | `rails_ai_admin/resources/new.html.erb` | `context`, `resource`, `record`, `operation`, `intent`, `form_fields`, `form_values`, `form_plan`, `errors`, `failure_code`, `needs_reload`, `list_navigation` | None |
+| `resource_edit` | 4 | `rails_ai_admin/resources/edit.html.erb` | `context`, `resource`, `record`, `operation`, `intent`, `form_fields`, `form_values`, `form_plan`, `errors`, `failure_code`, `needs_reload`, `list_navigation` | None |
+| `resource_form` | 4 | `rails_ai_admin/resources/form.html.erb` | `context`, `resource`, `record`, `operation`, `intent`, `form_fields`, `form_values`, `form_plan`, `errors`, `failure_code`, `needs_reload`, `list_navigation` | None |
+| `resource_destroy` | 2 | `rails_ai_admin/resources/confirm_destroy.html.erb` | `context`, `resource`, `record`, `intent`, `errors`, `failure_code`, `needs_reload`, `list_navigation` | None |
 | `form_recovery` | 1 | `rails_ai_admin/resources/_recovery.html.erb` | None | None |
 | `resource_errors` | 2 | `rails_ai_admin/resources/_errors.html.erb` | `errors`, `failure_code`, `needs_reload` | `form`, `fields` |
 | `field_index` | 1 | `rails_ai_admin/fields/_index.html.erb` | None | `field`, `value`, `text` |
@@ -60,12 +65,12 @@ its link uses the fixed configured host authentication_path. See
 | `field_form` | 1 | `rails_ai_admin/fields/_input.html.erb` | None | `field`, `form`, `value`, `input_options` |
 | `field_row` | 1 | `rails_ai_admin/fields/_row.html.erb` | None | `form`, `entry`, `errors` |
 | `input_fields` | 2 | `rails_ai_admin/shared/_input_fields.html.erb` | `resource` | `form`, `fields`, `values`, `errors`, `plan` |
-| `operation_form` | 1 | `rails_ai_admin/operations/form.html.erb` | `context`, `resource`, `record`, `definition`, `flow_id`, `form_fields`, `form_values`, `errors`, `failure_code`, `needs_reload` | None |
-| `operation_confirmation` | 1 | `rails_ai_admin/operations/confirmation.html.erb` | `context`, `resource`, `record`, `definition`, `flow_id`, `proposal`, `form_fields`, `form_values`, `wire_input` | None |
-| `operation_failure` | 1 | `rails_ai_admin/operations/failure.html.erb` | `context`, `resource`, `failure_code` | None |
-| `collection_form` | 1 | `rails_ai_admin/collection_operations/new.html.erb` | `context`, `resource`, `definition`, `selection`, `form_fields`, `form_values`, `errors`, `failure_code` | None |
-| `collection_confirmation` | 1 | `rails_ai_admin/collection_operations/confirmation.html.erb` | `context`, `resource`, `definition`, `proposal`, `wire_input` | None |
-| `collection_failure` | 1 | `rails_ai_admin/collection_operations/failure.html.erb` | `context`, `resource`, `failure_code`, `uncertain_job_ref` | None |
+| `operation_form` | 2 | `rails_ai_admin/operations/form.html.erb` | `context`, `resource`, `record`, `definition`, `flow_id`, `form_fields`, `form_values`, `errors`, `failure_code`, `needs_reload`, `list_navigation` | None |
+| `operation_confirmation` | 2 | `rails_ai_admin/operations/confirmation.html.erb` | `context`, `resource`, `record`, `definition`, `flow_id`, `proposal`, `form_fields`, `form_values`, `wire_input`, `list_navigation` | None |
+| `operation_failure` | 2 | `rails_ai_admin/operations/failure.html.erb` | `context`, `resource`, `failure_code`, `list_navigation` | None |
+| `collection_form` | 2 | `rails_ai_admin/collection_operations/new.html.erb` | `context`, `resource`, `definition`, `selection`, `form_fields`, `form_values`, `errors`, `failure_code`, `list_navigation` | None |
+| `collection_confirmation` | 2 | `rails_ai_admin/collection_operations/confirmation.html.erb` | `context`, `resource`, `definition`, `proposal`, `wire_input`, `list_navigation` | None |
+| `collection_failure` | 2 | `rails_ai_admin/collection_operations/failure.html.erb` | `context`, `resource`, `failure_code`, `uncertain_job_ref`, `list_navigation` | None |
 | `job_index` | 1 | `rails_ai_admin/collection_jobs/index.html.erb` | `context`, `jobs` | None |
-| `job_show` | 1 | `rails_ai_admin/collection_jobs/show.html.erb` | `context`, `resource`, `job` | None |
-| `selection` | 1 | `rails_ai_admin/selections/show.html.erb` | `context`, `resource`, `selection`, `operations` | None |
+| `job_show` | 2 | `rails_ai_admin/collection_jobs/show.html.erb` | `context`, `resource`, `job`, `list_navigation` | None |
+| `selection` | 2 | `rails_ai_admin/selections/show.html.erb` | `context`, `resource`, `selection`, `operations`, `list_navigation` | None |

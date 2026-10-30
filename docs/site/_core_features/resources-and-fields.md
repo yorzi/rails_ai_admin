@@ -219,12 +219,19 @@ Literal `%`, `_` and backslash are escaped rather than treated as user-supplied
 SQL patterns. Sort accepts an explicitly granted field and `asc` or `desc`.
 
 The initial index uses pages of 25 records, a stable primary-key tie-breaker and
-one extra row to determine whether a next page exists. It does not run a total
-count. Page numbers stop at 1000 and search strings at 200 characters. Filter AST,
+one extra row to determine whether a next page exists. It normally runs no total
+count. Native HTML lists can recover an empty later page with one bounded count/
+requery of the same authorized filtered relation and a canonical redirect. The
+Ruby query keeps `recover_empty_page: false` by default. Page numbers stop at
+1000 and search strings at 200 characters; invalid encoding and C0/DEL control
+characters are rejected before database use.
+[List Navigation]({% link _core_features/list-navigation.md %}) explains retained
+state, current-grant revalidation and the 25,000-row maximum recovery count. Filter AST,
 keyset pagination, saved views and association sorting are future work.
 
 ## Next Steps
 
+* [List Navigation]({% link _core_features/list-navigation.md %}) retains bounded list context through record flows.
 * [Computed Fields]({% link _core_features/computed-fields.md %}) derives readonly values from granted scalar dependencies.
 * [Field Types]({% link _core_features/field-types.md %}) adds pure scalar refinements and field partials.
 * [Configuration]({% link _getting_started/configuration.md %}) separates field grants from declarations.
