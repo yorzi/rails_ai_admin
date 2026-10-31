@@ -34,7 +34,7 @@ host's bundle. During source development, a sibling checkout is also usable:
 gem "rails_ai_admin", path: "../rails_ai_admin"
 ```
 
-The runtime requires Ruby 3.4 or newer and Rails 8.1.4 to below 8.2. The dependency
+The runtime requires Ruby 4.0.9 or newer and Rails 8.1.4 to below 8.2. The dependency
 range does not prove every combination has passed; consult `COMPATIBILITY.md` in
 the checkout for executed evidence. Generic writes target SQLite and PostgreSQL.
 

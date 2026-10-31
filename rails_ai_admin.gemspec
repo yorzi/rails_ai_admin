@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
   spec.summary = "An explicit, authorized Rails admin engine"
   spec.description = "A self-hosted Rails admin with typed resources and a shared, audited operation boundary. Unreleased development."
   spec.license = "MIT"
-  spec.required_ruby_version = ">= 3.4"
+  spec.required_ruby_version = ">= 4.0.9"
   spec.files = Dir["{app,config,db,lib}/**/*", "README.md", "LICENSE", "SECURITY.md", "CHANGELOG.md", "THIRD_PARTY_NOTICES.md"].select { |path| File.file?(path) }
   spec.require_paths = [ "lib" ]
   spec.metadata["rubygems_mfa_required"] = "true"

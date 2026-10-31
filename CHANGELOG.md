@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Require Ruby 4.0.9 or newer; development, RuboCop and every CI job use the
+  `.ruby-version` pin (4.0.9) instead of a Ruby 3.4/4.0 matrix.
 - Establish the implementation baseline from the reviewed v0.3 development plan.
 - Add an isolated, default-deny Engine with explicit resources and scalar fields.
 - Add synchronous CRUD intents with identity/input/version/expiry binding, current
