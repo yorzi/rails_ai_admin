@@ -199,7 +199,8 @@ preservation is supplied. See
 ## List Navigation Hints
 
 `Navigation::ListState.new(access, raw, strict: false)` normalizes only q/sort/
-direction/page String scalar settings; search rejects invalid encoding and C0/DEL
+direction/page/scope String scalar settings (scope follows the current named-scope
+grant and omits the granted default); search rejects invalid encoding and C0/DEL
 control characters before database use. Its immutable state is not a URL, saved
 query or authority. Native return_to accepts a Hash only and builds a current
 resource index path, or dashboard if index is denied. Current search/sort grants

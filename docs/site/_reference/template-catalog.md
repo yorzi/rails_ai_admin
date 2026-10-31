@@ -28,7 +28,7 @@ precedence over global field defaults. No Surface wrapper is cataloged. Non-HTML
 outside this ERB template catalog.
 
 The current catalog contains 27 entries. resource_new/resource_edit/resource_form
-use contract revision 4; layout uses revision 3; dashboard, other navigation-aware
+use contract revision 4; layout and resource_index use revision 3; dashboard, other navigation-aware
 templates and resource_errors/input_fields use revision 2; remaining entries
 use revision 1. Source bytes and context revision
 can change independently; always inspect the installed version when upgrading.
@@ -45,7 +45,9 @@ its link uses the fixed configured host authentication_path. See
 [Form Session Recovery]({% link _advanced/form-recovery.md %}).
 
 Navigation-aware entries receive list_navigation as an immutable plain list
-hint, never route/record authority. resource_index also receives sortable_fields.
+hint, never route/record authority. resource_index also receives sortable_fields,
+the currently granted list_scopes and the applied current_scope name (or nil); see
+[Named Scopes]({% link _core_features/named-scopes.md %}).
 Use registered helpers from [List Navigation]({% link _core_features/list-navigation.md %})
 and preserve hidden return fields, recovery-header data and discard notices.
 
@@ -67,7 +69,7 @@ legacy visible_resources still includes hidden-menu resources. See
 | `status_page` | 1 | `rails_ai_admin/statuses/show.html.erb` | `admin_status`, `status_sign_in_path` | None |
 | `resource_navigation` | 1 | `rails_ai_admin/shared/_navigation.html.erb` | None | `groups` |
 | `dashboard` | 2 | `rails_ai_admin/dashboard/index.html.erb` | `context` | None |
-| `resource_index` | 2 | `rails_ai_admin/resources/index.html.erb` | `context`, `resource`, `page`, `columns`, `rows`, `searchable`, `selectable`, `sortable_fields`, `list_navigation` | None |
+| `resource_index` | 3 | `rails_ai_admin/resources/index.html.erb` | `context`, `resource`, `page`, `columns`, `rows`, `searchable`, `selectable`, `sortable_fields`, `list_scopes`, `current_scope`, `list_navigation` | None |
 | `resource_show` | 2 | `rails_ai_admin/resources/show.html.erb` | `context`, `resource`, `record`, `values`, `fields`, `operations`, `list_navigation` | None |
 | `resource_new` | 4 | `rails_ai_admin/resources/new.html.erb` | `context`, `resource`, `record`, `operation`, `intent`, `form_fields`, `form_values`, `form_plan`, `errors`, `failure_code`, `needs_reload`, `list_navigation` | None |
 | `resource_edit` | 4 | `rails_ai_admin/resources/edit.html.erb` | `context`, `resource`, `record`, `operation`, `intent`, `form_fields`, `form_values`, `form_plan`, `errors`, `failure_code`, `needs_reload`, `list_navigation` | None |

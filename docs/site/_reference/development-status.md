@@ -71,8 +71,16 @@ menu never changes direct authorization or operation/Selection fingerprints.
 Registration rejects an unusable fallback label. Both packaged hosts render the
 grouped menu from current grants; Host A's real reload observed a renamed menu
 and Host B rendered a host resource_navigation override on both asset pipelines.
-No browser/accessibility check was made for the menu. Filter/scopes DSL, broader
-navigation work and full Phase 2/release Gates remain open.
+No browser/accessibility check was made for the menu.
+
+[Named Scopes]({% link _core_features/named-scopes.md %}) now adds declared index
+tabs with an optional default. Each scope needs an independent default-deny grant
+and is intersected with the policy relation by primary key, so a body cannot
+widen it. List hints carry the scope and drop revoked grants. Both packaged hosts
+verify role/Pundit grants; Host A observed a renamed label after real reload, and
+a Chromium check covered keyboard switching at desktop and 320px widths. Typed
+filters, the Filter AST, scope counts, broader navigation work and full
+Phase 2/release Gates remain open.
 
 Not implemented in this slice: associations, nested attributes, uploads/private
 attachments, imports/exports, all-filtered or 10,000-target batch manifests,

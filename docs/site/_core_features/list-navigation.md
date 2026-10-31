@@ -19,7 +19,8 @@ After reading this guide, you will know:
 
 ## Carry a List Hint Rather Than a URL
 
-The native index uses `q`, `sort`, `direction` and `page`. Links/forms for a
+The native index uses `q`, `sort`, `direction`, `page` and, for resources with
+[Named Scopes]({% link _core_features/named-scopes.md %}), `scope`. Links/forms for a
 record flow carry those same settings in a nested `return_to` Hash. It never
 accepts a destination URL, host, resource name, controller or arbitrary route.
 Every return link is generated for the **current resource index**, or the admin

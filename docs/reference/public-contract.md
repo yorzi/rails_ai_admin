@@ -34,7 +34,7 @@ tenant_ref:, security_version:)`, which reconstructs current authority rather th
 trusting stored refs/epoch as permission.
 
 Resources declare `model`, `key`, `label`, `title`, optional `policy`, `readonly`, `disable`,
-`fields` and explicit member `operation` handlers. Core scalar types are id/text/textarea/integer/decimal/boolean/date/datetime/enum/select.
+`fields`, named list `scopes` and explicit member `operation` handlers. Core scalar types are id/text/textarea/integer/decimal/boolean/date/datetime/enum/select.
 Registered `Fields::Type` classes refine scalars through `config.field_types`
 class-name strings and optional trusted field partials (ADR 0009).
 Fields use explicit readonly/required/nullable/create/edit/searchable/sortable
@@ -267,6 +267,27 @@ request-memoized `resource_navigation` helper feeds the layout and dashboard;
 settings change no direct authorization and are excluded from operation-intent
 and Selection identity. See ADR 0016 and the Resource Navigation guide.
 
+
+## Named list scopes
+
+`Resource.scopes { scope name, body = nil, label: nil, default: false }` declares
+at most 20 lowercase-named tabs with bounded plain labels, an optional single
+default and zero-argument lambda bodies (nil means the whole authorized relation).
+Bodies are evaluated only when used, under write prevention, and must return the
+resource model's relation without limit/offset/select/group/having/from/eager
+loading. The result is intersected as `policy.where(pk => body.select(pk))`, so it
+can only narrow; composite primary keys are rejected. Failures are generic
+`ConfigurationError`s.
+
+The adapter's `named_scopes(context:, resource:)` grant (Pundit:
+`permitted_named_scopes`) is default-deny and independent of index/read/search/
+sort, because a predicate can reveal unreadable fields. `Access#named_scopes`
+returns declared scopes intersected with it. `Queries::List#call(scope:)` applies
+the granted default for nil and otherwise requires a declared, granted name
+(INVALID_QUERY); `Page#scope` reports the applied name. List hints add a `scope`
+key, drop the granted default and discard revoked scopes; strict index requests
+reject undeclared names with 422. TestKit offers `named_scope_grants` and
+`assert_named_scopes`. See ADR 0017 and the Named Scopes guide.
 
 ## Host controllers and fixed statuses
 

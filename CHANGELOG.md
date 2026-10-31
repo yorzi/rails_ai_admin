@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add named list scopes: bounded index tabs with an optional default that are
+  intersected with the policy relation by primary key, need an independent
+  default-deny `named_scopes` grant (Pundit `permitted_named_scopes`), travel in
+  list hints and render as current-grant tabs (resource_index revision 3).
 - Require Ruby 4.0.9 or newer; development, RuboCop and every CI job use the
   `.ruby-version` pin (4.0.9) instead of a Ruby 3.4/4.0 matrix.
 - Establish the implementation baseline from the reviewed v0.3 development plan.
