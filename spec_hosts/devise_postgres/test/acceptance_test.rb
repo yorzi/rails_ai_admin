@@ -356,6 +356,40 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
     end
   end
 
+  def test_pundit_named_scopes_follow_role_grants_and_tenant_scope
+    @ticket.update!(state: "triaged")
+    SupportTicket.create!(tenant: @tenant, subject: "Support open without note")
+    SupportTicket.create!(tenant: @other_tenant, subject: "Support foreign open")
+    login
+    get "/operations/tickets", params: { q: "Support" }
+    assert_response :success
+    assert_equal [ "Open", "Triaged", "Missing internal note" ], css_select("nav.raa-scopes a").map(&:text)
+    assert_select "nav.raa-scopes a[aria-current]", count: 0
+    assert_includes response.body, "Support task"
+    assert_includes response.body, "Support open without note"
+    get "/operations/tickets", params: { q: "Support", scope: "open" }
+    assert_select "nav.raa-scopes a[aria-current=true]", text: "Open"
+    assert_includes response.body, "Support open without note"
+    refute_includes response.body, "Support task"
+    refute_includes response.body, "Support foreign open"
+    get "/operations/tickets", params: { scope: "missing_note" }
+    assert_includes response.body, "Support open without note"
+    refute_includes response.body, "Support task"
+    @staff.update!(role: "viewer")
+    get "/operations/tickets", params: { scope: "missing_note" }
+    assert_response :see_other
+    follow_redirect!
+    assert_select ".raa-notice", text: /Some list settings/
+    assert_equal [ "Open", "Triaged" ], css_select("nav.raa-scopes a").map(&:text)
+    %w[admin operator viewer].each do |role|
+      @staff.update!(role: role)
+      context = RailsAiAdmin::Context.new(actor: @staff, tenant: @tenant, security_version: @staff.security_version.to_s)
+      expected = %w[open triaged] + (role == "viewer" ? [] : [ "missing_note" ])
+      assert RailsAiAdmin::TestKit.assert_named_scopes(context: context, resource: TicketAdmin, expected: expected)
+      assert RailsAiAdmin::TestKit.assert_named_scopes(context: context, resource: ClosedTicketAdmin, expected: [])
+    end
+  end
+
   def test_host_policy_matrix_and_field_grants
     anonymous = Struct.new(:request, :session).new(Struct.new(:env).new({}), {})
     assert RailsAiAdmin::TestKit.assert_unauthenticated(adapter: AdminContext.new, controller: anonymous)

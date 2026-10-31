@@ -12,6 +12,12 @@ class AdminPolicyAdapter < RailsAiAdmin::Authorization::Adapter
 
   def select_records?(context:, resource:) = context.actor.role == "admin"
 
+  # Expedited handling is an admin-only triage view, independent of field reads.
+  def named_scopes(context:, resource:)
+    return [] unless resource.key == :orders
+    %i[drafts reviewed all] + (context.actor.role == "admin" ? [ :expedited ] : [])
+  end
+
   def fields(context:, resource:, action:, record: nil)
     if resource.key == :orders
       case action

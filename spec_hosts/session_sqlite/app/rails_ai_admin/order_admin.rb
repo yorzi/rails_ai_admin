@@ -15,5 +15,11 @@ class OrderAdmin < RailsAiAdmin::Resource
     text :secret_payment_token, hidden: true
     virtual :review_summary, type: :text, depends_on: %i[number state total], compute: "OrderReviewSummary", edit: true, tab: "Order", panel: "Context"
   end
+  scopes do
+    scope :drafts, -> { where(state: "draft") }, label: "Drafts", default: true
+    scope :reviewed, -> { where(state: %w[approved rejected]) }, label: "Reviewed"
+    scope :expedited, -> { where(expedited: true) }, label: "Expedited"
+    scope :all, label: "All orders"
+  end
   operation :review_order, handler: "ReviewOrderOperation"
 end

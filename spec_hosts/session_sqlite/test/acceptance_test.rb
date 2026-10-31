@@ -374,6 +374,47 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
     assert_select "dd", text: "Inactive · 8 points"
   end
 
+  def test_order_named_scopes_follow_role_grants_and_tenant_scope
+    login
+    foreign = Account.where.not(id: @account.id).first
+    Order.create!(account: @account, number: "SCOPE-DRAFT", total: "1.00")
+    Order.create!(account: @account, number: "SCOPE-APPROVED", total: "2.00", state: "approved")
+    Order.create!(account: @account, number: "SCOPE-RUSH", total: "3.00", state: "rejected", expedited: true)
+    Order.create!(account: foreign, number: "SCOPE-FOREIGN", total: "4.00", state: "approved", expedited: true)
+    get "/staff/orders", params: { q: "SCOPE" }
+    assert_response :success
+    assert_equal [ "Drafts", "Reviewed", "Expedited", "All orders" ], css_select("nav.raa-scopes a").map(&:text)
+    assert_select "nav.raa-scopes a[aria-current=true]", text: "Drafts"
+    assert_includes response.body, "SCOPE-DRAFT"
+    refute_includes response.body, "SCOPE-APPROVED"
+    reviewed = css_select("nav.raa-scopes a").find { |node| node.text == "Reviewed" }["href"]
+    assert_equal({ "q" => "SCOPE", "scope" => "reviewed" }, Rack::Utils.parse_nested_query(URI(reviewed).query))
+    get reviewed
+    assert_includes response.body, "SCOPE-APPROVED"
+    assert_includes response.body, "SCOPE-RUSH"
+    refute_includes response.body, "SCOPE-DRAFT"
+    refute_includes response.body, "SCOPE-FOREIGN"
+    get "/staff/orders", params: { scope: "expedited" }
+    assert_includes response.body, "SCOPE-RUSH"
+    refute_includes response.body, "SCOPE-FOREIGN"
+    get "/staff/orders", params: { scope: "unknown" }
+    assert_response :unprocessable_content
+    @user.update!(role: "viewer")
+    get "/staff/orders", params: { q: "SCOPE", scope: "expedited", page: "2" }
+    assert_response :see_other
+    assert_equal({ "q" => "SCOPE" }, Rack::Utils.parse_nested_query(URI(response.location).query))
+    follow_redirect!
+    assert_select ".raa-notice", text: /Some list settings/
+    assert_equal [ "Drafts", "Reviewed", "All orders" ], css_select("nav.raa-scopes a").map(&:text)
+    %w[admin viewer].each do |role|
+      @user.update!(role: role)
+      context = RailsAiAdmin::Context.new(actor: @user, tenant: @account, security_version: @user.security_version.to_s)
+      expected = %w[drafts reviewed all] + (role == "admin" ? [ "expedited" ] : [])
+      assert RailsAiAdmin::TestKit.assert_named_scopes(context: context, resource: OrderAdmin, expected: expected)
+      assert RailsAiAdmin::TestKit.assert_named_scopes(context: context, resource: CustomerAdmin, expected: [])
+    end
+  end
+
   def test_host_policy_matrix_and_field_grants
     anonymous = Struct.new(:session).new({})
     assert RailsAiAdmin::TestKit.assert_unauthenticated(adapter: AdminContext.new, controller: anonymous)

@@ -26,6 +26,8 @@ class TicketPolicy
     view == :index ? (readable_fields + writable_fields).uniq - [ :internal_note ] : nil
   end
   def writable_fields = %w[operator admin].include?(context.actor.role) ? %i[subject state priority internal_note] : []
+  # missing_note reveals internal_note presence, so it follows that read grant.
+  def permitted_named_scopes = context.actor.role == "viewer" ? %i[open triaged] : %i[open triaged missing_note]
   def searchable_fields = [ :subject ]
   def sortable_fields = [ :priority ]
 
