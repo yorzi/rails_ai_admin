@@ -15,11 +15,14 @@ class TestPolicy < RailsAiAdmin::Authorization::Adapter
   class_attribute :limit_create, default: false
   class_attribute :limited_scope, default: false
   class_attribute :new_only_create, default: false
+  class_attribute :granted_scopes, default: []
 
   def scope(context:, resource:, relation:)
     scoped = denied ? relation.none : relation.where(account_id: context.tenant.id)
     limited_scope ? scoped.limit(1) : scoped
   end
+
+  def named_scopes(context:, resource:) = denied ? [] : granted_scopes
 
   def allowed?(context:, action:, resource:, record: nil)
     return false if action.to_sym == :create && new_only_create && record && !record.new_record?
@@ -108,6 +111,7 @@ module DatabaseHelpers
     TestPolicy.limit_create = false
     TestPolicy.limited_scope = false
     TestPolicy.new_only_create = false
+    TestPolicy.granted_scopes = []
     @customer = Customer.create!(account_id: 1, name: "Alice", secret: "never show")
     @other = Customer.create!(account_id: 2, name: "Other tenant")
   end

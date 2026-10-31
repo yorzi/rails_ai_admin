@@ -36,6 +36,20 @@ module RailsAiAdmin
       true
     end
 
+    # Declared named scopes currently granted to this context, sorted by name.
+    def self.named_scope_grants(context:, resource:)
+      Authorization::Access.new(context, resource).named_scopes.map { |definition| definition.name.to_s }.sort
+    end
+
+    def self.assert_named_scopes(context:, resource:, expected:)
+      raise ArgumentError, "Expected an array of scope names" unless expected.is_a?(Array)
+      actual = named_scope_grants(context: context, resource: resource)
+      unless actual == expected.map(&:to_s).sort
+        raise AssertionError, "Named scope grants differ for #{resource.key}: expected #{expected.map(&:to_s).sort.inspect}, got #{actual.inspect}"
+      end
+      true
+    end
+
     def self.assert_access(context:, resource:, action:, allowed:, record: nil)
       access = Authorization::Access.new(context, resource)
       actual = begin

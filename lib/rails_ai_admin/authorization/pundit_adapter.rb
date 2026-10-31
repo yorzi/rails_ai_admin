@@ -108,6 +108,15 @@ module RailsAiAdmin
         policy_error!(resource, error)
       end
 
+      def named_scopes(context:, resource:)
+        klass = policy_class(resource)
+        return [] unless klass
+        policy = klass.new(context, resource.model_class)
+        policy.respond_to?(:permitted_named_scopes) ? policy.permitted_named_scopes : []
+      rescue StandardError => error
+        policy_error!(resource, error)
+      end
+
       def select_records?(context:, resource:)
         klass = policy_class(resource)
         return false unless klass

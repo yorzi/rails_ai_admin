@@ -61,6 +61,29 @@ class ListStateTest < Minitest::Test
     end
   end
 
+  def test_named_scope_hints_follow_current_grants_and_omit_the_granted_default
+    assert_raises(RailsAiAdmin::AccessDenied) { state({ scope: "missing" }, strict: true) }
+    assert_raises(RailsAiAdmin::AccessDenied) { state({ scope: "Bad scope" }, strict: true) }
+    revoked = state({ q: "Alice", scope: "rewarded", page: "3" }, strict: true)
+    assert_equal({ "q" => "Alice" }, revoked.state)
+    assert revoked.discarded?
+    TestPolicy.granted_scopes = %i[active rewarded all]
+    kept = state({ q: "Alice", scope: "rewarded", page: "3" }, strict: true)
+    assert_equal({ "q" => "Alice", "scope" => "rewarded", "page" => "3" }, kept.state)
+    refute kept.discarded?
+    default = state({ scope: "active", page: "2" }, strict: true)
+    assert_equal({ "page" => "2" }, default.state)
+    refute default.discarded?
+    assert_equal kept.state, RailsAiAdmin::Navigation::ListState.from_header(@access, kept.encoded).state
+    TestPolicy.granted_scopes = %i[rewarded all]
+    ungranted_default = state({ scope: "active" })
+    assert_empty ungranted_default.state
+    assert ungranted_default.discarded?
+    malformed = state({ scope: "rewarded; DROP TABLE customers" })
+    assert_empty malformed.state
+    assert malformed.discarded?
+  end
+
   def test_unicode_survives_an_ascii_only_bounded_recovery_header
     hint = state({ q: "客户 🚀", sort: "name", direction: "desc", page: "2" })
     assert hint.encoded.ascii_only?

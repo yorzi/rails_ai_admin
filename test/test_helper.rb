@@ -28,6 +28,11 @@ class TestResource < RailsAiAdmin::Resource
     integer :points
     boolean :active
   end
+  scopes do
+    scope :active, -> { where(active: true) }, label: "Active", default: true
+    scope :rewarded, -> { where(points: 1..) }
+    scope :all, label: "All customers"
+  end
 end
 
 module ContextHelpers

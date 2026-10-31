@@ -1,9 +1,18 @@
 <div class="raa-heading"><h1><%= @resource.label %></h1>
 <% if allowed_action?(@resource, :create) %><%= link_to "New record", new_resource_path(resource: @resource.key, **navigation_params), class: "raa-button" %><% end %></div>
+<% if @list_scopes.any? %>
+  <nav class="raa-scopes" aria-label="<%= @resource.label %> scopes"><ul>
+    <% @list_scopes.each do |definition| %>
+      <% state = navigation_state.except("page", "scope") %>
+      <% state = state.merge("scope" => definition.name.to_s) unless definition.default? %>
+      <li><%= link_to definition.label, resources_path(resource: @resource.key, **state.symbolize_keys), aria: { current: @current_scope == definition.name.to_s ? "true" : nil } %></li>
+    <% end %>
+  </ul></nav>
+<% end %>
 <% if @searchable %>
   <%= form_with url: resources_path(resource: @resource.key), method: :get, local: true, class: "raa-search" do |form| %>
     <%= form.label :q, "Search" %><%= form.search_field :q, value: navigation_state["q"], maxlength: 200 %>
-    <% navigation_state.slice("sort", "direction").each do |key, value| %><%= hidden_field_tag key, value %><% end %>
+    <% navigation_state.slice("sort", "direction", "scope").each do |key, value| %><%= hidden_field_tag key, value %><% end %>
     <%= form.submit "Search" %>
   <% end %>
 <% end %>

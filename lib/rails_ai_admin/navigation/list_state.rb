@@ -6,7 +6,7 @@ module RailsAiAdmin
   module Navigation
     # A non-authoritative list hint, never a route/host/record capability.
     class ListState
-      KEYS = %w[q sort direction page].freeze
+      KEYS = %w[q sort direction page scope].freeze
       MAX_HEADER_BYTES = 2048
       MAX_JSON_BYTES = 1024
       INVALID = Object.new.freeze
@@ -56,6 +56,7 @@ module RailsAiAdmin
           values.delete("direction")
           @discarded = true
         end
+        normalize_scope!(access, values, strict)
         values.delete("page") if @discarded
         values.delete("direction") unless values["sort"]
         @state = values.transform_values { |value| String.new(value).freeze }.freeze
@@ -67,6 +68,23 @@ module RailsAiAdmin
       def encoded = state.empty? ? "" : Base64.urlsafe_encode64(JSON.generate(state), padding: false)
 
       private
+
+      # Undeclared scopes are invalid only for strict index requests. A revoked
+      # grant is discarded; the currently granted default is implicit.
+      def normalize_scope!(access, values, strict)
+        name = values["scope"]
+        return unless name
+        if strict && access.resource.scopes.none? { |definition| definition.name.to_s == name }
+          raise AccessDenied, "INVALID_QUERY"
+        end
+        granted = access.named_scopes
+        if granted.none? { |definition| definition.name.to_s == name }
+          values.delete("scope")
+          @discarded = true
+        elsif granted.find(&:default?)&.name&.to_s == name
+          values.delete("scope")
+        end
+      end
 
       def parse(raw)
         return {} if raw.nil?
@@ -80,6 +98,7 @@ module RailsAiAdmin
         valid &&= !values["sort"] || values["sort"] == "" || values["sort"].match?(/\A[a-z][a-z0-9_]{0,79}\z/)
         valid &&= !values["direction"] || %w[asc desc].include?(values["direction"])
         valid &&= !values["page"] || values["page"].match?(/\A[1-9]\d{0,3}\z/) && values["page"].to_i <= 1000
+        valid &&= !values["scope"] || values["scope"] == "" || values["scope"].match?(Queries::NamedScope::NAME)
         unless valid
           @discarded = true
           return {}
