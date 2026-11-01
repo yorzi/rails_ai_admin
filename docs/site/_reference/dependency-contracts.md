@@ -107,6 +107,10 @@ gaps, all worked around through public APIs and covered by tests:
   proposals derive one deterministic intent per tool call.
 * DEP-012: `RailsToolViews.render` needs `SurfacesHelper` in the calling view;
   the admin extends only the rendering view.
+* DEP-013 (blocking, open): a follow-up is created `pending` only when the host's
+  global `agent_adapter` is set, and `deliver` treats `skipped` as terminal, so an
+  explicit admin adapter can never deliver in hosts without one. Continuation
+  is not implemented; ADR 0022 lists the options.
 
 The checkout's `docs/reference/dependency-contracts.md` lists each workaround and
 the suggested backward-compatible upstream change. None has been filed upstream.
