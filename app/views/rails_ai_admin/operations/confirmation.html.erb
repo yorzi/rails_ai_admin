@@ -14,6 +14,9 @@
   <%= hidden_field_tag :intent_ref, @proposal.intent.id %>
   <%= hidden_field_tag :confirmed_input, @wire_input %>
   <div class="raa-actions"><%= form.submit "Confirm and execute", data: { turbo_submits_with: "Executing…" } %>
+  <% if admin_surface_review_available?(@resource, @definition) %>
+    <%= button_tag "Continue in an interactive review", type: "submit", formaction: operation_surface_path(resource: @resource.key, id: @record.id, operation: @definition.key), name: nil %>
+  <% end %>
   <%= link_to "Edit input", operation_form_path(resource: @resource.key, id: @record.id, operation: @definition.key, **navigation_params) %>
   <%= link_to "Cancel", resource_path(resource: @resource.key, id: @record.id, **navigation_params) %></div>
 <% end %>

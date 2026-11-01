@@ -12,9 +12,11 @@ class TestContext
   end
 end
 RailsAiAdmin.configuration.context_adapter = "TestContext"
+RailsAiAdmin.configuration.surfaces = true
 require_relative "../dummy/config/application"
 Rails.application.initialize!
 ActiveRecord::Migration.verbose = false
 ActiveRecord::MigrationContext.new(File.expand_path("../../db/migrate", __dir__)).migrate
+ActiveRecord::MigrationContext.new(RailsToolViews::Engine.root.join("db/migrate").to_s).migrate
 # The application does not have a database.yml; preserve the explicit test DB.
 require "rails/test_help"
