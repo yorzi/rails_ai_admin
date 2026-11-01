@@ -3,6 +3,8 @@ gemspec
 
 gem "rake", "~> 13.0"
 gem "minitest", "~> 6.0"
+# Minitest 6 extracted minitest/mock (stub/Mock) into its own gem.
+gem "minitest-mock", "~> 5.27"
 gem "sqlite3", "~> 2.0"
 gem "pg", "~> 1.6"
 gem "propshaft", "~> 1.3"
