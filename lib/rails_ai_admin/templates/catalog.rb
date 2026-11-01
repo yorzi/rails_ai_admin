@@ -45,7 +45,7 @@ module RailsAiAdmin
         elsif key == "dashboard"
           2
         elsif key == "resource_index"
-          4
+          5
         elsif %w[resource_new resource_edit resource_form].include?(key)
           4
         elsif navigation || %w[resource_errors input_fields].include?(key)

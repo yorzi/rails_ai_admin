@@ -23,9 +23,10 @@
 .raa .raa-table-scroll { overflow-x:auto; border:1px solid var(--raa-line); border-radius:.6rem; background:var(--raa-panel); margin:1.5rem 0; }
 .raa table { border-collapse:collapse; width:100%; min-width:48rem; text-align:left; }
 .raa caption { text-align:left; padding:.8rem 1rem; color:var(--raa-muted); }
-.raa th,.raa td { padding:.8rem 1rem; border-top:1px solid var(--raa-line); overflow-wrap:anywhere; vertical-align:top; max-width:32rem; }
+.raa th,.raa td { padding:.8rem 1rem; border-top:1px solid var(--raa-line); overflow-wrap:break-word; vertical-align:top; max-width:32rem; }
 .raa th { font-size:.85rem; }
 .raa .raa-pagination { display:flex; gap:1rem; }
+.raa .raa-count { margin:1rem 0 0; color:var(--raa-muted); }
 .raa .raa-search { display:flex; flex-wrap:wrap; align-items:center; gap:.75rem; }
 .raa input:not([type="submit"]),.raa textarea,.raa select { font:inherit; color:var(--raa-text); background:var(--raa-panel); border:1px solid var(--raa-line); border-radius:.35rem; padding:.6rem; min-height:44px; max-width:100%; }
 .raa .raa-field { margin:1.25rem 0; max-width:40rem; }

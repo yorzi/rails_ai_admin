@@ -8,6 +8,7 @@ module RailsAiAdmin
         super
         child.instance_variable_set(:@fields, {})
         child.instance_variable_set(:@scopes, {})
+        child.instance_variable_set(:@index, Presentation::IndexSettings.new)
         child.instance_variable_set(:@disabled_actions, [])
         child.instance_variable_set(:@operations, {})
         child.instance_variable_set(:@operation_scopes, {})
@@ -87,6 +88,22 @@ module RailsAiAdmin
         @fields.values
       end
 
+      # Static index table presentation: column order, default sort, page size
+      # and count strategy. It is not part of operation or Selection identity.
+      def index(&block)
+        return @index unless block
+        raise ConfigurationError, "Index settings are declared twice" if @index_declared
+        builder = Presentation::IndexBuilder.new
+        begin
+          builder.instance_eval(&block)
+        rescue NoMethodError => error
+          raise ConfigurationError, "Unknown index option #{error.name}", cause: nil
+        end
+        @index = Presentation::IndexSettings.new(**builder.options)
+        @index_declared = true
+        @index
+      end
+
       # Named list tabs narrow the policy relation; they never grant or widen it.
       def scopes(&block)
         ScopeBuilder.new(@scopes).instance_eval(&block) if block
@@ -108,6 +125,7 @@ module RailsAiAdmin
         raise ConfigurationError, "A resource must declare fields and a title" if fields.empty? || !title || !@fields.key?(title)
         raise ConfigurationError, "A resource cannot declare lock_version as a field" if @fields.key?(:lock_version)
         Fields::DependencyGraph.validate!(fields)
+        index.validate!(fields)
         # Fail at registration rather than on every menu render; explicit labels
         # were already bounded when declared.
         Navigation::Settings.caption(label) unless navigation.hidden || navigation.label

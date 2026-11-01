@@ -28,10 +28,11 @@ module RailsAiAdmin
       @list_scopes = @access.named_scopes
       @filter_fields = @access.fields(:filter)
       @current_scope = @page.scope
-      @columns = @access.fields(:read, view: :index)
+      @columns = @resource.index.order(@access.fields(:read, view: :index))
+      computed = @columns.map(&:name) | [ @resource.title ]
       @rows = @page.records.map do |record|
         @access.authorize!(:show, record)
-        values = @access.project(record, view: :index)
+        values = @access.project(record, view: :index, only: computed)
         { id: record.id, label: record_label(@resource, record, values: values, view: :index), values: values }
       end
       @searchable = @access.fields(:search).any?

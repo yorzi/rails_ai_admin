@@ -38,11 +38,12 @@
     <%= form.submit "Capture selection" %>
   <% end %>
 <% end %>
+<% if @page.count %><p class="raa-count"><%= @page.count_capped ? "More than #{number_with_delimiter(@page.count)} matching records" : "#{number_with_delimiter(@page.count)} matching #{@page.count == 1 ? 'record' : 'records'}" %></p><% end %>
 <div class="raa-table-scroll" role="region" aria-label="Resource records" tabindex="0">
 <table><caption><%= @resource.label %>, page <%= @page.number %></caption>
 <thead><tr><% if @selectable %><th scope="col">Select</th><% end %><% @columns.each do |field| %>
-  <% sorted = navigation_state["sort"] == field.name.to_s %>
-  <% direction = navigation_state.fetch("direction", "asc") %>
+  <% sorted = @page.sort == field.name.to_s %>
+  <% direction = @page.direction %>
   <th scope="col"<% if @sortable_fields.include?(field) %> aria-sort="<%= sorted ? (direction == "asc" ? "ascending" : "descending") : "none" %>"<% end %>>
     <% if @sortable_fields.include?(field) %>
       <% state = navigation_state.except("page").merge("sort" => field.name.to_s, "direction" => sorted && direction == "asc" ? "desc" : "asc") %>

@@ -46,10 +46,13 @@ module RailsAiAdmin
         action == :read && view ? granted.select { |field| field.visible_on?(view) } : granted
       end
 
-      def project(record, view: nil)
+      # only: optional field names to compute (for example index columns plus the
+      # title); it can narrow but never add to the granted, visible fields.
+      def project(record, view: nil, only: nil)
         authorize!(:show, record)
         granted = permission_fields(:read, record, view: view)
         visible = view ? granted.select { |field| field.visible_on?(view) } : granted
+        visible = visible.select { |field| only.include?(field.name) } if only
         Fields::Projection.new(self, record, granted).values(fields: visible)
       end
 

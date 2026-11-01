@@ -5,8 +5,12 @@ module RailsAiAdmin
     # Bounded, permission-aware scalar index query. No SQL expressions enter it.
     class List
       # scope is the applied named scope's name, or nil for the policy relation.
-      Page = Data.define(:records, :number, :has_next, :scope)
+      # sort/direction describe the applied order (nil sort: primary key only).
+      # count is nil unless the resource opts in; count_capped marks COUNT_LIMIT.
+      Page = Data.define(:records, :number, :has_next, :scope, :sort, :direction, :page_size, :count, :count_capped)
+      # Default page size; resources may choose 1..100 through `index`.
       PAGE_SIZE = 25
+      COUNT_LIMIT = Presentation::IndexSettings::COUNT_LIMIT
       MAX_FILTER_CONDITIONS = 20
       FILTER_VALUE = ->(value) { value.is_a?(String) && value.valid_encoding? && (value.encoding == Encoding::UTF_8 || value.ascii_only?) && value.length.between?(1, 200) && !value.match?(/[\x00-\x1f\x7f]/) }
       AREL_PREDICATES = { "eq" => :eq, "gte" => :gteq, "lte" => :lteq }.freeze
@@ -52,24 +56,35 @@ module RailsAiAdmin
           end
           relation = relation.where(predicates.reduce(&:or))
         end
+        settings = @resource.index
+        size = settings.page_size
         table = @resource.model_class.arel_table
         primary = @resource.model_class.primary_key
-        if sort.present?
-          field = @access.fields(:sort).find { |entry| entry.name.to_s == sort }
-          raise AccessDenied, "INVALID_QUERY" unless field
+        sortable = @access.fields(:sort)
+        field = if sort.present?
+          sortable.find { |entry| entry.name.to_s == sort } || raise(AccessDenied, "INVALID_QUERY")
+        elsif settings.default_sort
+          # An ungranted default would reveal order on a hidden basis; skip it.
+          direction = settings.default_direction
+          sortable.find { |entry| entry.name == settings.default_sort }
+        end
+        if field
           relation = relation.reorder(table[field.name].public_send(direction))
           relation = relation.order(table[primary].asc) unless field.name.to_s == primary
         else
           relation = relation.reorder(table[primary].asc)
         end
-        records = relation.offset((page.to_i - 1) * PAGE_SIZE).limit(PAGE_SIZE + 1).to_a
+        records = relation.offset((page.to_i - 1) * size).limit(size + 1).to_a
         number = page.to_i
         if recover_empty_page && records.empty? && number > 1
-          count = relation.except(:order).limit(number * PAGE_SIZE).count
-          number = [ 1, (count - 1).div(PAGE_SIZE) + 1 ].max
-          records = relation.offset((number - 1) * PAGE_SIZE).limit(PAGE_SIZE + 1).to_a
+          count = relation.except(:order).limit(number * size).count
+          number = [ 1, (count - 1).div(size) + 1 ].max
+          records = relation.offset((number - 1) * size).limit(size + 1).to_a
         end
-        Page.new(records: records.first(PAGE_SIZE), number: number, has_next: records.size > PAGE_SIZE, scope: named&.name&.to_s)
+        total = relation.except(:order).limit(COUNT_LIMIT + 1).count if settings.count == :exact
+        Page.new(records: records.first(size), number: number, has_next: records.size > size, scope: named&.name&.to_s,
+          sort: field&.name&.to_s, direction: field ? direction : "asc", page_size: size,
+          count: total && [ total, COUNT_LIMIT ].min, count_capped: !!total && total > COUNT_LIMIT)
       end
 
       # Coerces each wire value through the field's scalar contract. Values are

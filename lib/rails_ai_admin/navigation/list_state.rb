@@ -58,6 +58,12 @@ module RailsAiAdmin
           values.delete("direction")
           @discarded = true
         end
+        settings = access.resource.index
+        if values["sort"] && values["sort"] == settings.default_sort&.to_s && values.fetch("direction", "asc") == settings.default_direction
+          # The granted default order is implicit, like the default scope.
+          values.delete("sort")
+          values.delete("direction")
+        end
         normalize_scope!(access, values, strict)
         normalize_filter!(access, values, strict)
         values.delete("page") if @discarded
