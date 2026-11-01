@@ -1,7 +1,7 @@
 source 'https://rubygems.org'
 
 gem 'jekyll', '~> 4.4'
-gem 'jekyll-vitepress-theme', '~> 1.10'
+gem 'jekyll-vitepress-theme', '~> 1.11'
 gem 'webrick'
 
 group :jekyll_plugins do

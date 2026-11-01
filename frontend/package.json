@@ -4,5 +4,5 @@
   "type": "module",
   "scripts": {"build": "node build.mjs", "check": "node build.mjs --check"},
   "dependencies": {"@hotwired/stimulus": "3.2.2", "@hotwired/turbo": "8.0.23"},
-  "devDependencies": {"esbuild": "0.25.12"}
+  "devDependencies": {"esbuild": "0.28.2"}
 }

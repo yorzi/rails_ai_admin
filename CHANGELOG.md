@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Merge Dependabot updates after verification: actions/checkout 7.0.1 and
+  actions/setup-node 7.1.0 (still SHA-pinned), jekyll-vitepress-theme 1.11.0,
+  esbuild 0.28.2 (prebuilt bundle rebuilt) and Minitest 6.0.6. Minitest 6
+  extracted `minitest/mock`, so `minitest-mock` is now a development dependency
+  and the packaged hosts pin Minitest `~> 6.0`.
 - Add assistant operation proposals: `operation ..., assistant: true` and the
   on-demand `Integrations::ProposeOperation` RubyLLM tool, which preflights an
   `assistant`-origin intent and presents the review Surface; only the human's
