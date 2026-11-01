@@ -1291,7 +1291,7 @@ Evaluation 应至少覆盖：
 **不是提前开放通用 AI 写入**。在实施获授权后，用同一 `OrderReview` Form/Operation 做普通页面 → 单个可信 Surface → 人工编辑并明确提交 → 异步续答/刷新恢复。先用 RubyLLM 真实 loop + 离线网络 fixture；Provider 使用仍需单独预算授权。
 
 - [ ] `RAA-0251` 解决 SPIKE-02 的离线契约部分及 SPIKE-03：组件 schema、persisted chat ownership、pending tool 与 continuation admission；不以手写假消息跳过 Runtime。SPIKE-02 的真实 Provider 部分在 Gate C/AI Beta 前关闭，不阻塞常规 Phase 3。
-- [ ] `RAA-0252` SAME intent 传统与 Surface 结果一致；跨 Surface 重试只提交一次；记录版本改变/撤权拒绝。
+- [ ] `RAA-0252` SAME intent 传统与 Surface 结果一致；跨 Surface 重试只提交一次；记录版本改变/撤权拒绝。原生页与 Admin 自有端点上的 `raa_operation_review` Surface 共用同一 intent、先确认者写一次、另一方回放；记录版本变化/撤权/过期均拒绝并记录；Host B 与 Chromium 已验收（ADR 0020）。待 RAA-0251 的 Chat/续答后关闭。
 - [ ] `RAA-0253` 在两种 Host 发现实际安装、资产、Scope 和消息协议缺口，更新 ADR；任何基础 API 阻断先解决，再扩展 Phase 3/5/6。
 
 **Exit Gate**：SAMPLE-02 的最小路径、FAIL-01/03/09 可复现；明确哪些只验证离线、哪些尚待真实 Provider。本 Gate 没有通过前，不投入完整聊天 UI 或几十种 Surface 组件。
@@ -1371,7 +1371,7 @@ Evaluation 应至少覆盖：
 - [ ] `RAA-0607` 比较单 `present_ui` 工具 vs per-component Tool，记录 Provider Schema 配对错误率、成本和延迟；按实测择优。
 - [ ] `RAA-0608` Surface stale revision、component schema 版本不兼容、用户被移租户、跨 Tab 竞争等错误路径。
 - [ ] `RAA-0609` 浏览器 E2E：Chat → Surface 表单 → 用户修改 → 提交 → 继续 Chat → 刷新恢复。
-- [ ] `RAA-0611` 实现 §6.3.1 的身份/key 前缀、独占与共享模式、Admin 自有 Surface 端点与 form helper，并跑通 SPIKE-06 的回归用例。
+- [ ] `RAA-0611` 实现 §6.3.1 的身份/key 前缀、独占与共享模式、Admin 自有 Surface 端点与 form helper，并跑通 SPIKE-06 的回归用例。`raa:` 身份、`raa_` key、Admin 自有端点与 form helper、请求绑定 Context 的 policy、Host reset 后幂等重注册已实现；Host B（自有产品 Surface）共存回归通过。独占模式因不依赖全局配置而不需要；Host A 保持无 AI 基线（ADR 0020）。
 - [ ] `RAA-0610` 发现 `rails_tool_views` Adapter 缺口时先以公开 API 包装；确实需要改底层时开独立 Issue/兼容 PR，禁止静默 Patch 私有类。
 
 **Exit Gate**：完整闭环通过 Chrome E2E、数据库并发和真实 Provider；与传统 Edit/Action 业务结果一致；失败后恢复不重复写入；Scope/Policy 攻击测试全通过。

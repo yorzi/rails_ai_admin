@@ -1,4 +1,5 @@
 require_relative "../config/environment"
+require "rails_ai_admin/integrations/tool_views"
 raise "Run in development mode" unless Rails.application.config.enable_reloading
 
 before_resource = TicketAdmin
@@ -69,6 +70,11 @@ begin
   raise "Host resolver was replaced" unless RailsToolViews.configuration.scope_resolver.equal?(product_resolver)
   raise "Provider config was replaced" unless RubyLLM.config.equal?(product_llm_configuration)
   raise "Product component was lost" unless RailsToolViews.registry.fetch("host_notice")
+  # The host's to_prepare reset_registry! also cleared the admin component; its
+  # constant contract re-registers on next use without touching host settings.
+  admin_component = RailsAiAdmin::Integrations::ToolViews.ensure_registered!
+  raise "Admin Surface contract changed across reload" unless admin_component.policy.equal?(RailsAiAdmin::Integrations::ToolViews::POLICY)
+  raise "Admin re-registration replaced the host resolver" unless RailsToolViews.configuration.scope_resolver.equal?(product_resolver)
   raise "Host inflection changed" unless Ai.name == "Ai"
   actor = StaffUser.order(:id).first!
   tenant = actor.tenants.order(:id).first!

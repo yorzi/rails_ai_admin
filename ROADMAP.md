@@ -90,6 +90,15 @@ this file records current scope without rewriting its historical review claims.
   fixed date wrapping; tables scroll in their focusable region. Both packaged
   hosts and Host A real reload verify it (table part of RAA-0201, LIST-018
   subset; ADR 0019). RAA-0201's DSL items now all have local evidence.
+- Opt-in admin review Surfaces on the host-owned rails_tool_views runtime
+  (narrow early proof for RAA-0252/0611 and SPIKE-06). Admin endpoints pass an
+  explicit `raa:` Scope with a request-bound Context, the constant component
+  re-registers after host resets, and confirmation runs the same native intent
+  through the shared Runner inside the Surface lock: one write across channels,
+  committed together with the Surface revision. Host B proves coexistence with
+  its product Surface and resolver, real per-form CSRF and reload; Host A stays
+  AI-free. Packaged Host B and Chromium found and fixed two defects (CSRF hand-off
+  and lapsed-grant rendering) that engine tests could not see (ADR 0020).
 - Server-owned intents with input/identity/epoch/version/expiry binding, database
   serialization, replay, atomic domain/audit/receipt, callback rollback handling
   and separate post-commit warning (synchronous parts of RAA-0112/0113).
@@ -134,13 +143,15 @@ documentation and advisory scanning. No remote CI run has occurred.
 
 ## Next implementation checkpoint
 
-Close the remaining Phase 2 evidence rather than add DSL: RAA-0210 (model
-validation, CSRF, mass assignment, XSS and N+1 regression tests across the new
-list surfaces), I18n of framework strings, a screen-reader/keyboard pass over the
-menu, tabs, filters and tables, and the RAA-0203/0208 extension compatibility
-matrix. Then prepare the narrow Order Review shared-operation/Surface proof and
-start Phase 3 with associations (RAA-0301), which the Filter AST, association
-columns and CSV depend on. The resource DSL, three-domain CRUD, status/controller
+Continue the AI early proof on the verified Surface boundary: SPIKE-02's offline
+part (an admin-owned PresentUI-style catalog of `raa_` components with
+per-component schema validation) and SPIKE-03 (persisted admin Chat on RubyLLM
+with continuation admission through `deliver(scope:, adapter:)` and an explicit
+admin adapter, never the host's global adapter). Close the remaining Phase 2
+evidence in parallel: RAA-0210 (validation, CSRF, mass assignment, XSS and N+1
+regressions across list and Surface routes), I18n of framework strings, a
+screen-reader pass, and the RAA-0203/0208 extension matrix. Then start Phase 3
+with associations (RAA-0301). The resource DSL, three-domain CRUD, status/controller
 extension, recovery and list navigation now have local evidence; this does not
 close the full Phase 2 or release gates.
 Prepare the narrow Order Review shared-operation/Surface proof after its relevant

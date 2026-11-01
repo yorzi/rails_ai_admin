@@ -14,6 +14,25 @@ module RailsAiAdmin
       @operation_registry, @work_registry = operation_registry, work_registry
     end
 
+    # Admin Surfaces never change the host-owned rails_tool_views runtime; this
+    # reports whether the opt-in can work, not whether it is authorized.
+    def surface_check
+      surfaces = @configuration.respond_to?(:surfaces) && @configuration.surfaces
+      unless surfaces
+        return Check.new("surfaces", :closed, "Admin review Surfaces are off. The host owns any rails_tool_views runtime; the admin does not configure it.")
+      end
+      require "rails_ai_admin/integrations/tool_views"
+      return Check.new("surfaces", :error, "surfaces is enabled but rails_tool_views is not loaded.") unless Integrations::ToolViews.available?
+      unless ::RailsToolViews::Surface.table_exists? && ::RailsToolViews::ActionExecution.table_exists?
+        return Check.new("surfaces", :error, "Run the rails_tool_views installer migrations before enabling admin Surfaces.")
+      end
+      Integrations::ToolViews.ensure_registered!
+      operations = @registry.resources.sum { |resource| resource.operation_declarations.keys.count { |key| resource.surface_operation?(key) } }
+      Check.new("surfaces", :review, "#{Integrations::ToolViews::KEY} is registered for #{operations} member operations through admin-owned endpoints. Continuation and assistant presentation are not enabled.")
+    rescue ConfigurationError => error
+      Check.new("surfaces", :error, error.message)
+    end
+
     def checks
       config = @configuration
       collections = @registry.resources.sum { |resource| @operation_registry.custom(resource).count { |definition| definition.scope == :collection } }
@@ -26,7 +45,7 @@ module RailsAiAdmin
         selection_check,
         Check.new("queue", @work_registry.definitions.empty? && collections.zero? ? :closed : :review,
           "#{@work_registry.definitions.size} outbox handlers; #{collections} collection handlers; auto_dispatch=#{config.outbox_auto_dispatch}/#{config.collection_auto_dispatch}. Schedule both pending scans and verify persistent queues/downstream idempotency."),
-        Check.new("coexistence", :review, "The host owns rails_tool_views shared runtime configuration; admin Surface/continuation acceptance remains open.")
+        surface_check
       ]
       result.concat(override_checks)
       if @work_registry.definitions.any? || collections > 0

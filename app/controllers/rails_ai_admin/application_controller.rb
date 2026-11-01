@@ -11,6 +11,7 @@ module RailsAiAdmin
     helper RailsAiAdmin::FieldsHelper
     helper RailsAiAdmin::NavigationHelper
     helper RailsAiAdmin::FiltersHelper
+    helper RailsAiAdmin::ToolViewsHelper
     prepend_before_action :secure_headers
     before_action :authenticate_admin
     after_action :notice_discarded_list_settings

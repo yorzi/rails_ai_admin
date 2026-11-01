@@ -17,4 +17,14 @@
   <%= link_to "Edit input", operation_form_path(resource: @resource.key, id: @record.id, operation: @definition.key, **navigation_params) %>
   <%= link_to "Cancel", resource_path(resource: @resource.key, id: @record.id, **navigation_params) %></div>
 <% end %>
+<% if admin_surface_review_available?(@resource, @definition) %>
+  <%# A separate form keeps its own action-bound (per-form) CSRF token. %>
+  <%= form_with url: operation_surface_path(resource: @resource.key, id: @record.id, operation: @definition.key), method: :post, local: true, class: "raa-surface-review" do |form| %>
+    <%= return_navigation_fields %>
+    <%= hidden_field_tag :intent_ref, @proposal.intent.id, id: nil %>
+    <%= hidden_field_tag :confirmed_input, @wire_input, id: nil %>
+    <p>Prefer to finish later? Save this exact review as an interactive view you can reload and confirm.</p>
+    <%= form.submit "Continue in an interactive review", name: nil %>
+  <% end %>
+<% end %>
 </div>

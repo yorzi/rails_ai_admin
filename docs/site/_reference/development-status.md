@@ -93,6 +93,13 @@ grant-dependent default sort, page sizes and bounded exact counts, with a narrow
 table layout verified in Chromium. User column choice, keyset pagination and the
 full Phase 2/release Gates remain open.
 
+[Review Surfaces]({% link _advanced/review-surfaces.md %}) are the first AI-facing
+slice: an opt-in persistent rails_tool_views Surface that confirms the same
+native intent once through the shared Runner, via admin-owned endpoints that
+never change the host's rails_tool_views settings. Packaged Host B proves
+coexistence with its product Surface. Assistant chat, tool presentation,
+continuation and paid-provider evidence are not implemented.
+
 Not implemented in this slice: associations, nested attributes, uploads/private
 attachments, imports/exports, all-filtered or 10,000-target batch manifests,
 metrics dashboards, saved views, global custom operations, custom CRUD handler

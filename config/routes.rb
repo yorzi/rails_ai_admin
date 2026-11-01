@@ -2,6 +2,12 @@
 
 RailsAiAdmin::Engine.routes.draw do
   root to: "dashboard#index"
+  # Drawn only for hosts that opt in and load rails_tool_views themselves.
+  if RailsAiAdmin.configuration.surfaces
+    get "assistant/surfaces/:surface_id", to: "surfaces#show", as: :admin_surface
+    post "assistant/surfaces/:surface_id/actions", to: "surfaces#act", as: :admin_surface_actions
+    post ":resource/:id/operations/:operation/surface", to: "surfaces#create", as: :operation_surface
+  end
   get "jobs", to: "collection_jobs#index", as: :collection_jobs
   get "jobs/:job_ref", to: "collection_jobs#show", as: :collection_job
   post "jobs/:job_ref/cancel", to: "collection_jobs#cancel", as: :cancel_collection_job

@@ -5,7 +5,10 @@ module RailsAiAdmin
   class Configuration
     INTERNAL_PATH = /\A\/(?:[a-zA-Z0-9_-]+\/)*[a-zA-Z0-9_-]*\z/.freeze
     attr_accessor :context_adapter, :authorization_adapter, :resources, :title, :intent_ttl,
-      :work_handlers, :outbox_auto_dispatch, :collection_auto_dispatch, :field_types, :authentication_path
+      :work_handlers, :outbox_auto_dispatch, :collection_auto_dispatch, :field_types, :authentication_path,
+      # Opt-in rails_tool_views review Surfaces. The host loads rails_tool_views
+      # and owns its global configuration; the admin never changes it.
+      :surfaces
 
     def initialize
       @authentication_path = nil
@@ -18,6 +21,7 @@ module RailsAiAdmin
       @outbox_auto_dispatch = false
       @collection_auto_dispatch = false
       @field_types = {}
+      @surfaces = false
     end
 
     # Validates and freezes the boot configuration without reading domain tables.
@@ -33,6 +37,10 @@ module RailsAiAdmin
         raise ConfigurationError, "work_handlers needs stable string keys/class names and outbox_auto_dispatch must be boolean"
       end
       raise ConfigurationError, "collection_auto_dispatch must be boolean" unless [ true, false ].include?(collection_auto_dispatch)
+      raise ConfigurationError, "surfaces must be boolean" unless [ true, false ].include?(surfaces)
+      if surfaces && !defined?(::RailsToolViews::Engine)
+        raise ConfigurationError, "surfaces requires the host to load rails_tool_views (add it to the Gemfile and run its installer)"
+      end
       unless authentication_path.nil? || authentication_path.is_a?(String) && authentication_path.valid_encoding? && authentication_path.ascii_only? && authentication_path.match?(INTERNAL_PATH)
         raise ConfigurationError, "authentication_path must be a fixed internal path without query or fragment"
       end

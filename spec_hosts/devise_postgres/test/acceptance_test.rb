@@ -445,6 +445,60 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
     assert RailsAiAdmin::TestKit.assert_isolated(context: context, resource: TicketAdmin, foreign_id: @foreign.id)
   end
 
+  def test_admin_surface_confirms_the_native_triage_intent_and_coexists_with_the_product_surface
+    resolver = RailsToolViews.configuration.scope_resolver
+    login
+    path = "/operations/tickets/#{@ticket.id}/operations/triage"
+    get path
+    post "#{path}/preflight", params: { authenticity_token: csrf, expected_version: @ticket.lock_version, input: { decision: "triage", review_note: "Surface review" } }
+    assert_response :success
+    surface_form = css_select("form.raa-surface-review[action='#{path}/surface']").first
+    assert surface_form, "a separate form carries its own per-form CSRF token"
+    confirmation = { authenticity_token: csrf, intent_ref: css_select("input[name=intent_ref]").first["value"],
+      confirmed_input: css_select("input[name=confirmed_input]").first["value"] }
+    post "#{path}/surface", params: surface_form.css("input[type=hidden]").to_h { |node| [ node["name"], node["value"] ] }
+    assert_response :see_other
+    surface_id = response.location[%r{/operations/assistant/surfaces/([0-9a-f-]{36})\z}, 1]
+    assert surface_id
+    follow_redirect!
+    assert_response :success
+    assert_select "section.rails-tool-views-surface h2", text: "Review and triage ticket"
+    assert_select "dd", text: "Surface review"
+    form = css_select("form[action='/operations/assistant/surfaces/#{surface_id}/actions']").first
+    assert form, "the admin endpoint, not the product mount, receives admin actions"
+    fields = form.css("input[type=hidden]").to_h { |node| [ node["name"], node["value"] ] }
+
+    get "/product_surfaces/surfaces/#{surface_id}"
+    assert_response :not_found, "the product resolver's scope cannot restore an admin Surface"
+    admin_scope = RailsToolViews::Scope.new(actor: "raa:actor:StaffUser:#{@staff.id}", tenant: "raa:tenant:Tenant:#{@tenant.id}")
+    error = assert_raises(RailsToolViews::Error) { RailsToolViews.restore(surface_id, scope: admin_scope) }
+    assert_equal "NOT_ALLOWED", error.code, "an admin-shaped scope outside admin endpoints is denied"
+
+    post "/operations/assistant/surfaces/#{surface_id}/actions", params: fields
+    assert_response :see_other
+    follow_redirect!
+    assert_select "p[role=status]", text: "Operation completed."
+    refute_includes response.body, "cannot be rendered", "the completed review renders after the triage grant lapses"
+    assert_select "dd", text: "Surface review"
+    assert_equal [ "triaged", "Surface review", 1 ], [ @ticket.reload.state, @ticket.internal_note, @ticket.lock_version ]
+    assert_equal [ "surface" ], RailsAiAdmin::AuditEvent.where(correlation_ref: confirmation[:intent_ref], status: "succeeded").pluck(:origin)
+    post "#{path}/execute", params: confirmation
+    assert_response :see_other, "the native page replays the intent the Surface committed"
+    assert_equal 1, RailsAiAdmin::WorkItem.count
+    assert_equal 1, @ticket.reload.lock_version
+
+    product = RailsToolViews.present("host_notice", props: { message: "Product still separate" },
+      scope: RailsToolViews::Scope.new(actor: "product:StaffUser:#{@staff.id}", tenant: "product:Tenant:#{@tenant.id}"))
+    get "/product_surfaces/surfaces/#{product.id}"
+    assert_response :success
+    assert_includes response.body, "Product still separate"
+    get "/operations/assistant/surfaces/#{product.id}"
+    assert_response :not_found, "admin endpoints cannot open product Surfaces"
+    assert_same resolver, RailsToolViews.configuration.scope_resolver
+    refute RailsToolViews.configuration.auto_deliver
+    assert RailsToolViews.registry.fetch("host_notice")
+  end
+
   def test_custom_operation_confirmation_postcondition_replay_and_outbox
     login
     path = "/operations/tickets/#{@ticket.id}/operations/triage"

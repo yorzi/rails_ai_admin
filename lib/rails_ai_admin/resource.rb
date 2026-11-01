@@ -12,6 +12,7 @@ module RailsAiAdmin
         child.instance_variable_set(:@disabled_actions, [])
         child.instance_variable_set(:@operations, {})
         child.instance_variable_set(:@operation_scopes, {})
+        child.instance_variable_set(:@surface_operations, [])
         child.instance_variable_set(:@navigation, Navigation::Settings.new)
       end
 
@@ -68,7 +69,9 @@ module RailsAiAdmin
         known && !@disabled_actions.include?(action) && !(readonly? && (%i[create update destroy].include?(action) || @operations.key?(action)))
       end
 
-      def operation(key, handler:, scope: :member, confirmation: :required)
+      # surface: true also allows reviewing a native member intent in an
+      # admin-owned rails_tool_views Surface; it adds no authority.
+      def operation(key, handler:, scope: :member, confirmation: :required, surface: false)
         unless key.to_s.match?(/\A[a-z][a-z0-9_]*\z/) && !%w[index show create update destroy new edit].include?(key.to_s)
           raise ConfigurationError, "Custom operation needs a distinct stable key"
         end
@@ -76,11 +79,14 @@ module RailsAiAdmin
           raise ConfigurationError, "Use a handler class-name string, member/collection scope and required confirmation"
         end
         raise ConfigurationError, "Duplicate operation #{key}" if @operations.key?(key.to_sym)
+        raise ConfigurationError, "Operation surface must be boolean and is only for member operations" unless [ true, false ].include?(surface) && (!surface || scope == :member)
         @operations[key.to_sym] = handler.freeze
         @operation_scopes[key.to_sym] = scope
+        @surface_operations << key.to_sym if surface
       end
 
       def operation_declarations = @operations
+      def surface_operation?(key) = @surface_operations.include?(key.to_sym)
       def operation_scopes = @operation_scopes
 
       def fields(&block)
@@ -135,6 +141,7 @@ module RailsAiAdmin
         @disabled_actions.freeze
         @operations.freeze
         @operation_scopes.freeze
+        @surface_operations.freeze
         self
       end
     end

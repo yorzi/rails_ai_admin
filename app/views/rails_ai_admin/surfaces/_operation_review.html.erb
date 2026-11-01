@@ -1,0 +1,19 @@
+<% review = admin_surface_review(props) %>
+<% if review %>
+  <% run = review.run %>
+  <h2><%= review.definition.description %></h2>
+  <p>Target: <%= link_to record_label(review.resource, review.record), resource_path(resource: review.resource.key, id: review.record.id) %></p>
+  <dl class="raa-details">
+    <% admin_surface_display_values(review, props["input"]).each do |field, text| %><dt><%= field.label %></dt><dd><%= text %></dd><% end %>
+  </dl>
+  <% if run.status == "succeeded" %>
+    <p>Completed. Recorded as operation <code><%= run.id %></code>.</p>
+  <% elsif run.status == "proposed" && run.expires_at > Time.current && run.security_version == review.access.context.security_version %>
+    <p>Nothing has been saved yet. Confirming applies this exact target and input once, whether you confirm here or on the original page.</p>
+    <%= admin_surface_action_form(surface, :confirm) do |form| %><%= form.submit "Confirm and execute", name: nil %><% end %>
+  <% else %>
+    <p>This review can no longer be confirmed. Start a new review from the record.</p>
+  <% end %>
+<% else %>
+  <p>This review is unavailable.</p>
+<% end %>
