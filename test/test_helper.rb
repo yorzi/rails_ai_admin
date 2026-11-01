@@ -25,8 +25,13 @@ class TestResource < RailsAiAdmin::Resource
     id :id
     text :name, required: true, nullable: false, searchable: :prefix, sortable: true
     text :secret, readonly: true
-    integer :points
-    boolean :active
+    integer :points, filterable: true
+    boolean :active, filterable: true
+  end
+  scopes do
+    scope :active, -> { where(active: true) }, label: "Active", default: true
+    scope :rewarded, -> { where(points: 1..) }
+    scope :all, label: "All customers"
   end
 end
 

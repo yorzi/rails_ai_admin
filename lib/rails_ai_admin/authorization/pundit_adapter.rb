@@ -7,7 +7,7 @@ module RailsAiAdmin
     class PunditAdapter < Adapter
       ACTIONS = %i[index show create update destroy].freeze
       FIELD_METHODS = { read: :readable_fields, write: :writable_fields,
-        search: :searchable_fields, sort: :sortable_fields }.freeze
+        search: :searchable_fields, sort: :sortable_fields, filter: :filterable_fields }.freeze
 
       def initialize
         require "pundit"
@@ -104,6 +104,15 @@ module RailsAiAdmin
         return false unless klass
         policy = klass.new(context, resource.model_class)
         policy.respond_to?(:cancel_operation?) && policy.cancel_operation?(operation.to_sym) == true
+      rescue StandardError => error
+        policy_error!(resource, error)
+      end
+
+      def named_scopes(context:, resource:)
+        klass = policy_class(resource)
+        return [] unless klass
+        policy = klass.new(context, resource.model_class)
+        policy.respond_to?(:permitted_named_scopes) ? policy.permitted_named_scopes : []
       rescue StandardError => error
         policy_error!(resource, error)
       end

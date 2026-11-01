@@ -10,10 +10,11 @@ module RailsAiAdmin
     layout "rails_ai_admin/application"
     helper RailsAiAdmin::FieldsHelper
     helper RailsAiAdmin::NavigationHelper
+    helper RailsAiAdmin::FiltersHelper
     prepend_before_action :secure_headers
     before_action :authenticate_admin
     after_action :notice_discarded_list_settings
-    helper_method :resource_navigation, :admin_csp_nonce, :list_page_path, :encoded_return_state, :navigation_state, :navigation_params, :list_return_path, :list_return_label, :return_state_discarded?, :return_navigation_fields, :visible_resources, :allowed_action?, :record_label, :collection_jobs_available?
+    helper_method :resource_navigation, :admin_csp_nonce, :list_page_path, :encoded_return_state, :navigation_state, :navigation_params, :list_return_path, :list_return_label, :return_state_discarded?, :return_navigation_fields, :list_state_fields, :visible_resources, :allowed_action?, :record_label, :collection_jobs_available?
 
     rescue_from AccessDenied, with: :deny_access
     rescue_from ConfigurationError do
@@ -118,7 +119,12 @@ module RailsAiAdmin
     def list_return_label = @list_navigation&.index_allowed? ? @resource.label : "Administration"
 
     def return_navigation_fields
-      helpers.safe_join(navigation_state.map { |key, value| helpers.hidden_field_tag("return_to[#{key}]", value) })
+      helpers.safe_join(Navigation::ListState.form_pairs(navigation_state, "return_to").map { |name, value| helpers.hidden_field_tag(name, value, id: nil) })
+    end
+
+    # Hidden inputs that keep selected list settings in another GET list form.
+    def list_state_fields(*keys)
+      helpers.safe_join(Navigation::ListState.form_pairs(navigation_state.slice(*keys)).map { |name, value| helpers.hidden_field_tag(name, value, id: nil) })
     end
 
     def notice_discarded_list_settings

@@ -23,9 +23,11 @@
 .raa .raa-table-scroll { overflow-x:auto; border:1px solid var(--raa-line); border-radius:.6rem; background:var(--raa-panel); margin:1.5rem 0; }
 .raa table { border-collapse:collapse; width:100%; min-width:48rem; text-align:left; }
 .raa caption { text-align:left; padding:.8rem 1rem; color:var(--raa-muted); }
-.raa th,.raa td { padding:.8rem 1rem; border-top:1px solid var(--raa-line); overflow-wrap:anywhere; vertical-align:top; max-width:32rem; }
+.raa th,.raa td { padding:.8rem 1rem; border-top:1px solid var(--raa-line); overflow-wrap:break-word; vertical-align:top; max-width:32rem; }
 .raa th { font-size:.85rem; }
 .raa .raa-pagination { display:flex; gap:1rem; }
+.raa .raa-count { margin:1rem 0 0; color:var(--raa-muted); }
+.raa td.raa-cell-compact { white-space:nowrap; }
 .raa .raa-search { display:flex; flex-wrap:wrap; align-items:center; gap:.75rem; }
 .raa input:not([type="submit"]),.raa textarea,.raa select { font:inherit; color:var(--raa-text); background:var(--raa-panel); border:1px solid var(--raa-line); border-radius:.35rem; padding:.6rem; min-height:44px; max-width:100%; }
 .raa .raa-field { margin:1.25rem 0; max-width:40rem; }
@@ -61,3 +63,10 @@
 .raa .raa-nav-icon { display:inline-block; width:1.25rem; height:1.25rem; flex:none; vertical-align:middle; margin-right:.35rem; }
 .raa .raa-nav-group .raa-nav-icon { margin-right:0; }
 @media (max-width:768px) { .raa nav[aria-label="Admin resources"] { display:block; overflow-x:visible; } .raa .raa-nav-primary,.raa .raa-nav-group { display:flex; flex-wrap:wrap; align-items:center; gap:.25rem; margin-top:0; } .raa .raa-nav-group-label { flex-basis:100%; } .raa nav[aria-label="Admin resources"] a { white-space:normal; overflow-wrap:anywhere; } }
+.raa .raa-scopes ul { display:flex; flex-wrap:wrap; gap:.25rem; margin:1rem 0; padding:0 0 .5rem; list-style:none; border-bottom:1px solid var(--raa-line); }
+.raa .raa-scopes a { display:inline-flex; align-items:center; min-height:44px; padding:0 1rem; border-radius:.4rem; overflow-wrap:anywhere; }
+.raa .raa-filters fieldset { display:grid; grid-template-columns:repeat(auto-fit,minmax(12rem,1fr)); gap:.75rem 1rem; margin:1rem 0; padding:.75rem 1rem 1rem; border:1px solid var(--raa-line); border-radius:.4rem; min-width:0; }
+.raa .raa-filters legend { padding:0 .4rem; font-weight:600; }
+.raa .raa-filter { min-width:0; }
+.raa .raa-filter label { display:block; margin-bottom:.25rem; font-weight:600; overflow-wrap:anywhere; }
+.raa .raa-filter input,.raa .raa-filter select { width:100%; }

@@ -12,17 +12,27 @@ module RailsAiAdmin
         redirect_to list_return_path, status: :see_other, notice: "Some list settings are no longer available. The current list settings have been restored."
         return
       end
-      @page = Queries::List.new(@context, @resource).call(search: navigation_state["q"], sort: navigation_state["sort"], direction: navigation_state.fetch("direction", "asc"), page: navigation_state.fetch("page", "1"), recover_empty_page: true)
+      # A native filter form submits every input; share only the canonical
+      # nonblank conditions. This changes no grant and adds no notice.
+      if raw.key?("filter") && raw["filter"] != navigation_state["filter"]
+        redirect_to list_return_path, status: :see_other
+        return
+      end
+      @page = Queries::List.new(@context, @resource).call(search: navigation_state["q"], sort: navigation_state["sort"], direction: navigation_state.fetch("direction", "asc"), page: navigation_state.fetch("page", "1"), recover_empty_page: true, scope: navigation_state["scope"], filters: navigation_state["filter"])
       if @page.number != navigation_state.fetch("page", "1").to_i
         @list_navigation = Navigation::ListState.new(@access, navigation_state.merge("page" => @page.number.to_s))
         redirect_to list_return_path, status: :see_other, notice: "That list page is now empty. Showing an available page."
         return
       end
       @sortable_fields = @access.fields(:sort)
-      @columns = @access.fields(:read, view: :index)
+      @list_scopes = @access.named_scopes
+      @filter_fields = @access.fields(:filter)
+      @current_scope = @page.scope
+      @columns = @resource.index.order(@access.fields(:read, view: :index))
+      computed = @columns.map(&:name) | [ @resource.title ]
       @rows = @page.records.map do |record|
         @access.authorize!(:show, record)
-        values = @access.project(record, view: :index)
+        values = @access.project(record, view: :index, only: computed)
         { id: record.id, label: record_label(@resource, record, values: values, view: :index), values: values }
       end
       @searchable = @access.fields(:search).any?

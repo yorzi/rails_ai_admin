@@ -107,6 +107,14 @@ or authorization. `TestKit` provides separate anonymous-context, action, tenant
 and exact field-grant assertions; field-grant snapshots are not an AI exposure
 report. See the [host verification guide](docs/site/_advanced/host-verification.md).
 
+Resources can also declare named index tabs with `scopes`. Each tab needs its own
+default-deny `named_scopes` grant and can only narrow the policy relation; see
+the [Named Scopes guide](docs/site/_core_features/named-scopes.md). Fields can opt
+into typed exact/range filters with `filterable:`, behind a separate default-deny
+`:filter` field grant; see the [Typed Filters guide](docs/site/_core_features/typed-filters.md).
+An `index` block chooses columns, a default sort, page size and an optional
+bounded count; see the [Index Tables guide](docs/site/_core_features/index-tables.md).
+
 The resource declaration grants no permission. See the runnable host contract
 examples in the [configuration guide](docs/site/_getting_started/configuration.md).
 Use one static-path engine mount whose final helper name is `rails_ai_admin`,

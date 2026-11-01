@@ -46,11 +46,27 @@ module RailsAiAdmin
         action == :read && view ? granted.select { |field| field.visible_on?(view) } : granted
       end
 
-      def project(record, view: nil)
+      # only: optional field names to compute (for example index columns plus the
+      # title); it can narrow but never add to the granted, visible fields.
+      def project(record, view: nil, only: nil)
         authorize!(:show, record)
         granted = permission_fields(:read, record, view: view)
         visible = view ? granted.select { |field| field.visible_on?(view) } : granted
+        visible = visible.select { |field| only.include?(field.name) } if only
         Fields::Projection.new(self, record, granted).values(fields: visible)
+      end
+
+      # Declared named scopes intersected with the current independent grant, in
+      # declaration order. This performs no domain query.
+      def named_scopes
+        declared = resource.scopes
+        return [] if declared.empty?
+        names = @adapter.respond_to?(:named_scopes) ? @adapter.named_scopes(context: context, resource: resource) : []
+        unless names.is_a?(Array) && names.all? { |name| name.is_a?(String) || name.is_a?(Symbol) }
+          raise ConfigurationError, "Named scope grants must be an array of names"
+        end
+        names = names.map(&:to_sym)
+        declared.select { |definition| names.include?(definition.name) }
       end
 
       def authorize_selection!
@@ -148,7 +164,8 @@ module RailsAiAdmin
             (action != :write || field.name.to_s != resource.model_class.primary_key) &&
             (action != :write || field.writable?(operation || :update)) &&
             (action != :search || !field.virtual? && field.options[:searchable]) &&
-            (action != :sort || !field.virtual? && field.options[:sortable])
+            (action != :sort || !field.virtual? && field.options[:sortable]) &&
+            (action != :filter || !field.virtual? && field.filter_operators.any?)
         end
         mask = presentation_mask(record, view) if view
         selected = selected.select { |field| mask.include?(field.name) } if mask

@@ -2,7 +2,7 @@
 
 > **工程立项 / 产品需求文档 / 架构设计 / 测试与发布计划 / AI Agent 可执行任务书**  
 > 状态：**Reviewed Proposal · v0.3（第二轮源码级复核完成；尚未实现、运行验证或批准发布）**  
-> 实施检查点（2026-10-30）：常规 CRUD、成员级自定义 Operation/确认与事务 outbox、固定 Selection 捕获/重验与异步集合逐项执行/取消、显式 Pundit 适配器、两个独立 packaged Host、真实重载及崩溃恢复，以及 schema 注释建议、安装预检、Doctor/TestKit 初版已取得本地验收证据；当前依赖已升级 rails_tool_views 1.0.2；标量字段插件注册/规范化/校验/Schema/Partial、固定 Select 与只读字段语法已取得本地证据；有界只读 Virtual/计算字段的依赖授权、快照与重载已验证；常规模板单文件覆盖/源版本与 Context revision/Doctor 漂移诊断已验证；每视图字段掩码、受权只读上下文、分组表单及渐进增强 Tabs 已取得本地契约与 Chrome 验收；通用 Create/Update 开放标签页的会话恢复已按同一 intent/新认证/版本权限重验取得本地与 Chrome 证据；结构化列表返回位置、受权排序/分页、同筛选空页夹取与 Unicode 恢复已取得本地/消费端/Chrome 证据；固定状态页/普通 Host Controller 扩展与第三领域 Order 的 CRUD/Review/重载/Chrome 恢复已取得本地证据；按当前 index 授权构建的资源菜单分组/标签/固定图标/排序/隐藏配置已取得本地与 packaged 证据（完整 Phase 2 过滤/Scope DSL、浏览器与 Gate 仍未完成）；完整范围与未完成项见 `ROADMAP.md` / `COMPATIBILITY.md`。以下审查结论保留为立项时历史基线，不能用于推断任何 Gate 已通过。
+> 实施检查点（2026-10-30）：常规 CRUD、成员级自定义 Operation/确认与事务 outbox、固定 Selection 捕获/重验与异步集合逐项执行/取消、显式 Pundit 适配器、两个独立 packaged Host、真实重载及崩溃恢复，以及 schema 注释建议、安装预检、Doctor/TestKit 初版已取得本地验收证据；当前依赖已升级 rails_tool_views 1.0.2；标量字段插件注册/规范化/校验/Schema/Partial、固定 Select 与只读字段语法已取得本地证据；有界只读 Virtual/计算字段的依赖授权、快照与重载已验证；常规模板单文件覆盖/源版本与 Context revision/Doctor 漂移诊断已验证；每视图字段掩码、受权只读上下文、分组表单及渐进增强 Tabs 已取得本地契约与 Chrome 验收；通用 Create/Update 开放标签页的会话恢复已按同一 intent/新认证/版本权限重验取得本地与 Chrome 证据；结构化列表返回位置、受权排序/分页、同筛选空页夹取与 Unicode 恢复已取得本地/消费端/Chrome 证据；固定状态页/普通 Host Controller 扩展与第三领域 Order 的 CRUD/Review/重载/Chrome 恢复已取得本地证据；按当前 index 授权构建的资源菜单分组/标签/固定图标/排序/隐藏配置已取得本地与 packaged 证据；独立授权、只能收窄 Policy relation 的命名 Scope 与独立 :filter 授权的类型化过滤已取得本地/packaged/Chromium 证据；Index 表格设置（列/默认排序/页大小/有界计数）亦已验收（Phase 3 Filter AST、浏览器矩阵与 Gate 仍未完成）；完整范围与未完成项见 `ROADMAP.md` / `COMPATIBILITY.md`。以下审查结论保留为立项时历史基线，不能用于推断任何 Gate 已通过。
 > 制定日期：2026-10-29  
 > 复核日期：2026-10-29（Asia/Shanghai）；v0.2 设计复核 + v0.3 对本地 `rails_tool_views`/RubyLLM 源码与上游 Release 的二次核对；两轮均只修改计划，无产品代码  
 > 目标项目：`rails_ai_admin`（项目名已由发起者确定；RubyGems 名称及 GitHub 仓库可用性须在创建前确认）  
@@ -1271,7 +1271,7 @@ Evaluation 应至少覆盖：
 
 **任务清单**
 
-- [ ] `RAA-0201` Resource DSL：模型、标签、表格、过滤、Action、Scope、导航配置。导航配置（静态分组/标签/固定图标/排序/隐藏，仅展示且不改变授权）已本地与 packaged 验收（ADR 0016）；过滤与命名 Scope 仍待完成。
+- [x] `RAA-0201` Resource DSL：模型、标签、表格、过滤、Action、Scope、导航配置。导航配置（静态分组/标签/固定图标/排序/隐藏，仅展示且不改变授权）已本地与 packaged 验收（ADR 0016）；命名 Scope（独立默认拒绝授权、按主键与 Policy relation 相交、只能收窄）已本地、packaged 与 Chromium 验收（ADR 0017）；类型化过滤（eq/gte/lte、独立 :filter 字段授权、按字段契约强制转换并以 Arel 绑定）已本地、packaged 与 Chromium 验收（ADR 0018）；Index 表格设置（列、受授权约束的默认排序、页大小、上限 10,000 的精确计数）已本地、packaged 与 Chromium 验收（ADR 0019）。各 DSL 项均有本地证据；Phase 2 Gate 仍未关闭。
 - [ ] `RAA-0202` Index / Show / New / Edit / Update / Delete / Forbidden / NotFound / Conflict；所有写入从第一天通过 RAA-0112/0113，不出现待 Phase 4 重构的直写分支。
 - [ ] `RAA-0203` Field Registry：Text、Textarea、Integer、Decimal、Boolean、Date、Datetime、Enum、Select、ID、Readonly、Virtual。标量插件及只读 Virtual/计算依赖契约已本地验收（ADR 0009/0010）；完整阶段验收继续。
 - [ ] `RAA-0204` Form Builder + Server validation + 错误反馈；嵌套参数仅白名单允许。

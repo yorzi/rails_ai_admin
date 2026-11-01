@@ -9,9 +9,13 @@ module RailsAiAdmin
   # only narrow the permissions returned by the host policy.
   class Field
     TYPES = %i[id text textarea integer decimal boolean date datetime enum select].freeze
-    OPTIONS = %i[readonly required nullable values max_length searchable sortable create edit label choices index show hidden help_text tab panel].freeze
+    OPTIONS = %i[readonly required nullable values max_length searchable sortable filterable create edit label choices index show hidden help_text tab panel].freeze
+    # Typed list filter operators. Text-like values only support exact equality;
+    # contains/prefix matching stays with search.
+    FILTER_OPERATORS = %i[eq gte lte].freeze
+    RANGE_TYPES = %i[integer decimal date datetime].freeze
     Descriptor = Data.define(:name, :type, :scalar_type, :options, :scalar_json_schema)
-    attr_reader :name, :type, :scalar_type, :options, :dependencies
+    attr_reader :name, :type, :scalar_type, :options, :dependencies, :filter_operators
 
     def initialize(name, type:, plugin: nil, compute: nil, depends_on: nil, **options)
       @name, @type = name.to_sym, type.to_sym
@@ -26,6 +30,7 @@ module RailsAiAdmin
       defaults.merge!(readonly: true, create: false, edit: false, searchable: false, sortable: false) if virtual?
       @options = immutable_copy(defaults.merge(options))
       validate_options!
+      @filter_operators = resolve_filter_operators
       @descriptor = Descriptor.new(@name, @type, @scalar_type, @options, immutable_copy(scalar_json_schema))
       if @plugin
         constraints = invoke(:schema, field: @descriptor)
@@ -183,8 +188,8 @@ module RailsAiAdmin
       end
       @dependencies = dependencies.map(&:to_sym).freeze
       raise ConfigurationError, "Computed dependencies must be distinct" unless @dependencies.uniq.size == @dependencies.size
-      if options.any? { |key, value| %i[readonly].include?(key) && value != true || %i[searchable sortable].include?(key) && value != false }
-        raise ConfigurationError, "Virtual fields are readonly and cannot search or sort"
+      if options.any? { |key, value| %i[readonly].include?(key) && value != true || %i[searchable sortable filterable].include?(key) && value != false }
+        raise ConfigurationError, "Virtual fields are readonly and cannot search, sort or filter"
       end
       @computation = Fields::Computation::Definition.new(String.new(handler).freeze)
       @computation_metadata = immutable_copy(@computation.metadata)
@@ -213,6 +218,18 @@ module RailsAiAdmin
       unless values.is_a?(Array) && values.size.between?(1, 100) && values.uniq.size == values.size && values.all? { |value| value.is_a?(String) && value.length.between?(1, 200) && value.valid_encoding? }
         raise ConfigurationError, "Enum/select requires distinct nonempty string values"
       end
+    end
+
+    # filterable: true selects type defaults; an Array narrows to allowed operators.
+    def resolve_filter_operators
+      value = options[:filterable]
+      return [].freeze if value.nil? || value == false
+      allowed = RANGE_TYPES.include?(scalar_type) ? FILTER_OPERATORS : %i[eq]
+      return (RANGE_TYPES.include?(scalar_type) ? %i[gte lte] : %i[eq]).freeze if value == true
+      unless value.is_a?(Array) && value.any? && value.all? { |operator| operator.is_a?(Symbol) } && value.uniq.size == value.size && (value - allowed).empty?
+        raise ConfigurationError, "Field filterable must be true, false or distinct operators from #{allowed.join(', ')}"
+      end
+      FILTER_OPERATORS.select { |operator| value.include?(operator) }.freeze
     end
 
     def immutable_copy(value)

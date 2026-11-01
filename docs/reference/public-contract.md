@@ -34,11 +34,11 @@ tenant_ref:, security_version:)`, which reconstructs current authority rather th
 trusting stored refs/epoch as permission.
 
 Resources declare `model`, `key`, `label`, `title`, optional `policy`, `readonly`, `disable`,
-`fields` and explicit member `operation` handlers. Core scalar types are id/text/textarea/integer/decimal/boolean/date/datetime/enum/select.
+`fields`, `index` table settings, named list `scopes` and explicit member `operation` handlers. Core scalar types are id/text/textarea/integer/decimal/boolean/date/datetime/enum/select.
 Registered `Fields::Type` classes refine scalars through `config.field_types`
 class-name strings and optional trusted field partials (ADR 0009).
-Fields use explicit readonly/required/nullable/create/edit/searchable/sortable
-flags. Search/sort grants are independent of read/write. Resources do not scan
+Fields use explicit readonly/required/nullable/create/edit/searchable/sortable/filterable
+flags. Search/sort/filter grants are independent of read/write. Resources do not scan
 model tables at boot. Reserved slugs are rejected by the registry.
 
 Scalar projection and record titles require a model attribute (or the single
@@ -75,7 +75,8 @@ inference or alias fallback occurs. A policy receives the full `Context` and
 record/model. Supported predicates are `index?`, `show?`, `create?`, `update?` and
 `destroy?`, plus a predicate for each explicitly registered custom operation.
 Field grants come separately from `readable_fields`, `writable_fields`,
-`searchable_fields` and `sortable_fields`; missing methods return no grants.
+`searchable_fields`, `sortable_fields` and `filterable_fields`; missing methods
+return no grants.
 
 The mapped policy or a parent policy class must own its Scope. An unrelated
 `Object::Scope` is never inherited. The explicit `Scope.new(context, relation).resolve`
@@ -151,14 +152,14 @@ adapter's `resolve(controller)` and requires nil. It checks that direct context
 boundary, not an HTTP request; use the generated request test as well.
 
 `TestKit.field_grants(context:, resource:, record: nil, operation: :update)`
-returns four string keys, `read`, `write`, `search` and `sort`, each with a sorted
+returns five string keys, `read`, `write`, `search`, `sort` and `filter`, each with a sorted
 array of field-name strings after the shared DSL/policy intersection. The
 operation selects create/update field exposure for the write grant. It does not
 apply action permission or record-scope decisions. Pass a representative record
 for record-dependent field rules.
 
 `TestKit.assert_field_grants` takes the same arguments plus `expected:` and
-compares all four groups exactly after normalizing keys/field names to strings
+compares all five groups exactly after normalizing keys/field names to strings
 and sorting. It is not a minimum allowlist. `operation` accepts only `:create` or
 `:update`. Keep these checks alongside `assert_access`, `assert_isolated` and
 actual request tests. A field snapshot is not an AI exposure
@@ -267,6 +268,56 @@ request-memoized `resource_navigation` helper feeds the layout and dashboard;
 settings change no direct authorization and are excluded from operation-intent
 and Selection identity. See ADR 0016 and the Resource Navigation guide.
 
+
+## Named list scopes
+
+`Resource.scopes { scope name, body = nil, label: nil, default: false }` declares
+at most 20 lowercase-named tabs with bounded plain labels, an optional single
+default and zero-argument lambda bodies (nil means the whole authorized relation).
+Bodies are evaluated only when used, under write prevention, and must return the
+resource model's relation without limit/offset/select/group/having/from/eager
+loading. The result is intersected as `policy.where(pk => body.select(pk))`, so it
+can only narrow; composite primary keys are rejected. Failures are generic
+`ConfigurationError`s.
+
+The adapter's `named_scopes(context:, resource:)` grant (Pundit:
+`permitted_named_scopes`) is default-deny and independent of index/read/search/
+sort, because a predicate can reveal unreadable fields. `Access#named_scopes`
+returns declared scopes intersected with it. `Queries::List#call(scope:)` applies
+the granted default for nil and otherwise requires a declared, granted name
+(INVALID_QUERY); `Page#scope` reports the applied name. List hints add a `scope`
+key, drop the granted default and discard revoked scopes; strict index requests
+reject undeclared names with 422. TestKit offers `named_scope_grants` and
+`assert_named_scopes`. See ADR 0017 and the Named Scopes guide.
+
+## Typed list filters
+
+`filterable: true` selects `eq` for id/text/textarea/enum/select/boolean and
+inclusive `gte`/`lte` for integer/decimal/date/datetime; an Array narrows to
+allowed operators (range types also allow `eq`). Virtual/hidden fields cannot
+filter, and undeclared fields keep unchanged contracts. The adapter's
+`fields(action: :filter)` grant (Pundit `filterable_fields`) is default-deny and
+independent of read/search/sort. `Queries::List#call(filters:)` ANDs at most 20
+`{ field => { operator => String } }` conditions, coerces each value through the
+field contract (Context time zone for datetimes) and binds it with Arel; anything
+undeclared, ungranted or out of contract is INVALID_QUERY. List hints carry a
+canonical nested `filter`, strict index requests reject invalid filters with 422,
+revoked grants are discarded and blank form submissions redirect once to the
+canonical URL. Decoded recovery-header JSON may use 1,536 bytes. See ADR 0018 and
+the Typed Filters guide.
+
+## Index table settings
+
+`Resource.index { columns; default_sort name, direction; page_size; count }`
+declares static presentation checked against fields at registration: 1..50
+index-visible columns, a sortable non-virtual default sort, a 1..100 page size
+(default 25) and `count :none` (default) or `:exact`. Columns only order/narrow
+current read grants, masks and dependency rules; the projection computes listed
+columns plus the title. The default sort applies only while its sort grant holds
+and is implicit in hints. Exact counts cover the authorized filtered relation and
+stop at 10,000 (`Page#count_capped`). `Page` also reports `sort`, `direction` and
+`page_size`. Settings are excluded from operation/Selection identity. See ADR 0019
+and the Index Tables guide.
 
 ## Host controllers and fixed statuses
 

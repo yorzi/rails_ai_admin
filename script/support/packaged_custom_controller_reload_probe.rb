@@ -12,6 +12,9 @@ operation_path = Rails.root.join("app/rails_ai_admin/review_order_operation.rb")
 resource_path = Rails.root.join("app/rails_ai_admin/order_admin.rb")
 original_resource = resource_path.read
 modified_resource = original_resource.sub('navigation group: "Commerce"', 'navigation group: "Commerce Reloaded", label: "Reloaded orders"')
+  .sub('label: "Reviewed"', 'label: "Reloaded reviewed"')
+  .sub("boolean :expedited, nullable: false, filterable: true,", "boolean :expedited, nullable: false,")
+  .sub("count :exact", "count :none")
 raise "Navigation reload fixture did not match source" if modified_resource == original_resource
 original_controller = controller_path.read
 original_operation = operation_path.read
@@ -51,13 +54,16 @@ begin
   raise "Registry retained" if RailsAiAdmin.registry.equal?(before_registry)
   session.get "/staff/orders"
   raise "Reloaded navigation was not rendered" unless session.response.status == 200 && session.response.body.include?("Commerce Reloaded") && session.response.body.include?("Reloaded orders")
+  raise "Reloaded named scope label was not rendered" unless document(session).css("nav.raa-scopes a").map(&:text).include?("Reloaded reviewed")
+  raise "Reloaded index count setting was not applied" if document(session).at_css("p.raa-count")
+  raise "Reloaded filter declarations were not applied" unless document(session).at_css("[name='filter[delivery_on][gte]']") && !document(session).at_css("[name='filter[expedited][eq]']")
   session.get path
   raise "Reloaded host code did not handle HTTP" unless session.response.status == 200 && session.response.headers["X-Host-Controller-Reload"] == "reloaded"
   session.post "#{path}/execute", params: { authenticity_token: token, intent_ref: intent_ref, confirmed_input: wire }
   raise "Old approval was not rejected" unless session.response.status == 409
   raise "Old approval changed business state" unless Order.find(order_id).state == "draft" && Order.find(order_id).lock_version.zero?
   raise "Old approval wrote success audit" if RailsAiAdmin::AuditEvent.where(correlation_ref: intent_ref, status: "succeeded").exists?
-  puts "Real host controller/resource/navigation/operation/registry reload passed; HTTP used new code and rejected the original approval without a business write"
+  puts "Real host controller/resource/navigation/named-scope/filter/index/operation/registry reload passed; HTTP used new code and rejected the original approval without a business write"
 ensure
   if resource_path.read == modified_resource
     resource_path.write(original_resource)

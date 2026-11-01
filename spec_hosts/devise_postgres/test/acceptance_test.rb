@@ -356,6 +356,77 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
     end
   end
 
+  def test_pundit_named_scopes_follow_role_grants_and_tenant_scope
+    @ticket.update!(state: "triaged")
+    SupportTicket.create!(tenant: @tenant, subject: "Support open without note")
+    SupportTicket.create!(tenant: @other_tenant, subject: "Support foreign open")
+    login
+    get "/operations/tickets", params: { q: "Support" }
+    assert_response :success
+    assert_equal [ "Open", "Triaged", "Missing internal note" ], css_select("nav.raa-scopes a").map(&:text)
+    assert_select "nav.raa-scopes a[aria-current]", count: 0
+    assert_includes response.body, "Support task"
+    assert_includes response.body, "Support open without note"
+    get "/operations/tickets", params: { q: "Support", scope: "open" }
+    assert_select "nav.raa-scopes a[aria-current=true]", text: "Open"
+    assert_includes response.body, "Support open without note"
+    refute_includes response.body, "Support task"
+    refute_includes response.body, "Support foreign open"
+    get "/operations/tickets", params: { scope: "missing_note" }
+    assert_includes response.body, "Support open without note"
+    refute_includes response.body, "Support task"
+    @staff.update!(role: "viewer")
+    get "/operations/tickets", params: { scope: "missing_note" }
+    assert_response :see_other
+    follow_redirect!
+    assert_select ".raa-notice", text: /Some list settings/
+    assert_equal [ "Open", "Triaged" ], css_select("nav.raa-scopes a").map(&:text)
+    %w[admin operator viewer].each do |role|
+      @staff.update!(role: role)
+      context = RailsAiAdmin::Context.new(actor: @staff, tenant: @tenant, security_version: @staff.security_version.to_s)
+      expected = %w[open triaged] + (role == "viewer" ? [] : [ "missing_note" ])
+      assert RailsAiAdmin::TestKit.assert_named_scopes(context: context, resource: TicketAdmin, expected: expected)
+      assert RailsAiAdmin::TestKit.assert_named_scopes(context: context, resource: ClosedTicketAdmin, expected: [])
+    end
+  end
+
+  def test_pundit_filters_follow_role_grants_and_tenant_scope
+    @ticket.update!(state: "triaged", priority: 2)
+    SupportTicket.create!(tenant: @tenant, subject: "Support urgent", state: "open", priority: 1)
+    SupportTicket.create!(tenant: @tenant, subject: "Support later", state: "open", priority: 9)
+    SupportTicket.create!(tenant: @other_tenant, subject: "Support foreign urgent", state: "open", priority: 1)
+    login
+    get "/operations/tickets", params: { q: "Support", filter: { state: { eq: "open" }, priority: { lte: "3" } } }
+    assert_response :success
+    assert_select "select[name='filter[state][eq]'] option[selected][value=open]", text: "Open"
+    assert_select "input[type=number][name='filter[priority][lte]'][value='3']"
+    assert_includes response.body, "Support urgent"
+    [ "Support later", "Support task", "Support foreign urgent" ].each { |subject| refute_includes response.body, subject }
+    @staff.update!(role: "viewer")
+    get "/operations/tickets", params: { filter: { state: { eq: "open" }, priority: { lte: "3" } } }
+    assert_response :see_other
+    assert_equal({ "filter" => { "state" => { "eq" => "open" } } }, Rack::Utils.parse_nested_query(URI(response.location).query))
+    follow_redirect!
+    assert_includes response.body, "Support later"
+    assert_select "input[name='filter[priority][lte]']", count: 0
+  end
+
+  def test_ticket_index_settings_order_columns_by_priority_and_count_within_tenant
+    @ticket.update!(priority: 5)
+    SupportTicket.create!(tenant: @tenant, subject: "Urgent index", priority: 1)
+    SupportTicket.create!(tenant: @other_tenant, subject: "Foreign index", priority: 0)
+    login
+    get "/operations/tickets"
+    assert_response :success
+    # review_summary is a declared column, but it depends on internal_note, which
+    # the index presentation mask hides, so the column cannot be computed there.
+    assert_equal [ "Select", "Subject", "State", "Priority", "Actions" ], css_select("thead th").map { |node| node.text.strip }
+    assert_select "th[aria-sort=ascending] a", text: "Priority"
+    assert_select "p.raa-count", text: "2 matching records"
+    assert_includes css_select("tbody tr").first.text, "Urgent index"
+    refute_includes response.body, "Foreign index"
+  end
+
   def test_host_policy_matrix_and_field_grants
     anonymous = Struct.new(:request, :session).new(Struct.new(:env).new({}), {})
     assert RailsAiAdmin::TestKit.assert_unauthenticated(adapter: AdminContext.new, controller: anonymous)
@@ -367,7 +438,7 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
       readable = %i[id subject state priority] + (role == "viewer" ? [] : %i[internal_note review_summary])
       writable = role == "viewer" ? [] : %i[subject state priority internal_note]
       assert RailsAiAdmin::TestKit.assert_field_grants(context: context, resource: TicketAdmin, record: @ticket,
-        expected: { read: readable, write: writable, search: [ :subject ], sort: [ :priority ] })
+        expected: { read: readable, write: writable, search: [ :subject ], sort: [ :priority ], filter: role == "viewer" ? [ :state ] : %i[state priority] })
     end
     context = RailsAiAdmin::Context.new(actor: @staff, tenant: @tenant, security_version: @staff.security_version.to_s)
     assert RailsAiAdmin::TestKit.assert_hidden(context: context, resource: TicketAdmin, field: :secret_token)

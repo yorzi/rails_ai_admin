@@ -125,7 +125,8 @@ expected = {
   "read" => %w[active id name points],
   "write" => %w[active name points],
   "search" => %w[name],
-  "sort" => %w[name]
+  "sort" => %w[name],
+  "filter" => []
 }
 RailsAiAdmin::TestKit.assert_field_grants(
   context: context,

@@ -374,6 +374,100 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
     assert_select "dd", text: "Inactive · 8 points"
   end
 
+  def test_order_named_scopes_follow_role_grants_and_tenant_scope
+    login
+    foreign = Account.where.not(id: @account.id).first
+    Order.create!(account: @account, number: "SCOPE-DRAFT", total: "1.00")
+    Order.create!(account: @account, number: "SCOPE-APPROVED", total: "2.00", state: "approved")
+    Order.create!(account: @account, number: "SCOPE-RUSH", total: "3.00", state: "rejected", expedited: true)
+    Order.create!(account: foreign, number: "SCOPE-FOREIGN", total: "4.00", state: "approved", expedited: true)
+    get "/staff/orders", params: { q: "SCOPE" }
+    assert_response :success
+    assert_equal [ "Drafts", "Reviewed", "Expedited", "All orders" ], css_select("nav.raa-scopes a").map(&:text)
+    assert_select "nav.raa-scopes a[aria-current=true]", text: "Drafts"
+    assert_includes response.body, "SCOPE-DRAFT"
+    refute_includes response.body, "SCOPE-APPROVED"
+    reviewed = css_select("nav.raa-scopes a").find { |node| node.text == "Reviewed" }["href"]
+    assert_equal({ "q" => "SCOPE", "scope" => "reviewed" }, Rack::Utils.parse_nested_query(URI(reviewed).query))
+    get reviewed
+    assert_includes response.body, "SCOPE-APPROVED"
+    assert_includes response.body, "SCOPE-RUSH"
+    refute_includes response.body, "SCOPE-DRAFT"
+    refute_includes response.body, "SCOPE-FOREIGN"
+    get "/staff/orders", params: { scope: "expedited" }
+    assert_includes response.body, "SCOPE-RUSH"
+    refute_includes response.body, "SCOPE-FOREIGN"
+    get "/staff/orders", params: { scope: "unknown" }
+    assert_response :unprocessable_content
+    @user.update!(role: "viewer")
+    get "/staff/orders", params: { q: "SCOPE", scope: "expedited", page: "2" }
+    assert_response :see_other
+    assert_equal({ "q" => "SCOPE" }, Rack::Utils.parse_nested_query(URI(response.location).query))
+    follow_redirect!
+    assert_select ".raa-notice", text: /Some list settings/
+    assert_equal [ "Drafts", "Reviewed", "All orders" ], css_select("nav.raa-scopes a").map(&:text)
+    %w[admin viewer].each do |role|
+      @user.update!(role: role)
+      context = RailsAiAdmin::Context.new(actor: @user, tenant: @account, security_version: @user.security_version.to_s)
+      expected = %w[drafts reviewed all] + (role == "admin" ? [ "expedited" ] : [])
+      assert RailsAiAdmin::TestKit.assert_named_scopes(context: context, resource: OrderAdmin, expected: expected)
+      assert RailsAiAdmin::TestKit.assert_named_scopes(context: context, resource: CustomerAdmin, expected: [])
+    end
+  end
+
+  def test_order_filters_are_typed_role_granted_and_combine_with_scopes
+    login
+    foreign = Account.where.not(id: @account.id).first
+    Order.create!(account: @account, number: "FILTER-SMALL", total: "9.99", delivery_on: "2026-11-03")
+    Order.create!(account: @account, number: "FILTER-EDGE", total: "10.00", delivery_on: "2026-11-05", state: "approved")
+    Order.create!(account: @account, number: "FILTER-LARGE", total: "250.00", delivery_on: "2026-11-05", expedited: true)
+    Order.create!(account: foreign, number: "FILTER-FOREIGN", total: "50.00", delivery_on: "2026-11-05")
+    filter = { "total" => { "gte" => "10.00", "lte" => "100" }, "delivery_on" => { "gte" => "2026-11-04", "lte" => "2026-11-05" } }
+    get "/staff/orders", params: { q: "FILTER", scope: "all", filter: filter }
+    assert_response :success
+    assert_select "input[name='filter[total][gte]'][inputmode=decimal][value='10.00']"
+    assert_select "input[type=date][name='filter[delivery_on][lte]'][value='2026-11-05']"
+    assert_select "select[name='filter[expedited][eq]']"
+    assert_includes response.body, "FILTER-EDGE"
+    %w[FILTER-SMALL FILTER-LARGE FILTER-FOREIGN].each { |number| refute_includes response.body, number }
+    drafts = css_select("nav.raa-scopes a").find { |node| node.text == "Drafts" }["href"]
+    assert_equal filter, Rack::Utils.parse_nested_query(URI(drafts).query)["filter"]
+    get drafts
+    refute_includes response.body, "FILTER-EDGE", "the draft scope and the filter are both applied"
+    get "/staff/orders", params: { filter: { expedited: { eq: "true" } } }
+    assert_includes response.body, "FILTER-LARGE"
+    refute_includes response.body, "FILTER-SMALL"
+    get "/staff/orders", params: { filter: { total: { gte: "ten" } } }
+    assert_response :unprocessable_content
+    @user.update!(role: "viewer")
+    get "/staff/orders", params: { scope: "all", filter: filter }
+    assert_response :see_other
+    assert_equal({ "scope" => "all", "filter" => filter.except("total") }, Rack::Utils.parse_nested_query(URI(response.location).query))
+    follow_redirect!
+    assert_select ".raa-notice", text: /Some list settings/
+    assert_select "input[name='filter[total][gte]']", count: 0
+    assert_select "input[name='filter[delivery_on][gte]'][value='2026-11-04']"
+  end
+
+  def test_order_index_settings_choose_columns_order_page_size_and_count
+    login
+    21.times { |index| Order.create!(account: @account, number: "IDX-#{index.to_s.rjust(2, "0")}", total: "1.00", delivery_on: Date.new(2026, 11, 1) + index) }
+    Order.create!(account: Account.where.not(id: @account.id).first, number: "IDX-FOREIGN", total: "1.00", delivery_on: "2027-01-01")
+    get "/staff/orders"
+    assert_response :success
+    assert_equal [ "Select", "Number", "State", "Total", "Delivery on", "Expedited", "Review summary", "Actions" ], css_select("thead th").map { |node| node.text.strip }
+    assert_select "th[aria-sort=descending] a", text: "Delivery on"
+    assert_select "tbody tr", count: 20
+    assert_select "p.raa-count", text: "21 matching records"
+    assert_includes css_select("tbody tr").first.text, "IDX-20"
+    refute_includes response.body, "IDX-FOREIGN"
+    next_page = css_select("nav.raa-pagination a").find { |node| node.text == "Next" }["href"]
+    assert_equal "/staff/orders?page=2", next_page
+    get next_page
+    assert_select "tbody tr", count: 1
+    assert_includes css_select("tbody tr").first.text, "IDX-00"
+  end
+
   def test_host_policy_matrix_and_field_grants
     anonymous = Struct.new(:session).new({})
     assert RailsAiAdmin::TestKit.assert_unauthenticated(adapter: AdminContext.new, controller: anonymous)
@@ -382,7 +476,8 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
       context = RailsAiAdmin::Context.new(actor: @user, tenant: @account, security_version: @user.security_version.to_s)
       assert RailsAiAdmin::TestKit.assert_access(context: context, resource: CustomerAdmin, action: :update, record: @customer, allowed: role == "admin")
       assert RailsAiAdmin::TestKit.assert_field_grants(context: context, resource: CustomerAdmin, record: @customer,
-        expected: { read: %i[id name active points created_at status_summary], write: role == "admin" ? %i[name active points] : [], search: [ :name ], sort: [ :name ] })
+        expected: { read: %i[id name active points created_at status_summary], write: role == "admin" ? %i[name active points] : [], search: [ :name ], sort: [ :name ], filter: [] })
+      assert_equal (%w[delivery_on expedited] + (role == "admin" ? [ "total" ] : [])).sort, RailsAiAdmin::TestKit.field_grants(context: context, resource: OrderAdmin).fetch("filter")
       assert RailsAiAdmin::TestKit.assert_hidden(context: context, resource: CustomerAdmin, field: :secret)
     end
     context = RailsAiAdmin::Context.new(actor: @user, tenant: @account, security_version: @user.security_version.to_s)

@@ -12,7 +12,8 @@ module RailsAiAdmin
         false
       end
 
-      # action is :read, :write, :search or :sort; no implicit grants.
+      # action is :read, :write, :search, :sort or :filter; no implicit grants.
+      # Filtering reveals values through membership, so it is never implied by read.
       def fields(context:, resource:, action:, record: nil)
         []
       end
@@ -39,6 +40,13 @@ module RailsAiAdmin
 
       def cancel_operation?(context:, resource:, operation:)
         false
+      end
+
+      # Named list scopes (declared tabs) this actor may use. A scope predicate can
+      # reveal facts about fields the actor cannot read, so it is granted apart
+      # from index/read/search/sort.
+      def named_scopes(context:, resource:)
+        []
       end
 
       # Capturing/viewing a fixed selection is independent of list/read/write.

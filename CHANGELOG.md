@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+- Add index table settings: declared columns, a default sort applied only while
+  granted, page sizes of 1..100 and exact counts bounded at 10,000 (no
+  tenant-global estimates). Cells no longer split words and compact values stay
+  on one line, so wide tables scroll (resource_index revision 5).
+- Add gemspec homepage and source/changelog/bug-tracker metadata.
+- Add typed list filters: `filterable:` fields with eq/gte/lte by scalar type, a
+  separate default-deny `:filter` field grant (Pundit `filterable_fields`),
+  contract-coerced Arel-bound values, canonical nested filter list hints and a
+  native filter form (resource_index revision 4). Doctor reviews unindexed
+  filterable columns. **Breaking:** TestKit field snapshots and
+  `assert_field_grants` now require a `filter` group.
+- Update rack to 3.2.8 for GHSA-2j8w-xcrc-x985, GHSA-5v64-555j-wjxm,
+  GHSA-p8x9-v4hv-2w4g and GHSA-wvg4-6p58-3gh3.
+- Add named list scopes: bounded index tabs with an optional default that are
+  intersected with the policy relation by primary key, need an independent
+  default-deny `named_scopes` grant (Pundit `permitted_named_scopes`), travel in
+  list hints and render as current-grant tabs (resource_index revision 3).
+- Require Ruby 4.0.9 or newer; development, RuboCop and every CI job use the
+  `.ruby-version` pin (4.0.9) instead of a Ruby 3.4/4.0 matrix.
 - Establish the implementation baseline from the reviewed v0.3 development plan.
 - Add an isolated, default-deny Engine with explicit resources and scalar fields.
 - Add synchronous CRUD intents with identity/input/version/expiry binding, current

@@ -6,7 +6,7 @@ module RailsAiAdmin
   # Framework-neutral host assertions. Raises AssertionError without Minitest/RSpec.
   module TestKit
     class AssertionError < StandardError; end
-    FIELD_ACTIONS = %i[read write search sort].freeze
+    FIELD_ACTIONS = %i[read write search sort filter].freeze
 
     # Supply a host controller/request representing an anonymous session. This
     # checks the adapter contract; also test the real anonymous HTTP entry point.
@@ -27,12 +27,26 @@ module RailsAiAdmin
 
     def self.assert_field_grants(context:, resource:, expected:, record: nil, operation: :update)
       unless expected.is_a?(Hash) && expected.keys.map(&:to_s).sort == FIELD_ACTIONS.map(&:to_s).sort && expected.values.all? { |names| names.is_a?(Array) }
-        raise ArgumentError, "Expected read/write/search/sort arrays"
+        raise ArgumentError, "Expected read/write/search/sort/filter arrays"
       end
       normalized = expected.to_h { |action, names| [ action.to_s, names.map(&:to_s).sort ] }
       actual = field_grants(context: context, resource: resource, record: record, operation: operation)
       differences = FIELD_ACTIONS.map(&:to_s).select { |action| actual.fetch(action) != normalized.fetch(action) }
       raise AssertionError, "Field grants differ for #{resource.key}: #{differences.join(', ')}" if differences.any?
+      true
+    end
+
+    # Declared named scopes currently granted to this context, sorted by name.
+    def self.named_scope_grants(context:, resource:)
+      Authorization::Access.new(context, resource).named_scopes.map { |definition| definition.name.to_s }.sort
+    end
+
+    def self.assert_named_scopes(context:, resource:, expected:)
+      raise ArgumentError, "Expected an array of scope names" unless expected.is_a?(Array)
+      actual = named_scope_grants(context: context, resource: resource)
+      unless actual == expected.map(&:to_s).sort
+        raise AssertionError, "Named scope grants differ for #{resource.key}: expected #{expected.map(&:to_s).sort.inspect}, got #{actual.inspect}"
+      end
       true
     end
 
@@ -54,7 +68,7 @@ module RailsAiAdmin
       true
     end
 
-    def self.assert_hidden(context:, resource:, field:, actions: [ :read, :write, :search, :sort ], record: nil)
+    def self.assert_hidden(context:, resource:, field:, actions: FIELD_ACTIONS, record: nil)
       access = Authorization::Access.new(context, resource)
       actions.each do |action|
         if access.fields(action, record).any? { |entry| entry.name == field.to_sym }
