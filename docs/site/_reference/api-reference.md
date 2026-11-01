@@ -28,6 +28,7 @@ The [RDoc reference]({{ '/api/' | relative_url }}) opens on `RailsAiAdmin` and h
 | Persist/deliver post-commit intent | `Work`, `Outbox::Writer`, `Outbox::Dispatcher`, `Outbox::DeliveryContext`, `Outbox::RequestDigest` |
 | Bound a list query | `Queries::List` |
 | Offer granted list tabs | `Resource.scopes`, `Queries::NamedScope` |
+| Filter lists by typed values | `Field#filter_operators`, `Queries::List` (`filters:`) |
 | Normalize non-authoritative return hints | `Navigation::ListState` |
 | Group authorized resource menus | `Resource.navigation`, `Navigation::Settings`, `Navigation::Menu` |
 | Capture/revalidate fixed targets | `Selections::Builder`, `Selections::Builder::Snapshot`, `Selections::Builder::Target` |

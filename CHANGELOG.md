@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Add typed list filters: `filterable:` fields with eq/gte/lte by scalar type, a
+  separate default-deny `:filter` field grant (Pundit `filterable_fields`),
+  contract-coerced Arel-bound values, canonical nested filter list hints and a
+  native filter form (resource_index revision 4). Doctor reviews unindexed
+  filterable columns. **Breaking:** TestKit field snapshots and
+  `assert_field_grants` now require a `filter` group.
+- Update rack to 3.2.8 for GHSA-2j8w-xcrc-x985, GHSA-5v64-555j-wjxm,
+  GHSA-p8x9-v4hv-2w4g and GHSA-wvg4-6p58-3gh3.
 - Add named list scopes: bounded index tabs with an optional default that are
   intersected with the policy relation by primary key, need an independent
   default-deny `named_scopes` grant (Pundit `permitted_named_scopes`), travel in

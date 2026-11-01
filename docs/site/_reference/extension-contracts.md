@@ -199,8 +199,9 @@ preservation is supplied. See
 ## List Navigation Hints
 
 `Navigation::ListState.new(access, raw, strict: false)` normalizes only q/sort/
-direction/page/scope String scalar settings (scope follows the current named-scope
-grant and omits the granted default); search rejects invalid encoding and C0/DEL
+direction/page/scope String scalar settings plus a bounded nested filter map
+(scope follows the current named-scope grant and omits the granted default;
+filters follow current filter grants and field contracts); search rejects invalid encoding and C0/DEL
 control characters before database use. Its immutable state is not a URL, saved
 query or authority. Native return_to accepts a Hash only and builds a current
 resource index path, or dashboard if index is denied. Current search/sort grants
@@ -213,7 +214,7 @@ count (requested page * 25, maximum 25,000) and clamped requery for empty later
 pages, then redirects canonically. Recovery is best-effort under concurrency.
 Form recovery carries encoded state through X-RailsAiAdmin-Return-State separately
 from the same UUID intent header: ASCII Base64URL UTF-8 JSON, 2,048 encoded bytes/
-1,024 decoded bytes maximum. Invalid hints are discarded, never used as URLs.
+1,536 decoded bytes maximum. Invalid hints are discarded, never used as URLs.
 See [List Navigation]({% link _core_features/list-navigation.md %}) for native
 flow retention and the registered template helpers.
 

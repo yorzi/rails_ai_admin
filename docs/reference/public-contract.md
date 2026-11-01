@@ -37,8 +37,8 @@ Resources declare `model`, `key`, `label`, `title`, optional `policy`, `readonly
 `fields`, named list `scopes` and explicit member `operation` handlers. Core scalar types are id/text/textarea/integer/decimal/boolean/date/datetime/enum/select.
 Registered `Fields::Type` classes refine scalars through `config.field_types`
 class-name strings and optional trusted field partials (ADR 0009).
-Fields use explicit readonly/required/nullable/create/edit/searchable/sortable
-flags. Search/sort grants are independent of read/write. Resources do not scan
+Fields use explicit readonly/required/nullable/create/edit/searchable/sortable/filterable
+flags. Search/sort/filter grants are independent of read/write. Resources do not scan
 model tables at boot. Reserved slugs are rejected by the registry.
 
 Scalar projection and record titles require a model attribute (or the single
@@ -75,7 +75,8 @@ inference or alias fallback occurs. A policy receives the full `Context` and
 record/model. Supported predicates are `index?`, `show?`, `create?`, `update?` and
 `destroy?`, plus a predicate for each explicitly registered custom operation.
 Field grants come separately from `readable_fields`, `writable_fields`,
-`searchable_fields` and `sortable_fields`; missing methods return no grants.
+`searchable_fields`, `sortable_fields` and `filterable_fields`; missing methods
+return no grants.
 
 The mapped policy or a parent policy class must own its Scope. An unrelated
 `Object::Scope` is never inherited. The explicit `Scope.new(context, relation).resolve`
@@ -151,14 +152,14 @@ adapter's `resolve(controller)` and requires nil. It checks that direct context
 boundary, not an HTTP request; use the generated request test as well.
 
 `TestKit.field_grants(context:, resource:, record: nil, operation: :update)`
-returns four string keys, `read`, `write`, `search` and `sort`, each with a sorted
+returns five string keys, `read`, `write`, `search`, `sort` and `filter`, each with a sorted
 array of field-name strings after the shared DSL/policy intersection. The
 operation selects create/update field exposure for the write grant. It does not
 apply action permission or record-scope decisions. Pass a representative record
 for record-dependent field rules.
 
 `TestKit.assert_field_grants` takes the same arguments plus `expected:` and
-compares all four groups exactly after normalizing keys/field names to strings
+compares all five groups exactly after normalizing keys/field names to strings
 and sorting. It is not a minimum allowlist. `operation` accepts only `:create` or
 `:update`. Keep these checks alongside `assert_access`, `assert_isolated` and
 actual request tests. A field snapshot is not an AI exposure
@@ -288,6 +289,22 @@ the granted default for nil and otherwise requires a declared, granted name
 key, drop the granted default and discard revoked scopes; strict index requests
 reject undeclared names with 422. TestKit offers `named_scope_grants` and
 `assert_named_scopes`. See ADR 0017 and the Named Scopes guide.
+
+## Typed list filters
+
+`filterable: true` selects `eq` for id/text/textarea/enum/select/boolean and
+inclusive `gte`/`lte` for integer/decimal/date/datetime; an Array narrows to
+allowed operators (range types also allow `eq`). Virtual/hidden fields cannot
+filter, and undeclared fields keep unchanged contracts. The adapter's
+`fields(action: :filter)` grant (Pundit `filterable_fields`) is default-deny and
+independent of read/search/sort. `Queries::List#call(filters:)` ANDs at most 20
+`{ field => { operator => String } }` conditions, coerces each value through the
+field contract (Context time zone for datetimes) and binds it with Arel; anything
+undeclared, ungranted or out of contract is INVALID_QUERY. List hints carry a
+canonical nested `filter`, strict index requests reject invalid filters with 422,
+revoked grants are discarded and blank form submissions redirect once to the
+canonical URL. Decoded recovery-header JSON may use 1,536 bytes. See ADR 0018 and
+the Typed Filters guide.
 
 ## Host controllers and fixed statuses
 

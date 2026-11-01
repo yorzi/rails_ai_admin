@@ -19,8 +19,9 @@ After reading this guide, you will know:
 
 ## Carry a List Hint Rather Than a URL
 
-The native index uses `q`, `sort`, `direction`, `page` and, for resources with
-[Named Scopes]({% link _core_features/named-scopes.md %}), `scope`. Links/forms for a
+The native index uses `q`, `sort`, `direction`, `page` and, when configured,
+`scope` ([Named Scopes]({% link _core_features/named-scopes.md %})) and a nested
+`filter` map ([Typed Filters]({% link _core_features/typed-filters.md %})). Links/forms for a
 record flow carry those same settings in a nested `return_to` Hash. It never
 accepts a destination URL, host, resource name, controller or arbitrary route.
 Every return link is generated for the **current resource index**, or the admin
@@ -63,7 +64,7 @@ own typed arguments and remains strict.
 
 ## Recheck Search and Sort Authority
 
-Every request rechecks current index/search/sort grants. A removed search setting
+Every request rechecks current index/search/sort/scope/filter grants. A removed search setting
 or sort grant is dropped, and discarded settings reset page to its default.
 Unchanged permitted settings survive. If index itself is denied, a member page
 can still be authorized independently, but its return link goes to Administration
@@ -137,7 +138,7 @@ encoded = hint.encoded
 restored = RailsAiAdmin::Navigation::ListState.from_header(access, encoded)
 ```
 
-The encoded header is at most 2,048 bytes and decoded JSON at most 1,024 bytes.
+The encoded header is at most 2,048 bytes and decoded JSON at most 1,536 bytes.
 Missing/empty means no hint. Bad encoding, invalid UTF-8/JSON/shape or stale grants
 are discarded/narrowed under the same current authorization rules, with the
 native discard notice. The refreshed recovery form carries the discarded flag,

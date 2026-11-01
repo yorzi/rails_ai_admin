@@ -90,6 +90,7 @@ class TicketPolicy
   def writable_fields = %w[operator admin].include?(context.actor.role) ? %i[subject state priority internal_note] : []
   def searchable_fields = [:subject]
   def sortable_fields = [:priority]
+  def filterable_fields = context.actor.role == "viewer" ? [:state] : %i[state priority]
 
   class Scope
     def initialize(context, relation)
@@ -110,7 +111,7 @@ end
 The CRUD action predicates are `index?`, `show?`, `create?`, `update?` and
 `destroy?`. Registered member operations use their own named predicate, such as
 `triage?`. Missing predicates deny the action. Missing `readable_fields`,
-`writable_fields`, `searchable_fields` or `sortable_fields` methods grant no fields;
+`writable_fields`, `searchable_fields`, `sortable_fields` or `filterable_fields` methods grant no fields;
 `permitted_attributes` does not implicitly supply these grants. DSL flags and
 readonly rules can still narrow the returned lists.
 

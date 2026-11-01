@@ -78,9 +78,16 @@ tabs with an optional default. Each scope needs an independent default-deny gran
 and is intersected with the policy relation by primary key, so a body cannot
 widen it. List hints carry the scope and drop revoked grants. Both packaged hosts
 verify role/Pundit grants; Host A observed a renamed label after real reload, and
-a Chromium check covered keyboard switching at desktop and 320px widths. Typed
-filters, the Filter AST, scope counts, broader navigation work and full
-Phase 2/release Gates remain open.
+a Chromium check covered keyboard switching at desktop and 320px widths.
+
+[Typed Filters]({% link _core_features/typed-filters.md %}) add exact and inclusive
+range conditions on declared scalar fields behind an independent default-deny
+filter grant. Values are coerced through each field's contract and bound by Arel;
+hints carry canonical nested filters and discard revoked ones. Both packaged
+hosts verify role/Pundit filter grants and Host A's real reload; a Chromium check
+covered keyboard use at desktop and 320px widths. The Phase 3 Filter AST (OR,
+nesting, associations, null tests), saved views, scope counts, index table
+configuration and full Phase 2/release Gates remain open.
 
 Not implemented in this slice: associations, nested attributes, uploads/private
 attachments, imports/exports, all-filtered or 10,000-target batch manifests,
