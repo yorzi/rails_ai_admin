@@ -336,6 +336,14 @@ once across channels. Completed reviews need the receipt grant. No assistant
 presentation, continuation, in-Surface editing or template overrides exist. See
 ADR 0020 and the Review Surfaces guide.
 
+`operation ..., assistant: true` (requires `surface: true`) lets
+`Integrations::ProposeOperation.new(context:, conversation: "raa:conversation:<id>")`,
+a `RubyLLM::Tool` named `raa_propose_operation`, propose that operation: the
+server runs `Runner#preflight` with `origin: :assistant` and a per-tool-call
+UUIDv5 `intent_id`, then presents `raa_operation_review`. The tool cannot
+confirm; replays re-present, conflict, or report `reviewed`. Provider settings
+stay in `RubyLLM.context`. See ADR 0021.
+
 ## Host controllers and fixed statuses
 
 `RailsAiAdmin::CustomController` inherits fresh admin authentication, CSRF,

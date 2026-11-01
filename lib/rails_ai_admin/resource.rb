@@ -13,6 +13,7 @@ module RailsAiAdmin
         child.instance_variable_set(:@operations, {})
         child.instance_variable_set(:@operation_scopes, {})
         child.instance_variable_set(:@surface_operations, [])
+        child.instance_variable_set(:@assistant_operations, [])
         child.instance_variable_set(:@navigation, Navigation::Settings.new)
       end
 
@@ -70,8 +71,10 @@ module RailsAiAdmin
       end
 
       # surface: true also allows reviewing a native member intent in an
-      # admin-owned rails_tool_views Surface; it adds no authority.
-      def operation(key, handler:, scope: :member, confirmation: :required, surface: false)
+      # admin-owned rails_tool_views Surface; assistant: true further lets an
+      # assistant propose (never execute) it through that Surface. Neither adds
+      # authority: the current policy and a human confirmation still decide.
+      def operation(key, handler:, scope: :member, confirmation: :required, surface: false, assistant: false)
         unless key.to_s.match?(/\A[a-z][a-z0-9_]*\z/) && !%w[index show create update destroy new edit].include?(key.to_s)
           raise ConfigurationError, "Custom operation needs a distinct stable key"
         end
@@ -80,13 +83,17 @@ module RailsAiAdmin
         end
         raise ConfigurationError, "Duplicate operation #{key}" if @operations.key?(key.to_sym)
         raise ConfigurationError, "Operation surface must be boolean and is only for member operations" unless [ true, false ].include?(surface) && (!surface || scope == :member)
+        raise ConfigurationError, "Operation assistant must be boolean and requires surface: true" unless [ true, false ].include?(assistant) && (!assistant || surface)
         @operations[key.to_sym] = handler.freeze
         @operation_scopes[key.to_sym] = scope
         @surface_operations << key.to_sym if surface
+        @assistant_operations << key.to_sym if assistant
       end
 
       def operation_declarations = @operations
       def surface_operation?(key) = @surface_operations.include?(key.to_sym)
+      def assistant_operation?(key) = @assistant_operations.include?(key.to_sym)
+      def assistant_operations = @assistant_operations
       def operation_scopes = @operation_scopes
 
       def fields(&block)
@@ -142,6 +149,7 @@ module RailsAiAdmin
         @operations.freeze
         @operation_scopes.freeze
         @surface_operations.freeze
+        @assistant_operations.freeze
         self
       end
     end

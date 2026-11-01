@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add assistant operation proposals: `operation ..., assistant: true` and the
+  on-demand `Integrations::ProposeOperation` RubyLLM tool, which preflights an
+  `assistant`-origin intent and presents the review Surface; only the human's
+  Surface confirmation executes. Tool-call replays are idempotent.
+- Record open rails_tool_views integration findings DEP-008..012.
 - Add opt-in admin review Surfaces on the host-owned rails_tool_views runtime:
   `config.surfaces`, `operation ..., surface: true`, admin-owned endpoints with an
   explicit `raa:` Scope and a constant `raa_operation_review` component. A

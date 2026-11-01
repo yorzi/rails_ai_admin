@@ -23,6 +23,6 @@ class TicketAdmin < RailsAiAdmin::Resource
     scope :triaged, -> { where(state: "triaged") }
     scope :missing_note, -> { where(internal_note: [ nil, "" ]) }, label: "Missing internal note"
   end
-  operation :triage, handler: "TriageTicketOperation", surface: true
+  operation :triage, handler: "TriageTicketOperation", surface: true, assistant: true
   operation :bulk_triage, handler: "BulkTriageTicketsOperation", scope: :collection
 end

@@ -99,6 +99,13 @@ this file records current scope without rewriting its historical review claims.
   its product Surface and resolver, real per-form CSRF and reload; Host A stays
   AI-free. Packaged Host B and Chromium found and fixed two defects (CSRF hand-off
   and lapsed-grant rendering) that engine tests could not see (ADR 0020).
+- Assistant operation proposals (SPIKE-02 offline part): an on-demand RubyLLM
+  tool proposes opted-in operations under the current admin Context, presents
+  the review Surface and cannot confirm; one deterministic intent per tool call
+  keeps replays idempotent. A real RubyLLM chat loop with stubbed HTTP runs in
+  the engine suite and in packaged Host B beside the host's own RubyLLM product
+  chat, which stays untouched (ADR 0021). Integration findings with
+  rails_tool_views are recorded as DEP-008..012.
 - Server-owned intents with input/identity/epoch/version/expiry binding, database
   serialization, replay, atomic domain/audit/receipt, callback rollback handling
   and separate post-commit warning (synchronous parts of RAA-0112/0113).
@@ -143,11 +150,12 @@ documentation and advisory scanning. No remote CI run has occurred.
 
 ## Next implementation checkpoint
 
-Continue the AI early proof on the verified Surface boundary: SPIKE-02's offline
-part (an admin-owned PresentUI-style catalog of `raa_` components with
-per-component schema validation) and SPIKE-03 (persisted admin Chat on RubyLLM
-with continuation admission through `deliver(scope:, adapter:)` and an explicit
-admin adapter, never the host's global adapter). Close the remaining Phase 2
+Continue the AI early proof: SPIKE-03 with an Engine-owned admin Chat/Message
+pair on RubyLLM (shared ToolCall/Usage rows read only through admin associations,
+DEP-007), confirmation that sets `transition.agent`, and continuation admitted
+through `deliver(scope:, adapter:)` with an explicit admin adapter after commit,
+never the host's global adapter. Kill workers around admission/response to prove
+no duplicate human message or business write. Close the remaining Phase 2
 evidence in parallel: RAA-0210 (validation, CSRF, mass assignment, XSS and N+1
 regressions across list and Surface routes), I18n of framework strings, a
 screen-reader pass, and the RAA-0203/0208 extension matrix. Then start Phase 3
