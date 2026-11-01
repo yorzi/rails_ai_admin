@@ -2,7 +2,7 @@ source "https://rubygems.org"
 gemspec
 
 gem "rake", "~> 13.0"
-gem "minitest", "~> 5.27"
+gem "minitest", "~> 6.0"
 gem "sqlite3", "~> 2.0"
 gem "pg", "~> 1.6"
 gem "propshaft", "~> 1.3"
