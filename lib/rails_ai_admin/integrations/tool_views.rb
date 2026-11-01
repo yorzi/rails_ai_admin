@@ -77,24 +77,45 @@ module RailsAiAdmin
 
         def current_context = ActiveSupport::IsolatedExecutionState[CONTEXT_KEY]
 
-        # Presents (or replays) the review Surface for an unconsumed native intent.
-        def present(context:, resource:, definition:, record:, intent_ref:, input:)
+        # Typed preflight values as the wire strings the native page posts.
+        def wire_input(values)
+          values.to_h do |key, value|
+            wire = case value
+            when BigDecimal then value.to_s("F")
+            when Time, ActiveSupport::TimeWithZone then value.utc.iso8601(6)
+            when Date then value.iso8601
+            else value
+            end
+            [ key.to_s, wire ]
+          end
+        end
+
+        # Presents (or replays) the review Surface for an unconsumed intent. A
+        # native intent replays per intent; an assistant intent per tool call,
+        # under the server-owned conversation reference.
+        def present(context:, resource:, definition:, record:, intent_ref:, input:, assistant_call: nil)
           ensure_registered!
           raise AccessDenied unless resource.surface_operation?(definition.key) && definition.custom? && definition.scope == :member
+          origin = assistant_call ? "assistant" : "ui"
+          raise AccessDenied if assistant_call && !resource.assistant_operation?(definition.key)
           raise AccessDenied unless intent_ref.is_a?(String) && intent_ref.match?(/\A[0-9a-f-]{36}\z/)
           run = OperationRun.find_by(id: intent_ref, actor_ref: context.actor_ref, tenant_ref: context.tenant_ref)
           unless run && run.id == intent_ref && run.resource_key == resource.key.to_s && run.operation == definition.key.to_s &&
-              run.target_id == record.id.to_s && run.status == "proposed" && run.origin == "ui" && run.parent_run_id.nil?
+              run.target_id == record.id.to_s && run.status == "proposed" && run.origin == origin && run.parent_run_id.nil?
             raise AccessDenied
           end
           raise AccessDenied, "APPROVAL_EXPIRED" unless run.expires_at && run.expires_at > Time.current
           raise AccessDenied, "APPROVAL_INVALIDATED" unless run.security_version == context.security_version
           wire = canonical_input(input)
           raise AccessDenied, "APPROVAL_INVALIDATED" unless run.input_digest && run.input_digest == InputSchema.digest(input_values(context, resource, definition, record, wire))
-          reference = "raa:intent:#{run.id}"
+          reference, correlation = if assistant_call
+            [ assistant_call.fetch(:conversation), { adapter: "raa_assistant", call_id: assistant_call.fetch(:call_id), context: assistant_call.fetch(:conversation) } ]
+          else
+            [ "raa:intent:#{run.id}", { adapter: "raa_native_review", call_id: run.id, context: "raa:intent:#{run.id}" } ]
+          end
           with_context(context) do
             ::RailsToolViews.present(KEY, props: { "intent" => run.id, "input" => wire }, scope: scope_for(context),
-              context: reference, correlation: { adapter: "raa_native_review", call_id: run.id, context: reference })
+              context: reference, correlation: correlation)
           end
         end
 

@@ -16,7 +16,12 @@ module RailsAiAdmin
         result.intent
       end
 
-      def preflight(context:, resource:, operation:, target_id: nil, expected_version: nil, input: nil, origin: :ui)
+      # intent_id lets a replay-safe adapter (an assistant tool call) derive one
+      # stable intent per call; it must be a UUID and creates no authority.
+      def preflight(context:, resource:, operation:, target_id: nil, expected_version: nil, input: nil, origin: :ui, intent_id: nil)
+        unless intent_id.nil? || intent_id.is_a?(String) && intent_id.match?(/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/)
+          raise ConfigurationError, "intent_id must be a lowercase UUID"
+        end
         definition = RailsAiAdmin.operation_registry.fetch(resource, operation)
         if definition.custom? && definition.scope == :collection
           raise ConfigurationError, "Collection intents require fixed-manifest preflight and admission"
@@ -24,7 +29,7 @@ module RailsAiAdmin
         result = preview(context: context, resource: resource, operation: operation, target_id: target_id,
           expected_version: expected_version, input: input, origin: origin)
         return result if result.is_a?(Result)
-        intent = OperationRun.create!(id: SecureRandom.uuid, actor_ref: context.actor_ref,
+        intent = OperationRun.create!(id: intent_id || SecureRandom.uuid, actor_ref: context.actor_ref,
           tenant_ref: context.tenant_ref, security_version: context.security_version,
           resource_key: resource.key.to_s, operation: operation.to_s,
           operation_version: operation_version(resource, operation), target_id: result.target_id,
