@@ -158,6 +158,11 @@ module RailsAiAdmin
       end
       result << Check.new("sort_indexes:#{resource.key}", missing.zero? ? :ok : :review,
         "#{missing} sortable declarations lack a leading-column index. Review query plans and tenant-composite indexes; this hint is not a performance verdict.")
+      unindexed_filters = resource.fields.count do |field|
+        !field.hidden? && field.filter_operators.any? && field.name.to_s != model.primary_key && !indexes.any? { |index| index.columns.is_a?(Array) && index.columns.include?(field.name.to_s) }
+      end
+      result << Check.new("filter_indexes:#{resource.key}", unindexed_filters.zero? ? :ok : :review,
+        "#{unindexed_filters} filterable declarations appear in no index. Review query plans with the tenant scope; low-cardinality filters may not need one.")
       result
     end
   end

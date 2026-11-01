@@ -16,6 +16,7 @@ class TestPolicy < RailsAiAdmin::Authorization::Adapter
   class_attribute :limited_scope, default: false
   class_attribute :new_only_create, default: false
   class_attribute :granted_scopes, default: []
+  class_attribute :granted_filters, default: []
 
   def scope(context:, resource:, relation:)
     scoped = denied ? relation.none : relation.where(account_id: context.tenant.id)
@@ -36,8 +37,12 @@ class TestPolicy < RailsAiAdmin::Authorization::Adapter
     return %i[id name points active] - (hide_name ? [ :name ] : []) if action == :read
     return %i[name points active] if action == :write && context.actor.id == 1
     return [ :name ] if %i[search sort].include?(action) && !hide_name
+    return granted_filters if action == :filter
     []
   end
+end
+
+class FilterSample < ActiveRecord::Base
 end
 
 class UuidCustomer < ActiveRecord::Base
@@ -81,6 +86,20 @@ module DatabaseHelpers
         end
       end
     end
+    unless FilterSample.table_exists?
+      ActiveRecord::Schema.define do
+        create_table :filter_samples do |t|
+          t.integer :account_id, null: false
+          t.string :label, null: false
+          t.string :kind, null: false, default: "standard"
+          t.decimal :amount, precision: 10, scale: 2
+          t.date :due_on
+          t.datetime :seen_at
+          t.boolean :flagged, null: false, default: false
+          t.integer :lock_version, null: false, default: 0
+        end
+      end
+    end
     unless UuidCustomer.table_exists?
       uuid_type = ActiveRecord::Base.connection.adapter_name == "PostgreSQL" ? :uuid : :string
       ActiveRecord::Schema.define do
@@ -112,6 +131,8 @@ module DatabaseHelpers
     TestPolicy.limited_scope = false
     TestPolicy.new_only_create = false
     TestPolicy.granted_scopes = []
+    TestPolicy.granted_filters = []
+    FilterSample.delete_all
     @customer = Customer.create!(account_id: 1, name: "Alice", secret: "never show")
     @other = Customer.create!(account_id: 2, name: "Other tenant")
   end

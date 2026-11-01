@@ -6,7 +6,7 @@ module RailsAiAdmin
   # Framework-neutral host assertions. Raises AssertionError without Minitest/RSpec.
   module TestKit
     class AssertionError < StandardError; end
-    FIELD_ACTIONS = %i[read write search sort].freeze
+    FIELD_ACTIONS = %i[read write search sort filter].freeze
 
     # Supply a host controller/request representing an anonymous session. This
     # checks the adapter contract; also test the real anonymous HTTP entry point.
@@ -27,7 +27,7 @@ module RailsAiAdmin
 
     def self.assert_field_grants(context:, resource:, expected:, record: nil, operation: :update)
       unless expected.is_a?(Hash) && expected.keys.map(&:to_s).sort == FIELD_ACTIONS.map(&:to_s).sort && expected.values.all? { |names| names.is_a?(Array) }
-        raise ArgumentError, "Expected read/write/search/sort arrays"
+        raise ArgumentError, "Expected read/write/search/sort/filter arrays"
       end
       normalized = expected.to_h { |action, names| [ action.to_s, names.map(&:to_s).sort ] }
       actual = field_grants(context: context, resource: resource, record: record, operation: operation)
@@ -68,7 +68,7 @@ module RailsAiAdmin
       true
     end
 
-    def self.assert_hidden(context:, resource:, field:, actions: [ :read, :write, :search, :sort ], record: nil)
+    def self.assert_hidden(context:, resource:, field:, actions: FIELD_ACTIONS, record: nil)
       access = Authorization::Access.new(context, resource)
       actions.each do |action|
         if access.fields(action, record).any? { |entry| entry.name == field.to_sym }

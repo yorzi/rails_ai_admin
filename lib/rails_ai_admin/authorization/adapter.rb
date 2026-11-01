@@ -12,7 +12,8 @@ module RailsAiAdmin
         false
       end
 
-      # action is :read, :write, :search or :sort; no implicit grants.
+      # action is :read, :write, :search, :sort or :filter; no implicit grants.
+      # Filtering reveals values through membership, so it is never implied by read.
       def fields(context:, resource:, action:, record: nil)
         []
       end

@@ -161,7 +161,8 @@ module RailsAiAdmin
             (action != :write || field.name.to_s != resource.model_class.primary_key) &&
             (action != :write || field.writable?(operation || :update)) &&
             (action != :search || !field.virtual? && field.options[:searchable]) &&
-            (action != :sort || !field.virtual? && field.options[:sortable])
+            (action != :sort || !field.virtual? && field.options[:sortable]) &&
+            (action != :filter || !field.virtual? && field.filter_operators.any?)
         end
         mask = presentation_mask(record, view) if view
         selected = selected.select { |field| mask.include?(field.name) } if mask

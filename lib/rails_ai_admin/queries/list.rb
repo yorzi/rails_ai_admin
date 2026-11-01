@@ -7,6 +7,9 @@ module RailsAiAdmin
       # scope is the applied named scope's name, or nil for the policy relation.
       Page = Data.define(:records, :number, :has_next, :scope)
       PAGE_SIZE = 25
+      MAX_FILTER_CONDITIONS = 20
+      FILTER_VALUE = ->(value) { value.is_a?(String) && value.valid_encoding? && (value.encoding == Encoding::UTF_8 || value.ascii_only?) && value.length.between?(1, 200) && !value.match?(/[\x00-\x1f\x7f]/) }
+      AREL_PREDICATES = { "eq" => :eq, "gte" => :gteq, "lte" => :lteq }.freeze
 
       def initialize(context, resource)
         @access = Authorization::Access.new(context, resource)
@@ -15,7 +18,9 @@ module RailsAiAdmin
 
       # scope: nil uses the declared default when it is currently granted.
       # A named scope must be declared and granted; it is never discarded here.
-      def call(search: nil, sort: nil, direction: "asc", page: "1", recover_empty_page: false, scope: nil)
+      # filters: { "field" => { "eq" | "gte" | "lte" => "wire string" } }, ANDed.
+      # Every field needs a current :filter grant and a declared operator.
+      def call(search: nil, sort: nil, direction: "asc", page: "1", recover_empty_page: false, scope: nil, filters: nil)
         @access.authorize!(:index)
         unless (page.is_a?(String) || page.is_a?(Integer)) && page.to_s.valid_encoding? && page.to_s.ascii_only? && page.to_s.match?(/\A[1-9]\d{0,3}\z/) && page.to_i <= 1000
           raise AccessDenied, "INVALID_QUERY"
@@ -32,6 +37,7 @@ module RailsAiAdmin
         raise AccessDenied, "INVALID_QUERY" if scope && !named
         relation = @access.relation
         relation = named.apply(relation) if named
+        relation = apply_filters(relation, filters)
         if search.present?
           fields = @access.fields(:search)
           raise AccessDenied, "INVALID_QUERY" if fields.empty?
@@ -64,6 +70,37 @@ module RailsAiAdmin
           records = relation.offset((number - 1) * PAGE_SIZE).limit(PAGE_SIZE + 1).to_a
         end
         Page.new(records: records.first(PAGE_SIZE), number: number, has_next: records.size > PAGE_SIZE, scope: named&.name&.to_s)
+      end
+
+      # Coerces each wire value through the field's scalar contract. Values are
+      # bound by Arel; no operator, column or SQL text comes from the request.
+      def self.filter_value(field, operator, raw, time_zone:)
+        raise AccessDenied, "INVALID_QUERY" unless field.filter_operators.include?(operator.to_sym) && FILTER_VALUE.call(raw)
+        value = field.coerce(raw, time_zone: time_zone)
+        raise AccessDenied, "INVALID_QUERY" if value.nil?
+        value
+      rescue ArgumentError
+        raise AccessDenied, "INVALID_QUERY", cause: nil
+      end
+
+      private
+
+      def apply_filters(relation, filters)
+        return relation if filters.nil?
+        unless filters.is_a?(Hash) && filters.keys.all? { |key| key.is_a?(String) || key.is_a?(Symbol) } &&
+            filters.values.all? { |conditions| conditions.is_a?(Hash) && conditions.any? && conditions.keys.all? { |key| AREL_PREDICATES.key?(key.to_s) } } &&
+            filters.values.sum(&:size) <= MAX_FILTER_CONDITIONS
+          raise AccessDenied, "INVALID_QUERY"
+        end
+        granted = @access.fields(:filter).index_by { |field| field.name.to_s }
+        table = @resource.model_class.arel_table
+        filters.reduce(relation) do |scoped, (name, conditions)|
+          field = granted[name.to_s] or raise AccessDenied, "INVALID_QUERY"
+          conditions.reduce(scoped) do |inner, (operator, raw)|
+            value = self.class.filter_value(field, operator.to_s, raw, time_zone: @access.context.time_zone)
+            inner.where(table[field.name].public_send(AREL_PREDICATES.fetch(operator.to_s), value))
+          end
+        end
       end
     end
   end

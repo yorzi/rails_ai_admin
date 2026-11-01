@@ -12,7 +12,7 @@ module RailsAiAdmin
         redirect_to list_return_path, status: :see_other, notice: "Some list settings are no longer available. The current list settings have been restored."
         return
       end
-      @page = Queries::List.new(@context, @resource).call(search: navigation_state["q"], sort: navigation_state["sort"], direction: navigation_state.fetch("direction", "asc"), page: navigation_state.fetch("page", "1"), recover_empty_page: true, scope: navigation_state["scope"])
+      @page = Queries::List.new(@context, @resource).call(search: navigation_state["q"], sort: navigation_state["sort"], direction: navigation_state.fetch("direction", "asc"), page: navigation_state.fetch("page", "1"), recover_empty_page: true, scope: navigation_state["scope"], filters: navigation_state["filter"])
       if @page.number != navigation_state.fetch("page", "1").to_i
         @list_navigation = Navigation::ListState.new(@access, navigation_state.merge("page" => @page.number.to_s))
         redirect_to list_return_path, status: :see_other, notice: "That list page is now empty. Showing an available page."
@@ -20,6 +20,7 @@ module RailsAiAdmin
       end
       @sortable_fields = @access.fields(:sort)
       @list_scopes = @access.named_scopes
+      @filter_fields = @access.fields(:filter)
       @current_scope = @page.scope
       @columns = @access.fields(:read, view: :index)
       @rows = @page.records.map do |record|

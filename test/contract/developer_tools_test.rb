@@ -131,7 +131,7 @@ class DeveloperToolsTest < Minitest::Test
   end
 
   def test_field_grant_snapshot_detects_both_expansion_and_revocation
-    expected = { read: %i[id name points active], write: %i[name points active], search: [ :name ], sort: [ :name ] }
+    expected = { read: %i[id name points active], write: %i[name points active], search: [ :name ], sort: [ :name ], filter: [] }
     assert RailsAiAdmin::TestKit.assert_field_grants(context: context, resource: TestResource, record: @customer, expected: expected)
     report = RailsAiAdmin::TestKit.field_grants(context: context, resource: TestResource, record: @customer)
     assert_equal %w[active id name points], report.fetch("read")
@@ -143,10 +143,15 @@ class DeveloperToolsTest < Minitest::Test
     reader = RailsAiAdmin::TestKit.field_grants(context: context(actor: 2), resource: TestResource, record: @customer)
     assert_empty reader.fetch("write")
     assert_raises(ArgumentError) { RailsAiAdmin::TestKit.assert_field_grants(context: context, resource: TestResource, expected: { read: [] }) }
+    assert_raises(ArgumentError) { RailsAiAdmin::TestKit.assert_field_grants(context: context, resource: TestResource, expected: expected.except(:filter)) }
+    TestPolicy.hide_name = false
+    TestPolicy.granted_filters = %i[points secret]
+    assert_equal [ "points" ], RailsAiAdmin::TestKit.field_grants(context: context, resource: TestResource).fetch("filter")
+    assert RailsAiAdmin::TestKit.assert_hidden(context: context, resource: TestResource, field: :active, actions: [ :filter ])
   end
 
   def test_field_snapshots_respect_separate_create_edit_and_query_flags
-    grants = { read: %i[name points], write: [ :points ], search: [], sort: [] }
+    grants = { read: %i[name points], write: [ :points ], search: [], sort: [], filter: [] }
     assert RailsAiAdmin::TestKit.assert_field_grants(context: context, resource: LifecycleFieldAdmin, record: @customer, operation: :create, expected: grants)
     assert RailsAiAdmin::TestKit.assert_field_grants(context: context, resource: LifecycleFieldAdmin, record: @customer, operation: :update, expected: grants.merge(write: [ :name ]))
     assert_raises(ArgumentError) { RailsAiAdmin::TestKit.field_grants(context: context, resource: LifecycleFieldAdmin, operation: nil) }

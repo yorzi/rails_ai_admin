@@ -14,7 +14,7 @@ module RailsAiAdmin
         "status_page" => [ "rails_ai_admin/statuses/show.html.erb", %i[admin_status status_sign_in_path], [] ],
         "resource_navigation" => [ "rails_ai_admin/shared/_navigation.html.erb", [], %i[groups] ],
         "dashboard" => [ "rails_ai_admin/dashboard/index.html.erb", %i[context], [] ],
-        "resource_index" => [ "rails_ai_admin/resources/index.html.erb", %i[context resource page columns rows searchable selectable sortable_fields list_scopes current_scope], [] ],
+        "resource_index" => [ "rails_ai_admin/resources/index.html.erb", %i[context resource page columns rows searchable selectable sortable_fields list_scopes current_scope filter_fields], [] ],
         "resource_show" => [ "rails_ai_admin/resources/show.html.erb", %i[context resource record values fields operations], [] ],
         "resource_new" => [ "rails_ai_admin/resources/new.html.erb", %i[context resource record operation intent form_fields form_values form_plan errors failure_code needs_reload], [] ],
         "resource_edit" => [ "rails_ai_admin/resources/edit.html.erb", %i[context resource record operation intent form_fields form_values form_plan errors failure_code needs_reload], [] ],
@@ -45,7 +45,7 @@ module RailsAiAdmin
         elsif key == "dashboard"
           2
         elsif key == "resource_index"
-          3
+          4
         elsif %w[resource_new resource_edit resource_form].include?(key)
           4
         elsif navigation || %w[resource_errors input_fields].include?(key)

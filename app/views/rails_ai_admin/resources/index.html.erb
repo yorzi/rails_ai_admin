@@ -12,8 +12,22 @@
 <% if @searchable %>
   <%= form_with url: resources_path(resource: @resource.key), method: :get, local: true, class: "raa-search" do |form| %>
     <%= form.label :q, "Search" %><%= form.search_field :q, value: navigation_state["q"], maxlength: 200 %>
-    <% navigation_state.slice("sort", "direction", "scope").each do |key, value| %><%= hidden_field_tag key, value %><% end %>
+    <%= list_state_fields("sort", "direction", "scope", "filter") %>
     <%= form.submit "Search" %>
+  <% end %>
+<% end %>
+<% if @filter_fields.any? %>
+  <%= form_with url: resources_path(resource: @resource.key), method: :get, local: true, class: "raa-filters" do |form| %>
+    <fieldset><legend>Filters</legend>
+      <% @filter_fields.each do |field| %><% field.filter_operators.each do |operator| %>
+        <% id = "raa-filter-#{field.name}-#{operator}" %>
+        <div class="raa-filter"><label for="<%= id %>"><%= admin_filter_label(field, operator) %></label>
+        <%= admin_filter_input(field, operator, navigation_state.dig("filter", field.name.to_s, operator.to_s), id: id) %></div>
+      <% end %><% end %>
+    </fieldset>
+    <%= list_state_fields("q", "sort", "direction", "scope") %>
+    <div class="raa-actions"><%= form.submit "Apply filters", name: nil %>
+    <% if navigation_state["filter"] %><%= link_to "Clear filters", resources_path(resource: @resource.key, **navigation_state.except("filter", "page").symbolize_keys) %><% end %></div>
   <% end %>
 <% end %>
 <% if navigation_state.any? %><p><%= link_to "Reset list", resources_path(resource: @resource.key) %></p><% end %>

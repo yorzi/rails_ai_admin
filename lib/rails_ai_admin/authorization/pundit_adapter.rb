@@ -7,7 +7,7 @@ module RailsAiAdmin
     class PunditAdapter < Adapter
       ACTIONS = %i[index show create update destroy].freeze
       FIELD_METHODS = { read: :readable_fields, write: :writable_fields,
-        search: :searchable_fields, sort: :sortable_fields }.freeze
+        search: :searchable_fields, sort: :sortable_fields, filter: :filterable_fields }.freeze
 
       def initialize
         require "pundit"
