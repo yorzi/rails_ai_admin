@@ -10,10 +10,16 @@ class OrderAdmin < RailsAiAdmin::Resource
     select :state, choices: [ [ "Draft", "draft" ], [ "Approved", "approved" ], [ "Rejected", "rejected" ] ], readonly: true, create: false, edit: true, tab: "Order", panel: "Review"
     readonly :review_note, type: :textarea, create: false, edit: true, tab: "Order", panel: "Review"
     readonly :reviewed_at, type: :datetime, create: false, edit: true, tab: "Order", panel: "Review"
-    date :delivery_on, filterable: true, tab: "Delivery", panel: "Schedule"
+    date :delivery_on, filterable: true, sortable: true, tab: "Delivery", panel: "Schedule"
     boolean :expedited, nullable: false, filterable: true, tab: "Delivery", panel: "Schedule"
     text :secret_payment_token, hidden: true
     virtual :review_summary, type: :text, depends_on: %i[number state total], compute: "OrderReviewSummary", edit: true, tab: "Order", panel: "Context"
+  end
+  index do
+    columns :number, :state, :total, :delivery_on, :expedited, :review_summary
+    default_sort :delivery_on, :desc
+    page_size 20
+    count :exact
   end
   scopes do
     scope :drafts, -> { where(state: "draft") }, label: "Drafts", default: true

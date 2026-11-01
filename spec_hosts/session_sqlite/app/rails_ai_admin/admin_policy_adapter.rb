@@ -23,7 +23,8 @@ class AdminPolicyAdapter < RailsAiAdmin::Authorization::Adapter
       case action
       when :read then %i[id number state total delivery_on expedited reviewed_at review_summary] + (context.actor.role == "admin" ? [ :review_note ] : [])
       when :write then context.actor.role == "admin" ? %i[number state total delivery_on expedited] : []
-      when :search, :sort then [ :number ]
+      when :search then [ :number ]
+      when :sort then %i[number delivery_on]
       # Amount ranges are commercial detail; delivery filters are operational.
       when :filter then %i[delivery_on expedited] + (context.actor.role == "admin" ? [ :total ] : [])
       else []

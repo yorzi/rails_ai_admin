@@ -449,6 +449,25 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
     assert_select "input[name='filter[delivery_on][gte]'][value='2026-11-04']"
   end
 
+  def test_order_index_settings_choose_columns_order_page_size_and_count
+    login
+    21.times { |index| Order.create!(account: @account, number: "IDX-#{index.to_s.rjust(2, "0")}", total: "1.00", delivery_on: Date.new(2026, 11, 1) + index) }
+    Order.create!(account: Account.where.not(id: @account.id).first, number: "IDX-FOREIGN", total: "1.00", delivery_on: "2027-01-01")
+    get "/staff/orders"
+    assert_response :success
+    assert_equal [ "Select", "Number", "State", "Total", "Delivery on", "Expedited", "Review summary", "Actions" ], css_select("thead th").map { |node| node.text.strip }
+    assert_select "th[aria-sort=descending] a", text: "Delivery on"
+    assert_select "tbody tr", count: 20
+    assert_select "p.raa-count", text: "21 matching records"
+    assert_includes css_select("tbody tr").first.text, "IDX-20"
+    refute_includes response.body, "IDX-FOREIGN"
+    next_page = css_select("nav.raa-pagination a").find { |node| node.text == "Next" }["href"]
+    assert_equal "/staff/orders?page=2", next_page
+    get next_page
+    assert_select "tbody tr", count: 1
+    assert_includes css_select("tbody tr").first.text, "IDX-00"
+  end
+
   def test_host_policy_matrix_and_field_grants
     anonymous = Struct.new(:session).new({})
     assert RailsAiAdmin::TestKit.assert_unauthenticated(adapter: AdminContext.new, controller: anonymous)

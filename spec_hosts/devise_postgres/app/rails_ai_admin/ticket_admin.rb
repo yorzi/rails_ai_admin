@@ -12,6 +12,11 @@ class TicketAdmin < RailsAiAdmin::Resource
     textarea :internal_note, tab: "Review", panel: "Notes", help_text: "Only current operators and administrators can read this note."
     virtual :review_summary, type: :text, max_length: 2500, depends_on: %i[state priority internal_note], compute: "TicketReviewSummary", edit: true, tab: "Review", panel: "Context"
   end
+  index do
+    columns :subject, :state, :priority, :review_summary
+    default_sort :priority
+    count :exact
+  end
   # No default: the unscoped queue remains the authorized policy relation.
   scopes do
     scope :open, -> { where(state: "open") }
