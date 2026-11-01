@@ -163,7 +163,10 @@ unavailable; complete release Gates remain open.
 Hosts that already use rails_tool_views can set `config.surfaces = true` and mark
 member operations `surface: true`. A native review can then be saved as a
 persistent Surface that confirms the same intent once, through admin-owned
-endpoints that leave the host's rails_tool_views settings untouched. See the
+endpoints that leave the host's rails_tool_views settings untouched. Operations
+marked `assistant: true` can also be proposed by an assistant through the
+on-demand `raa_propose_operation` RubyLLM tool; only the user's Surface
+confirmation executes them. See the
 [Review Surfaces guide](docs/site/_advanced/review-surfaces.md).
 
 ## Fixed Selection Previews

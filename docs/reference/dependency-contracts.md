@@ -57,6 +57,14 @@ filed yet.
 | DEP-011 | rails_tool_views 1.0.2 | A correlated `present` replays only when the new request digest (component, props, context) matches; there is no public lookup of an existing correlated presentation. An adapter whose props embed a server-generated value (such as an intent id) cannot replay a crashed tool call without reproducing those props exactly. | Worked around: the assistant proposal derives one UUIDv5 intent per (actor, tenant, conversation, tool call) and re-coerces the same arguments, so replays present identical props. | `RailsToolViews.correlated_surface(adapter:, call_id:, context:, scope:)` returning the existing Surface or nil. |
 | DEP-012 | rails_tool_views 1.0.2 | `RailsToolViews.render(surface, view_context:)` renders `rails_tool_views/surfaces/surface`, which calls `RailsToolViews::SurfacesHelper` methods, but does not add that helper; a host or engine controller that is not the gem's own must include it. | Worked around: the admin extends only the rendering view instance with the helper. | Document the requirement, or include the helper in the render path. |
 
+RubyLLM 2.1.1 integration for assistant proposals (ADR 0021) found no defect.
+Two consumption notes: tests build `RubyLLM::ToolCall` directly to exercise the
+tool contract, and that constructor is marked `:nodoc:` (production code only
+receives instances from a chat), so a RubyLLM upgrade must rerun those tests.
+The OpenAI provider defaults to the Responses protocol; the offline loop selects
+`protocol: :chat_completions` explicitly, so Responses-protocol behavior is not
+yet covered.
+
 Consumption rules that are documented upstream behavior, not defects: action
 handlers run inside the Surface row lock, so the admin Runner's
 `requires_new` transaction becomes a savepoint and commits with the Surface

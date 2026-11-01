@@ -97,8 +97,10 @@ full Phase 2/release Gates remain open.
 slice: an opt-in persistent rails_tool_views Surface that confirms the same
 native intent once through the shared Runner, via admin-owned endpoints that
 never change the host's rails_tool_views settings. Packaged Host B proves
-coexistence with its product Surface. Assistant chat, tool presentation,
-continuation and paid-provider evidence are not implemented.
+coexistence with its product Surface. An on-demand RubyLLM tool now lets an
+assistant propose opted-in operations into that Surface (offline RubyLLM loop,
+ADR 0021); it cannot confirm. Admin chat persistence, continuation and
+paid-provider evidence are not implemented.
 
 Not implemented in this slice: associations, nested attributes, uploads/private
 attachments, imports/exports, all-filtered or 10,000-target batch manifests,

@@ -85,9 +85,34 @@ completed review is a receipt: viewing it requires your
 `read_operation_receipt?` grant, and it shows the recorded input. Surface
 props hold only the intent reference and canonical input; they grant nothing.
 
+## Let an Assistant Propose
+
+Mark an operation `assistant: true` (it requires `surface: true`) and give your
+RubyLLM chat the admin's proposal tool, built for the signed-in admin and a
+conversation reference your server owns:
+
+```ruby
+require "rails_ai_admin/integrations/propose_operation"
+
+tool = RailsAiAdmin::Integrations::ProposeOperation.new(
+  context: admin_context, conversation: "raa:conversation:#{conversation.id}"
+)
+RubyLLM.context { |config| config.openai_api_key = credentials.fetch(:admin_openai_key) }
+  .chat(model: "gpt-4.1-mini").with_tools(tool).ask(question)
+```
+
+The tool offers only opted-in operations on resources the user can list. When
+the model proposes one, the server re-runs the normal preflight with the user's
+current permissions and presents the same review Surface. The model is told that
+nothing has changed; the review says an assistant proposed it. Only the user's
+own **Confirm and execute** applies it, once. A provider retry of the same tool
+call shows the same review instead of creating another. Keep provider settings
+in `RubyLLM.context`; the admin never changes your global RubyLLM
+configuration.
+
 ## Not Available Yet
 
-Assistants cannot present this component, no AI follow-up or continuation is
-delivered, inputs cannot be edited inside the Surface, and Surface templates are
-not in the override catalog. Close and retention of admin Surfaces are not
+The admin does not persist assistant chats yet, no AI follow-up or continuation
+is delivered after confirmation, inputs cannot be edited inside the Surface, and
+Surface templates are not in the override catalog. Close and retention of admin Surfaces are not
 wired up. See the development status for the remaining AI milestones.
