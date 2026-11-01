@@ -30,6 +30,7 @@ class TicketPolicy
   def permitted_named_scopes = context.actor.role == "viewer" ? %i[open triaged] : %i[open triaged missing_note]
   def searchable_fields = [ :subject ]
   def sortable_fields = [ :priority ]
+  def filterable_fields = context.actor.role == "viewer" ? [ :state ] : %i[state priority]
 
   class Scope
     def initialize(context, relation)

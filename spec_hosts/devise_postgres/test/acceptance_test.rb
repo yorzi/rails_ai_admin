@@ -390,6 +390,27 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
     end
   end
 
+  def test_pundit_filters_follow_role_grants_and_tenant_scope
+    @ticket.update!(state: "triaged", priority: 2)
+    SupportTicket.create!(tenant: @tenant, subject: "Support urgent", state: "open", priority: 1)
+    SupportTicket.create!(tenant: @tenant, subject: "Support later", state: "open", priority: 9)
+    SupportTicket.create!(tenant: @other_tenant, subject: "Support foreign urgent", state: "open", priority: 1)
+    login
+    get "/operations/tickets", params: { q: "Support", filter: { state: { eq: "open" }, priority: { lte: "3" } } }
+    assert_response :success
+    assert_select "select[name='filter[state][eq]'] option[selected][value=open]", text: "Open"
+    assert_select "input[type=number][name='filter[priority][lte]'][value='3']"
+    assert_includes response.body, "Support urgent"
+    [ "Support later", "Support task", "Support foreign urgent" ].each { |subject| refute_includes response.body, subject }
+    @staff.update!(role: "viewer")
+    get "/operations/tickets", params: { filter: { state: { eq: "open" }, priority: { lte: "3" } } }
+    assert_response :see_other
+    assert_equal({ "filter" => { "state" => { "eq" => "open" } } }, Rack::Utils.parse_nested_query(URI(response.location).query))
+    follow_redirect!
+    assert_includes response.body, "Support later"
+    assert_select "input[name='filter[priority][lte]']", count: 0
+  end
+
   def test_host_policy_matrix_and_field_grants
     anonymous = Struct.new(:request, :session).new(Struct.new(:env).new({}), {})
     assert RailsAiAdmin::TestKit.assert_unauthenticated(adapter: AdminContext.new, controller: anonymous)
@@ -401,7 +422,7 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
       readable = %i[id subject state priority] + (role == "viewer" ? [] : %i[internal_note review_summary])
       writable = role == "viewer" ? [] : %i[subject state priority internal_note]
       assert RailsAiAdmin::TestKit.assert_field_grants(context: context, resource: TicketAdmin, record: @ticket,
-        expected: { read: readable, write: writable, search: [ :subject ], sort: [ :priority ] })
+        expected: { read: readable, write: writable, search: [ :subject ], sort: [ :priority ], filter: role == "viewer" ? [ :state ] : %i[state priority] })
     end
     context = RailsAiAdmin::Context.new(actor: @staff, tenant: @tenant, security_version: @staff.security_version.to_s)
     assert RailsAiAdmin::TestKit.assert_hidden(context: context, resource: TicketAdmin, field: :secret_token)
