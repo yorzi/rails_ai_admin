@@ -92,6 +92,25 @@ provider and integration evidence must still be established. Keep unconfirmed
 findings labelled as such and reproduce them against a released package before
 proposing a dependency fix.
 
+## Open Integration Findings
+
+Integrating the admin review Surface with rails_tool_views 1.0.2 surfaced five
+gaps, all worked around through public APIs and covered by tests:
+
+* DEP-008: `reset_registry!` removes every gem's components and there is no
+  registered/replace API; the admin re-registers a constant contract lazily.
+* DEP-009: policies and handlers cannot receive request-scoped host authority;
+  admin endpoints bind the admin Context for one call.
+* DEP-010: the action-form helper has no `url:` option; the admin reuses
+  `rails_tool_views_action_fields` with its own endpoint.
+* DEP-011: there is no public lookup of a correlated presentation; assistant
+  proposals derive one deterministic intent per tool call.
+* DEP-012: `RailsToolViews.render` needs `SurfacesHelper` in the calling view;
+  the admin extends only the rendering view.
+
+The checkout's `docs/reference/dependency-contracts.md` lists each workaround and
+the suggested backward-compatible upstream change. None has been filed upstream.
+
 ## Isolate Rails Route Probes
 
 Rails 8.1.4 shares mounted-helper definitions between route sets. A fake route set

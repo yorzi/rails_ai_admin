@@ -41,6 +41,28 @@ Owning released sources:
 - [Action-form route construction](https://github.com/yorzi/rails_tool_views/blob/v1.0.2/app/helpers/rails_tool_views/surfaces_helper.rb).
 - [Installer](https://github.com/yorzi/rails_tool_views/blob/v1.0.2/lib/generators/rails_tool_views/install/install_generator.rb).
 
+## Open integration findings
+
+Issues met while integrating the released packages. Each was checked against the
+released source; none is patched, monkey patched or forked here. "Worked around"
+means the admin uses public APIs only and the workaround is covered by tests.
+Suggested upstream changes are minimal and backward compatible; none has been
+filed yet.
+
+| ID | Package | Finding | Status and workaround | Suggested upstream change |
+| --- | --- | --- | --- | --- |
+| DEP-008 | rails_tool_views 1.0.2 | `reset_registry!` replaces the whole process registry and there is no `registered?`, replace or unregister API. A host `to_prepare` reset (the documented reload pattern) runs after an engine's `to_prepare` and silently removes gem components registered there. | Worked around: `raa_operation_review` has a constant contract and registers lazily and idempotently before each use; an existing key must carry the admin's own policy/handler objects (squatting is an error). Host B reload probe covers it. | Owner- or prefix-scoped registration that survives a host reset, or `reset_registry!(except:)`/`register(..., if_absent:)` returning the existing component. |
+| DEP-009 | rails_tool_views 1.0.2 | Component policies and handlers receive only the frozen `Access` (actor/tenant strings, operation, props, action, arguments, context_ref). `present`/`restore`/`dispatch`/`render` cannot pass request-scoped host authority, so a policy cannot re-check the host's real current grants without process state. | Worked around: admin endpoints bind the current admin Context in `ActiveSupport::IsolatedExecutionState` for one call; policy and handler deny when it is absent or does not match the Scope exactly. | An optional opaque `authority:` keyword on those calls, threaded into `Access` and never persisted. |
+| DEP-010 | rails_tool_views 1.0.2 | `rails_tool_views_action_form` always posts to the engine mounted as `rails_tool_views` (authenticated by the global resolver); there is no `url:` option. Known from plan §6.3.1. | Worked around: admin forms reuse the public `rails_tool_views_action_fields` with the admin endpoint URL. | `url:` option on `rails_tool_views_action_form`/`_button`. |
+| DEP-011 | rails_tool_views 1.0.2 | A correlated `present` replays only when the new request digest (component, props, context) matches; there is no public lookup of an existing correlated presentation. An adapter whose props embed a server-generated value (such as an intent id) cannot replay a crashed tool call without reproducing those props exactly. | Worked around: the assistant proposal derives one UUIDv5 intent per (actor, tenant, conversation, tool call) and re-coerces the same arguments, so replays present identical props. | `RailsToolViews.correlated_surface(adapter:, call_id:, context:, scope:)` returning the existing Surface or nil. |
+| DEP-012 | rails_tool_views 1.0.2 | `RailsToolViews.render(surface, view_context:)` renders `rails_tool_views/surfaces/surface`, which calls `RailsToolViews::SurfacesHelper` methods, but does not add that helper; a host or engine controller that is not the gem's own must include it. | Worked around: the admin extends only the rendering view instance with the helper. | Document the requirement, or include the helper in the render path. |
+
+Consumption rules that are documented upstream behavior, not defects: action
+handlers run inside the Surface row lock, so the admin Runner's
+`requires_new` transaction becomes a savepoint and commits with the Surface
+revision; `deliver` refuses to run inside an open transaction and must be called
+after commit.
+
 ## Rails callback integration hazards
 
 The runner must inspect the actual persistence outcome when a callback aborts or
@@ -50,7 +72,12 @@ validation failure in that case is incorrect. Current code guards rollback outco
 and retains a committed receipt with a separate post-commit warning.
 
 These were admin integration defects covered by regressions, not newly established
-Rails defects. The admin also explicitly parses integer strings in base ten and
+Rails defects. The same applies to per-form CSRF tokens (Rails default since 5.0):
+a token is bound to its form's action URL, so a `formaction` button that submits
+the same form to another route is rejected with 422. The admin review hand-off
+originally did this; packaged Host B caught it and the button now has its own
+form (ADR 0020). The CSRF-free engine dummy app cannot detect this class of bug,
+which is why packaged hosts keep real CSRF. The admin also explicitly parses integer strings in base ten and
 supplies a LIKE escape clause for SQLite literal wildcard searches; those behaviors
 are adapter responsibilities.
 
@@ -103,6 +130,14 @@ The installer still generates configuration scaffolding. The fixture retains its
 reviewed host-owned product initializer instead of treating generated defaults as
 an automatic merge. Admin Chat/Surface and continuation have their own remaining
 acceptance gates.
+
+## Rebuild assets when re-verifying a copied host
+
+The packaged smoke runs a production `assets:precompile` inside the copied host.
+Its `public/assets` then shadows a reinstalled gem's stylesheet in later manual
+browser checks, so a CSS fix appears not to apply. Remove the copied host's
+`public/assets` (or rerun the smoke) before re-verifying. This is a local
+verification hazard, not a Propshaft defect.
 
 ## Isolate route-inspection probes
 
