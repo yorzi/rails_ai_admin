@@ -65,6 +65,15 @@ The OpenAI provider defaults to the Responses protocol; the offline loop selects
 `protocol: :chat_completions` explicitly, so Responses-protocol behavior is not
 yet covered.
 
+Development-tool updates (2026-11-01), also not defects: Minitest 6.0 moved
+`minitest/mock` (`Mock`, `Object#stub`) into the `minitest-mock` gem and rejects
+nil-expecting `assert_equal`; the suite adds `minitest-mock` and the packaged
+hosts' `~> 5.27` pins move to `~> 6.0` (Dependabot's single-file bump failed CI
+for both reasons). esbuild 0.28.2 changes the minified prebuilt bundle bytes, so
+the reproducible asset check needs a rebuild with each esbuild bump; Turbo and
+Stimulus versions are unchanged and the packaged-host browser flows were
+rechecked.
+
 Consumption rules that are documented upstream behavior, not defects: action
 handlers run inside the Surface row lock, so the admin Runner's
 `requires_new` transaction becomes a savepoint and commits with the Surface
