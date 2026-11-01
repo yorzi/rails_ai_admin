@@ -150,12 +150,13 @@ documentation and advisory scanning. No remote CI run has occurred.
 
 ## Next implementation checkpoint
 
-Continue the AI early proof: SPIKE-03 with an Engine-owned admin Chat/Message
-pair on RubyLLM (shared ToolCall/Usage rows read only through admin associations,
-DEP-007), confirmation that sets `transition.agent`, and continuation admitted
-through `deliver(scope:, adapter:)` with an explicit admin adapter after commit,
-never the host's global adapter. Kill workers around admission/response to prove
-no duplicate human message or business write. Close the remaining Phase 2
+SPIKE-03 found a blocking constraint (DEP-013): rails_tool_views 1.0.2 delivers
+follow-ups only when the host has a global agent adapter, so explicit admin
+continuation cannot run in hosts like Host B. The owner must choose between an
+upstream rails_tool_views fix (recommended) and an admin-owned continuation inbox
+(ADR 0022). Independently, build admin chat persistence: an opt-in generator for
+Engine-owned Chat/Message tables on RubyLLM (shared ToolCall/Usage rows read only
+through admin associations, DEP-007) with actor/tenant/security-version ownership. Close the remaining Phase 2
 evidence in parallel: RAA-0210 (validation, CSRF, mass assignment, XSS and N+1
 regressions across list and Surface routes), I18n of framework strings, a
 screen-reader pass, and the RAA-0203/0208 extension matrix. Then start Phase 3
