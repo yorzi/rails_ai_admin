@@ -499,6 +499,48 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
     assert RailsToolViews.registry.fetch("host_notice")
   end
 
+  def test_offline_ruby_llm_assistant_proposes_triage_and_only_the_staff_member_confirms
+    require "rails_ai_admin/integrations/propose_operation"
+    product_config = RubyLLM.config
+    product_model = RubyLLM.config.default_model
+    chat = ProductChat.create!
+    chat.product_messages.create!(role: "user", content: "Product conversation")
+    context = RailsAiAdmin::Context.new(actor: @staff, tenant: @tenant, security_version: @staff.security_version.to_s)
+    tool = RailsAiAdmin::Integrations::ProposeOperation.new(context: context, conversation: "raa:conversation:triage-1")
+    arguments = { resource: "tickets", record: @ticket.id, operation: "triage", input: { decision: "close", review_note: "Duplicate of an earlier report" } }
+    turns = [
+      { id: "c1", object: "chat.completion", model: "gpt-4.1-mini", choices: [ { index: 0, finish_reason: "tool_calls", message: { role: "assistant", content: nil,
+        tool_calls: [ { id: "call_triage_1", type: "function", function: { name: "raa_propose_operation", arguments: arguments.to_json } } ] } } ] },
+      { id: "c2", object: "chat.completion", model: "gpt-4.1-mini", choices: [ { index: 0, finish_reason: "stop", message: { role: "assistant", content: "Please confirm the closing review." } } ] }
+    ]
+    stub_request(:post, "https://api.openai.com/v1/chat/completions").to_return(*turns.map { |turn| { status: 200, headers: { "Content-Type" => "application/json" }, body: turn.to_json } })
+    answer = RubyLLM.context { |config| config.openai_api_key = "synthetic-offline-key" }
+      .chat(model: "gpt-4.1-mini", provider: :openai, protocol: :chat_completions, assume_model_exists: true)
+      .with_tools(tool).ask("Close this duplicate ticket.")
+    assert_equal "Please confirm the closing review.", answer.content
+    assert_equal "open", @ticket.reload.state, "the assistant's turn never writes"
+    run = RailsAiAdmin::OperationRun.find_by!(origin: "assistant")
+    # Surfaces persist across this suite's two passes; scope to this run's actor.
+    surface = RailsToolViews::Surface.find_by!(context_ref: "raa:conversation:triage-1", actor_ref: "raa:actor:StaffUser:#{@staff.id}")
+    assert_equal [ "proposed", run.id ], [ run.status, surface.props["intent"] ]
+    assert_same product_config, RubyLLM.config
+    assert_equal product_model, RubyLLM.config.default_model
+    assert_equal [ "Product conversation" ], chat.product_messages.pluck(:content)
+
+    login
+    get "/operations/assistant/surfaces/#{surface.id}"
+    assert_response :success
+    assert_select "p", text: /An assistant proposed this/
+    assert_select "dd", text: "Duplicate of an earlier report"
+    form = css_select("form[action='/operations/assistant/surfaces/#{surface.id}/actions']").first
+    post form["action"], params: form.css("input[type=hidden]").to_h { |node| [ node["name"], node["value"] ] }
+    assert_response :see_other
+    assert_equal [ "closed", "Duplicate of an earlier report" ], [ @ticket.reload.state, @ticket.internal_note ]
+    assert_equal [ "surface" ], RailsAiAdmin::AuditEvent.where(correlation_ref: run.id, status: "succeeded").pluck(:origin)
+    assert_equal "reviewed", tool.call(**arguments, tool_call: RubyLLM::ToolCall.new(id: "call_triage_1", name: tool.name, arguments: arguments.stringify_keys))[:status]
+    assert_equal 1, RailsAiAdmin::WorkItem.where(operation_run_id: run.id).count
+  end
+
   def test_custom_operation_confirmation_postcondition_replay_and_outbox
     login
     path = "/operations/tickets/#{@ticket.id}/operations/triage"
