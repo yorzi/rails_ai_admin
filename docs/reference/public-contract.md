@@ -34,7 +34,7 @@ tenant_ref:, security_version:)`, which reconstructs current authority rather th
 trusting stored refs/epoch as permission.
 
 Resources declare `model`, `key`, `label`, `title`, optional `policy`, `readonly`, `disable`,
-`fields`, named list `scopes` and explicit member `operation` handlers. Core scalar types are id/text/textarea/integer/decimal/boolean/date/datetime/enum/select.
+`fields`, `index` table settings, named list `scopes` and explicit member `operation` handlers. Core scalar types are id/text/textarea/integer/decimal/boolean/date/datetime/enum/select.
 Registered `Fields::Type` classes refine scalars through `config.field_types`
 class-name strings and optional trusted field partials (ADR 0009).
 Fields use explicit readonly/required/nullable/create/edit/searchable/sortable/filterable
@@ -305,6 +305,19 @@ canonical nested `filter`, strict index requests reject invalid filters with 422
 revoked grants are discarded and blank form submissions redirect once to the
 canonical URL. Decoded recovery-header JSON may use 1,536 bytes. See ADR 0018 and
 the Typed Filters guide.
+
+## Index table settings
+
+`Resource.index { columns; default_sort name, direction; page_size; count }`
+declares static presentation checked against fields at registration: 1..50
+index-visible columns, a sortable non-virtual default sort, a 1..100 page size
+(default 25) and `count :none` (default) or `:exact`. Columns only order/narrow
+current read grants, masks and dependency rules; the projection computes listed
+columns plus the title. The default sort applies only while its sort grant holds
+and is implicit in hints. Exact counts cover the authorized filtered relation and
+stop at 10,000 (`Page#count_capped`). `Page` also reports `sort`, `direction` and
+`page_size`. Settings are excluded from operation/Selection identity. See ADR 0019
+and the Index Tables guide.
 
 ## Host controllers and fixed statuses
 

@@ -27,8 +27,8 @@ compatibility statuses and upgrade review. Field-type-specific partials take
 precedence over global field defaults. No Surface wrapper is cataloged. Non-HTML plain status responses and host exceptions_app handling remain
 outside this ERB template catalog.
 
-The current catalog contains 27 entries. resource_new/resource_edit/resource_form
-and resource_index use contract revision 4; layout uses revision 3; dashboard, other navigation-aware
+The current catalog contains 27 entries. resource_index uses contract revision 5;
+resource_new/resource_edit/resource_form use revision 4; layout uses revision 3; dashboard, other navigation-aware
 templates and resource_errors/input_fields use revision 2; remaining entries
 use revision 1. Source bytes and context revision
 can change independently; always inspect the installed version when upgrading.
@@ -47,7 +47,10 @@ its link uses the fixed configured host authentication_path. See
 Navigation-aware entries receive list_navigation as an immutable plain list
 hint, never route/record authority. resource_index also receives sortable_fields,
 the currently granted list_scopes, the applied current_scope name (or nil) and the
-granted filter_fields; see [Named Scopes]({% link _core_features/named-scopes.md %})
+granted filter_fields. Its `columns` are already ordered by any index settings and
+`page` reports the applied sort/direction and optional count; see
+[Index Tables]({% link _core_features/index-tables.md %}),
+[Named Scopes]({% link _core_features/named-scopes.md %})
 and [Typed Filters]({% link _core_features/typed-filters.md %}). Keep nested
 list-state hidden fields through `list_state_fields`/`return_navigation_fields`.
 Use registered helpers from [List Navigation]({% link _core_features/list-navigation.md %})
@@ -71,7 +74,7 @@ legacy visible_resources still includes hidden-menu resources. See
 | `status_page` | 1 | `rails_ai_admin/statuses/show.html.erb` | `admin_status`, `status_sign_in_path` | None |
 | `resource_navigation` | 1 | `rails_ai_admin/shared/_navigation.html.erb` | None | `groups` |
 | `dashboard` | 2 | `rails_ai_admin/dashboard/index.html.erb` | `context` | None |
-| `resource_index` | 4 | `rails_ai_admin/resources/index.html.erb` | `context`, `resource`, `page`, `columns`, `rows`, `searchable`, `selectable`, `sortable_fields`, `list_scopes`, `current_scope`, `filter_fields`, `list_navigation` | None |
+| `resource_index` | 5 | `rails_ai_admin/resources/index.html.erb` | `context`, `resource`, `page`, `columns`, `rows`, `searchable`, `selectable`, `sortable_fields`, `list_scopes`, `current_scope`, `filter_fields`, `list_navigation` | None |
 | `resource_show` | 2 | `rails_ai_admin/resources/show.html.erb` | `context`, `resource`, `record`, `values`, `fields`, `operations`, `list_navigation` | None |
 | `resource_new` | 4 | `rails_ai_admin/resources/new.html.erb` | `context`, `resource`, `record`, `operation`, `intent`, `form_fields`, `form_values`, `form_plan`, `errors`, `failure_code`, `needs_reload`, `list_navigation` | None |
 | `resource_edit` | 4 | `rails_ai_admin/resources/edit.html.erb` | `context`, `resource`, `record`, `operation`, `intent`, `form_fields`, `form_values`, `form_plan`, `errors`, `failure_code`, `needs_reload`, `list_navigation` | None |

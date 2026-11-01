@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add index table settings: declared columns, a default sort applied only while
+  granted, page sizes of 1..100 and exact counts bounded at 10,000 (no
+  tenant-global estimates). Cells no longer split words and compact values stay
+  on one line, so wide tables scroll (resource_index revision 5).
+- Add gemspec homepage and source/changelog/bug-tracker metadata.
 - Add typed list filters: `filterable:` fields with eq/gte/lte by scalar type, a
   separate default-deny `:filter` field grant (Pundit `filterable_fields`),
   contract-coerced Arel-bound values, canonical nested filter list hints and a

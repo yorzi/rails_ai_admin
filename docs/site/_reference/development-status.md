@@ -86,8 +86,12 @@ filter grant. Values are coerced through each field's contract and bound by Arel
 hints carry canonical nested filters and discard revoked ones. Both packaged
 hosts verify role/Pundit filter grants and Host A's real reload; a Chromium check
 covered keyboard use at desktop and 320px widths. The Phase 3 Filter AST (OR,
-nesting, associations, null tests), saved views, scope counts, index table
-configuration and full Phase 2/release Gates remain open.
+nesting, associations, null tests), saved views and scope counts remain open.
+
+[Index Tables]({% link _core_features/index-tables.md %}) add declared columns, a
+grant-dependent default sort, page sizes and bounded exact counts, with a narrow
+table layout verified in Chromium. User column choice, keyset pagination and the
+full Phase 2/release Gates remain open.
 
 Not implemented in this slice: associations, nested attributes, uploads/private
 attachments, imports/exports, all-filtered or 10,000-target batch manifests,

@@ -112,6 +112,8 @@ default-deny `named_scopes` grant and can only narrow the policy relation; see
 the [Named Scopes guide](docs/site/_core_features/named-scopes.md). Fields can opt
 into typed exact/range filters with `filterable:`, behind a separate default-deny
 `:filter` field grant; see the [Typed Filters guide](docs/site/_core_features/typed-filters.md).
+An `index` block chooses columns, a default sort, page size and an optional
+bounded count; see the [Index Tables guide](docs/site/_core_features/index-tables.md).
 
 The resource declaration grants no permission. See the runnable host contract
 examples in the [configuration guide](docs/site/_getting_started/configuration.md).

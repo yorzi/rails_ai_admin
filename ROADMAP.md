@@ -84,6 +84,12 @@ this file records current scope without rewriting its historical review claims.
   revoked ones and redirect blank form submissions once. Both packaged hosts,
   Host A real reload of a removed declaration and a Chromium keyboard/320px check
   verify it (filter part of RAA-0201, typed subset of LIST-003; ADR 0018).
+- Index table settings: declared columns, a grant-dependent default sort, 1..100
+  page sizes and exact counts bounded at 10,000 without tenant-global estimates.
+  Columns cannot resurrect masked dependencies. A Chromium 320px check found and
+  fixed date wrapping; tables scroll in their focusable region. Both packaged
+  hosts and Host A real reload verify it (table part of RAA-0201, LIST-018
+  subset; ADR 0019). RAA-0201's DSL items now all have local evidence.
 - Server-owned intents with input/identity/epoch/version/expiry binding, database
   serialization, replay, atomic domain/audit/receipt, callback rollback handling
   and separate post-commit warning (synchronous parts of RAA-0112/0113).
@@ -128,14 +134,15 @@ documentation and advisory scanning. No remote CI run has occurred.
 
 ## Next implementation checkpoint
 
-Complete the remaining Phase 2 DSL/presentation contracts and their traceability:
-the index table DSL (explicit columns, default sort with the primary-key
-tie-breaker, bounded page size and LIST-018 count strategy) and the broader
-browser/I18n/accessibility evidence (including a Chrome/mobile/keyboard check of
-the grouped menu and the narrow-table layout, whose columns currently compress
-instead of scrolling at 320px). Status/controller extension, the third domain,
-resource menus, named scopes and typed filters now have local evidence; this
-does not close the full Phase 2 or release gates.
+Close the remaining Phase 2 evidence rather than add DSL: RAA-0210 (model
+validation, CSRF, mass assignment, XSS and N+1 regression tests across the new
+list surfaces), I18n of framework strings, a screen-reader/keyboard pass over the
+menu, tabs, filters and tables, and the RAA-0203/0208 extension compatibility
+matrix. Then prepare the narrow Order Review shared-operation/Surface proof and
+start Phase 3 with associations (RAA-0301), which the Filter AST, association
+columns and CSV depend on. The resource DSL, three-domain CRUD, status/controller
+extension, recovery and list navigation now have local evidence; this does not
+close the full Phase 2 or release gates.
 Prepare the narrow Order Review shared-operation/Surface proof after its relevant
 prerequisites are verified; the existing ordinary Order workbench supplies its
 conventional execution baseline.
@@ -162,9 +169,9 @@ Continue the shared execution contracts while the full Phase 1 evidence remains 
 
 ## Remaining product work
 
-- Phase 2: complete the index table DSL and remaining presentation/browser
-  evidence. Three-domain CRUD, status/controller extension, resource menus, named
-  scopes, typed filters and generic open-tab recovery have local evidence; persistent drafts and
+- Phase 2: close security/N+1/I18n/accessibility evidence. Three-domain CRUD,
+  status/controller extension, the complete resource DSL (menus, scopes, filters,
+  index tables) and generic open-tab recovery have local evidence; persistent drafts and
   custom-operation recovery stay open.
 - Early proof: ordinary Order Review and one trusted Surface through the same
   Operation, then an offline released RubyLLM loop and continuation faults.
