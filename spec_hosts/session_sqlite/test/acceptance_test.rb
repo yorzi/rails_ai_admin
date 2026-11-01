@@ -309,6 +309,9 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
     assert_includes spec.full_gem_path, "/gems/rails_ai_admin-"
     refute defined?(RubyLLM)
     refute defined?(RailsToolViews)
+    refute RailsAiAdmin.configuration.surfaces
+    refute defined?(RailsAiAdmin::Integrations::ToolViews), "conventional hosts never load the Surface integration"
+    refute RailsAiAdmin::Engine.routes.routes.any? { |route| route.path.spec.to_s.include?("surfaces") }
     refute ActiveRecord::Base.connection.tables.any? { |table| table.include?("assistant") || table.include?("tool_views") }
     assert_equal "Ai", "ai".camelize
     assert_equal Ai, "Ai".constantize
