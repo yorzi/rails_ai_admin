@@ -53,7 +53,7 @@
 <% end %><th scope="col">Actions</th></tr></thead>
 <tbody><% @rows.each_with_index do |row, index| %><tr>
   <% if @selectable %><td><%= check_box_tag "target_ids[]", row[:id], false, id: "raa-target-#{index}", form: "raa-selection", aria: { label: "Select #{row[:label].to_s.truncate(120)}" } %></td><% end %>
-  <% @columns.each do |field| %><td><%= admin_field_value(field, row[:values][field.name.to_s], view: :index) if row[:values].key?(field.name.to_s) %></td><% end %>
+  <% @columns.each do |field| %><td<% if RailsAiAdmin::Presentation::IndexSettings::COMPACT_TYPES.include?(field.scalar_type) %> class="raa-cell-compact"<% end %>><%= admin_field_value(field, row[:values][field.name.to_s], view: :index) if row[:values].key?(field.name.to_s) %></td><% end %>
   <td><%= link_to "View #{row[:label]}", resource_path(resource: @resource.key, id: row[:id], **navigation_params) %></td>
 </tr><% end %></tbody></table></div>
 <% if @rows.empty? %><p>No records match this query.</p><% end %>

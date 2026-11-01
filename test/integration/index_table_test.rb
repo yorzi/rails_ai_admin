@@ -30,6 +30,7 @@ class IndexTableTest < ActionDispatch::IntegrationTest
       assert_select "th[aria-sort=descending] a", text: "Name"
       assert_select "thead th a", text: "Points", count: 0, message: "declared sortable but not granted"
       assert_select "tbody tr", count: 10
+      assert_select "tbody tr:first-child td.raa-cell-compact", count: 1, message: "the integer column stays on one line"
       assert_select "p.raa-count", text: "13 matching records"
       assert_includes css_select("tbody tr").first.text, "Row 11"
       refute_includes response.body, "never show"
