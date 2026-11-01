@@ -56,7 +56,8 @@ class SurfacesTest < ActionDispatch::IntegrationTest
   def test_native_intent_is_presented_rendered_and_confirmed_once_through_the_admin_endpoint
     with_surfaces do
       proposal = confirmation
-      assert_select "button[formaction='#{operation_path("surface")}']", text: "Continue in an interactive review"
+      assert_select "form.raa-surface-review[action='#{operation_path("surface")}'] input[type=submit][value='Continue in an interactive review']"
+      assert_select "form.raa-surface-review input[name=intent_ref][value='#{proposal[:intent_ref]}']"
       surface_id = present(proposal)
       assert_equal surface_id, present(proposal), "repeat presentation replays the same Surface"
       get "/backoffice/assistant/surfaces/#{surface_id}"
@@ -230,13 +231,13 @@ class SurfacesTest < ActionDispatch::IntegrationTest
   def test_surfaces_stay_closed_unless_the_host_opts_in_and_the_operation_allows_it
     with_operations do
       proposal = confirmation
-      assert_select "button[formaction]", count: 0
+      assert_select "form.raa-surface-review", count: 0
       post operation_path("surface"), params: proposal
       assert_response :not_found
     end
     with_surfaces do
       post operation_path("preflight", operation: "failing_preview"), params: { expected_version: @customer.lock_version, input: { note: "x" } }
-      assert_select "button[formaction]", count: 0
+      assert_select "form.raa-surface-review", count: 0
     end
   end
 end
