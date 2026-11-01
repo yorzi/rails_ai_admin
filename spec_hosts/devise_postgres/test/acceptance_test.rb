@@ -478,6 +478,8 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
     assert_response :see_other
     follow_redirect!
     assert_select "p[role=status]", text: "Operation completed."
+    refute_includes response.body, "cannot be rendered", "the completed review renders after the triage grant lapses"
+    assert_select "dd", text: "Surface review"
     assert_equal [ "triaged", "Surface review", 1 ], [ @ticket.reload.state, @ticket.internal_note, @ticket.lock_version ]
     assert_equal [ "surface" ], RailsAiAdmin::AuditEvent.where(correlation_ref: confirmation[:intent_ref], status: "succeeded").pluck(:origin)
     post "#{path}/execute", params: confirmation

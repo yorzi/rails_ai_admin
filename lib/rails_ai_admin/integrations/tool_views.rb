@@ -119,10 +119,18 @@ module RailsAiAdmin
           return false unless review
           case access.operation
           when :present then review.run.status == "proposed"
-          when :read then true
+          # A completed review is a receipt: like native replay it needs the
+          # independent receipt grant, not the (possibly lapsed) command grant.
+          when :read then review.run.status != "succeeded" || receipt?(review)
           when :action then access.action == "confirm"
           else false
           end
+        end
+
+        def receipt?(review)
+          review.access.authorize_receipt!(review.definition.key, review.record)
+        rescue AccessDenied
+          false
         end
 
         # The human's own submission of the Surface form is the confirmation.
@@ -146,10 +154,21 @@ module RailsAiAdmin
           end
         end
 
-        # Typed display values for the actor's current operation input grants.
+        # Typed display values. While proposed, only the actor's current input
+        # grants; once committed, the recorded input through the operation's
+        # declared contract (as receipt replay does), behind the receipt grant.
         def display_values(review, wire)
           values = JSON.parse(wire)
-          review.definition.fields(review.access, review.record).filter_map do |field|
+          fields = if review.run.status == "succeeded"
+            review.definition.handler_class.input
+          else
+            begin
+              review.definition.fields(review.access, review.record)
+            rescue AccessDenied
+              []
+            end
+          end
+          fields.filter_map do |field|
             next unless values.key?(field.name.to_s)
             text = begin
               field.format(field.coerce(values[field.name.to_s], time_zone: review.access.context.time_zone), time_zone: review.access.context.time_zone)

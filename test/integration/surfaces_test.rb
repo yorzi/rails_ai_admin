@@ -101,6 +101,16 @@ class SurfacesTest < ActionDispatch::IntegrationTest
       assert_equal "text/vnd.turbo-stream.html", response.media_type
       assert_includes response.body, %(<turbo-stream action="replace" target="#{dom_id}">)
       assert_includes response.body, "Operation completed."
+      refute_includes response.body, "cannot be rendered", "the component body renders inside the Turbo Stream"
+      assert_includes response.body, "Recorded as operation"
+      OperationContractPolicy.input_grant = false
+      get "/backoffice/assistant/surfaces/#{surface_id}"
+      assert_response :success, "a completed review no longer needs the command input grant"
+      refute_includes response.body, "cannot be rendered"
+      assert_select "dd", text: "Reviewed in a Surface"
+      OperationContractPolicy.receipt_grant = false
+      get "/backoffice/assistant/surfaces/#{surface_id}"
+      assert_response :not_found, "viewing a completed review requires the receipt grant"
     end
   end
 
