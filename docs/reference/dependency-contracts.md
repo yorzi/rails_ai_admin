@@ -9,7 +9,7 @@ future product work. Local admin mistakes are not upstream defects.
 | Dependency line | Current consumption boundary |
 | --- | --- |
 | Rails `>= 8.1.4, < 8.2` | Isolated engine, Active Record, controller/view/job infrastructure |
-| rails_tool_views `~> 1.0.2` | Installed dependency; admin Surface/continuation runtime not integrated |
+| rails_tool_views `~> 1.0.2` | Opt-in admin review Surface through admin-owned endpoints and the public API (ADR 0020); continuation/PresentUI not integrated |
 | RubyLLM `>= 2.1.1, < 3` | Host product persistence checked; no admin chats or provider calls |
 | Pundit 2.5.x / Devise 5.0.4 | Optional host authorization/authentication examples; not runtime requirements |
 | turbo-rails `~> 2.0`, stimulus-rails `~> 1.3` | Bounded Rails integration dependencies; admin ships prebuilt frontend |
@@ -27,9 +27,12 @@ installation must work without AI tables, provider keys or model catalog refresh
 
 There is still one process-level runtime. This release does not add isolated
 configurations or change the action helper's named `rails_tool_views` route.
-The admin leaves those globals untouched; future `raa_` components and admin
-endpoints must cooperate with the host-owned scope/policies and adapter. Closing
-DEP-001 does not claim completed admin Surface or continuation integration.
+The admin leaves those globals untouched. Its opt-in `raa_operation_review`
+component uses admin-owned endpoints with an explicit Scope, reuses only the
+public `rails_tool_views_action_fields` helper, and re-registers after a host
+`reset_registry!`. No upstream change was needed for this; the custom action URL
+option suggested in plan §6.3.1 remains unrequested. Continuation and PresentUI
+integration remain open.
 
 Owning released sources:
 

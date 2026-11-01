@@ -72,5 +72,9 @@ unimplemented/unsupported; they remain requirements in the full plan.
 
 RubyLLM and rails_tool_views are bounded runtime dependencies. Conventional boot
 must not load the experimental adapter, require AI tables or call a provider.
-Chat/Surface integration remains a separate milestone, using the same authority.
+An opt-in review Surface (ADR 0020) runs on the host-owned rails_tool_views
+runtime through admin endpoints with an explicit `raa:` Scope and a request-bound
+Context; it confirms the same native intent through the shared Runner inside the
+Surface lock. Chat, assistant presentation and continuation remain separate
+milestones using the same authority.
 See docs/adr and docs/reference/public-contract.md.

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add opt-in admin review Surfaces on the host-owned rails_tool_views runtime:
+  `config.surfaces`, `operation ..., surface: true`, admin-owned endpoints with an
+  explicit `raa:` Scope and a constant `raa_operation_review` component. A
+  Surface confirms the same native intent once through the shared Runner;
+  completed reviews need the receipt grant. Host settings are never changed.
 - Add index table settings: declared columns, a default sort applied only while
   granted, page sizes of 1..100 and exact counts bounded at 10,000 (no
   tenant-global estimates). Cells no longer split words and compact values stay

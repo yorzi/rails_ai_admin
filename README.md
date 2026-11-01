@@ -158,6 +158,14 @@ trusted-Ruby sandbox, and operation duration checks do not hard-interrupt Ruby/S
 Global operations, CRUD handler replacement and AI/Surface dispatch remain
 unavailable; complete release Gates remain open.
 
+## Review Surfaces
+
+Hosts that already use rails_tool_views can set `config.surfaces = true` and mark
+member operations `surface: true`. A native review can then be saved as a
+persistent Surface that confirms the same intent once, through admin-owned
+endpoints that leave the host's rails_tool_views settings untouched. See the
+[Review Surfaces guide](docs/site/_advanced/review-surfaces.md).
+
 ## Fixed Selection Previews
 
 A separate default-deny `select_records?` grant enables native index checkboxes

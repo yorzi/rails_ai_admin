@@ -62,8 +62,8 @@ The host is responsible for changing its security version on revocation.
 See the operation contract for the native form/preflight/confirmation routes,
 registered default CRUD, member handlers and durable post-commit Work. Registered
 collection handlers additionally support bounded asynchronous per-target execution.
-Global handlers, CRUD replacement, assistant APIs,
-exports and associations remain unimplemented. A published dependency API is not
+Global handlers, CRUD replacement, assistant APIs (beyond the opt-in review
+Surface below), exports and associations remain unimplemented. A published dependency API is not
 an implemented admin feature.
 
 ## Optional Pundit authorization
@@ -318,6 +318,23 @@ and is implicit in hints. Exact counts cover the authorized filtered relation an
 stop at 10,000 (`Page#count_capped`). `Page` also reports `sort`, `direction` and
 `page_size`. Settings are excluded from operation/Selection identity. See ADR 0019
 and the Index Tables guide.
+
+## Admin review Surfaces (opt-in)
+
+`config.surfaces = true` requires the host to load rails_tool_views and its tables;
+otherwise boot fails. Member operations opt in with `operation ..., surface: true`.
+Admin-owned routes (`POST :resource/:id/operations/:operation/surface`,
+`GET assistant/surfaces/:id`, `POST assistant/surfaces/:id/actions`) call the
+public rails_tool_views API with an explicit `raa:` Scope; the host's resolver,
+parent controller, adapter, auto_deliver and registry are never read or changed.
+The `raa_operation_review` component stores only the intent UUID and canonical
+input, re-registers after host resets and rejects squatting. Its policy/handler
+require the matching request-bound admin Context. Presentation requires an
+unconsumed native intent with matching input digest; confirmation runs the shared
+Runner on the same intent (`origin: surface`) inside the Surface lock, writing
+once across channels. Completed reviews need the receipt grant. No assistant
+presentation, continuation, in-Surface editing or template overrides exist. See
+ADR 0020 and the Review Surfaces guide.
 
 ## Host controllers and fixed statuses
 
