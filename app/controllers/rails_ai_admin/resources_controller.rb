@@ -12,6 +12,12 @@ module RailsAiAdmin
         redirect_to list_return_path, status: :see_other, notice: "Some list settings are no longer available. The current list settings have been restored."
         return
       end
+      # A native filter form submits every input; share only the canonical
+      # nonblank conditions. This changes no grant and adds no notice.
+      if raw.key?("filter") && raw["filter"] != navigation_state["filter"]
+        redirect_to list_return_path, status: :see_other
+        return
+      end
       @page = Queries::List.new(@context, @resource).call(search: navigation_state["q"], sort: navigation_state["sort"], direction: navigation_state.fetch("direction", "asc"), page: navigation_state.fetch("page", "1"), recover_empty_page: true, scope: navigation_state["scope"], filters: navigation_state["filter"])
       if @page.number != navigation_state.fetch("page", "1").to_i
         @list_navigation = Navigation::ListState.new(@access, navigation_state.merge("page" => @page.number.to_s))

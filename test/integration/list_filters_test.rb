@@ -65,9 +65,17 @@ class ListFiltersTest < ActionDispatch::IntegrationTest
 
   def test_blank_inputs_are_ignored_and_bad_values_or_undeclared_filters_are_invalid
     TestPolicy.granted_filters = %i[points active name]
-    get "/backoffice/customers", params: { filter: { points: { gte: "", lte: "" }, active: { eq: "" } } }
+    get "/backoffice/customers", params: { sort: "name", filter: { points: { gte: "", lte: "" }, active: { eq: "" } } }
+    assert_response :see_other
+    assert_equal({ "sort" => "name" }, query(response.location))
+    get "/backoffice/customers", params: { filter: { points: { gte: "3", lte: "" }, active: { eq: "" } } }
+    assert_response :see_other
+    assert_equal({ "filter" => { "points" => { "gte" => "3" } } }, query(response.location))
+    follow_redirect!
     assert_response :success
-    assert_nil main_link("Clear filters")
+    assert_select ".raa-notice", count: 0
+    get "/backoffice/customers", params: { filter: { active: { eq: "true" }, points: { gte: "3" } } }
+    assert_response :success, "canonical conditions in a different key order are not redirected again"
     [ { points: { gte: "abc" } }, { active: { eq: "maybe" } }, { name: { eq: "Alice" } }, { points: { eq: "1" } }, { points: "1" } ].each do |filter|
       get "/backoffice/customers", params: { filter: filter }
       assert_response :unprocessable_content
