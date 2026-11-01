@@ -151,6 +151,22 @@ class SurfacesTest < ActionDispatch::IntegrationTest
     end
   end
 
+  def test_a_record_changed_after_review_is_rejected_and_recorded_without_a_write
+    with_surfaces do
+      proposal = confirmation
+      surface_id = present(proposal)
+      get "/backoffice/assistant/surfaces/#{surface_id}"
+      fields = confirm_fields
+      @customer.update!(name: "Changed elsewhere")
+      post "/backoffice/assistant/surfaces/#{surface_id}/actions", params: fields
+      follow_redirect!
+      assert_select "p[role=status]", text: /The record changed or was busy/
+      assert_equal "Changed elsewhere", @customer.reload.name
+      assert_equal [ "CONFLICT" ], RailsAiAdmin::AuditEvent.where(correlation_ref: proposal[:intent_ref]).pluck(:code)
+      assert_equal "proposed", RailsAiAdmin::OperationRun.find(proposal[:intent_ref]).status
+    end
+  end
+
   def test_operation_failure_rolls_back_the_surface_and_keeps_the_intent_retryable
     with_surfaces do
       proposal = confirmation
