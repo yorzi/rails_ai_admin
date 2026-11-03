@@ -30,7 +30,7 @@ this file records current scope without rewriting its historical review claims.
   titles agree across pages/selections/jobs, virtual input/query targets are
   rejected and fake virtual preflight changes are excluded. Actual packaged
   summaries and source reload advance the Field Registry/CRUD-008 contracts.
-- Individual template override generator with 27 explicit current paths/context
+- Individual template override generator with 29 explicit current paths/context
   contracts, source/context metadata, preservation of existing edits and bounded
   doctor upgrade diagnostics. New/edit failure wrappers and field defaults obey
   Rails precedence. Packaged Host A rendered every catalogued host override;
@@ -99,6 +99,17 @@ this file records current scope without rewriting its historical review claims.
   its product Surface and resolver, real per-form CSRF and reload; Host A stays
   AI-free. Packaged Host B and Chromium found and fixed two defects (CSRF hand-off
   and lapsed-grant rendering) that engine tests could not see (ADR 0020).
+- `belongs_to` reference fields and readonly `has_many` show panels (first slice
+  of RAA-0301, CRUD-024 subset). Labels, links, pickers and children come only
+  from the target or child resource's own relation and grants; missing, foreign
+  and hidden targets are indistinguishable. An index loads each reference column
+  with one query. The Runner admits a changed reference only when it is visible
+  now, keeps an unchanged one and maps a foreign-key race to CONFLICT. Both test
+  databases, packaged Host A (`Order belongs_to :customer`, `Customer has_many
+  :orders`, all 29 overrides rendered) and an unchanged Host B verify it; no
+  Chrome/accessibility check yet (ADR 0021). Association search/sort, a picker
+  endpoint, has_one/through/many-to-many and CRUD-021 attach/detach policies
+  remain open.
 - Server-owned intents with input/identity/epoch/version/expiry binding, database
   serialization, replay, atomic domain/audit/receipt, callback rollback handling
   and separate post-commit warning (synchronous parts of RAA-0112/0113).
@@ -151,8 +162,10 @@ admin adapter, never the host's global adapter). Close the remaining Phase 2
 evidence in parallel: RAA-0210 (validation, CSRF, mass assignment, XSS and N+1
 regressions across list and Surface routes), I18n of framework strings, a
 screen-reader pass, and the RAA-0203/0208 extension matrix. Then start Phase 3
-with associations (RAA-0301). The resource DSL, three-domain CRUD, status/controller
-extension, recovery and list navigation now have local evidence; this does not
+continuing associations (RAA-0301): a searchable picker endpoint, association
+columns (LIST-019), has_one/has_many :through and CRUD-021 attach/detach policies.
+The resource DSL, three-domain CRUD, status/controller extension, recovery, list
+navigation and belongs_to/has_many reads now have local evidence; this does not
 close the full Phase 2 or release gates.
 Prepare the narrow Order Review shared-operation/Surface proof after its relevant
 prerequisites are verified; the existing ordinary Order workbench supplies its

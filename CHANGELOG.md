@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- Add `belongs_to` reference fields. A reference is labelled and linked only
+  through the target resource's current relation, show grant and title, and an
+  index loads each reference column with one query. Missing, foreign and hidden
+  targets render the same `Customer #42` placeholder. Forms offer up to 100
+  visible targets (else a typed key); the Runner rejects a changed reference the
+  actor cannot see, keeps an unchanged one and maps a foreign-key race to
+  CONFLICT. References filter by `eq`; they cannot search or sort yet.
+- Add readonly `has_many` show-page panels read through the child resource's
+  index grant, policy relation and a readable reference field, with a filtered
+  "View all" link while that field is filter-granted.
+- Add `Field#column`; reads, writes, list queries, audit field names and doctor
+  checks now distinguish a field's name from its column. Doctor adds an
+  `associations:<resource>` reflection check.
+- Add the `field_reference` and `resource_associations` override entries
+  (catalog now 29). **Review overrides:** `resource_show` advances to revision 3
+  and `field_form` to revision 2.
+- `rake build` names the package from `RailsAiAdmin::VERSION`.
+
 - Add opt-in admin review Surfaces on the host-owned rails_tool_views runtime:
   `config.surfaces`, `operation ..., surface: true`, admin-owned endpoints with an
   explicit `raa:` Scope and a constant `raa_operation_review` component. A
@@ -129,7 +147,8 @@
 - Reject an unusable fallback menu label at registration instead of making every
   admin page unavailable at render time.
 
-Assistant/Surface adapters, global actions, custom CRUD replacement, 10,000-target
-batch materialization, associations, files, CSV and metrics dashboards are not implemented. Release gates remain open.
+Assistant Chat, global actions, custom CRUD replacement, 10,000-target batch
+materialization, association search/sort and writes beyond belongs_to, files, CSV
+and metrics dashboards are not implemented. Release gates remain open.
 
 No gem has been published.

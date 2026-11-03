@@ -250,10 +250,38 @@ New/edit wrappers apply to GET, validation and conflict and keep the existing
 shared full form. Global field display/input defaults are overrideable; explicit
 field-type partials win. Scope/field/action decisions, CSRF, intent/confirmation,
 escaping, dirty-form and flow IDs remain part of the review. Fixed HTML statuses
-add status_layout/status_page; the resource_navigation partial brings the catalog
-to 27 entries. Non-HTML plain responses and future Surface wrappers remain outside
+add status_layout/status_page; the resource_navigation partial, field_reference
+and resource_associations bring the catalog to 29 entries. Non-HTML plain responses and future Surface wrappers remain outside
 it. See ADR 0011/0015/0016 and the site template guide/catalog for exact paths and
 bounds.
+
+## Associations
+
+`belongs_to :name, resource: :key, foreign_key: "name_id", filterable: true`
+declares a reference field named after the association that reads and writes its
+foreign-key column. `Field#column` is that column (the field name for every other
+type). Values are the target primary key as bounded text
+(`[A-Za-z0-9][A-Za-z0-9_-]{0,99}`), never records. Targets must be registered at
+boot; first use and doctor require a matching non-polymorphic model reflection
+to the target's single primary key. Search and sort are rejected; filters offer
+`eq` behind the independent `:filter` grant. Field types cannot refine
+`belongs_to`.
+
+Labels, links and picker options come only from the target resource's current
+relation, show grant and title read grant through `Fields::Association`, a
+request-local resolver that loads a column's references in one bounded query.
+Missing, foreign and hidden targets are indistinguishable (`Customer #42`,
+unlinked). Pickers list at most 100 targets the actor may index; otherwise forms
+accept a typed key. The Runner rejects a changed reference that is not currently
+visible (`is not an available choice`) in the write transaction, accepts an
+unchanged stored one, and maps a foreign-key violation to CONFLICT with full
+rollback. Audit `changed_fields` and validation errors use field names.
+
+`has_many :name, resource: :key, via: :field, label:, limit:` adds a readonly
+show-page panel of at most 50 children read through the child resource's index
+grant, policy relation and a read grant on its reference field, with an optional
+filtered "View all" link while that field is filter-granted. At most 10 panels
+per resource; they add no write path. See ADR 0021.
 
 ## Resource menus
 

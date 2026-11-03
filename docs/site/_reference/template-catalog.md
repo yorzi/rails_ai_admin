@@ -27,9 +27,9 @@ compatibility statuses and upgrade review. Field-type-specific partials take
 precedence over global field defaults. No Surface wrapper is cataloged. Non-HTML plain status responses and host exceptions_app handling remain
 outside this ERB template catalog.
 
-The current catalog contains 27 entries. resource_index uses contract revision 5;
-resource_new/resource_edit/resource_form use revision 4; layout uses revision 3; dashboard, other navigation-aware
-templates and resource_errors/input_fields use revision 2; remaining entries
+The current catalog contains 29 entries. resource_index uses contract revision 5;
+resource_new/resource_edit/resource_form use revision 4; layout and resource_show use revision 3; dashboard, other navigation-aware
+templates, resource_errors/input_fields and field_form use revision 2; remaining entries
 use revision 1. Source bytes and context revision
 can change independently; always inspect the installed version when upgrading.
 
@@ -75,7 +75,8 @@ legacy visible_resources still includes hidden-menu resources. See
 | `resource_navigation` | 1 | `rails_ai_admin/shared/_navigation.html.erb` | None | `groups` |
 | `dashboard` | 2 | `rails_ai_admin/dashboard/index.html.erb` | `context` | None |
 | `resource_index` | 5 | `rails_ai_admin/resources/index.html.erb` | `context`, `resource`, `page`, `columns`, `rows`, `searchable`, `selectable`, `sortable_fields`, `list_scopes`, `current_scope`, `filter_fields`, `list_navigation` | None |
-| `resource_show` | 2 | `rails_ai_admin/resources/show.html.erb` | `context`, `resource`, `record`, `values`, `fields`, `operations`, `list_navigation` | None |
+| `resource_show` | 3 | `rails_ai_admin/resources/show.html.erb` | `context`, `resource`, `record`, `values`, `fields`, `operations`, `association_panels`, `list_navigation` | None |
+| `resource_associations` | 1 | `rails_ai_admin/resources/_associations.html.erb` | None | `panels` |
 | `resource_new` | 4 | `rails_ai_admin/resources/new.html.erb` | `context`, `resource`, `record`, `operation`, `intent`, `form_fields`, `form_values`, `form_plan`, `errors`, `failure_code`, `needs_reload`, `list_navigation` | None |
 | `resource_edit` | 4 | `rails_ai_admin/resources/edit.html.erb` | `context`, `resource`, `record`, `operation`, `intent`, `form_fields`, `form_values`, `form_plan`, `errors`, `failure_code`, `needs_reload`, `list_navigation` | None |
 | `resource_form` | 4 | `rails_ai_admin/resources/form.html.erb` | `context`, `resource`, `record`, `operation`, `intent`, `form_fields`, `form_values`, `form_plan`, `errors`, `failure_code`, `needs_reload`, `list_navigation` | None |
@@ -84,7 +85,8 @@ legacy visible_resources still includes hidden-menu resources. See
 | `resource_errors` | 2 | `rails_ai_admin/resources/_errors.html.erb` | `errors`, `failure_code`, `needs_reload` | `form`, `fields` |
 | `field_index` | 1 | `rails_ai_admin/fields/_index.html.erb` | None | `field`, `value`, `text` |
 | `field_show` | 1 | `rails_ai_admin/fields/_show.html.erb` | None | `field`, `value`, `text` |
-| `field_form` | 1 | `rails_ai_admin/fields/_input.html.erb` | None | `field`, `form`, `value`, `input_options` |
+| `field_reference` | 1 | `rails_ai_admin/fields/_reference.html.erb` | None | `field`, `value`, `reference` |
+| `field_form` | 2 | `rails_ai_admin/fields/_input.html.erb` | None | `field`, `form`, `value`, `input_options` |
 | `field_row` | 1 | `rails_ai_admin/fields/_row.html.erb` | None | `form`, `entry`, `errors` |
 | `input_fields` | 2 | `rails_ai_admin/shared/_input_fields.html.erb` | `resource` | `form`, `fields`, `values`, `errors`, `plan` |
 | `operation_form` | 2 | `rails_ai_admin/operations/form.html.erb` | `context`, `resource`, `record`, `definition`, `flow_id`, `form_fields`, `form_values`, `errors`, `failure_code`, `needs_reload`, `list_navigation` | None |

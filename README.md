@@ -4,10 +4,12 @@ A self-hosted Rails admin engine with explicitly registered resources and one
 policy-checked, audited execution boundary for conventional CRUD.
 
 **Unreleased development.** Current code supplies scalar conventional CRUD,
-registered scalar field types and partials, synchronous member operations, fixed
-Selection previews, bounded asynchronous collection operations and a durable outbox for one declared post-commit effect.
-Chat, trusted Surfaces, associations, CSV, private files, metrics dashboards and
-the broader batch/job-center workflows remain future work. The
+`belongs_to` references with readonly `has_many` panels, registered scalar field
+types and partials, synchronous member operations, fixed Selection previews,
+bounded asynchronous collection operations, opt-in admin review Surfaces and a
+durable outbox for one declared post-commit effect. Chat, association search and
+broader association writes, CSV, private files, metrics dashboards and the
+broader batch/job-center workflows remain future work. The
 development plan describes the target product, not the supported feature set.
 
 The engine supports custom policy adapters and an optional Pundit adapter with
@@ -33,6 +35,10 @@ Scoped Access and the shared Runner preserve the execution boundary; host routes
 layouts and partials remain ordinary Rails. The native-session packaged consumer
 includes an Order review workbench that shares its operation with native pages.
 
+Link records with [Associations](docs/site/_core_features/associations.md):
+references and child lists resolve through each target resource's own grants,
+so an association never shows or attaches a record its policy hides.
+
 Group, label, order or hide sidebar and Overview entries with
 [Resource Navigation](docs/site/_core_features/resource-navigation.md). The menu
 follows current index grants; hiding an entry changes no direct authorization.
@@ -45,7 +51,7 @@ bundle exec rake test
 bundle exec rake build
 ```
 
-The build creates `pkg/rails_ai_admin-0.1.0.dev.gem`; it does not publish. Use the
+The build creates `pkg/rails_ai_admin-<version>.gem` (currently `0.1.0.dev`); it does not publish. Use the
 [installation guide](docs/site/_getting_started/getting-started.md) to add a local
 build or development checkout to a host. Then run:
 

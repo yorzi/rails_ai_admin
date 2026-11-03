@@ -52,6 +52,12 @@ failures, with fresh authentication, same-intent renewal, manual Resume and
 explicit Save. Persistent session drafts and custom-operation/delete recovery
 remain unavailable. These changes do not close Phase 2 or any release Gate.
 
+[Associations]({% link _core_features/associations.md %}) adds `belongs_to`
+reference fields and readonly `has_many` show panels. Labels, pickers, writes and
+child lists go through each target or child resource's own relation and grants.
+Association search/sort, a picker endpoint for large targets, has_one/through
+and many-to-many writes and attach/detach policies remain open.
+
 [List Navigation]({% link _core_features/list-navigation.md %}) now retains
 bounded search/sort/page hints across native resource/operation/selection/job
 flows, rechecks current query grants and recovers empty later HTML pages with a
