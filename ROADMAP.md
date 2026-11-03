@@ -154,6 +154,11 @@ documentation and advisory scanning. No remote CI run has occurred.
 
 ## Next implementation checkpoint
 
+[RELEASING.md](RELEASING.md) maps these items to the Public Preview criteria. The
+blocking gap is the admin Chat entry (SPIKE-03/RAA-0251) and the early-proof gate
+behind it; `rake release:check` covers the mechanical release steps.
+
+
 Continue the AI early proof on the verified Surface boundary: SPIKE-02's offline
 part (an admin-owned PresentUI-style catalog of `raa_` components with
 per-component schema validation) and SPIKE-03 (persisted admin Chat on RubyLLM
