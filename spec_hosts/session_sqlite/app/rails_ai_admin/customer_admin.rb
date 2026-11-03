@@ -11,6 +11,7 @@ class CustomerAdmin < RailsAiAdmin::Resource
     readonly :created_at, type: :datetime, create: false, edit: true, tab: "Account", panel: "Context"
     virtual :status_summary, type: :text, depends_on: %i[active points], compute: "CustomerStatusSummary", edit: true, tab: "Account", panel: "Context"
   end
+  has_many :orders, limit: 5
   operation :award_points, handler: "AwardCustomerPoints"
   operation :bulk_award_points, handler: "BulkAwardCustomerPoints", scope: :collection
 end

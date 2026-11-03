@@ -1,5 +1,6 @@
 class Order < ApplicationRecord
   belongs_to :account
+  belongs_to :customer, optional: true
   validates :number, presence: true, uniqueness: { scope: :account_id }
   validates :state, inclusion: { in: %w[draft approved rejected] }
   validates :total, numericality: { greater_than_or_equal_to: 0, less_than: 10_000_000_000 }

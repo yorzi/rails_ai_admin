@@ -21,12 +21,12 @@ class AdminPolicyAdapter < RailsAiAdmin::Authorization::Adapter
   def fields(context:, resource:, action:, record: nil)
     if resource.key == :orders
       case action
-      when :read then %i[id number state total delivery_on expedited reviewed_at review_summary] + (context.actor.role == "admin" ? [ :review_note ] : [])
-      when :write then context.actor.role == "admin" ? %i[number state total delivery_on expedited] : []
+      when :read then %i[id number customer state total delivery_on expedited reviewed_at review_summary] + (context.actor.role == "admin" ? [ :review_note ] : [])
+      when :write then context.actor.role == "admin" ? %i[number customer state total delivery_on expedited] : []
       when :search then [ :number ]
       when :sort then %i[number delivery_on]
       # Amount ranges are commercial detail; delivery filters are operational.
-      when :filter then %i[delivery_on expedited] + (context.actor.role == "admin" ? [ :total ] : [])
+      when :filter then %i[customer delivery_on expedited] + (context.actor.role == "admin" ? [ :total ] : [])
       else []
       end
     else

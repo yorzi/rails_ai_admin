@@ -452,13 +452,48 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
     assert_select "input[name='filter[delivery_on][gte]'][value='2026-11-04']"
   end
 
+  def test_order_customer_reference_is_tenant_scoped_in_lists_forms_and_panels
+    login
+    foreign = Customer.find_by!(name: "Other tenant")
+    order = Order.create!(account: @account, number: "REF-1", total: "5.00", customer: @customer)
+    Order.create!(account: @account, number: "REF-2", total: "6.00")
+    get "/staff/orders", params: { scope: "all" }
+    assert_response :success
+    assert_select "td a[href='/staff/customers/#{@customer.id}']", text: "Packaged Customer"
+    assert_select "select[name='filter[customer][eq]'] option", text: "Other tenant", count: 0
+    get "/staff/orders/#{order.id}"
+    assert_select "dd a[href='/staff/customers/#{@customer.id}']", text: "Packaged Customer"
+    get "/staff/orders/new"
+    assert_response :success
+    names = css_select("select[name='record[customer]'] option").map(&:text)
+    assert_equal [ "None", "Packaged Customer" ], names
+    token = css_select("input[name=authenticity_token]").first["value"]
+    ref = css_select("input[name=intent_ref]").first["value"]
+    post "/staff/orders", params: { authenticity_token: token, intent_ref: ref, record: { number: "REF-3", total: "7.00", customer: foreign.id.to_s, expedited: "false" } }
+    assert_response :unprocessable_content
+    assert_select ".raa-field-error", text: "is not an available choice"
+    refute Order.exists?(number: "REF-3")
+    post "/staff/orders", params: { authenticity_token: css_select("input[name=authenticity_token]").first["value"], intent_ref: ref, record: { number: "REF-3", total: "7.00", customer: @customer.id.to_s, expedited: "false" } }
+    assert_response :see_other
+    assert_equal @customer.id, Order.find_by!(number: "REF-3").customer_id
+    assert_equal %w[customer number total], RailsAiAdmin::AuditEvent.where(resource_key: "orders", operation: "create", status: "succeeded").last.changed_fields.sort
+    get "/staff/customers/#{@customer.id}"
+    assert_response :success
+    assert_equal %w[REF-1 REF-3], css_select("section.raa-association li a").map(&:text)
+    view_all = css_select("section.raa-association a").find { |node| node.text == "View all in Orders" }["href"]
+    get view_all
+    assert_response :success
+    assert_includes response.body, "REF-1"
+    refute_includes response.body, "REF-2"
+  end
+
   def test_order_index_settings_choose_columns_order_page_size_and_count
     login
     21.times { |index| Order.create!(account: @account, number: "IDX-#{index.to_s.rjust(2, "0")}", total: "1.00", delivery_on: Date.new(2026, 11, 1) + index) }
     Order.create!(account: Account.where.not(id: @account.id).first, number: "IDX-FOREIGN", total: "1.00", delivery_on: "2027-01-01")
     get "/staff/orders"
     assert_response :success
-    assert_equal [ "Select", "Number", "State", "Total", "Delivery on", "Expedited", "Review summary", "Actions" ], css_select("thead th").map { |node| node.text.strip }
+    assert_equal [ "Select", "Number", "Customer", "State", "Total", "Delivery on", "Expedited", "Review summary", "Actions" ], css_select("thead th").map { |node| node.text.strip }
     assert_select "th[aria-sort=descending] a", text: "Delivery on"
     assert_select "tbody tr", count: 20
     assert_select "p.raa-count", text: "21 matching records"
@@ -480,7 +515,7 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
       assert RailsAiAdmin::TestKit.assert_access(context: context, resource: CustomerAdmin, action: :update, record: @customer, allowed: role == "admin")
       assert RailsAiAdmin::TestKit.assert_field_grants(context: context, resource: CustomerAdmin, record: @customer,
         expected: { read: %i[id name active points created_at status_summary], write: role == "admin" ? %i[name active points] : [], search: [ :name ], sort: [ :name ], filter: [] })
-      assert_equal (%w[delivery_on expedited] + (role == "admin" ? [ "total" ] : [])).sort, RailsAiAdmin::TestKit.field_grants(context: context, resource: OrderAdmin).fetch("filter")
+      assert_equal (%w[customer delivery_on expedited] + (role == "admin" ? [ "total" ] : [])).sort, RailsAiAdmin::TestKit.field_grants(context: context, resource: OrderAdmin).fetch("filter")
       assert RailsAiAdmin::TestKit.assert_hidden(context: context, resource: CustomerAdmin, field: :secret)
     end
     context = RailsAiAdmin::Context.new(actor: @user, tenant: @account, security_version: @user.security_version.to_s)
