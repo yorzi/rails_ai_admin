@@ -14,6 +14,7 @@ module RailsAiAdmin
         child.instance_variable_set(:@operation_scopes, {})
         child.instance_variable_set(:@surface_operations, [])
         child.instance_variable_set(:@navigation, Navigation::Settings.new)
+        child.instance_variable_set(:@has_many, {})
       end
 
       def model(name = nil)
@@ -85,6 +86,18 @@ module RailsAiAdmin
         @surface_operations << key.to_sym if surface
       end
 
+      # A readonly child list on the show page. The child resource's own policy,
+      # index grant and a readable belongs_to field (via) decide what appears;
+      # declaring it grants nothing and adds no write path.
+      def has_many(name, resource: name, via: nil, label: nil, limit: 10)
+        definition = Presentation::AssociationPanel::Definition.build(name, resource: resource, via: via, label: label, limit: limit)
+        raise ConfigurationError, "Duplicate has_many #{definition.name}" if @has_many.key?(definition.name)
+        raise ConfigurationError, "A resource declares at most #{Presentation::AssociationPanel::MAX_PANELS} has_many panels" if @has_many.size >= Presentation::AssociationPanel::MAX_PANELS
+        @has_many[definition.name] = definition
+      end
+
+      def has_many_declarations = @has_many.values
+
       def operation_declarations = @operations
       def surface_operation?(key) = @surface_operations.include?(key.to_sym)
       def operation_scopes = @operation_scopes
@@ -142,6 +155,7 @@ module RailsAiAdmin
         @operations.freeze
         @operation_scopes.freeze
         @surface_operations.freeze
+        @has_many.freeze
         self
       end
     end

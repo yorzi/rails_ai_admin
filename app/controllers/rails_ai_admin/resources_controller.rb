@@ -35,6 +35,10 @@ module RailsAiAdmin
         values = @access.project(record, view: :index, only: computed)
         { id: record.id, label: record_label(@resource, record, values: values, view: :index), values: values }
       end
+      # One target query per reference column instead of one per row.
+      @columns.select { |field| field.scalar_type == :belongs_to }.each do |field|
+        admin_associations.prime(field, @rows.filter_map { |row| row[:values][field.name.to_s] })
+      end
       @searchable = @access.fields(:search).any?
       @selectable = begin
         @access.authorize_selection!
@@ -47,6 +51,7 @@ module RailsAiAdmin
       @record = @access.find!(params[:id])
       @values = @access.project(@record, view: :show)
       @fields = @access.fields(:read, @record, view: :show)
+      @association_panels = Presentation::AssociationPanel.build(@context, @resource, @record)
       @operations = RailsAiAdmin.operation_registry.custom(@resource).select { |definition| definition.scope == :member }.select do |definition|
         @access.authorize!(definition.key, @record)
         definition.fields(@access, @record)

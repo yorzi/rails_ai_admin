@@ -52,7 +52,7 @@ module RailsAiAdmin
             when :contains then "%#{term}%"
             else "#{term}%"
             end
-            @resource.model_class.arel_table[field.name].matches(pattern, "\\")
+            @resource.model_class.arel_table[field.column].matches(pattern, "\\")
           end
           relation = relation.where(predicates.reduce(&:or))
         end
@@ -69,8 +69,8 @@ module RailsAiAdmin
           sortable.find { |entry| entry.name == settings.default_sort }
         end
         if field
-          relation = relation.reorder(table[field.name].public_send(direction))
-          relation = relation.order(table[primary].asc) unless field.name.to_s == primary
+          relation = relation.reorder(table[field.column].public_send(direction))
+          relation = relation.order(table[primary].asc) unless field.column == primary
         else
           relation = relation.reorder(table[primary].asc)
         end
@@ -113,7 +113,7 @@ module RailsAiAdmin
           field = granted[name.to_s] or raise AccessDenied, "INVALID_QUERY"
           conditions.reduce(scoped) do |inner, (operator, raw)|
             value = self.class.filter_value(field, operator.to_s, raw, time_zone: @access.context.time_zone)
-            inner.where(table[field.name].public_send(AREL_PREDICATES.fetch(operator.to_s), value))
+            inner.where(table[field.column].public_send(AREL_PREDICATES.fetch(operator.to_s), value))
           end
         end
       end

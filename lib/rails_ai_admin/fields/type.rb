@@ -25,7 +25,7 @@ module RailsAiAdmin
         end
 
         def metadata
-          unless scalar && Field::TYPES.include?(scalar) && version.is_a?(String) && version.match?(/\A[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}\z/)
+          unless scalar && Field::TYPES.include?(scalar) && scalar != :belongs_to && version.is_a?(String) && version.match?(/\A[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}\z/)
             raise ConfigurationError, "Field type needs a built-in scalar and bounded version"
           end
           partials = %i[form_partial index_partial show_partial].to_h { |key| [ key, public_send(key) ] }

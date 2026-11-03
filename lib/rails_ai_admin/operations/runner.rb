@@ -143,7 +143,7 @@ module RailsAiAdmin
           end
           values = coerce!(access, record, definition, input, replay: run.status == "succeeded")
           if run.operation == "create"
-            record.assign_attributes(values)
+            record.assign_attributes(column_attributes(resource, values))
             access.authorize!(:create, record)
             writable = access.fields(:write, record, operation: :create).map { |field| field.name.to_s }
             reject!("NOT_FOUND") unless (values.keys - writable).empty?
@@ -185,11 +185,12 @@ module RailsAiAdmin
             if before != record.attributes_before_type_cast && record.lock_version <= run.expected_version
               raise ConfigurationError, "Custom writes must advance the target lock_version"
             end
-            changed_fields = resource.fields.map { |field| field.name.to_s }.select { |name| before[name] != record.attributes_before_type_cast[name] }
+            changed_fields = resource.fields.select { |field| before[field.column] != record.attributes_before_type_cast[field.column] }.map { |field| field.name.to_s }
             WorkItem.where(operation_run_id: run.id).update_all(expected_version: record.lock_version)
           else
-            record.assign_attributes(values) if run.operation == "update"
-            changed_fields = record.changes.keys & values.keys
+            record.assign_attributes(column_attributes(resource, values)) if run.operation == "update"
+            names = field_names_by_column(resource)
+            changed_fields = record.changes.keys.map { |column| names.fetch(column, column) } & values.keys
             persisted = definition.handler_class.new.perform(nil, record, values)
             reject!("VALIDATION_FAILED", errors: { "base" => [ "could not be saved" ] }) unless persisted
           end
@@ -225,7 +226,8 @@ module RailsAiAdmin
           else
             access&.fields(:write, error.record, operation: run.operation)&.map { |field| field.name.to_s } || []
           end
-          errors = error.record.errors.attribute_names.map(&:to_s).intersection(allowed).to_h { |name| [ name, [ "is invalid" ] ] }
+          names = definition&.custom? || !access ? {} : field_names_by_column(access.resource)
+          errors = error.record.errors.attribute_names.map { |name| names.fetch(name.to_s, name.to_s) }.intersection(allowed).to_h { |name| [ name, [ "is invalid" ] ] }
           audit_failure(context, run, "VALIDATION_FAILED", origin) unless admission
           Result.new(code: "VALIDATION_FAILED", errors: errors.presence || { "base" => [ "is invalid" ] })
         when ActiveRecord::RecordNotDestroyed, ActiveRecord::RecordNotSaved
@@ -237,7 +239,8 @@ module RailsAiAdmin
         when ExecutionContext::DeadlineExceeded
           audit_failure(context, run, "TIMEOUT", origin) unless admission
           Result.new(code: "TIMEOUT")
-        when ActiveRecord::StaleObjectError, ActiveRecord::RecordNotUnique, ActiveRecord::Deadlocked, ActiveRecord::LockWaitTimeout
+        # InvalidForeignKey: a referenced target vanished after admission.
+        when ActiveRecord::StaleObjectError, ActiveRecord::RecordNotUnique, ActiveRecord::InvalidForeignKey, ActiveRecord::Deadlocked, ActiveRecord::LockWaitTimeout
           Result.new(code: "CONFLICT")
         when ActiveRecord::StatementInvalid
           if defined?(SQLite3::BusyException) && error.cause.is_a?(SQLite3::BusyException)
@@ -332,8 +335,32 @@ module RailsAiAdmin
         fields = replay && definition.custom? ? definition.handler_class.input : definition.fields(access, record)
         result = InputSchema.new(fields, partial: definition.key == "update" && !definition.custom?).coerce(input, time_zone: access.context.time_zone)
         reject!(replay ? "IDEMPOTENCY_CONFLICT" : "VALIDATION_FAILED", errors: replay ? {} : result.errors) unless result.valid?
+        check_references!(access, record, fields, result.values) unless replay
         result.values
       end
+
+      # A changed reference must name a target this actor can currently see in
+      # the target resource. Keeping the stored key is not a new attachment, so
+      # an edit never forces clearing a reference the actor cannot see.
+      def check_references!(access, record, fields, values)
+        references = fields.select { |field| field.scalar_type == :belongs_to && !values[field.name.to_s].nil? }
+        return if references.empty?
+        resolver = Fields::Association.new(access.context, access.resource)
+        errors = references.each_with_object({}) do |field, result|
+          value = values.fetch(field.name.to_s)
+          stored = record&.persisted? && record.has_attribute?(field.column) ? record.read_attribute(field.column) : nil
+          next if !stored.nil? && stored.to_s == value
+          result[field.name.to_s] = [ Fields::Association::UNAVAILABLE ] unless resolver.admissible?(field, value)
+        end
+        reject!("VALIDATION_FAILED", errors: errors) if errors.any?
+      end
+
+      def column_attributes(resource, values)
+        columns = resource.fields.to_h { |field| [ field.name.to_s, field.column ] }
+        values.transform_keys { |name| columns.fetch(name, name) }
+      end
+
+      def field_names_by_column(resource) = resource.fields.to_h { |field| [ field.column, field.name.to_s ] }
 
       def preview_changes(access, record, definition, values)
         handler_context = ExecutionContext.new(access.context, access.resource, record, duration: definition.handler_class.max_duration)

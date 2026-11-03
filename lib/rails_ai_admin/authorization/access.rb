@@ -91,13 +91,15 @@ module RailsAiAdmin
       def read_attribute(record, field)
         raise AccessDenied if field.hidden?
         raise ConfigurationError, "Computed fields do not invoke model methods" if field.virtual?
-        name = field.name.to_s
+        name = field.column
         primary_key = record.class.primary_key
         id_alias = name == "id" && primary_key.is_a?(String) && record.has_attribute?(primary_key)
         unless record.has_attribute?(name) || id_alias
           raise ConfigurationError, "Scalar fields must name model attributes"
         end
-        ActiveRecord::Base.while_preventing_writes { record.public_send(name) }
+        value = ActiveRecord::Base.while_preventing_writes { record.public_send(name) }
+        # References travel as opaque key text, matching their input contract.
+        field.scalar_type == :belongs_to && !value.nil? ? value.to_s : value
       rescue ActiveRecord::ReadOnlyError
         raise ConfigurationError, "Scalar attribute getters must not write", cause: nil
       end

@@ -8,14 +8,17 @@ module RailsAiAdmin
   # Declares one scalar input/output contract. All presentation and query flags
   # only narrow the permissions returned by the host policy.
   class Field
-    TYPES = %i[id text textarea integer decimal boolean date datetime enum select].freeze
-    OPTIONS = %i[readonly required nullable values max_length searchable sortable filterable create edit label choices index show hidden help_text tab panel].freeze
+    TYPES = %i[id text textarea integer decimal boolean date datetime enum select belongs_to].freeze
+    OPTIONS = %i[readonly required nullable values max_length searchable sortable filterable create edit label choices index show hidden help_text tab panel resource foreign_key].freeze
+    # A belongs_to value is the target's opaque primary-key text, never a record.
+    REFERENCE = /\A[A-Za-z0-9][A-Za-z0-9_-]{0,99}\z/
+    NAME = /\A[a-z][a-z0-9_]*\z/
     # Typed list filter operators. Text-like values only support exact equality;
     # contains/prefix matching stays with search.
     FILTER_OPERATORS = %i[eq gte lte].freeze
     RANGE_TYPES = %i[integer decimal date datetime].freeze
     Descriptor = Data.define(:name, :type, :scalar_type, :options, :scalar_json_schema)
-    attr_reader :name, :type, :scalar_type, :options, :dependencies, :filter_operators
+    attr_reader :name, :type, :scalar_type, :options, :dependencies, :filter_operators, :column
 
     def initialize(name, type:, plugin: nil, compute: nil, depends_on: nil, **options)
       @name, @type = name.to_sym, type.to_sym
@@ -25,11 +28,15 @@ module RailsAiAdmin
       raise ConfigurationError, "Invalid field name" unless @name.to_s.match?(/\A[a-z][a-z0-9_]*\z/)
       raise ConfigurationError, "Unknown field type" unless TYPES.include?(@scalar_type) && (plugin || TYPES.include?(@type))
       raise ConfigurationError, "Unknown field option" unless (options.keys - OPTIONS).empty?
+      raise ConfigurationError, "Field types cannot refine belongs_to" if plugin && @scalar_type == :belongs_to
       configure_computation!(compute, depends_on, options)
       defaults = { readonly: @scalar_type == :id, nullable: true, required: false, max_length: 2000, create: true, edit: true, index: true, show: true, hidden: false }
       defaults.merge!(readonly: true, create: false, edit: false, searchable: false, sortable: false) if virtual?
+      defaults.merge!(resource: @name.to_s.pluralize.to_sym, foreign_key: "#{@name}_id") if @scalar_type == :belongs_to
       @options = immutable_copy(defaults.merge(options))
       validate_options!
+      validate_association_options!
+      @column = (@scalar_type == :belongs_to ? @options[:foreign_key] : @name.to_s).dup.freeze
       @filter_operators = resolve_filter_operators
       @descriptor = Descriptor.new(@name, @type, @scalar_type, @options, immutable_copy(scalar_json_schema))
       if @plugin
@@ -118,6 +125,10 @@ module RailsAiAdmin
         return nil
       end
       case scalar_type
+      when :belongs_to
+        value = value.to_s if value.is_a?(Integer) && value.positive?
+        raise ArgumentError, "is not an available choice" unless value.is_a?(String) && value.valid_encoding? && value.match?(REFERENCE)
+        String.new(value)
       when :text, :textarea, :id
         raise ArgumentError, "must be text" unless value.is_a?(String)
         raise ArgumentError, "is too long" if value.length > options[:max_length]
@@ -172,6 +183,7 @@ module RailsAiAdmin
       when :decimal then { "type" => "string", "pattern" => "^[+-]?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)$" }
       when :boolean then { "type" => "boolean" }
       when :enum, :select then { "type" => "string", "enum" => choice_values }
+      when :belongs_to then { "type" => "string", "pattern" => "^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$" }
       else { "type" => "string", "maxLength" => options[:max_length] }
       end
     end
@@ -217,6 +229,22 @@ module RailsAiAdmin
       values = choice_values
       unless values.is_a?(Array) && values.size.between?(1, 100) && values.uniq.size == values.size && values.all? { |value| value.is_a?(String) && value.length.between?(1, 200) && value.valid_encoding? }
         raise ConfigurationError, "Enum/select requires distinct nonempty string values"
+      end
+    end
+
+    def validate_association_options!
+      if scalar_type != :belongs_to
+        raise ConfigurationError, "resource and foreign_key are belongs_to options" if options.key?(:resource) || options.key?(:foreign_key)
+        return
+      end
+      resource, foreign_key = options[:resource], options[:foreign_key]
+      unless (resource.is_a?(Symbol) || resource.is_a?(String)) && resource.to_s.match?(NAME) && resource.to_s.length <= 100 &&
+          foreign_key.is_a?(String) && foreign_key.match?(NAME) && foreign_key.length <= 100 && foreign_key != name.to_s
+        raise ConfigurationError, "belongs_to needs a registry key resource and a distinct foreign_key column name"
+      end
+      # Association search, sort and labels-as-filters need registered joins (LIST-019).
+      if options[:searchable] || options[:sortable]
+        raise ConfigurationError, "belongs_to fields cannot search or sort yet; filter by the referenced record instead"
       end
     end
 

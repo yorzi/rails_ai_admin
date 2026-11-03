@@ -16,6 +16,12 @@ module RailsAiAdmin
       name = "filter[#{field.name}][#{operator}]"
       value = value && String.new(value)
       case field.scalar_type
+      when :belongs_to
+        choices = admin_associations.choices(field)
+        return text_field_tag(name, value, id: id, maxlength: 100, autocomplete: "off") unless choices.complete
+        options = [ [ "Any", "" ] ] + choices.options.map(&:dup)
+        options << [ admin_associations.reference(field, value).label, value ] if value.present? && options.none? { |_, key| key == value }
+        select_tag(name, options_for_select(options, value), id: id)
       when :enum, :select
         select_tag(name, options_for_select([ [ "Any", "" ] ] + field.choice_options.map(&:dup), value), id: id)
       when :boolean

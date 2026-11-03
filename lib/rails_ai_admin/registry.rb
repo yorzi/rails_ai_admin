@@ -17,6 +17,21 @@ module RailsAiAdmin
         raise ConfigurationError, "Duplicate resource key #{key}" if @entries.key?(key)
         @entries[key] = resource.validate!
       end
+      # Targets resolve at boot without loading models; reflection agreement
+      # is checked on first use and by doctor.
+      @entries.each_value do |resource|
+        resource.fields.each do |field|
+          next unless field.scalar_type == :belongs_to && !@entries.key?(field.options[:resource].to_s)
+          raise ConfigurationError, "#{resource.name} belongs_to #{field.name} names unregistered resource #{field.options[:resource]}"
+        end
+        resource.has_many_declarations.each do |panel|
+          child = @entries[panel.resource.to_s]
+          via = child&.fields&.find { |field| field.name == panel.via(resource) }
+          unless via&.scalar_type == :belongs_to
+            raise ConfigurationError, "#{resource.name} has_many #{panel.name} needs registered resource #{panel.resource} with belongs_to #{panel.via(resource)}"
+          end
+        end
+      end
       @entries.freeze
       freeze
     end

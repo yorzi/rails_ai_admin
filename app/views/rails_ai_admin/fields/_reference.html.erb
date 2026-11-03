@@ -1,0 +1,1 @@
+<% if reference.nil? %>—<% elsif reference.visible %><%= link_to reference.label, resource_path(resource: reference.resource_key, id: reference.id) %><% else %><%= reference.label %><% end %>

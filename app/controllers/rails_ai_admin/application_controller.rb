@@ -15,7 +15,7 @@ module RailsAiAdmin
     prepend_before_action :secure_headers
     before_action :authenticate_admin
     after_action :notice_discarded_list_settings
-    helper_method :resource_navigation, :admin_csp_nonce, :list_page_path, :encoded_return_state, :navigation_state, :navigation_params, :list_return_path, :list_return_label, :return_state_discarded?, :return_navigation_fields, :list_state_fields, :visible_resources, :allowed_action?, :record_label, :collection_jobs_available?
+    helper_method :resource_navigation, :admin_csp_nonce, :list_page_path, :encoded_return_state, :navigation_state, :navigation_params, :list_return_path, :list_return_label, :return_state_discarded?, :return_navigation_fields, :list_state_fields, :visible_resources, :allowed_action?, :record_label, :collection_jobs_available?, :admin_associations
 
     rescue_from AccessDenied, with: :deny_access
     rescue_from ConfigurationError do
@@ -163,6 +163,12 @@ module RailsAiAdmin
           false
         end
       end
+    end
+
+    # Request-local reference cache. Each target is read through its own
+    # resource policy; nothing is shared across requests or actors.
+    def admin_associations
+      @admin_associations ||= Fields::Association.new(@context, @resource)
     end
 
     def record_label(resource, record, values: nil, view: :show)

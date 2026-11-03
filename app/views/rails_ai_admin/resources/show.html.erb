@@ -6,3 +6,4 @@
   <% @operations.each do |operation| %><%= link_to operation.description, operation_form_path(resource: @resource.key, id: @record.id, operation: operation.key, **navigation_params), class: "raa-button" %><% end %>
 </div></div>
 <dl class="raa-details"><% @fields.each do |field| %><dt><%= field.label %></dt><dd><%= admin_field_value(field, @values[field.name.to_s], view: :show) %></dd><% end %></dl>
+<%= render "rails_ai_admin/resources/associations", panels: @association_panels %>

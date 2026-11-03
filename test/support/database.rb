@@ -45,6 +45,11 @@ end
 class FilterSample < ActiveRecord::Base
 end
 
+class Invoice < ActiveRecord::Base
+  belongs_to :customer, optional: true
+  validates :number, presence: true
+end
+
 class UuidCustomer < ActiveRecord::Base
   validates :name, presence: true
   before_create { self.id ||= SecureRandom.uuid }
@@ -100,6 +105,16 @@ module DatabaseHelpers
         end
       end
     end
+    unless Invoice.table_exists?
+      ActiveRecord::Schema.define do
+        create_table :invoices do |t|
+          t.integer :account_id, null: false
+          t.string :number, null: false
+          t.references :customer, foreign_key: true
+          t.integer :lock_version, null: false, default: 0
+        end
+      end
+    end
     unless UuidCustomer.table_exists?
       uuid_type = ActiveRecord::Base.connection.adapter_name == "PostgreSQL" ? :uuid : :string
       ActiveRecord::Schema.define do
@@ -118,6 +133,7 @@ module DatabaseHelpers
     UuidCustomer.delete_all
     ActiveRecord::MigrationContext.new(File.expand_path("../../db/migrate", __dir__)).migrate
     RailsAiAdmin::BatchItem.delete_all
+    Invoice.delete_all
     Customer.delete_all
     RailsAiAdmin::WorkItem.delete_all
     RailsAiAdmin::OperationRun.delete_all

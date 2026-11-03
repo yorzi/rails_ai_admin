@@ -148,16 +148,17 @@ module RailsAiAdmin
       Fields::DependencyGraph.validate!(resource.fields)
       physical_fields = resource.fields.reject(&:virtual?)
       invalid = physical_fields.reject do |field|
-        column = columns[field.name.to_s]
+        column = columns[field.column]
         column && (SchemaSuggestions::TYPES.key?(column.type) || column.type == :uuid) && !SchemaSuggestions.array?(column) ||
           (field.scalar_type == :id && field.name == :id && model.primary_key.is_a?(String) && columns.key?(model.primary_key))
       end
       result = [ Check.new("schema:#{resource.key}", invalid.empty? ? :ok : :error,
         "#{invalid.size} declared fields lack supported scalar columns. Check field names/types; computed fields use declared dependency graphs. No records were sampled.") ]
       mismatches = physical_fields.count do |field|
-        column = columns[field.name.to_s]
+        column = columns[field.column]
         next false unless column
         case field.scalar_type
+        when :belongs_to then !%i[integer string uuid].include?(column.type)
         when :datetime then !%i[datetime timestamp].include?(column.type)
         when :date then column.type != :date
         when :boolean then column.type != :boolean
@@ -173,15 +174,26 @@ module RailsAiAdmin
         "#{sensitive} declarations match sensitive names/encrypted attributes. Review explicit grants; naming heuristics cannot establish safety. Assistant/export are not implemented.")
       indexes = model.connection.indexes(model.table_name)
       missing = resource.fields.count do |field|
-        field.options[:sortable] && field.name.to_s != model.primary_key && !indexes.any? { |index| index.columns.is_a?(Array) && index.columns.first == field.name.to_s }
+        field.options[:sortable] && field.column != model.primary_key && !indexes.any? { |index| index.columns.is_a?(Array) && index.columns.first == field.column }
       end
       result << Check.new("sort_indexes:#{resource.key}", missing.zero? ? :ok : :review,
         "#{missing} sortable declarations lack a leading-column index. Review query plans and tenant-composite indexes; this hint is not a performance verdict.")
       unindexed_filters = resource.fields.count do |field|
-        !field.hidden? && field.filter_operators.any? && field.name.to_s != model.primary_key && !indexes.any? { |index| index.columns.is_a?(Array) && index.columns.include?(field.name.to_s) }
+        !field.hidden? && field.filter_operators.any? && field.column != model.primary_key && !indexes.any? { |index| index.columns.is_a?(Array) && index.columns.include?(field.column) }
       end
       result << Check.new("filter_indexes:#{resource.key}", unindexed_filters.zero? ? :ok : :review,
         "#{unindexed_filters} filterable declarations appear in no index. Review query plans with the tenant scope; low-cardinality filters may not need one.")
+      references = resource.fields.select { |field| field.scalar_type == :belongs_to }
+      if references.any?
+        failures = references.filter_map do |field|
+          Fields::Association.validate!(resource, field, registry: @registry)
+          nil
+        rescue ConfigurationError => error
+          error.message
+        end
+        result << Check.new("associations:#{resource.key}", failures.empty? ? :review : :error,
+          failures.empty? ? "#{references.size} belongs_to declarations match model reflections. A changed reference must be visible in its target resource; verify target policies and foreign-key constraints." : failures.join("; "))
+      end
       result
     end
   end
