@@ -363,8 +363,40 @@ require the matching request-bound admin Context. Presentation requires an
 unconsumed native intent with matching input digest; confirmation runs the shared
 Runner on the same intent (`origin: surface`) inside the Surface lock, writing
 once across channels. Completed reviews need the receipt grant. No assistant
-presentation, continuation, in-Surface editing or template overrides exist. See
-ADR 0020 and the Review Surfaces guide.
+presentation is available through the opt-in assistant below; in-Surface editing
+and Surface template overrides do not exist. See ADR 0020 and the Review Surfaces
+guide.
+
+## Admin assistant (opt-in)
+
+`config.assistant = true` requires the host to load ruby_llm and names
+`assistant_adapter` (a class whose `llm_context(context:)` returns a
+`RubyLLM::Context` or nil), `assistant_model`, and optionally
+`assistant_provider`/`assistant_protocol`. The admin never reads or changes
+global RubyLLM settings; conventional hosts load no RubyLLM code. The
+`rails_ai_admin:assistant` generator adds Engine-owned chat, message and turn
+tables (and RubyLLM's shared model, tool-call and usage tables only when absent)
+plus a closed adapter. Routes under `assistant` (`GET assistant`,
+`POST assistant/conversations`, `GET|POST assistant/conversations/:chat_ref`
+with `messages`, `cancel`, `retry` and `archive`) exist only when enabled.
+
+The default-deny adapter grant `assistant?(context:, resource:)` (Pundit:
+`assistant?`) exposes a resource to the model; the pages exist when any resource
+grants it. Tools (`list_resources`, `describe_resource`, `search_records`,
+`get_record`, and `propose_operation` with Surfaces) apply current index, show,
+read, search, filter and operation grants and return bounded JSON with fixed
+error codes. A chat is bound to actor, tenant and security version.
+
+A request only admits a turn keyed per chat; workers claim the lowest active
+turn under a lease and fencing generation, rebuild authority with
+`resolve_job`, persist the human message once and drive RubyLLM outside
+transactions. `propose_operation` prepares an `origin: assistant` intent and
+presents `raa_operation_review`; the human's Surface confirmation commits the
+business write and admits one `intent:` continuation turn in the same
+transaction. `rails_ai_admin:assistant:scan`/`drain` recover queued or expired
+turns. Usage rows are owned by the admin chat. No streaming, budgets, page
+context, live-provider evidence or retention exist yet. See ADR 0022 and the
+Admin Assistant guide.
 
 ## Host controllers and fixed statuses
 

@@ -110,6 +110,19 @@ this file records current scope without rewriting its historical review claims.
   Chrome/accessibility check yet (ADR 0021). Association search/sort, a picker
   endpoint, has_one/through/many-to-many and CRUD-021 attach/detach policies
   remain open.
+- Opt-in admin Chat on RubyLLM 2.1.1 (first slice of RAA-0251 and SPIKE-03's
+  offline part; ADR 0022). Engine-owned chat/message/turn tables, a per-request
+  host `RubyLLM.context`, a default-deny `assistant?` grant and grant-filtered
+  read tools. Turns are admitted by key into a per-chat inbox and run by
+  workers under leases with fencing; the human message persists once and a
+  persisted answer is reconciled without another provider call.
+  `propose_operation` shows the native review Surface, and its confirmation
+  writes once and admits one continuation in the same transaction, replacing
+  rails_tool_views `deliver` (whose 1.0.2 interactions need a global adapter).
+  Both test databases, packaged Host B beside its product chat and a Chromium
+  check (three defects fixed) verify it with RubyLLM's real provider and tool
+  loop against offline fixtures. Live providers, streaming, budgets, page
+  context, aggregate tools and retention remain open.
 - Server-owned intents with input/identity/epoch/version/expiry binding, database
   serialization, replay, atomic domain/audit/receipt, callback rollback handling
   and separate post-commit warning (synchronous parts of RAA-0112/0113).
@@ -154,17 +167,15 @@ documentation and advisory scanning. No remote CI run has occurred.
 
 ## Next implementation checkpoint
 
-[RELEASING.md](RELEASING.md) maps these items to the Public Preview criteria. The
-blocking gap is the admin Chat entry (SPIKE-03/RAA-0251) and the early-proof gate
-behind it; `rake release:check` covers the mechanical release steps.
+[RELEASING.md](RELEASING.md) maps these items to the Public Preview criteria.
+Admin Chat now supplies the Chat+Surface workflow offline (ADR 0022). Before
+Public Preview, run one budget-approved live-provider check of the same flow
+(SPIKE-02's provider half, RAA-0509) and record remote CI on the release commit;
+`rake release:check` covers the mechanical release steps.
 
-
-Continue the AI early proof on the verified Surface boundary: SPIKE-02's offline
-part (an admin-owned PresentUI-style catalog of `raa_` components with
-per-component schema validation) and SPIKE-03 (persisted admin Chat on RubyLLM
-with continuation admission through `deliver(scope:, adapter:)` and an explicit
-admin adapter, never the host's global adapter). Close the remaining Phase 2
-evidence in parallel: RAA-0210 (validation, CSRF, mass assignment, XSS and N+1
+Then extend admin Chat where the plan requires it: AI-012 budget reservation,
+AI-010 page/selection context, streaming (AI-003) and chat retention. Close the
+remaining Phase 2 evidence in parallel: RAA-0210 (validation, CSRF, mass assignment, XSS and N+1
 regressions across list and Surface routes), I18n of framework strings, a
 screen-reader pass, and the RAA-0203/0208 extension matrix. Then start Phase 3
 continuing associations (RAA-0301): a searchable picker endpoint, association
@@ -193,8 +204,8 @@ Continue the shared execution contracts while the full Phase 1 evidence remains 
 4. Continue the documented rails_tool_views 1.0.2 host-owned shared-runtime
    integration; DEP-001/006 are closed, while admin Surface acceptance is open.
    DEP-007 is closed: admin Chat uses Engine-owned Chat/Message tables and
-   RubyLLM's shared ToolCall/Usage tables, isolated per chat. Admin Chat still
-   needs its own contract test for that isolation once it exists.
+   RubyLLM's shared ToolCall/Usage tables, isolated per chat; an equal-id
+   product chat contract test covers it.
 
 ## Remaining product work
 

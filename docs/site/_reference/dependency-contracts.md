@@ -25,7 +25,9 @@ The gem currently bounds Rails to 8.1.4 through below 8.2, `rails_tool_views` to
 candidate range does not prove all future versions in that range are compatible.
 
 Conventional installation does not provision assistant tables or configure a
-provider. No paid provider call is part of default development tests. RubyLLM main
+provider. The opt-in [Admin Assistant]({% link _advanced/admin-assistant.md %})
+uses its own tables and a per-request `RubyLLM.context` from your adapter. No
+paid provider call is part of default development tests. RubyLLM main
 APIs such as unreleased queue/claim/approval primitives must not be assumed present
 in the selected released package.
 
@@ -39,7 +41,7 @@ declares the host scope/policy/adapter contract instead of overwriting globals.
 
 DEP-001 is closed as this documented contract. The release adds no isolated
 runtime configuration. The current admin preserves the host product's settings;
-admin Surface identity/routing/continuation still needs its planned acceptance.
+admin assistant proposals continue through the admin's own turn inbox rather than `deliver`, because a 1.0.2 interaction is skipped unless a process-wide agent adapter is set.
 The dependency's stable core does not make the experimental adapter stable.
 
 ## Preserve an Existing Surface Mount
@@ -53,7 +55,7 @@ case, not every alternate Rails route spelling or drawn layout.
 
 Review generated initializer scaffolding against the host's existing configuration.
 A successful install is not an automatic merge or permission to replace the host
-resolver. Full admin Surface and continuation remain separate work.
+resolver.
 
 ## Respect Rails Transaction Semantics
 
@@ -80,7 +82,8 @@ message ids. A probe with admin and product chats sharing the same ids kept thei
 tool calls, pending approvals and usages apart and rejected a cross-chat approval.
 Read these rows only through the admin's own associations. Do not override SDK
 table names or patch private methods. The usage ledger is shared, so choose the
-admin's usage owner deliberately to keep admin spend out of product totals.
+admin's usage owner deliberately to keep admin spend out of product totals. Admin
+Chat sets each chat as the owner of its own usage rows.
 
 The checkout's `docs/reference/dependency-contracts.md` links the owning released
 persistence sources. No provider key or network call was used for the probes.

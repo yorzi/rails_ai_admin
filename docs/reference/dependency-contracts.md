@@ -9,8 +9,8 @@ future product work. Local admin mistakes are not upstream defects.
 | Dependency line | Current consumption boundary |
 | --- | --- |
 | Rails `>= 8.1.4, < 8.2` | Isolated engine, Active Record, controller/view/job infrastructure |
-| rails_tool_views `~> 1.0.2` | Opt-in admin review Surface through admin-owned endpoints and the public API (ADR 0020); continuation/PresentUI not integrated |
-| RubyLLM `>= 2.1.1, < 3` | Host product persistence checked; no admin chats or provider calls |
+| rails_tool_views `~> 1.0.2` | Opt-in admin review Surface through admin-owned endpoints and the public API (ADR 0020); assistant proposals present it and continue through the admin inbox, not `deliver` (ADR 0022) |
+| RubyLLM `>= 2.1.1, < 3` | Opt-in admin Chat on Engine-owned tables with `acts_as_chat`/`acts_as_message`, a per-request `RubyLLM.context` and shared ToolCall/Usage tables (ADR 0022); offline fixtures only, no live provider call |
 | Pundit 2.5.x / Devise 5.0.4 | Optional host authorization/authentication examples; not runtime requirements |
 | turbo-rails `~> 2.0`, stimulus-rails `~> 1.3` | Bounded Rails integration dependencies; admin ships prebuilt frontend |
 
@@ -33,6 +33,19 @@ public `rails_tool_views_action_fields` helper, and re-registers after a host
 `reset_registry!`. No upstream change was needed for this; the custom action URL
 option suggested in plan §6.3.1 remains unrequested. Continuation and PresentUI
 integration remain open.
+
+### Admin continuation does not use `deliver`
+
+In 1.0.2, `dispatch` creates an AgentInteraction as `pending` only when the
+process-wide `agent_adapter` is set and as `skipped` otherwise, and `deliver`
+returns without calling any adapter for a skipped interaction. An explicit
+`deliver(id, scope:, adapter:)` therefore cannot deliver an admin interaction on
+a host with no global adapter, and on a host with one the interaction belongs to
+the host's delivery path. The admin returns `agent: false` from its confirm
+handler and instead admits a continuation turn into its own inbox inside the
+same Surface transaction (ADR 0022). This is a recorded integration constraint,
+not a reported defect; a per-call adapter or status option would let a future
+release use `deliver` without host globals.
 
 Owning released sources:
 
@@ -75,7 +88,7 @@ calls, pending approvals and usages apart and rejected a cross-chat `approve`.
 Admin code reads these rows only through its own associations; do not change the
 SDK's global table names or monkey patch private methods. The usage ledger is
 shared, so pick the admin's usage owner deliberately. Unreleased main-branch queue/claim/approval behavior is not an accepted dependency
-of this slice. No paid-provider or durable-continuation evidence is claimed.
+of this slice. Admin Chat's turn inbox, fencing and continuation have offline evidence through RubyLLM's real OpenAI provider and tool loop against WebMock and a loopback fixture (ADR 0022). No paid-provider evidence is claimed.
 
 Owning source: [RubyLLM 2.1.1 Railtie](https://github.com/crmne/ruby_llm/blob/v2.1.1/lib/ruby_llm/railtie.rb).
 The [released persistence macros](https://github.com/crmne/ruby_llm/blob/v2.1.1/lib/ruby_llm/active_record/acts_as.rb)

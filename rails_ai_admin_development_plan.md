@@ -1290,8 +1290,8 @@ Evaluation 应至少覆盖：
 
 **不是提前开放通用 AI 写入**。在实施获授权后，用同一 `OrderReview` Form/Operation 做普通页面 → 单个可信 Surface → 人工编辑并明确提交 → 异步续答/刷新恢复。先用 RubyLLM 真实 loop + 离线网络 fixture；Provider 使用仍需单独预算授权。
 
-- [ ] `RAA-0251` 解决 SPIKE-02 的离线契约部分及 SPIKE-03：组件 schema、persisted chat ownership、pending tool 与 continuation admission；不以手写假消息跳过 Runtime。SPIKE-02 的真实 Provider 部分在 Gate C/AI Beta 前关闭，不阻塞常规 Phase 3。
-- [ ] `RAA-0252` SAME intent 传统与 Surface 结果一致；跨 Surface 重试只提交一次；记录版本改变/撤权拒绝。原生页与 Admin 自有端点上的 `raa_operation_review` Surface 共用同一 intent、先确认者写一次、另一方回放；记录版本变化/撤权/过期均拒绝并记录；Host B 与 Chromium 已验收（ADR 0020）。待 RAA-0251 的 Chat/续答后关闭。
+- [ ] `RAA-0251` 解决 SPIKE-02 的离线契约部分及 SPIKE-03：组件 schema、persisted chat ownership、pending tool 与 continuation admission；不以手写假消息跳过 Runtime。SPIKE-02 的真实 Provider 部分在 Gate C/AI Beta 前关闭，不阻塞常规 Phase 3。（2026-11-03 离线证据，ADR 0022：Engine 自有 Chat/Message/Turn、按键接纳的持久收件箱、lease+fencing、人类消息只写一次、崩溃后已持久回答的对账；`propose_operation` 复用 `raa_operation_review` 并按 tool call 去重；继续在 Surface 确认的同一事务内接纳一次。RubyLLM 真实 OpenAI Provider/工具循环对 WebMock 与回环 fixture 运行；Host B 与 Chromium 已验收。不使用 `deliver`：1.0.2 无全局 adapter 时 interaction 为 skipped。真实 Provider 待预算授权。）
+- [ ] `RAA-0252` SAME intent 传统与 Surface 结果一致；跨 Surface 重试只提交一次；记录版本改变/撤权拒绝。原生页与 Admin 自有端点上的 `raa_operation_review` Surface 共用同一 intent、先确认者写一次、另一方回放；记录版本变化/撤权/过期均拒绝并记录；Host B 与 Chromium 已验收（ADR 0020）。Chat → Surface → 同一 intent 写一次 → 续答一次已离线验收（ADR 0022）；待真实 Provider 后关闭。
 - [ ] `RAA-0253` 在两种 Host 发现实际安装、资产、Scope 和消息协议缺口，更新 ADR；任何基础 API 阻断先解决，再扩展 Phase 3/5/6。
 
 **Exit Gate**：SAMPLE-02 的最小路径、FAIL-01/03/09 可复现；明确哪些只验证离线、哪些尚待真实 Provider。本 Gate 没有通过前，不投入完整聊天 UI 或几十种 Surface 组件。

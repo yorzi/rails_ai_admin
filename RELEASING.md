@@ -20,7 +20,7 @@ order and cannot be claimed early:
 
 ## Public Preview readiness
 
-Status on 2026-11-03. "Local" means verified in this repository and its packaged
+Status on 2026-11-03 (after admin Chat). "Local" means verified in this repository and its packaged
 hosts, not by external users.
 
 | Requirement | Status | Evidence or gap |
@@ -32,18 +32,21 @@ hosts, not by external users.
 | Navigation and basic permissions | Local | ADR 0002, 0016 |
 | Operable Surface | Local | Admin review Surfaces (ADR 0020) |
 | AI disabled path | Local | Host A runs with no AI tables, keys or routes |
-| **Chat entry (UI/Chat dual entry)** | **Missing** | SPIKE-03/RAA-0251: persisted admin Chat on RubyLLM with continuation admission. Blocks Public Preview |
-| Early integration proof exit gate | Open | Needs the Chat continuation half (RAA-0251/0252) |
+| Chat entry (UI/Chat dual entry) | Local (offline) | Opt-in admin Chat with grant-filtered tools and proposals as review Surfaces (ADR 0022); Host B and Chromium against offline fixtures |
+| Early integration proof exit gate | Partial | Chat → Surface → one write → one continuation, crash/retry/fencing recovery offline. Needs one budget-approved live-provider run (SPIKE-02 provider half) |
+| Live provider check | **Missing** | No real provider call yet. Requires owner budget approval. Blocks Public Preview |
 | Phase 2 security regressions (RAA-0210) | Open | CSRF, mass assignment, XSS and N+1 regressions across list and Surface routes |
 | Framework I18n | Open | Engine strings are English literals |
 | Accessibility pass | Partial | Keyboard and 320px Chromium checks for some pages; no screen-reader pass; associations not yet checked |
 | Remote CI on the release commit | Required per release | Last remote run: commit 69b4147 |
-| Listed limitations in release notes | Required | Must name CSV, files, dashboards, Chat limits and P1 gaps |
+| Listed limitations in release notes | Required | Must name CSV, files, dashboards, Chat limits (no streaming, budgets, page context or retention) and P1 gaps |
 | Owner approval and publishing | Owner only | `allowed_push_host` blocks `gem push` today |
 
-**Verdict:** not ready for Public Preview. The blocking product gap is the admin
-Chat entry and the early-proof gate behind it. The Phase 2 security, I18n and
-accessibility evidence should close in parallel.
+**Verdict:** not ready for Public Preview. The Chat+Surface workflow now exists
+and passes offline in both test databases, packaged Host B and Chromium. One
+budget-approved live-provider run of that flow and remote CI on the release
+commit remain blocking. The Phase 2 security, I18n and accessibility evidence
+should close in parallel.
 
 Publishing an earlier, conventional-only prerelease (for example
 `0.1.0.alpha1` with AI disabled and every gap listed) would depart from the

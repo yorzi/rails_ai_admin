@@ -7,9 +7,10 @@ policy-checked, audited execution boundary for conventional CRUD.
 `belongs_to` references with readonly `has_many` panels, registered scalar field
 types and partials, synchronous member operations, fixed Selection previews,
 bounded asynchronous collection operations, opt-in admin review Surfaces and a
-durable outbox for one declared post-commit effect. Chat, association search and
-broader association writes, CSV, private files, metrics dashboards and the
-broader batch/job-center workflows remain future work. The
+durable outbox for one declared post-commit effect, and an opt-in admin Chat
+whose proposals become review Surfaces. Live-provider evidence, streaming and AI
+budgets, association search and broader association writes, CSV, private files,
+metrics dashboards and the broader batch/job-center workflows remain future work. The
 development plan describes the target product, not the supported feature set.
 
 The engine supports custom policy adapters and an optional Pundit adapter with
@@ -175,6 +176,17 @@ persistent Surface that confirms the same intent once, through admin-owned
 endpoints that leave the host's rails_tool_views settings untouched. See the
 [Review Surfaces guide](docs/site/_advanced/review-surfaces.md).
 
+## Admin Assistant
+
+Hosts that load ruby_llm can run `bin/rails generate rails_ai_admin:assistant`
+and set `config.assistant = true`. The assistant reads records through each
+admin's current grants plus a default-deny `assistant?` grant. It cannot change
+data: a suggested change opens the same review Surface, and only the person's
+confirmation writes it, once. Turns run in jobs through a leased inbox that
+recovers after crashes without repeating messages. Provider settings come from
+your own adapter, never from global RubyLLM configuration. See the
+[Admin Assistant guide](docs/site/_advanced/admin-assistant.md).
+
 ## Fixed Selection Previews
 
 A separate default-deny `select_records?` grant enables native index checkboxes
@@ -227,7 +239,7 @@ Sprockets/jsbundling modes are asset variants of one consumer. See the
 [Pundit/Devise guide](docs/site/_advanced/pundit-and-devise.md) and
 [host verification guide](docs/site/_advanced/host-verification.md). The engine
 does not provide accounts or login routes. The fixture's separate product Chat
-and Surface remain host-owned; admin Chat/continuation is not yet implemented.
+and Surface remain host-owned, beside its opt-in admin Chat.
 
 Changing a resource's policy mapping changes its operation fingerprint. Reopen
 existing development forms if their old intents are invalidated.

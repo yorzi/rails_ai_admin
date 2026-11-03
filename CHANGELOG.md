@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+- Add opt-in admin Chat (`config.assistant`, ADR 0022). The
+  `rails_ai_admin:assistant` generator adds Engine-owned chat, message and turn
+  tables and a closed `AdminAssistant` adapter whose `llm_context(context:)`
+  returns a per-request `RubyLLM::Context`; global RubyLLM settings are never
+  read or changed, and conventional hosts load no RubyLLM code.
+- Add the default-deny `assistant?(context:, resource:)` grant (Pundit:
+  `assistant?`). Read tools (`list_resources`, `describe_resource`,
+  `search_records`, `get_record`) apply every current grant and return bounded
+  JSON with fixed error codes.
+- Add `propose_operation`, which prepares an `origin: assistant` intent and
+  shows the existing review Surface in the conversation. The human's Surface
+  confirmation writes once and admits one continuation turn in the same
+  transaction.
+- Add a persistent per-chat turn inbox: keyed admission, strict ordering,
+  leases with fencing, a once-only human message, reconciliation of an answer
+  persisted before a crash, retry, Stop and archive, plus
+  `rails_ai_admin:assistant:scan`/`drain`. Doctor reports the assistant setup
+  without calling the adapter or a provider.
+
 - Add `belongs_to` reference fields. A reference is labelled and linked only
   through the target resource's current relation, show grant and title, and an
   index loads each reference column with one query. Missing, foreign and hidden

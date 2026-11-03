@@ -103,15 +103,22 @@ full Phase 2/release Gates remain open.
 slice: an opt-in persistent rails_tool_views Surface that confirms the same
 native intent once through the shared Runner, via admin-owned endpoints that
 never change the host's rails_tool_views settings. Packaged Host B proves
-coexistence with its product Surface. Assistant chat, tool presentation,
-continuation and paid-provider evidence are not implemented.
+coexistence with its product Surface.
 
-Not implemented in this slice: associations, nested attributes, uploads/private
+The opt-in [Admin Assistant]({% link _advanced/admin-assistant.md %}) adds a
+persisted RubyLLM chat with grant-filtered read tools and proposals that become
+review Surfaces. A confirmed review writes once and continues the conversation
+once. Turns run through a leased, fenced inbox that recovers after crashes
+without repeating the human message. Evidence uses RubyLLM's real provider and
+tool loop against offline fixtures, packaged Host B and a Chromium check; live
+provider calls, streaming, budgets and retention are not done.
+
+Not implemented in this slice: association search and writes beyond `belongs_to`, nested attributes, uploads/private
 attachments, imports/exports, all-filtered or 10,000-target batch manifests,
 metrics dashboards, saved views, global custom operations, custom CRUD handler
 replacement, a full job center/retention workflow, general reconciliation UI,
-assistant installation,
-Chat, provider calls, Surface dispatch and continuation. ActionPolicy integration
+live-provider
+assistant evidence, streaming and AI budgets. ActionPolicy integration
 and association/file/money field extensions remain future work. Host-owned Devise authentication
 is demonstrated in a packaged consumer; the engine does not provide accounts or
 login routes.
