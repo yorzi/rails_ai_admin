@@ -3,6 +3,7 @@ require "minitest/autorun"
 require "action_dispatch/testing/integration"
 require "webmock/minitest"
 require "rails_ai_admin/test_kit"
+require "rails_ai_admin/assistant"
 WebMock.disable_net_connect!
 
 require_relative "override_render_tracker" if ENV["RAA_OVERRIDE_ACCEPTANCE"] == "1"
@@ -12,6 +13,8 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
   include ActiveSupport::Testing::TimeHelpers
 
   def setup
+    RailsAiAdmin::Assistant::Turn.delete_all
+    RailsAiAdmin::Assistant::Chat.find_each(&:destroy!)
     RailsAiAdmin::BatchItem.delete_all
     RailsAiAdmin::WorkItem.delete_all
     RailsAiAdmin::OperationRun.delete_all
@@ -108,10 +111,14 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
     assert_includes Gem.loaded_specs.fetch("rails_ai_admin").full_gem_path, "/gems/rails_ai_admin-"
     assert_equal "PunditAdapter", RailsAiAdmin::Authorization::PunditAdapter.name.demodulize
     assert_equal "Ai", Ai.name
-    refute ActiveRecord::Base.connection.tables.any? { |name| name.start_with?("rails_ai_admin_assistant_") }
+    # This host opts into admin Chat; its tables are Engine-owned, not product chats.
+    assert_equal %w[rails_ai_admin_assistant_chats rails_ai_admin_assistant_messages rails_ai_admin_assistant_turns],
+      ActiveRecord::Base.connection.tables.select { |name| name.start_with?("rails_ai_admin_assistant_") }.sort
     get "/operations/tickets"
     assert_response :unauthorized
     refute_includes response.body, "Support task"
+    get "/operations/assistant"
+    assert_response :unauthorized
   end
 
   def test_packaged_custom_field_and_fixed_select_validation
@@ -275,7 +282,90 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
     assert_equal [ message.id ], chat.product_messages.pluck(:id)
     assert_equal "Host product message", message.reload.content
     assert_equal "product_chats", ProductChat.table_name
-    refute ActiveRecord::Base.connection.tables.any? { |name| name.start_with?("rails_ai_admin_assistant_") }
+    assert_equal "rails_ai_admin_assistant_chats", RailsAiAdmin::Assistant::Chat.table_name
+    assert_equal 0, RailsAiAdmin::Assistant::Chat.count, "admin CRUD creates no admin conversation"
+  end
+
+  # Scripted OpenAI chat-completions responses; RubyLLM's real provider, parser,
+  # tool loop and persistence run without network access.
+  def stub_admin_llm(script)
+    requests = []
+    stub_request(:post, "https://api.openai.com/v1/chat/completions").to_return do |request|
+      requests << JSON.parse(request.body)
+      step = script.shift or raise "admin LLM script is empty"
+      message = if step[:tool]
+        { role: "assistant", content: nil, tool_calls: [ { id: "call_#{SecureRandom.hex(6)}", type: "function", function: { name: step[:tool], arguments: step[:arguments].to_json } } ] }
+      else
+        { role: "assistant", content: step[:reply] }
+      end
+      { status: 200, headers: { "Content-Type" => "application/json" }, body: { id: "chatcmpl-host-b", object: "chat.completion", created: Time.now.to_i,
+        model: "gpt-4.1-mini", choices: [ { index: 0, message: message, finish_reason: step[:tool] ? "tool_calls" : "stop" } ],
+        usage: { prompt_tokens: 20, completion_tokens: 5, total_tokens: 25 } }.to_json }
+    end
+    requests
+  end
+
+  def test_admin_chat_proposes_through_the_admin_surface_and_continues_once_beside_the_product_chat
+    ENV["SUPPORT_ADMIN_OPENAI_KEY"] = "synthetic-admin-key"
+    queue = RailsAiAdmin::AssistantTurnJob.queue_adapter
+    RailsAiAdmin::AssistantTurnJob.queue_adapter = ActiveJob::QueueAdapters::TestAdapter.new
+    global = RubyLLM.config
+    resolver = RailsToolViews.configuration.scope_resolver
+    product = ProductChat.create!(model: RubyLLM.models.all.find { |entry| entry.provider == "openai" })
+    product_message = product.product_messages.create!(role: "user", content: "Product conversation")
+    requests = stub_admin_llm([
+      { tool: "search_records", arguments: { resource: "tickets", query: "Support" } },
+      { tool: "get_record", arguments: { resource: "tickets", id: @foreign.id.to_s } },
+      { tool: "propose_operation", arguments: { resource: "tickets", id: @ticket.id.to_s, operation: "triage", input: { decision: "triage", review_note: "Triaged from chat" } } },
+      { reply: "I prepared a triage review. Please confirm it." },
+      { reply: "The ticket is triaged." }
+    ])
+    login
+    get "/operations"
+    assert_select "nav a[href='/operations/assistant']", text: "Assistant"
+    get "/operations/assistant"
+    post "/operations/assistant/conversations", params: { authenticity_token: csrf }
+    assert_response :see_other
+    chat = RailsAiAdmin::Assistant::Chat.find_by!(ref: response.location.split("/").last)
+    follow_redirect!
+    post "/operations/assistant/conversations/#{chat.ref}/messages", params: { authenticity_token: csrf,
+      admission_key: css_select("input[name=admission_key]").first["value"], content: "Triage the support task" }
+    assert_response :see_other
+    RailsAiAdmin::Assistant::Coordinator.new.run(chat.ref)
+    assert_equal "open", @ticket.reload.state, "the assistant never writes business data"
+    foreign = JSON.parse(chat.messages.where(role: "tool").order(:id).second.content)
+    assert_equal "NOT_FOUND", foreign["error"], "another tenant's ticket is indistinguishable from a missing one"
+    refute chat.messages.where(role: "tool").any? { |message| message.content.include?("never exposed") }
+
+    get "/operations/assistant/conversations/#{chat.ref}"
+    assert_response :success
+    assert_select ".raa-chat-records a[href='/operations/tickets/#{@ticket.id}']", text: "Support task"
+    assert_select "section.rails-tool-views-surface dd", text: "Triaged from chat"
+    form = css_select("form[action^='/operations/assistant/surfaces/']").first
+    assert form, "the conversation renders the admin Surface with its own per-form CSRF token"
+    post form["action"], params: form.css("input[type=hidden]").to_h { |node| [ node["name"], node["value"] ] }
+    assert_response :see_other
+    assert_equal [ "triaged", "Triaged from chat" ], [ @ticket.reload.state, @ticket.internal_note ]
+    run = RailsAiAdmin::OperationRun.find_by!(origin: "assistant")
+    assert_equal [ "succeeded", 1 ], [ run.status, RailsAiAdmin::WorkItem.count ]
+    assert_equal 1, chat.turns.where(kind: "continuation").count
+    RailsAiAdmin::Assistant::Coordinator.new.run(chat.ref)
+    assert_equal 5, requests.size
+    assert_includes requests.last["messages"].reverse.find { |message| message["role"] == "user" }["content"], "Review result"
+    get "/operations/assistant/conversations/#{chat.ref}"
+    assert_select ".raa-chat-assistant", text: /The ticket is triaged/
+
+    assert_same global, RubyLLM.config
+    assert_equal "gpt-5.6-luna", RubyLLM.config.default_model
+    assert_nil RubyLLM.config.openai_api_key, "the admin key never enters global RubyLLM settings"
+    assert_same resolver, RailsToolViews.configuration.scope_resolver
+    refute RailsToolViews.configuration.auto_deliver
+    assert_equal [ product_message.id ], product.product_messages.reload.pluck(:id)
+    assert_empty product.ruby_llm_usages.reload
+    assert chat.ruby_llm_usages.reload.any? && chat.ruby_llm_usages.all? { |usage| usage.owner == chat }
+  ensure
+    ENV.delete("SUPPORT_ADMIN_OPENAI_KEY")
+    RailsAiAdmin::AssistantTurnJob.queue_adapter = queue if queue
   end
 
   def test_unicode_list_state_and_current_sort_survive_packaged_recovery_and_save

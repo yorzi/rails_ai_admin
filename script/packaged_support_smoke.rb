@@ -43,7 +43,12 @@ FileUtils.rm_f(File.join(target, "config/initializers/rails_tool_views.rb"))
 run!(env, target, "bundle", "exec", "rails", "runner", "raise unless Gem.loaded_specs.fetch('rails_tool_views').version.to_s == '1.0.2'; raise unless Rails.application.routes.url_helpers.rails_tool_views_path == '/product_surfaces'")
 run!(env, target, "bundle", "exec", "rails", "generate", "rails_ai_admin:install", "--force")
 run!(env, target, "bundle", "exec", "rails", "runner", "raise unless AdminContext.new.resolve(nil).nil?")
-[ "config/initializers/rails_ai_admin.rb", "app/rails_ai_admin/admin_context.rb" ].each do |path|
+# Admin Chat storage beside the product's RubyLLM tables; the generated adapter
+# must stay closed until the host replaces it with its reviewed one.
+FileUtils.rm_f(File.join(target, "app/rails_ai_admin/admin_assistant.rb"))
+run!(env, target, "bundle", "exec", "rails", "generate", "rails_ai_admin:assistant")
+run!(env, target, "bundle", "exec", "rails", "runner", "raise unless AdminAssistant.new.llm_context(context: nil).nil?")
+[ "config/initializers/rails_ai_admin.rb", "app/rails_ai_admin/admin_context.rb", "app/rails_ai_admin/admin_assistant.rb" ].each do |path|
   FileUtils.cp(File.join(source, path), File.join(target, path))
 end
 run!(env, target, "bundle", "exec", "rails", "db:migrate")
