@@ -1,6 +1,6 @@
 # ADR 0004: Defer assistant execution until coexistence is proved
 
-Status: design boundary only; assistant is not implemented.
+Status: design boundary. Superseded in part by ADR 0022, which implements opt-in admin Chat.
 
 Future Chat/Message models belong to `RailsAiAdmin::Assistant` with
 engine-specific tables. ToolCall and Usage rows use RubyLLM's own shared

@@ -8,6 +8,16 @@ RailsAiAdmin::Engine.routes.draw do
     post "assistant/surfaces/:surface_id/actions", to: "surfaces#act", as: :admin_surface_actions
     post ":resource/:id/operations/:operation/surface", to: "surfaces#create", as: :operation_surface
   end
+  # Drawn only for hosts that opt in and load ruby_llm themselves.
+  if RailsAiAdmin.configuration.assistant
+    get "assistant", to: "assistant#index", as: :assistant
+    post "assistant/conversations", to: "assistant#create", as: :assistant_conversations
+    get "assistant/conversations/:chat_ref", to: "assistant#show", as: :assistant_conversation
+    post "assistant/conversations/:chat_ref/messages", to: "assistant#message", as: :assistant_messages
+    post "assistant/conversations/:chat_ref/cancel", to: "assistant#cancel", as: :cancel_assistant_conversation
+    post "assistant/conversations/:chat_ref/retry", to: "assistant#retry_turn", as: :retry_assistant_conversation
+    post "assistant/conversations/:chat_ref/archive", to: "assistant#archive", as: :archive_assistant_conversation
+  end
   get "jobs", to: "collection_jobs#index", as: :collection_jobs
   get "jobs/:job_ref", to: "collection_jobs#show", as: :collection_job
   post "jobs/:job_ref/cancel", to: "collection_jobs#cancel", as: :cancel_collection_job

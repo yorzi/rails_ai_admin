@@ -76,6 +76,15 @@ module RailsAiAdmin
         true
       end
 
+      # The model may see this resource only with the independent assistant
+      # grant plus the ordinary index grant; tools still apply every read grant.
+      def authorize_assistant!
+        authorize!(:index)
+        allowed = @adapter.respond_to?(:assistant?) && @adapter.assistant?(context: context, resource: resource) == true
+        raise AccessDenied unless allowed
+        true
+      end
+
       # Scalar declarations cannot turn arbitrary model methods into read actions.
       # Host overrides of real attribute getters remain trusted application code.
       def read_value(record, field, view: nil)

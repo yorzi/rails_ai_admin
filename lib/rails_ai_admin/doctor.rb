@@ -28,9 +28,35 @@ module RailsAiAdmin
       end
       Integrations::ToolViews.ensure_registered!
       operations = @registry.resources.sum { |resource| resource.operation_declarations.keys.count { |key| resource.surface_operation?(key) } }
-      Check.new("surfaces", :review, "#{Integrations::ToolViews::KEY} is registered for #{operations} member operations through admin-owned endpoints. Continuation and assistant presentation are not enabled.")
+      assistant = @configuration.respond_to?(:assistant) && @configuration.assistant
+      Check.new("surfaces", :review, "#{Integrations::ToolViews::KEY} is registered for #{operations} member operations through admin-owned endpoints. " \
+        "#{assistant ? 'Assistant proposals present it and confirmed outcomes continue their chat once.' : 'Assistant presentation is off.'}")
     rescue ConfigurationError => error
       Check.new("surfaces", :error, error.message)
+    end
+
+    # Reports whether opt-in admin Chat can run. It never calls the adapter or
+    # a provider, so it cannot prove credentials, model access or grants.
+    def assistant_check
+      unless @configuration.respond_to?(:assistant) && @configuration.assistant
+        return Check.new("assistant", :closed, "Admin Chat is off. No RubyLLM code, tables or provider calls are used.")
+      end
+      require "rails_ai_admin/assistant"
+      missing = [ Assistant::Chat, Assistant::Message, Assistant::Turn, ::RubyLLM::ActiveRecord::ToolCall, ::RubyLLM::ActiveRecord::Usage ]
+        .reject(&:table_exists?).map(&:table_name)
+      return Check.new("assistant", :error, "Run rails_ai_admin:assistant and db:migrate; missing tables: #{missing.join(', ')}.") if missing.any?
+      adapter = @configuration.assistant_adapter.safe_constantize
+      unless adapter.is_a?(Class) && adapter.method_defined?(:llm_context) && adapter.instance_method(:llm_context).parameters.include?([ :keyreq, :context ])
+        return Check.new("assistant", :error, "#{@configuration.assistant_adapter} must define llm_context(context:) returning a RubyLLM::Context or nil.")
+      end
+      job = @configuration.context_adapter&.safe_constantize
+      unless job.is_a?(Class) && job.method_defined?(:resolve_job)
+        return Check.new("assistant", :error, "Assistant turns run in jobs; the context adapter must define resolve_job.")
+      end
+      Check.new("assistant", :review, "Model #{@configuration.assistant_model}; tools apply each actor's current grants and the independent assistant? grant. " \
+        "Schedule rails_ai_admin:assistant:scan, keep provider credentials in the adapter's own RubyLLM::Context, and verify real-provider behavior separately.")
+    rescue NameError, ConfigurationError => error
+      Check.new("assistant", :error, "Assistant configuration failed (#{error.class.name}).")
     end
 
     def checks
@@ -40,7 +66,7 @@ module RailsAiAdmin
         adapter_check("context", config.context_adapter, { resolve: [ 1, [] ] }),
         adapter_check("policy", config.authorization_adapter, { scope: [ 0, %i[context resource relation] ], allowed?: [ 0, %i[context action resource record] ], fields: [ 0, %i[context resource action record] ] }),
         autoload_check,
-        Check.new("assistant", :unsupported, "Assistant routes/tables are not installed; no provider call is made."),
+        assistant_check,
         Check.new("files", :unsupported, "Private attachment management is not implemented."),
         selection_check,
         Check.new("queue", @work_registry.definitions.empty? && collections.zero? ? :closed : :review,

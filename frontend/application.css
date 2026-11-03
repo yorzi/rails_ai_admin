@@ -71,3 +71,18 @@
 .raa .raa-filter { min-width:0; }
 .raa .raa-filter label { display:block; margin-bottom:.25rem; font-weight:600; overflow-wrap:anywhere; }
 .raa .raa-filter input,.raa .raa-filter select { width:100%; }
+
+.raa .raa-chat { display:block; margin:1.5rem 0; }
+.raa .raa-chat-log { list-style:none; margin:0; padding:0; display:grid; gap:.75rem; }
+.raa .raa-chat-message,.raa .raa-chat-records,.raa .raa-chat-empty { padding:.75rem 1rem; background:var(--raa-panel); border:1px solid var(--raa-line); border-radius:.6rem; overflow-wrap:anywhere; }
+.raa .raa-chat-user { border-left:4px solid var(--raa-brand); }
+.raa .raa-chat-event { border-left:4px solid var(--raa-muted); }
+.raa .raa-chat-message p,.raa .raa-chat-message div { margin:0; }
+.raa .raa-chat-role { display:block; color:var(--raa-muted); font-size:.85rem; font-weight:600; margin-bottom:.25rem; }
+.raa .raa-chat-activity { color:var(--raa-muted); font-size:.9rem; padding:0 1rem; }
+.raa .raa-chat-records ul { margin:0; padding-left:1.25rem; }
+.raa .raa-chat-status { color:var(--raa-muted); }
+.raa .raa-chat-failure { color:var(--raa-danger); }
+.raa .raa-chat-composer { display:grid; gap:.5rem; margin-top:1rem; }
+.raa .raa-chat-composer textarea { width:100%; box-sizing:border-box; }
+.raa .raa-chat-list { padding-left:1.25rem; }

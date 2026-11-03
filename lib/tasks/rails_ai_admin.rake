@@ -21,6 +21,20 @@ namespace :rails_ai_admin do
     end
   end
 
+  namespace :assistant do
+    desc "Enqueue up to 100 chats with due assistant turns; schedule recurring scans in the host"
+    task scan: :environment do
+      require "rails_ai_admin/assistant"
+      puts "Scheduled #{RailsAiAdmin::Assistant::Coordinator.new.scan_pending!} assistant chats."
+    end
+
+    desc "Run due assistant turns of up to 100 chats inline, outside web requests"
+    task drain: :environment do
+      require "rails_ai_admin/assistant"
+      puts "Visited #{RailsAiAdmin::Assistant::Coordinator.new.scan_pending!(inline: true)} assistant chats."
+    end
+  end
+
   namespace :work do
     desc "Enqueue up to 100 due outbox items; schedule recurring scans in the host"
     task scan: :environment do

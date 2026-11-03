@@ -17,6 +17,7 @@
     <nav aria-label="Admin resources">
       <div class="raa-nav-primary">
         <%= link_to "Overview", root_path, aria: { current: (controller_path == "rails_ai_admin/dashboard" ? "page" : nil) } %>
+        <% if assistant_available? %><%= link_to "Assistant", assistant_path, aria: { current: (controller_path == "rails_ai_admin/assistant" ? "location" : nil) } %><% end %>
         <% if collection_jobs_available? %><%= link_to "Collection jobs", collection_jobs_path, aria: { current: (controller_path == "rails_ai_admin/collection_jobs" ? "location" : nil) } %><% end %>
       </div>
       <%= render "rails_ai_admin/shared/navigation", groups: resource_navigation %>

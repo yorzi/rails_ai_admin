@@ -13,6 +13,12 @@ class TestContext
 end
 RailsAiAdmin.configuration.context_adapter = "TestContext"
 RailsAiAdmin.configuration.surfaces = true
+# Draws the assistant routes; tests stub a full configuration per case.
+RailsAiAdmin.configuration.assistant = true
+RailsAiAdmin.configuration.assistant_adapter = "TestAssistant"
+RailsAiAdmin.configuration.assistant_model = "gpt-4.1-mini"
+RailsAiAdmin.configuration.assistant_provider = "openai"
+RailsAiAdmin.configuration.assistant_protocol = "chat_completions"
 require_relative "../dummy/config/application"
 Rails.application.initialize!
 ActiveRecord::Migration.verbose = false

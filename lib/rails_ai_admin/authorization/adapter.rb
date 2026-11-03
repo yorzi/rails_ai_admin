@@ -53,6 +53,14 @@ module RailsAiAdmin
       def select_records?(context:, resource:)
         false
       end
+
+      # Exposes this resource to the admin assistant's tools. Human read grants
+      # still apply to every tool call; this grant only decides whether the
+      # model may see the resource at all. The assistant is available to an
+      # actor when at least one resource grants it.
+      def assistant?(context:, resource:)
+        false
+      end
     end
   end
 end

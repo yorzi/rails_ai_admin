@@ -212,6 +212,34 @@ class ErrorSummaryController extends Controller {
     control.focus();
   }
 }
+// Reloads the transcript frame while a turn is pending. Without JavaScript
+// the transcript offers a plain Refresh link instead.
+class PollController extends Controller {
+  static values = { url: String };
+  connect() {
+    this.loaded = () => this.schedule();
+    this.changed = () => this.schedule(1000, true);
+    this.element.addEventListener("turbo:frame-load", this.loaded);
+    this.element.addEventListener("turbo:submit-end", this.changed);
+    this.schedule();
+  }
+  schedule(delay = 2000, force = false) {
+    clearTimeout(this.timer);
+    if (!force && !this.pending()) return;
+    this.timer = setTimeout(() => {
+      if (this.element.getAttribute("src")) this.element.reload();
+      else this.element.setAttribute("src", this.urlValue);
+    }, delay);
+  }
+  // Frame reloads replace children only, so the flag lives inside.
+  pending() { return this.element.querySelector("[data-raa-pending]") !== null; }
+  disconnect() {
+    clearTimeout(this.timer);
+    this.element.removeEventListener("turbo:frame-load", this.loaded);
+    this.element.removeEventListener("turbo:submit-end", this.changed);
+  }
+}
+application.register("raa-poll", PollController);
 application.register("raa-form-recovery", FormRecoveryController);
 application.register("raa-dirty-form", DirtyFormController);
 application.register("raa-tabs", TabsController);

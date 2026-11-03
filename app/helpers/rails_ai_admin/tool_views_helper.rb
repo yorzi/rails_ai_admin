@@ -11,6 +11,14 @@ module RailsAiAdmin
       ::RailsToolViews.render(surface, view_context: self, scope: scope, error: error)
     end
 
+    # A Surface referenced from a conversation, restored for the current admin.
+    def admin_assistant_surface(surface_id, scope:)
+      surface = ::RailsToolViews.restore(surface_id, scope: scope)
+      admin_surface(surface, scope: scope)
+    rescue ::RailsToolViews::Error
+      tag.p("This review is no longer available.", class: "raa-chat-activity")
+    end
+
     # Like rails_tool_views_action_form, but posts to the admin endpoint so the
     # host's global resolver never authenticates admin actions.
     def admin_surface_action_form(surface, action, **options, &block)

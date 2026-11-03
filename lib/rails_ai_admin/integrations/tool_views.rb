@@ -37,6 +37,7 @@ module RailsAiAdmin
         "IDEMPOTENCY_CONFLICT" => "This review no longer matches the recorded operation."
       }.freeze
       Review = ::Data.define(:run, :resource, :definition, :access, :record)
+      ASSISTANT_ADAPTER = "raa_assistant"
 
       class << self
         def available?
@@ -77,24 +78,56 @@ module RailsAiAdmin
 
         def current_context = ActiveSupport::IsolatedExecutionState[CONTEXT_KEY]
 
-        # Presents (or replays) the review Surface for an unconsumed native intent.
-        def present(context:, resource:, definition:, record:, intent_ref:, input:)
+        # Presents (or replays) the review Surface for an unconsumed intent. A
+        # native intent replays per intent; an assistant intent belongs to its
+        # chat and replays per persisted tool call.
+        def present(context:, resource:, definition:, record:, intent_ref:, input:, chat: nil, call_id: nil)
           ensure_registered!
           raise AccessDenied unless resource.surface_operation?(definition.key) && definition.custom? && definition.scope == :member
           raise AccessDenied unless intent_ref.is_a?(String) && intent_ref.match?(/\A[0-9a-f-]{36}\z/)
+          raise AccessDenied if chat && !(call_id.is_a?(String) && chat.current_for?(context) && chat.actor_ref == context.actor_ref && chat.tenant_ref == context.tenant_ref)
           run = OperationRun.find_by(id: intent_ref, actor_ref: context.actor_ref, tenant_ref: context.tenant_ref)
           unless run && run.id == intent_ref && run.resource_key == resource.key.to_s && run.operation == definition.key.to_s &&
-              run.target_id == record.id.to_s && run.status == "proposed" && run.origin == "ui" && run.parent_run_id.nil?
+              run.target_id == record.id.to_s && run.status == "proposed" && run.origin == (chat ? "assistant" : "ui") && run.parent_run_id.nil?
             raise AccessDenied
           end
           raise AccessDenied, "APPROVAL_EXPIRED" unless run.expires_at && run.expires_at > Time.current
           raise AccessDenied, "APPROVAL_INVALIDATED" unless run.security_version == context.security_version
           wire = canonical_input(input)
           raise AccessDenied, "APPROVAL_INVALIDATED" unless run.input_digest && run.input_digest == InputSchema.digest(input_values(context, resource, definition, record, wire))
-          reference = "raa:intent:#{run.id}"
+          reference, correlation = if chat
+            [ chat.context_reference, { adapter: ASSISTANT_ADAPTER, call_id: call_id, context: chat.context_reference } ]
+          else
+            [ "raa:intent:#{run.id}", { adapter: "raa_native_review", call_id: run.id, context: "raa:intent:#{run.id}" } ]
+          end
           with_context(context) do
             ::RailsToolViews.present(KEY, props: { "intent" => run.id, "input" => wire }, scope: scope_for(context),
-              context: reference, correlation: { adapter: "raa_native_review", call_id: run.id, context: reference })
+              context: reference, correlation: correlation)
+          end
+        end
+
+        # The Surface an earlier attempt presented for this persisted tool call,
+        # so a retried tool does not prepare a second intent. Byte-exact match.
+        def assistant_surface(context, chat, call_id)
+          lookup = { adapter: ASSISTANT_ADAPTER, call_id: call_id, context_ref: chat.context_reference,
+            actor_ref: context.actor_ref, tenant_ref: context.tenant_ref }
+          prior = ::RailsToolViews::Presentation.find_by(lookup)
+          return unless prior && lookup.all? { |attribute, value| prior.public_send(attribute) == value }
+          with_context(context) { ::RailsToolViews.restore(prior.surface_id, scope: scope_for(context)) }
+        rescue ::RailsToolViews::Error
+          nil
+        end
+
+        # Canonical wire strings for typed operation values, as native forms send.
+        def wire_input(values)
+          values.to_h do |name, value|
+            wire = case value
+            when BigDecimal then value.to_s("F")
+            when Time, ActiveSupport::TimeWithZone then value.utc.iso8601(6)
+            when Date then value.iso8601
+            else value
+            end
+            [ name.to_s, wire ]
           end
         end
 
@@ -143,8 +176,10 @@ module RailsAiAdmin
             human_confirmed: true, origin: :surface, binding: { resource_key: run.resource_key, operation: run.operation, target_id: run.target_id })
           if result.success?
             message = result.replayed ? "This operation was already completed. No second change was made." : "Operation completed."
+            continue_chat(context, request, review, result.replayed ? "It had already been applied; no second change was made." : "The change was applied.")
             ::RailsToolViews::Transition.new(state: { "outcome" => "succeeded", "message" => message }, agent: false)
           elsif TERMINAL.key?(result.code)
+            continue_chat(context, request, review, "It was not applied (#{result.code}): #{TERMINAL.fetch(result.code)}")
             ::RailsToolViews::Transition.new(state: { "outcome" => "rejected", "code" => result.code, "message" => TERMINAL.fetch(result.code) }, agent: false)
           elsif result.code == "NOT_FOUND"
             raise ::RailsToolViews::Error.new("NOT_ALLOWED", status: 403)
@@ -182,6 +217,17 @@ module RailsAiAdmin
         end
 
         private
+
+        # Same transaction as the Surface revision; nothing is admitted when
+        # the confirmation rolls back.
+        def continue_chat(context, request, review, outcome)
+          return unless RailsAiAdmin.configuration.assistant
+          require "rails_ai_admin/assistant"
+          Assistant::Continuation.admit!(context: context, context_ref: request.context_ref, review: review, outcome: outcome)
+        rescue AccessDenied
+          # A closed chat never blocks the human's committed business outcome.
+          nil
+        end
 
         def register
           ::RailsToolViews.register(KEY, description: "Admin operation review", version: VERSION, schema: SCHEMA, partial: PARTIAL,

@@ -15,7 +15,7 @@ module RailsAiAdmin
     prepend_before_action :secure_headers
     before_action :authenticate_admin
     after_action :notice_discarded_list_settings
-    helper_method :resource_navigation, :admin_csp_nonce, :list_page_path, :encoded_return_state, :navigation_state, :navigation_params, :list_return_path, :list_return_label, :return_state_discarded?, :return_navigation_fields, :list_state_fields, :visible_resources, :allowed_action?, :record_label, :collection_jobs_available?, :admin_associations
+    helper_method :resource_navigation, :admin_csp_nonce, :list_page_path, :encoded_return_state, :navigation_state, :navigation_params, :list_return_path, :list_return_label, :return_state_discarded?, :return_navigation_fields, :list_state_fields, :visible_resources, :allowed_action?, :record_label, :collection_jobs_available?, :admin_associations, :assistant_available?
 
     rescue_from AccessDenied, with: :deny_access
     rescue_from ConfigurationError do
@@ -163,6 +163,14 @@ module RailsAiAdmin
           false
         end
       end
+    end
+
+    # The menu link follows the same grant as the assistant pages.
+    def assistant_available?
+      return false unless RailsAiAdmin.configuration.assistant
+      require "rails_ai_admin/assistant"
+      @assistant_available = Assistant.available?(@context) if @assistant_available.nil?
+      @assistant_available
     end
 
     # Request-local reference cache. Each target is read through its own

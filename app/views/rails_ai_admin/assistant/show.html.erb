@@ -1,0 +1,20 @@
+<p><%= link_to "All conversations", assistant_path %></p>
+<h1>Assistant conversation</h1>
+<% if !@current %>
+  <p class="raa-notice" role="status"><%= @chat.status == "archived" ? "This conversation is archived." : "This conversation is closed because your access changed. Start a new conversation." %></p>
+  <%= button_to "New conversation", assistant_conversations_path, method: :post, class: "raa-button" %>
+<% else %>
+  <%= render "rails_ai_admin/assistant/transcript" %>
+  <%= form_with url: assistant_messages_path(chat_ref: @chat.ref), method: :post, class: "raa-chat-composer" do |form| %>
+    <%= hidden_field_tag :admission_key, @admission_key, id: nil %>
+    <%= form.label :content, "Message" %>
+    <% if @message_error %><p class="raa-field-error" id="raa-chat-error"><%= @message_error %></p><% end %>
+    <%= form.text_area :content, value: @draft, rows: 3, maxlength: RailsAiAdmin::Assistant::Coordinator::MAX_CONTENT, required: true,
+      aria: { describedby: (@message_error ? "raa-chat-error" : nil), invalid: (@message_error ? true : nil) } %>
+    <div class="raa-actions"><%= form.submit "Send", class: "raa-button" %></div>
+  <% end %>
+  <div class="raa-actions">
+    <% if @pending %><%= button_to "Stop", cancel_assistant_conversation_path(chat_ref: @chat.ref), method: :post, class: "raa-button" %><% end %>
+    <%= button_to "Archive conversation", archive_assistant_conversation_path(chat_ref: @chat.ref), method: :post, class: "raa-button" %>
+  </div>
+<% end %>

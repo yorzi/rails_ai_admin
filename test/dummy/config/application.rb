@@ -9,6 +9,9 @@ require "rails_ai_admin"
 # Loaded as a host would; the dummy app deliberately configures no global
 # rails_tool_views resolver, so admin Surfaces must not depend on one.
 require "rails_tool_views"
+# Loaded as a host would for admin Chat; the dummy app configures no global
+# RubyLLM credentials, so the assistant must use its own provider context.
+require "ruby_llm"
 
 module Dummy
   class Application < Rails::Application
