@@ -6,6 +6,8 @@ class AdminAssistant
     return if key.blank?
     RubyLLM.context do |config|
       config.openai_api_key = key
+      # An OpenAI-compatible gateway, such as a loopback fixture in browser checks.
+      config.openai_api_base = ENV["SUPPORT_ADMIN_OPENAI_BASE"] if ENV["SUPPORT_ADMIN_OPENAI_BASE"].present?
       config.max_retries = 0
       config.request_timeout = 30
     end

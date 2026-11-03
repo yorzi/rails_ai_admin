@@ -28,7 +28,7 @@ module RailsAiAdmin
         continuation_ids = @chat.turns.where(kind: "continuation").where.not(user_message_id: nil).pluck(:user_message_id).to_set
         messages = @chat.messages.where.not(role: "system").includes(:ruby_llm_tool_calls, :ruby_llm_parent_tool_call)
           .reorder(id: :desc).limit(MESSAGE_LIMIT).to_a.reverse
-        messages.flat_map do |message|
+        persisted = messages.flat_map do |message|
           case message.role
           when "user"
             [ entry(continuation_ids.include?(message.id) ? :continuation : :user, message.content, message) ]
@@ -39,9 +39,18 @@ module RailsAiAdmin
           else []
           end
         end
+        persisted + waiting
       end
 
       private
+
+      # Saved turns whose human text the worker has not added to the chat yet,
+      # so a sent message shows at once instead of after the provider call.
+      def waiting
+        @chat.turns.where(status: Turn::ACTIVE, user_message_id: nil).reorder(:sequence).map do |turn|
+          Entry.new(turn.kind == "continuation" ? :continuation : :user, turn.content, [], nil, turn.created_at)
+        end
+      end
 
       def entry(kind, text, message, links: [], surface_id: nil)
         Entry.new(kind, text.to_s, links, surface_id, message.created_at)

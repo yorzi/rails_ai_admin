@@ -36,7 +36,8 @@ module RailsAiAdmin
     def show
       prepare_transcript
       if turbo_frame_request?
-        render partial: "rails_ai_admin/assistant/transcript"
+        # A complete standards-mode document; Turbo extracts the matching frame.
+        render :frame, layout: "rails_ai_admin/frame"
       else
         @admission_key = "message:#{SecureRandom.uuid}"
       end

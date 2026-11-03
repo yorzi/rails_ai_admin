@@ -14,7 +14,6 @@
     <div class="raa-actions"><%= form.submit "Send", class: "raa-button" %></div>
   <% end %>
   <div class="raa-actions">
-    <% if @pending %><%= button_to "Stop", cancel_assistant_conversation_path(chat_ref: @chat.ref), method: :post, class: "raa-button" %><% end %>
     <%= button_to "Archive conversation", archive_assistant_conversation_path(chat_ref: @chat.ref), method: :post, class: "raa-button" %>
   </div>
 <% end %>

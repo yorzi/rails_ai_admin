@@ -53,6 +53,8 @@ class AssistantIntegrationTest < ActionDispatch::IntegrationTest
       assert_equal 1, chat.turns.count, "a repeated submission of the same form is admitted once"
       get "/backoffice/assistant/conversations/#{chat.ref}"
       assert_select "[data-raa-pending]", text: /Waiting for the assistant/
+      assert_select ".raa-chat-user", text: /Please mark Alice as reviewed/, count: 1
+      assert_select "turbo-frame#raa_assistant_transcript form[action$='/cancel'][data-turbo-frame=_top]"
       assert_select "turbo-frame#raa_assistant_transcript[data-controller=raa-poll]"
 
       LLMFixture.tool("search_records", { resource: "contract_customers" })
@@ -64,7 +66,9 @@ class AssistantIntegrationTest < ActionDispatch::IntegrationTest
       get "/backoffice/assistant/conversations/#{chat.ref}", headers: { "Turbo-Frame" => "raa_assistant_transcript" }
       assert_response :success
       assert_select "turbo-frame#raa_assistant_transcript"
+      assert response.body.start_with?("<!DOCTYPE html>"), "frame responses stay in standards mode"
       assert_select "[data-raa-pending]", count: 0
+      assert_select "form[action$='/cancel']", { count: 0 }, "Stop appears only while a turn is pending"
       assert_select ".raa-chat-user", text: /Please mark Alice as reviewed/
       assert_select ".raa-chat-activity", text: "Searched Contract customers"
       assert_select ".raa-chat-records a[href='/backoffice/contract_customers/#{@customer.id}']", text: "Alice"
