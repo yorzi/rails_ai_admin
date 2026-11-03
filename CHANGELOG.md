@@ -18,7 +18,12 @@
 - Add the `field_reference` and `resource_associations` override entries
   (catalog now 29). **Review overrides:** `resource_show` advances to revision 3
   and `field_form` to revision 2.
-- `rake build` names the package from `RailsAiAdmin::VERSION`.
+- The resource generator suggests a declared non-polymorphic, non-sensitive
+  `belongs_to` as a commented `belongs_to` field; tenant-like references
+  (account, tenant, organization, workspace, company, team) and other key
+  columns stay omitted.
+- `rake build` names the package from `RailsAiAdmin::VERSION`, and
+  `rake release:check` reports release readiness without publishing.
 
 - Add opt-in admin review Surfaces on the host-owned rails_tool_views runtime:
   `config.surfaces`, `operation ..., surface: true`, admin-owned endpoints with an

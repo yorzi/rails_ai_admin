@@ -111,7 +111,9 @@ enabled, and does not register it. If schema metadata is available, supported
 scalar columns appear as commented suggestions. Sensitive names, encrypted
 attributes, foreign keys and polymorphic foreign-type columns, the STI inheritance
 column, `lock_version`, authority-like names such as `role`, `permission` and
-`security_version`, and unsupported column types are excluded.
+`security_version`, and unsupported column types are excluded. A declared
+non-polymorphic `belongs_to` becomes a commented `belongs_to` suggestion instead
+of a raw key column; see [Associations]({% link _core_features/associations.md %}).
 The generator reads schema metadata, not sample records or business values.
 
 An unknown model or an unavailable/unmigrated table does not cause automatic

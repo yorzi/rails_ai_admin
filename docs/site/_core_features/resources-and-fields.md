@@ -77,7 +77,8 @@ declarations. Suggestions are comments; the generated resource remains readonly,
 with only its ID enabled, and is not automatically registered. Sensitive names,
 encrypted attributes, foreign keys and polymorphic foreign-type columns, STI
 inheritance columns, `lock_version`, authority-like names such as `role`,
-`permission` and `security_version`, and unsupported types are excluded. No record values are queried to choose suggestions. If the model or
+`permission` and `security_version`, and unsupported types are excluded. A declared
+non-polymorphic `belongs_to` is suggested as a commented `belongs_to` field. No record values are queried to choose suggestions. If the model or
 table is unavailable, the safe declaration remains usable for later review.
 
 Suggestions describe types, not permission, privacy or business meaning. Review

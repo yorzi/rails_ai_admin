@@ -127,7 +127,9 @@ the resource. Supported scalar suggestions, when schema metadata is available,
 remain comments. Sensitive/encrypted attributes, foreign keys and polymorphic
 foreign-type columns, STI inheritance columns, `lock_version`, authority-like
 names such as role/permission/security_version, and unsupported types are excluded
-from suggestions. No business rows are sampled.
+from suggestions; a declared non-polymorphic, non-sensitive belongs_to is suggested
+as a commented `belongs_to` field unless its name is tenant-like (account, tenant,
+organization, workspace, company, team). No business rows are sampled.
 An unknown model or an unavailable/unmigrated table leaves the safe readonly
 scaffold without depending on suggestions. The host must review field meaning,
 visibility and policy before registering/enabling it.

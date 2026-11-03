@@ -75,7 +75,8 @@ unregistered. When model schema is available, it adds commented scalar field
 suggestions for review. It does not sample records; sensitive/encrypted fields,
 foreign keys and polymorphic type columns, STI inheritance columns,
 `lock_version`, authority-like names such as role/permission/security_version,
-and unsupported types are excluded from suggestions.
+and unsupported types are excluded from suggestions. A declared non-polymorphic
+`belongs_to` is suggested as a commented `belongs_to` field.
 Missing models or unavailable table metadata still leave the safe readonly scaffold.
 Implement host authentication and explicit policies, then review fields and
 register class-name strings in the initializer.
