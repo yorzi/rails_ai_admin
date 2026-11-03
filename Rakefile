@@ -13,6 +13,7 @@ task default: :test
 
 desc "Build the local gem (does not publish)"
 task :build do
+  require_relative "lib/rails_ai_admin/version"
   mkdir_p "pkg"
-  sh "gem build rails_ai_admin.gemspec --output pkg/rails_ai_admin-0.1.0.dev.gem"
+  sh "gem build rails_ai_admin.gemspec --output pkg/rails_ai_admin-#{RailsAiAdmin::VERSION}.gem"
 end

@@ -4,10 +4,11 @@ require "bundler/setup"
 require "fileutils"
 require "rubygems/installer"
 require "rbconfig"
+require_relative "../lib/rails_ai_admin/version"
 
 root = File.expand_path("..", __dir__)
 target = File.join(root, "tmp/packaged-session-sqlite")
-package = File.join(root, "pkg/rails_ai_admin-0.1.0.dev.gem")
+package = File.join(root, "pkg/rails_ai_admin-#{RailsAiAdmin::VERSION}.gem")
 raise "Build the gem first" unless File.file?(package)
 install_dir = File.join(root, "vendor/bundle/ruby", RbConfig::CONFIG.fetch("ruby_version"))
 Gem::Installer.at(package, install_dir: install_dir, ignore_dependencies: true, wrappers: false).install

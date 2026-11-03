@@ -4,6 +4,7 @@ require "bundler/setup"
 require "fileutils"
 require "rubygems/installer"
 require "rbconfig"
+require_relative "../lib/rails_ai_admin/version"
 require_relative "support/disposable_database"
 
 root = File.expand_path("..", __dir__)
@@ -11,7 +12,7 @@ target = File.join(root, "tmp/packaged-devise-postgres")
 source = File.join(root, "spec_hosts/devise_postgres")
 url = ENV.fetch("RAA_HOST_B_DATABASE_URL") { abort "Set RAA_HOST_B_DATABASE_URL to a disposable PostgreSQL database ending in _test" }
 DisposableDatabase.validate!(url)
-package = File.join(root, "pkg/rails_ai_admin-0.1.0.dev.gem")
+package = File.join(root, "pkg/rails_ai_admin-#{RailsAiAdmin::VERSION}.gem")
 raise "Build the gem first" unless File.file?(package)
 install_dir = File.join(root, "vendor/bundle/ruby", RbConfig::CONFIG.fetch("ruby_version"))
 Gem::Installer.at(package, install_dir: install_dir, ignore_dependencies: true, wrappers: false).install
