@@ -129,7 +129,8 @@ module RailsAiAdmin
 
       def field_entry(field)
         entry = { "name" => field.name.to_s, "label" => field.label, "type" => field.scalar_type.to_s }
-        entry["choices"] = field.choice_options.map { |label, value| { "value" => value, "label" => label } } if field.scalar_type == :select
+        # Operation inputs declare enum values; without them a model can only guess.
+        entry["choices"] = field.choice_options.map { |label, value| { "value" => value, "label" => label } } if %i[select enum].include?(field.scalar_type)
         entry
       end
 

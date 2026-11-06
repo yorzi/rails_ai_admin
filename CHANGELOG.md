@@ -20,6 +20,9 @@
   persisted before a crash, retry, Stop and archive, plus
   `rails_ai_admin:assistant:scan`/`drain`. Doctor reports the assistant setup
   without calling the adapter or a provider.
+- Fix `describe_resource` omitting the allowed values of an operation's `enum`
+  input. A live model guessed `triaged` for the triage `decision` and needed two
+  rejected proposals before trying `triage`; it now receives the choices.
 
 - Add `belongs_to` reference fields. A reference is labelled and linked only
   through the target resource's current relation, show grant and title, and an

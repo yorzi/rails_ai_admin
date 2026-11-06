@@ -32,9 +32,9 @@ hosts, not by external users.
 | Navigation and basic permissions | Local | ADR 0002, 0016 |
 | Operable Surface | Local | Admin review Surfaces (ADR 0020) |
 | AI disabled path | Local | Host A runs with no AI tables, keys or routes |
-| Chat entry (UI/Chat dual entry) | Local (offline) | Opt-in admin Chat with grant-filtered tools and proposals as review Surfaces (ADR 0022); Host B and Chromium against offline fixtures |
-| Early integration proof exit gate | Partial | Chat → Surface → one write → one continuation, crash/retry/fencing recovery offline. Needs one budget-approved live-provider run (SPIKE-02 provider half) |
-| Live provider check | **Missing** | No real provider call yet. Requires owner budget approval. Blocks Public Preview |
+| Chat entry (UI/Chat dual entry) | Local | Opt-in admin Chat with grant-filtered tools and proposals as review Surfaces (ADR 0022); Host B and Chromium against offline fixtures; Host B against live models |
+| Early integration proof exit gate | Local | Chat → Surface → one write → one continuation, crash/retry/fencing recovery offline; the same flow live on 2026-11-03 |
+| Live provider check | Local | 2026-11-03: Host B full flow against OpenAI, Anthropic and Google models through OpenRouter, one run each. Native OpenAI/Anthropic APIs and live failure recovery remain open (RAA-0509) |
 | Phase 2 security regressions (RAA-0210) | Open | CSRF, mass assignment, XSS and N+1 regressions across list and Surface routes |
 | Framework I18n | Open | Engine strings are English literals |
 | Accessibility pass | Partial | Keyboard and 320px Chromium checks for some pages; no screen-reader pass; associations not yet checked |
@@ -42,10 +42,10 @@ hosts, not by external users.
 | Listed limitations in release notes | Required | Must name CSV, files, dashboards, Chat limits (no streaming, budgets, page context or retention) and P1 gaps |
 | Owner approval and publishing | Owner only | `allowed_push_host` blocks `gem push` today |
 
-**Verdict:** not ready for Public Preview. The Chat+Surface workflow now exists
-and passes offline in both test databases, packaged Host B and Chromium. One
-budget-approved live-provider run of that flow and remote CI on the release
-commit remain blocking. The Phase 2 security, I18n and accessibility evidence
+**Verdict:** not ready for Public Preview. The Chat+Surface workflow passes
+offline in both test databases, packaged Host B and Chromium, and live in
+packaged Host B against three model families. Remote CI on the release commit
+remains blocking. The Phase 2 security, I18n and accessibility evidence
 should close in parallel.
 
 Publishing an earlier, conventional-only prerelease (for example

@@ -10,7 +10,7 @@ future product work. Local admin mistakes are not upstream defects.
 | --- | --- |
 | Rails `>= 8.1.4, < 8.2` | Isolated engine, Active Record, controller/view/job infrastructure |
 | rails_tool_views `~> 1.0.2` | Opt-in admin review Surface through admin-owned endpoints and the public API (ADR 0020); assistant proposals present it and continue through the admin inbox, not `deliver` (ADR 0022) |
-| RubyLLM `>= 2.1.1, < 3` | Opt-in admin Chat on Engine-owned tables with `acts_as_chat`/`acts_as_message`, a per-request `RubyLLM.context` and shared ToolCall/Usage tables (ADR 0022); offline fixtures only, no live provider call |
+| RubyLLM `>= 2.1.1, < 3` | Opt-in admin Chat on Engine-owned tables with `acts_as_chat`/`acts_as_message`, a per-request `RubyLLM.context` and shared ToolCall/Usage tables (ADR 0022); offline fixtures, plus one live run per model family through the OpenRouter provider on 2026-11-03 |
 | Pundit 2.5.x / Devise 5.0.4 | Optional host authorization/authentication examples; not runtime requirements |
 | turbo-rails `~> 2.0`, stimulus-rails `~> 1.3` | Bounded Rails integration dependencies; admin ships prebuilt frontend |
 

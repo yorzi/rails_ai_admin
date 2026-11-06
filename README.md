@@ -8,7 +8,7 @@ policy-checked, audited execution boundary for conventional CRUD.
 types and partials, synchronous member operations, fixed Selection previews,
 bounded asynchronous collection operations, opt-in admin review Surfaces and a
 durable outbox for one declared post-commit effect, and an opt-in admin Chat
-whose proposals become review Surfaces. Live-provider evidence, streaming and AI
+whose proposals become review Surfaces. Native-provider evidence, streaming and AI
 budgets, association search and broader association writes, CSV, private files,
 metrics dashboards and the broader batch/job-center workflows remain future work. The
 development plan describes the target product, not the supported feature set.

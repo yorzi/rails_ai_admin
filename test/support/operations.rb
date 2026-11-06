@@ -65,6 +65,7 @@ class ReviewContractOperation < RailsAiAdmin::Operation
   input do
     text :note, required: true, nullable: false, max_length: 80
     integer :hidden_counter
+    enum :outcome, values: %w[accepted rejected]
   end
   class_attribute :work_kind, default: "customers.reviewed"
   class_attribute :after_enqueue

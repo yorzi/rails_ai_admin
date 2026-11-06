@@ -115,7 +115,10 @@ exposure grant each failed a test.
 
 ## Not decided or not done
 
-No real provider has been called (SPIKE-02's provider half, RAA-0509). There is
+On 2026-11-03 packaged Host B ran the full flow live against OpenAI, Anthropic
+and Google models through OpenRouter's chat-completions API, one run each; the
+native OpenAI and Anthropic APIs, live failure recovery and provider shape
+differences remain open (RAA-0509). There is
 no streaming, budget reservation (AI-012), per-tenant credential rotation,
 aggregate or page-context tools (AI-010), or evaluation set. Instructions are a
 fixed versioned constant, not host-overridable yet. Chats have no retention job.

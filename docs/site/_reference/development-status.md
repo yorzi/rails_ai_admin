@@ -110,14 +110,15 @@ persisted RubyLLM chat with grant-filtered read tools and proposals that become
 review Surfaces. A confirmed review writes once and continues the conversation
 once. Turns run through a leased, fenced inbox that recovers after crashes
 without repeating the human message. Evidence uses RubyLLM's real provider and
-tool loop against offline fixtures, packaged Host B and a Chromium check; live
-provider calls, streaming, budgets and retention are not done.
+tool loop against offline fixtures, packaged Host B and a Chromium check, plus
+one live run per model family through OpenRouter; native provider APIs,
+streaming, budgets and retention are not done.
 
 Not implemented in this slice: association search and writes beyond `belongs_to`, nested attributes, uploads/private
 attachments, imports/exports, all-filtered or 10,000-target batch manifests,
 metrics dashboards, saved views, global custom operations, custom CRUD handler
 replacement, a full job center/retention workflow, general reconciliation UI,
-live-provider
+native-provider
 assistant evidence, streaming and AI budgets. ActionPolicy integration
 and association/file/money field extensions remain future work. Host-owned Devise authentication
 is demonstrated in a packaged consumer; the engine does not provide accounts or

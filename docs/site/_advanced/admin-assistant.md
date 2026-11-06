@@ -185,7 +185,15 @@ or a provider, so it cannot prove that credentials work.
 
 The assistant has been verified with RubyLLM's real OpenAI provider and tool
 loop against offline fixtures, in the engine suite and in a packaged
-Devise/Pundit/PostgreSQL host with a browser check. It has not yet been verified
-against a live provider. Streaming, budget limits, page or selection context,
-aggregate tools, host-overridable instructions and chat retention are not
-available yet.
+Devise/Pundit/PostgreSQL host with a browser check. The same host has run the
+full flow once each against OpenAI, Anthropic and Google models through
+RubyLLM's OpenRouter provider. Native OpenAI and Anthropic APIs, provider
+failures against a live service and repeated runs are not verified yet.
+
+`search_records` matches its query as one contiguous phrase, like the index
+search box: a live model that searched for `lobby printer` did not find a
+ticket titled `Printer offline in lobby`. Some models also answer in Markdown,
+which the transcript shows as literal characters.
+
+Streaming, budget limits, page or selection context, aggregate tools,
+host-overridable instructions and chat retention are not available yet.

@@ -149,6 +149,9 @@ class AssistantContractTest < ActiveSupport::TestCase
       described = results[0]
       assert_equal %w[id name points], described["fields"].map { |field| field["name"] }
       assert_equal [ "review" ], described["operations"].map { |operation| operation["key"] }
+      outcome = described["operations"].first["input"].find { |field| field["name"] == "outcome" }
+      assert_equal %w[accepted rejected], outcome["choices"].map { |choice| choice["value"] },
+        "a model can only propose an enum input whose values it was told"
       assert_equal "NOT_FOUND", results[1]["error"], "another tenant's record is indistinguishable from a missing one"
       assert_equal "NOT_FOUND", results[2]["error"], "an unexposed resource is indistinguishable from an unknown one"
       assert_equal({ "id" => @customer.id.to_s, "name" => "Alice", "points" => "0" }, results[3]["records"].first["fields"])

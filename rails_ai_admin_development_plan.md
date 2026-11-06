@@ -1350,7 +1350,7 @@ Evaluation 应至少覆盖：
 - [ ] `RAA-0506` 在 Admin UI 当前页面/选择记录与 Chat 之间传递**经过验证的上下文引用**。
 - [ ] `RAA-0507` Usage/Cost 统计、模型白名单、预算、重试限制。
 - [ ] `RAA-0508` 默认 Prompt、Host domain context、Tool Catalog 的版本化与注入风险检查。
-- [ ] `RAA-0509` OpenAI/Anthropic 至少各一次经过预算授权的真实调用验证，记录 Provider 形状差异。
+- [ ] `RAA-0509` OpenAI/Anthropic 至少各一次经过预算授权的真实调用验证，记录 Provider 形状差异。（2026-11-03 部分：Host B 经 RubyLLM OpenRouter Provider 对 `openai/gpt-4.1-mini`、`anthropic/claude-haiku-4.5`、`google/gemini-3.8-flash` 各跑一次完整 Chat → Surface → 写一次 → 续答一次；均为 OpenRouter chat-completions 形状，原生 OpenAI/Anthropic API 与真实故障恢复未验证。发现并修复 `describe_resource` 缺少 enum 输入取值。）
 - [ ] `RAA-0510` Chat/Tool 只读操作的离线 + 真实 Provider Eval 集（中文/英文、跨租户、恶意文本）。
 - [ ] `RAA-0511` 持久 conversation admission/lease、secure broadcast、旧 Chat 撤权和 context 重建；预算并发预留、取消与失败状态。
 

@@ -168,10 +168,10 @@ documentation and advisory scanning. No remote CI run has occurred.
 ## Next implementation checkpoint
 
 [RELEASING.md](RELEASING.md) maps these items to the Public Preview criteria.
-Admin Chat now supplies the Chat+Surface workflow offline (ADR 0022). Before
-Public Preview, run one budget-approved live-provider check of the same flow
-(SPIKE-02's provider half, RAA-0509) and record remote CI on the release commit;
-`rake release:check` covers the mechanical release steps.
+Admin Chat now supplies the Chat+Surface workflow (ADR 0022), offline and in one
+live run per model family through OpenRouter. Before Public Preview, record
+remote CI on the release commit; `rake release:check` covers the mechanical
+release steps. RAA-0509 still needs the native OpenAI and Anthropic APIs.
 
 Then extend admin Chat where the plan requires it: AI-012 budget reservation,
 AI-010 page/selection context, streaming (AI-003) and chat retention. Close the
