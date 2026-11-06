@@ -63,6 +63,16 @@ class ReleaseCheckTest < Minitest::Test
     end
   end
 
+  def test_packaged_host_rails_pins_must_satisfy_the_runtime_floor
+    with_version_fixture("0.1.0.alpha1", released: true, heading: "0.1.0.alpha1") do |check|
+      path = File.join(check.instance_variable_get(:@root), ReleaseCheck::HOST_GEMFILES.first)
+      File.write(path, File.read(path).sub('"8.1.4.1"', '"8.1.4"'))
+      result = check.send(:host_pins_check)
+      assert_equal :error, result.status
+      assert_match(/Rails pins/, result.message)
+    end
+  end
+
   private
 
   def with_version_fixture(version, released:, heading:)
@@ -72,11 +82,12 @@ class ReleaseCheckTest < Minitest::Test
       File.write(File.join(root, "lib/rails_ai_admin/version.rb"), %(VERSION = "#{version}"\n))
       File.write(File.join(root, "docs/site/_config.yml"), { "version" => version, "released" => released }.to_yaml)
       File.write(File.join(root, "CHANGELOG.md"), "# Changes\n\n## #{heading}\n")
-      ReleaseCheck::HOST_GEMFILES.each { |path| File.write(File.join(root, path), %(gem "rails_ai_admin", "#{version}"\n)) }
+      ReleaseCheck::HOST_GEMFILES.each { |path| File.write(File.join(root, path), %(gem "rails_ai_admin", "#{version}"\ngem "rails", "8.1.4.1"\n)) }
       File.write(File.join(root, "rails_ai_admin.gemspec"), <<~RUBY)
         Gem::Specification.new do |spec|
           spec.name = "rails_ai_admin"
           spec.version = "#{version}"
+          spec.add_dependency "rails", ">= 8.1.4.1", "< 8.2"
           spec.metadata["allowed_push_host"] = "https://rubygems.org"
         end
       RUBY

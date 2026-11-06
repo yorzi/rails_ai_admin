@@ -23,7 +23,11 @@ def run!(env, target, *command)
   end
 end
 
+# A same-version development package may have different dependency metadata.
+# Resolve it afresh instead of trusting a previous smoke run's locked gemspec.
+FileUtils.rm_f(File.join(target, "Gemfile.lock"))
 run!(env, target, "bundle", "install", "--local")
+run!(env, target, "bundle", "exec", "ruby", File.join(root, "script/support/verify_installed_package.rb"), package)
 run!(env, target, "bundle", "exec", "rails", "generate", "rails_ai_admin:install", "--force")
 # Generated authentication is deliberately closed; use the independent host's
 # reviewed adapters only after checking the installed stub in a fresh process.

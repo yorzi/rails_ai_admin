@@ -27,7 +27,9 @@ def run!(env, target, *command)
   Bundler.with_unbundled_env { raise "Failed command: #{command.first(4).join(' ')}" unless system(env, *command, chdir: target) }
 end
 
+FileUtils.rm_f(File.join(target, "Gemfile.lock"))
 run!(env, target, "bundle", "install", "--local")
+run!(env, target, "bundle", "exec", "ruby", File.join(root, "script/support/verify_installed_package.rb"), package)
 unless Dir[File.join(target, "db/migrate/*create_ruby_llm_records.rb")].any?
   run!(env, target, "bundle", "exec", "rails", "generate", "ruby_llm:install", "chat:ProductChat", "message:ProductMessage", "--skip-active-storage", "--force")
 end

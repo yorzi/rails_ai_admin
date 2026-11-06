@@ -49,8 +49,15 @@ class ReleaseCheck
 
   def host_pins_check
     stale = HOST_GEMFILES.reject { |path| File.read(File.join(@root, path)).include?(%(gem "rails_ai_admin", "#{version}")) }
-    return Check.new("host_pins", :ok, "Packaged hosts pin #{version}") if stale.empty?
-    Check.new("host_pins", :error, "Update the exact rails_ai_admin pin in #{stale.join(', ')}")
+    return Check.new("host_pins", :error, "Update the exact rails_ai_admin pin in #{stale.join(', ')}") if stale.any?
+    spec = Dir.chdir(@root) { Gem::Specification.load(File.join(@root, "rails_ai_admin.gemspec")) }
+    rails = spec.dependencies.find { |dependency| dependency.name == "rails" }
+    stale = HOST_GEMFILES.reject do |path|
+      pin = File.read(File.join(@root, path))[/^gem "rails", "([^"]+)"$/, 1]
+      pin && Gem::Version.correct?(pin) && rails&.requirement&.satisfied_by?(Gem::Version.new(pin))
+    end
+    return Check.new("host_pins", :ok, "Packaged hosts pin #{version} and compatible Rails versions") if stale.empty?
+    Check.new("host_pins", :error, "Rails pins do not satisfy the gem's runtime requirement: #{stale.join(', ')}")
   end
 
   def docs_config_check

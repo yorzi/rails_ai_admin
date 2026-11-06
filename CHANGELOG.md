@@ -12,6 +12,9 @@
   results return `next_offset` so omitted records remain reachable.
 - Distinguish `.dev` builds from approved alpha/beta/RC versions in release checks;
   published prereleases need versioned changelog/docs metadata and owner approval.
+- Pin packaged consumers to Rails 8.1.4.1, discard stale generated locks and
+  verify installed candidate metadata and all files before acceptance. The
+  release checker rejects host Rails pins below the runtime floor.
 - Raise the Rails dependency floor to 8.1.4.1 and refresh affected Ruby lockfiles
   (Rails, Addressable, Loofah, Nokogiri and rails-html-sanitizer).
 

@@ -14,7 +14,7 @@ Nokogiri 1.19.7 and rails-html-sanitizer 1.7.2; the Rails floor is now 8.1.4.1.
 Both Ruby bundle audits pass against advisory DB
 `516ea4757d5eec778c49af8371c23309c4b70f42` (2026-11-04, 1,351 advisories).
 
-- Engine suites: 395 tests / 3,508 assertions on each of SQLite and PostgreSQL.
+- Engine suites: 396 tests / 3,511 assertions on each of SQLite and PostgreSQL.
   New contracts cover page-size-independent and byte-bounded search continuation,
   late responses/tool calls after takeover, expired leases and replacement-worker
   recovery, native-only operation exposure, and alpha/beta/RC release metadata.
@@ -24,8 +24,17 @@ Both Ruby bundle audits pass against advisory DB
 - Packaged Host A: 17 / 344; 18 / 397 with all template overrides. Host B:
   27 / 420; 28 / 448 with overrides. Eager load, precompile and actual reload
   are checked; process-loss and both asset-pipeline checks run on the same package.
-- RuboCop: 270 files, no offenses. Asset reproducibility and Jekyll/RDoc build
+- RuboCop: 271 files, no offenses. Asset reproducibility and Jekyll/RDoc build
   pass. No live provider or new browser/accessibility pass is included here.
+
+The first hardening CI candidate passed both engine suites, assets, docs and
+security, but failed the consumer install because their exact Rails pins were
+still 8.1.4. Old local consumer lockfiles had retained earlier same-version gem
+metadata, masking the mismatch. Both hosts now pin 8.1.4.1; smoke scripts remove
+their generated locks before resolving and verify the installed candidate's
+runtime requirements, metadata and every packaged file in a separate process.
+The release checker now rejects incompatible host Rails pins. Earlier consumer
+runs on historical Rails 8.1.4 do not substitute for these corrected checks.
 
 Remote CI must pass on the exact final candidate SHA. Earlier run links below
 are historical and do not certify this candidate. The version remains
