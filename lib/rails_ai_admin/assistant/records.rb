@@ -40,6 +40,14 @@ module RailsAiAdmin
     class Message < ::ActiveRecord::Base
       self.table_name = "rails_ai_admin_assistant_messages"
       acts_as_message chat: :chat, chat_class: "RailsAiAdmin::Assistant::Chat", chat_foreign_key: :chat_id
+      around_save :fence_worker_write
+      around_destroy :fence_worker_write, prepend: true
+
+      private
+
+      def fence_worker_write(&block)
+        Coordinator.protect_message(self, &block)
+      end
     end
 
     # A unit of inbox work: one human message or one Surface continuation.

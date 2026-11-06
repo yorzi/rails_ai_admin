@@ -24,7 +24,7 @@ module RailsAiAdmin
       # A named scope must be declared and granted; it is never discarded here.
       # filters: { "field" => { "eq" | "gte" | "lte" => "wire string" } }, ANDed.
       # Every field needs a current :filter grant and a declared operator.
-      def call(search: nil, sort: nil, direction: "asc", page: "1", recover_empty_page: false, scope: nil, filters: nil)
+      def call(search: nil, sort: nil, direction: "asc", page: "1", recover_empty_page: false, scope: nil, filters: nil, page_size: nil, offset: nil)
         @access.authorize!(:index)
         unless (page.is_a?(String) || page.is_a?(Integer)) && page.to_s.valid_encoding? && page.to_s.ascii_only? && page.to_s.match?(/\A[1-9]\d{0,3}\z/) && page.to_i <= 1000
           raise AccessDenied, "INVALID_QUERY"
@@ -57,7 +57,9 @@ module RailsAiAdmin
           relation = relation.where(predicates.reduce(&:or))
         end
         settings = @resource.index
-        size = settings.page_size
+        size = page_size || settings.page_size
+        raise AccessDenied, "INVALID_QUERY" unless size.is_a?(Integer) && size.between?(1, Presentation::IndexSettings::MAX_PAGE_SIZE)
+        raise AccessDenied, "INVALID_QUERY" unless offset.nil? || offset.is_a?(Integer) && offset.between?(0, 99_999) && !recover_empty_page
         table = @resource.model_class.arel_table
         primary = @resource.model_class.primary_key
         sortable = @access.fields(:sort)
@@ -74,7 +76,7 @@ module RailsAiAdmin
         else
           relation = relation.reorder(table[primary].asc)
         end
-        records = relation.offset((page.to_i - 1) * size).limit(size + 1).to_a
+        records = relation.offset(offset || (page.to_i - 1) * size).limit(size + 1).to_a
         number = page.to_i
         if recover_empty_page && records.empty? && number > 1
           count = relation.except(:order).limit(number * size).count

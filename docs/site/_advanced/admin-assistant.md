@@ -83,7 +83,8 @@ end
 
 Boot fails when `ruby_llm` is not loaded. Proposals also need
 [Review Surfaces](review-surfaces.html) and at least one member operation with
-`surface: true`.
+`surface: true, assistant: true`. Native Surface permission alone does not
+expose an operation to the assistant.
 
 Assistant turns run in Active Job. Use a persistent queue and schedule recovery
 for jobs lost in a crash:
@@ -122,7 +123,7 @@ not open. Another tenant's record and a missing record return the same
 | --- | --- |
 | `list_resources` | Exposed resource keys and labels |
 | `describe_resource` | Readable fields, searchable and filterable fields, and member operations that can be proposed |
-| `search_records` | Up to 20 records per page through the shared list query, with text search and typed filters |
+| `search_records` | Up to 20 records through the shared list query, independent of the native page size. When `has_more` is true, pass `next_offset` as `offset`, including after byte truncation. At 1,000 records, `limit_reached` asks for a narrower query |
 | `get_record` | One record's readable fields |
 | `propose_operation` | A review Surface for one member operation (only with `config.surfaces`) |
 

@@ -133,7 +133,7 @@ class ContractCustomerAdmin < RailsAiAdmin::Resource
     integer :points
     text :secret
   end
-  operation :review, handler: "ReviewContractOperation", surface: true
+  operation :review, handler: "ReviewContractOperation", surface: true, assistant: true
   operation :invalid, handler: "InvalidContractOperation"
   operation :nested, handler: "NestedContractOperation"
   operation :impure, handler: "ImpureContractOperation"

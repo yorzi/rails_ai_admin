@@ -20,7 +20,7 @@ order and cannot be claimed early:
 
 ## Public Preview readiness
 
-Status on 2026-11-03 (after admin Chat). "Local" means verified in this repository and its packaged
+Status on 2026-11-06 (release hardening). "Local" means verified in this repository and its packaged
 hosts, not by external users.
 
 | Requirement | Status | Evidence or gap |
@@ -35,10 +35,12 @@ hosts, not by external users.
 | Chat entry (UI/Chat dual entry) | Local | Opt-in admin Chat with grant-filtered tools and proposals as review Surfaces (ADR 0022); Host B and Chromium against offline fixtures; Host B against live models |
 | Early integration proof exit gate | Local | Chat → Surface → one write → one continuation, crash/retry/fencing recovery offline; the same flow live on 2026-11-03 |
 | Live provider check | Local | 2026-11-03: Host B full flow against OpenAI, Anthropic and Google models through OpenRouter, one run each. Native OpenAI/Anthropic APIs and live failure recovery remain open (RAA-0509) |
+| Dependency security | Local clean | Both Ruby lockfiles pass the refreshed advisory scan after the 2026-11-06 patches; exact candidate CI remains required |
+| Reproduced correctness defects | Locally fixed | Late worker responses, search pagination and prerelease release metadata have regression tests (COMPATIBILITY.md) |
 | Phase 2 security regressions (RAA-0210) | Open | CSRF, mass assignment, XSS and N+1 regressions across list and Surface routes |
 | Framework I18n | Open | Engine strings are English literals |
 | Accessibility pass | Partial | Keyboard and 320px Chromium checks for some pages; no screen-reader pass; associations not yet checked |
-| Remote CI on the release commit | Required per release | Last remote run: commit 69b4147 |
+| Remote CI on the release commit | Required per candidate | Historical main CI passed on 9892431; the reconciled hardening candidate must pass on its own exact SHA |
 | Listed limitations in release notes | Required | Must name CSV, files, dashboards, Chat limits (no streaming, budgets, page context or retention) and P1 gaps |
 | Owner approval and publishing | Owner only | `allowed_push_host` blocks `gem push` today |
 
@@ -65,7 +67,7 @@ Run every step from a clean checkout of the release branch.
    - the exact pins in `spec_hosts/session_sqlite/Gemfile` and
      `spec_hosts/devise_postgres/Gemfile`
    - `version` and `released: true` in `docs/site/_config.yml`
-   - a `## X.Y.Z (YYYY-MM-DD)` section in `CHANGELOG.md` holding the former
+   - a `## X.Y.Z (YYYY-MM-DD)` section in `CHANGELOG.md` (including alpha/beta/RC suffixes) holding the former
      Unreleased entries, with the release's listed limitations
    - `docs/site/_reference/upgrading.md` and `release-history.md`
 4. **Verify locally.**
@@ -85,7 +87,10 @@ Run every step from a clean checkout of the release branch.
    bundle exec rake release:check
    ```
 
-   `release:check` must report no errors. For a release version it fails until
+   `release:check` distinguishes unpublished `.dev` builds from alpha/beta/RC
+   versions intended for publication. Published prereleases also need
+   `released: true`, a versioned changelog section and explicit owner approval.
+   It must report no errors. For any version intended for publication it fails until
    the owner opens the publish gate in step 6.
 5. **Record evidence.** Add the executed combinations and counts to
    `COMPATIBILITY.md`, and push the branch so remote CI runs on that commit.

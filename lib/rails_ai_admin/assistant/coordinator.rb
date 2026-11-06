@@ -17,12 +17,47 @@ module RailsAiAdmin
       MAX_STEPS = 12
       MAX_CONTENT = 4_000
       ADMISSION_KEY = /\A[a-z]{1,16}:[A-Za-z0-9-]{1,64}\z/
+      CLAIM_KEY = :rails_ai_admin_assistant_claim
       # Provider-side failures that a later attempt may recover from.
       RETRYABLE = [ ::RubyLLM::Error, ::Faraday::Error, ::Timeout::Error, ::Errno::ETIMEDOUT ].freeze
 
       Claim = ::Data.define(:turn_id, :chat_id, :owner, :generation)
       Fenced = Class.new(StandardError)
       StepLimit = Class.new(StandardError)
+
+      # Only the worker's admin messages are guarded. Product chat models and
+      # actual provider usage accounting retain their own persistence rules.
+      def self.with_claim(claim)
+        state = ActiveSupport::IsolatedExecutionState
+        previous = state[CLAIM_KEY]
+        state[CLAIM_KEY] = claim
+        yield
+      ensure
+        state[CLAIM_KEY] = previous
+      end
+
+      def self.protect_message(message)
+        claim = ActiveSupport::IsolatedExecutionState[CLAIM_KEY]
+        return yield unless claim
+        raise Fenced unless message.chat_id == claim.chat_id
+        with_claim_lock(claim) { yield }
+      end
+
+      # Lock in the same order as admission/claiming. A message and the SDK's
+      # tool-call/result links commit under this lock, never across a provider
+      # request. Checking after chat.step would be too late to fence its saves.
+      def self.with_claim_lock(claim)
+        Turn.transaction do
+          chat = Chat.lock.find(claim.chat_id)
+          turn = Turn.lock.find(claim.turn_id)
+          unless chat.status == "active" && turn.chat_id == chat.id && turn.status == "running" &&
+              turn.lease_owner == claim.owner && turn.generation == claim.generation &&
+              turn.lease_expires_at && turn.lease_expires_at > Time.current
+            raise Fenced
+          end
+          yield turn
+        end
+      end
 
       # Admits one turn per (chat, key); a repeated key returns the first turn.
       # Safe inside a caller transaction (Surface confirmation) and outside one.
@@ -110,16 +145,18 @@ module RailsAiAdmin
         return finish(claim, "failed", "NOT_ALLOWED") if session.resources.empty?
         llm = Assistant.llm_context(context)
         return finish(claim, "failed", "AI_UNAVAILABLE") unless llm
-        admit_message!(claim, chat, turn)
-        Runtime.configure(chat, session, llm)
-        steps = 0
-        ::RubyLLM.with_usage_owner(chat) do
-          loop do
-            renew!(claim)
-            break if chat.complete?
-            raise ConfigurationError, "Assistant tools must not wait for approval" if chat.waiting?
-            raise StepLimit if (steps += 1) > MAX_STEPS
-            chat.step
+        self.class.with_claim(claim) do
+          admit_message!(claim, chat, turn)
+          Runtime.configure(chat, session, llm)
+          steps = 0
+          ::RubyLLM.with_usage_owner(chat) do
+            loop do
+              renew!(claim)
+              break if chat.complete?
+              raise ConfigurationError, "Assistant tools must not wait for approval" if chat.waiting?
+              raise StepLimit if (steps += 1) > MAX_STEPS
+              chat.step
+            end
           end
         end
         finish(claim, "completed")
@@ -153,9 +190,11 @@ module RailsAiAdmin
 
       # The human message is persisted once per turn, atomically with the turn.
       def admit_message!(claim, chat, turn)
-        Turn.transaction(requires_new: true) do
-          locked = Turn.lock.find(turn.id)
-          raise Fenced unless locked.status == "running" && locked.lease_owner == claim.owner && locked.generation == claim.generation
+        self.class.with_claim_lock(claim) do |locked|
+          # RubyLLM creates an empty assistant placeholder before requesting a
+          # completion. A dead/fenced request must not make recovery look done.
+          chat.messages.where(role: "assistant", content: [ nil, "" ], finish_reason: nil)
+            .where.missing(:ruby_llm_tool_calls).destroy_all
           next if locked.user_message_id
           message = chat.add_message(role: :user, content: locked.content)
           locked.update!(user_message_id: message.id)

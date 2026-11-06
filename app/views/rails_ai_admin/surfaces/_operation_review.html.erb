@@ -9,7 +9,11 @@
   <% if run.status == "succeeded" %>
     <p>Completed. Recorded as operation <code><%= run.id %></code>.</p>
   <% elsif run.status == "proposed" && run.expires_at > Time.current && run.security_version == review.access.context.security_version %>
-    <p>Nothing has been saved yet. Confirming applies this exact target and input once, whether you confirm here or on the original page.</p>
+    <% if run.origin == "assistant" %>
+      <p>An assistant proposed this. Nothing has been saved yet; only your confirmation applies this exact target and input, once.</p>
+    <% else %>
+      <p>Nothing has been saved yet. Confirming applies this exact target and input once, whether you confirm here or on the original page.</p>
+    <% end %>
     <%= admin_surface_action_form(surface, :confirm) do |form| %><%= form.submit "Confirm and execute", name: nil %><% end %>
   <% else %>
     <p>This review can no longer be confirmed. Start a new review from the record.</p>

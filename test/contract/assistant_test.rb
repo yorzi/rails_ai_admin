@@ -43,6 +43,114 @@ class AssistantContractTest < ActiveSupport::TestCase
     end
   end
 
+  def test_search_pages_do_not_skip_records_or_depend_on_the_native_page_size
+    with_assistant do
+      30.times { |index| Customer.create!(account_id: 1, name: "Page #{index}") }
+      expected = Customer.where(account_id: 1).order(:id).pluck(:id).map(&:to_s)
+      session = RailsAiAdmin::Assistant::Session.new(context: context, chat: new_chat, fence: -> { })
+      tool = RailsAiAdmin::Assistant::SearchRecords.new(session)
+      [ 7, 25, 100 ].each do |size|
+        ContractCustomerAdmin.stub(:index, RailsAiAdmin::Presentation::IndexSettings.new(page_size: size)) do
+          pages = [ 1, 2 ].map { |page| tool.execute(resource: "contract_customers", page: page) }
+          assert_equal expected, pages.flat_map { |result| result.fetch("records").map { |record| record.fetch("id") } }
+          assert pages.first.fetch("has_more")
+          refute pages.last.fetch("has_more")
+        end
+      end
+    end
+  end
+
+  def test_search_byte_truncation_resumes_after_the_last_record_returned
+    with_assistant do
+      Customer.where(account_id: 1).update_all(name: "复" * 500)
+      24.times { Customer.create!(account_id: 1, name: "复" * 500) }
+      expected = Customer.where(account_id: 1).order(:id).pluck(:id).map(&:to_s)
+      session = RailsAiAdmin::Assistant::Session.new(context: context, chat: new_chat, fence: -> { })
+      tool = RailsAiAdmin::Assistant::SearchRecords.new(session)
+      offset = 0
+      actual = []
+      25.times do
+        result = tool.execute(resource: "contract_customers", offset: offset)
+        assert_operator JSON.generate(result).bytesize, :<=, RailsAiAdmin::Assistant::Tool::MAX_RESULT_BYTES
+        records = result.fetch("records")
+        refute_empty records
+        actual.concat(records.map { |record| record.fetch("id") })
+        break unless result.fetch("has_more")
+        assert_operator result.fetch("next_offset"), :>, offset
+        offset = result.fetch("next_offset")
+      end
+      assert_equal expected, actual
+      [ -1, 1_000, "20" ].each do |invalid|
+        assert_equal "INVALID_QUERY", tool.execute(resource: "contract_customers", offset: invalid)["error"]
+      end
+    end
+  end
+
+  def test_a_late_provider_answer_or_tool_call_cannot_survive_lease_takeover
+    with_assistant do
+      [ false, true ].each do |tool_response|
+        reset_assistant
+        chat = new_chat
+        turn = admit(chat, "Hello")
+        tool_response ? LLMFixture.tool("list_resources", {}) : LLMFixture.reply("Stale answer")
+        fresh = nil
+        stub_request(:post, LLMFixture::ENDPOINT).to_return do |request|
+          response = LLMFixture.respond(request)
+          refute Turn.connection.transaction_open?, "provider requests must not hold the persistence locks"
+          travel Coordinator::LEASE + 1.second do
+            fresh = Coordinator.new.claim_next(chat.ref)
+          end
+          response
+        end
+        drain(chat)
+        assert_equal 2, fresh.generation
+        assert_equal [ "running", fresh.owner ], [ turn.reload.status, turn.lease_owner ]
+        assert_empty chat.messages.where.not(role: "user").where.not(content: [ nil, "" ]).pluck(:content)
+        assert_empty RubyLLM::ActiveRecord::ToolCall.all
+        # The new worker must recover the abandoned placeholder and answer.
+        stub_request(:post, LLMFixture::ENDPOINT).to_return { |request| LLMFixture.respond(request) }
+        LLMFixture.reply("Fresh answer")
+        Coordinator.new.execute(fresh)
+        assert_equal "completed", turn.reload.status
+        assert_equal [ [ "user", "Hello" ], [ "assistant", "Fresh answer" ] ], transcript(chat)
+        assert_equal 2, chat.ruby_llm_usages.count, "both billed attempts remain accounted for"
+      end
+    end
+  end
+
+  def test_an_expired_lease_rejects_a_response_even_before_takeover
+    with_assistant do
+      chat = new_chat
+      turn = admit(chat, "Hello")
+      LLMFixture.reply("Expired answer")
+      stub_request(:post, LLMFixture::ENDPOINT).to_return do |request|
+        response = LLMFixture.respond(request)
+        Turn.where(id: turn.id).update_all(lease_expires_at: 1.second.ago)
+        response
+      end
+      coordinator = Coordinator.new
+      coordinator.execute(coordinator.claim_next(chat.ref))
+      assert_equal "running", turn.reload.status
+      assert_empty chat.messages.where(content: "Expired answer")
+    end
+  end
+
+  def test_native_surface_opt_in_does_not_grant_assistant_proposals
+    with_assistant do
+      session = RailsAiAdmin::Assistant::Session.new(context: context, chat: new_chat, fence: -> { })
+      ContractCustomerAdmin.stub(:assistant_operation?, false) do
+        described = RailsAiAdmin::Assistant::DescribeResource.new(session).execute(resource: "contract_customers")
+        assert_empty described.fetch("operations")
+        call = RubyLLM::ToolCall.new(id: "call_native_only", name: "propose_operation", arguments: {})
+        result = RailsAiAdmin::Assistant::ProposeOperation.new(session).execute(tool_call: call,
+          resource: "contract_customers", id: @customer.id.to_s, operation: "review", input: { note: "Denied" })
+        assert_equal "NOT_FOUND", result.fetch("error")
+        assert_empty RailsAiAdmin::OperationRun.all
+        assert ContractCustomerAdmin.surface_operation?(:review), "native reviews remain available"
+      end
+    end
+  end
+
   def test_admission_is_once_per_key_and_turns_run_in_sequence
     with_assistant do
       chat = new_chat

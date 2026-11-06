@@ -75,6 +75,9 @@ must not load the experimental adapter, require AI tables or call a provider.
 An opt-in review Surface (ADR 0020) runs on the host-owned rails_tool_views
 runtime through admin endpoints with an explicit `raa:` Scope and a request-bound
 Context; it confirms the same native intent through the shared Runner inside the
-Surface lock. Chat, assistant presentation and continuation remain separate
-milestones using the same authority.
+Surface lock. An on-demand RubyLLM tool (ADR 0023) lets an assistant propose an
+opted-in operation into that Surface under the current admin Context; it has no
+confirm path. Opt-in persisted admin Chat and its turn/continuation inbox
+(ADR 0022) use the same authority; streaming, budgets and wider acceptance
+remain future work.
 See docs/adr and docs/reference/public-contract.md.

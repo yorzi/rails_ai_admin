@@ -1,7 +1,38 @@
 # Compatibility
 
-Status checked 2026-11-03. This is unreleased local evidence.
+Status checked 2026-11-06. This is unreleased development evidence.
+The rows below retain dated historical runs; old clean dependency scans do not
+apply to a new candidate. Current hardening evidence is recorded separately.
 CI configuration is not a completed CI run; no production support is declared.
+
+## 2026-11-06 release hardening
+
+The feature branch was reconciled with remote main `9892431`, preserving the
+standalone proposal API, Minitest 6 and the current Actions/theme/esbuild updates.
+Current runtime locks use Rails 8.1.4.1, Addressable 2.9.2, Loofah 2.25.3,
+Nokogiri 1.19.7 and rails-html-sanitizer 1.7.2; the Rails floor is now 8.1.4.1.
+Both Ruby bundle audits pass against advisory DB
+`516ea4757d5eec778c49af8371c23309c4b70f42` (2026-11-04, 1,351 advisories).
+
+- Engine suites: 395 tests / 3,508 assertions on each of SQLite and PostgreSQL.
+  New contracts cover page-size-independent and byte-bounded search continuation,
+  late responses/tool calls after takeover, expired leases and replacement-worker
+  recovery, native-only operation exposure, and alpha/beta/RC release metadata.
+- All three original audit reproductions pass on each database. Provider I/O is
+  asserted to run outside the message-persistence transaction. Billed usage for
+  rejected stale responses stays accounted for.
+- Packaged Host A: 17 / 344; 18 / 397 with all template overrides. Host B:
+  27 / 420; 28 / 448 with overrides. Eager load, precompile and actual reload
+  are checked; process-loss and both asset-pipeline checks run on the same package.
+- RuboCop: 270 files, no offenses. Asset reproducibility and Jekyll/RDoc build
+  pass. No live provider or new browser/accessibility pass is included here.
+
+Remote CI must pass on the exact final candidate SHA. Earlier run links below
+are historical and do not certify this candidate. The version remains
+`0.1.0.dev` and RubyGems publishing remains blocked; I18n, human accessibility,
+the broader security matrix and later Beta/1.0 gates remain open.
+
+## Historical combinations
 
 | Component / combination | Evidence |
 | --- | --- |
@@ -14,12 +45,14 @@ CI configuration is not a completed CI run; no production support is declared.
 | Ruby 4.0.9, macOS arm64, SQLite (`sqlite3` 2.10.2) and PostgreSQL 17 (`pg` 1.7.0), rails_tool_views 1.0.2, RubyLLM 2.1.1 | 2026-11-03 (admin Chat, ADR 0022): 382 tests / 3,181 assertions on each database. RubyLLM's real OpenAI provider, chat-completions parser, tool loop and persistence run against WebMock fixtures: keyed admission and strict turn order, provider retry without a repeated message, reconciliation of an answer persisted before a crash, fencing before provider steps and tool calls, grant-filtered tools, unavailable AI and revoked authority with no provider call, the step limit, proposal replay, equal-id product chat isolation, and HTTP Chat → Surface → one write → one continuation. Mutations removing the message once-guard, the continuation, the step fence, the tool fence or the exposure grant each failed a test. Packaged Host B (Devise, Pundit, PostgreSQL, its own ProductChat and product Surface) runs the generator, a Pundit `assistant?` grant and the full flow with real per-form CSRF: 26 / 369; 27 / 387 with all 29 overrides on Propshaft and Sprockets, production eager load; global RubyLLM settings, product messages and product usages unchanged. Host A stays AI-free: 17 / 309; 18 / 343, `RubyLLM` undefined. Chromium against packaged Host B in development with a loopback fixture provider (async jobs, Turbo Frame polling, keyboard confirmation, 320px) found and fixed three defects: Stop outside the polled frame, quirks-mode frame responses, and a sent message hidden until the worker ran. No live provider call; not yet run: remote CI for this branch, screen reader |
 | Ruby 4.0.9, macOS arm64, PostgreSQL 17, RubyLLM 2.1.1 OpenRouter provider (live) | 2026-11-03, live provider: packaged Host B ran the full flow with no WebMock against `openai/gpt-4.1-mini`, `anthropic/claude-haiku-4.5` and `google/gemini-3.8-flash`, one run each, through OpenRouter's chat-completions API with a disposable copy of the host adapter: a foreign-tenant ticket returned `NOT_FOUND` (Gemini also probed the closed archive) with no foreign value in any tool result or reply, parallel tool calls, a proposal shown as the admin Surface, a real per-form CSRF confirmation that triaged once with one outbox item, a repeated confirmation that wrote nothing and admitted no second continuation, one continuation answer, usage rows owned by the admin chat, and unchanged global RubyLLM settings (44–56 assertions per model; 5–6 provider requests, 10–16 s first turn, under US$0.03 across all five live runs). The first run found that `describe_resource` hid enum input values; after the fix the engine suite is 382 / 3,182 on each database and Host B is still 26 / 369. Not covered: the native OpenAI and Anthropic APIs, provider errors and crash recovery against a live provider, a browser session with a live provider, repeated runs per model |
 | Ruby 4.0.9 (built from the upstream v4.0.9 tag), Linux x86_64, SQLite (`sqlite3` 2.10.2) and PostgreSQL 16.15 (`pg` 1.7.0), rack 3.2.8, rails_tool_views 1.0.2 | 2026-11-01: 343 tests / 2,829 assertions on each database (engine app loads rails_tool_views with no global configuration), including admin review Surfaces (both confirmation orders, replay, stale revision, revocation, changed record, failure rollback, foreign/unbound/product scopes, lapsed grants, Turbo Stream, re-registration, squatting), index settings, typed filters and named scopes; packaged Host A without rails_tool_views (16 / 289; 17 / 323 under every template override; no Surface routes or integration after production eager load) and its real reload; Host B with its own product Surface on Propshaft and Sprockets (25 / 338; 26 / 356 with overrides), real per-form CSRF, product-route isolation and admin re-registration after host reload; recovery and collection process-loss probes. Chromium (Playwright 1.63) checked Host A tabs/filters/tables and the Host B Surface flow (hand-off, reload, keyboard confirm via Turbo Stream) at 1280px and 320px with no console/CSP/HTTP errors. bundle-audit clean. Remote GitHub Actions passed on Ruby 4.0.9 for commit 69b4147: SQLite and PostgreSQL suites, both packaged hosts including the Host B Surface flow, Sprockets, assets, docs and dependency audit |
+| Prebuilt Turbo 8.0.23 / Stimulus 3.2.2 | Reproducible esbuild output (0.28.2 since 2026-11-01); Chrome login/list/show/form validation/save checked; nonce CSP without unsafe-inline; 320px and desktop CRUD spot checks; packaged Sprockets Host B custom-operation Turbo Stream review and explicit confirmation checked in Chrome at 500px, with no console/CSP errors; fixed-selection checkbox capture/303/current preview checked in the packaged Sprockets host at 500px with scrolling confined to the table |
+| Ruby 4.0.9 (built from the upstream v4.0.9 tag), Linux x86_64, SQLite (`sqlite3` 2.10.2) and PostgreSQL 16.15 (`pg` 1.7.0), rack 3.2.8, rails_tool_views 1.0.2, ruby_llm 2.1.1, Minitest 6.0.6 with minitest-mock 5.27.0, esbuild 0.28.2 | 2026-11-01: 347 tests / 3,029 assertions on each database (Minitest 6 counts more assertions than 5.27's 2,888 for the same tests) (engine app loads rails_tool_views with no global configuration), including an offline RubyLLM tool loop (WebMock, network disabled) proposing into the review Surface, admin review Surfaces (both confirmation orders, replay, stale revision, revocation, changed record, failure rollback, foreign/unbound/product scopes, lapsed grants, Turbo Stream, re-registration, squatting), index settings, typed filters and named scopes; packaged Host A without rails_tool_views (16 / 321; 17 / 374 under every template override; no Surface routes or integration after production eager load) and its real reload; Host B with its own product Surface and RubyLLM product chat on Propshaft and Sprockets (26 / 385; 27 / 413 with overrides, including the offline assistant triage proposal), real per-form CSRF, product-route isolation and admin re-registration after host reload; recovery and collection process-loss probes. Chromium (Playwright 1.63) checked Host A tabs/filters/tables and the Host B Surface flow (hand-off, reload, keyboard confirm via Turbo Stream) at 1280px and 320px with no console/CSP/HTTP errors. bundle-audit clean. Chromium rechecked the Host B Surface flow and the Host A filter flow on the esbuild 0.28.2 bundle. Remote GitHub Actions passed on Ruby 4.0.9 for commit 02eb89c with actions/checkout 7.0.1 and actions/setup-node 7.1.0: SQLite and PostgreSQL suites, both packaged hosts, Sprockets, assets, docs and dependency audit |
 | Independent packaged Host B: Devise 5.0.4 / Pundit 2.5.2 / PostgreSQL | Real login/CSRF/logout/timeout, role/tenant grants, UUID replay/selection, independent selection grants, collection partial cancellation, separate parent/item grants and synthetic outbox effects, alias scope, product SDK coexistence and TestKit matrix: 20 tests / 237 assertions; generated anonymous HTTP test (1 / 1). Existing mount in a `draw` route file preserved |
 | Host B Propshaft 1.3.2 or Sprockets 4.4.1 / sprockets-rails 3.5.2, jsbundling-rails 1.3.1 | Both production precompiles and eager boots passed; host esbuild 0.25.12 bundle built; each variant passed Host B acceptance. These are two variants of one host |
 | Host B development reload and process recovery | Real source reload replaced computation/field/model/resource/policy/context/Operation/Work classes and registries; a changed plugin version rejected old field contracts; killed precommit transaction rolled back domain/claim/audit; response-loss replay returned one receipt. Separate worker processes died before/after synthetic effects: expired-lease idempotent replay applied once, non-idempotent pre-effect retry succeeded, and unknown non-idempotent outcome required reconciliation without resend |
-| Real providers | Not tested; no paid calls. Persisted admin Chat, Surface proposals and continuation have offline evidence only (row above) |
+| Real providers | One full flow per model family through OpenRouter on 2026-11-03 is recorded above. Native OpenAI/Anthropic APIs and live failure recovery remain unverified; no paid call was made during the 2026-11-06 hardening pass |
 
-Runtime bounds: Ruby >= 4.0.9 (development and CI pin `.ruby-version` 4.0.9); Rails >= 8.1.4 and < 8.2; rails_tool_views ~> 1.0.2;
+Runtime bounds: Ruby >= 4.0.9 (development and CI pin `.ruby-version` 4.0.9); Rails >= 8.1.4.1 and < 8.2; rails_tool_views ~> 1.0.2;
 RubyLLM >= 2.1.1 and < 3; json_schemer ~> 2.5; base64 ~> 0.3; turbo-rails ~> 2.0; stimulus-rails ~> 1.3. These bounds
 are candidate dependency constraints, not proof every resolvable combination works.
 The lockfile records actual resolution, including Linux/source platform metadata.
@@ -223,8 +256,9 @@ certification. Firefox, Safari, 200% zoom, multilingual/long data and broader
 fault injection remain open. Internal model review is not an independent audit.
 
 RubyGems `rails_ai_admin` lookup returned HTTP 404 on 2026-10-29; no name is
-reserved and no trademark clearance is claimed. No remote repository, hosted
-docs site, deployment, tag or gem publication has been created.
+reserved and no trademark clearance is claimed. The remote repository and CI
+now exist; the package remains unreleased, without a release tag or RubyGems
+publishing authorization.
 
 Dependency and docs lockfiles passed bundler-audit against advisory DB commit
 `920f5cd5e02cbe598f60afb02f533d608133b795` (1,284 advisories). Frontend installation

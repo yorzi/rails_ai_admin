@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Reconcile the association/Chat branch with remote main, retaining the standalone
+  assistant proposal API and its explicit `assistant: true` opt-in. Admin Chat
+  now honors that flag too; native Surface permission alone grants no proposal.
+- Fence assistant message persistence atomically against the current turn lease,
+  including late provider answers/tool calls and stale-worker cleanup. Recovery
+  removes abandoned placeholders without dropping billed usage.
+- Fix Chat search pagination independently of native page size; byte-truncated
+  results return `next_offset` so omitted records remain reachable.
+- Distinguish `.dev` builds from approved alpha/beta/RC versions in release checks;
+  published prereleases need versioned changelog/docs metadata and owner approval.
+- Raise the Rails dependency floor to 8.1.4.1 and refresh affected Ruby lockfiles
+  (Rails, Addressable, Loofah, Nokogiri and rails-html-sanitizer).
+
 - Add opt-in admin Chat (`config.assistant`, ADR 0022). The
   `rails_ai_admin:assistant` generator adds Engine-owned chat, message and turn
   tables and a closed `AdminAssistant` adapter whose `llm_context(context:)`
@@ -47,6 +60,16 @@
 - `rake build` names the package from `RailsAiAdmin::VERSION`, and
   `rake release:check` reports release readiness without publishing.
 
+- Merge Dependabot updates after verification: actions/checkout 7.0.1 and
+  actions/setup-node 7.1.0 (still SHA-pinned), jekyll-vitepress-theme 1.11.0,
+  esbuild 0.28.2 (prebuilt bundle rebuilt) and Minitest 6.0.6. Minitest 6
+  extracted `minitest/mock`, so `minitest-mock` is now a development dependency
+  and the packaged hosts pin Minitest `~> 6.0`.
+- Add assistant operation proposals: `operation ..., assistant: true` and the
+  on-demand `Integrations::ProposeOperation` RubyLLM tool, which preflights an
+  `assistant`-origin intent and presents the review Surface; only the human's
+  Surface confirmation executes. Tool-call replays are idempotent.
+- Record open rails_tool_views integration findings DEP-008..012.
 - Add opt-in admin review Surfaces on the host-owned rails_tool_views runtime:
   `config.surfaces`, `operation ..., surface: true`, admin-owned endpoints with an
   explicit `raa:` Scope and a constant `raa_operation_review` component. A

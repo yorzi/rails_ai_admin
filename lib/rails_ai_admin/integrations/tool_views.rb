@@ -81,14 +81,17 @@ module RailsAiAdmin
         # Presents (or replays) the review Surface for an unconsumed intent. A
         # native intent replays per intent; an assistant intent belongs to its
         # chat and replays per persisted tool call.
-        def present(context:, resource:, definition:, record:, intent_ref:, input:, chat: nil, call_id: nil)
+        def present(context:, resource:, definition:, record:, intent_ref:, input:, chat: nil, call_id: nil, assistant_call: nil)
           ensure_registered!
           raise AccessDenied unless resource.surface_operation?(definition.key) && definition.custom? && definition.scope == :member
+          raise AccessDenied if chat && assistant_call
+          origin = chat || assistant_call ? "assistant" : "ui"
+          raise AccessDenied if assistant_call && !resource.assistant_operation?(definition.key)
           raise AccessDenied unless intent_ref.is_a?(String) && intent_ref.match?(/\A[0-9a-f-]{36}\z/)
           raise AccessDenied if chat && !(call_id.is_a?(String) && chat.current_for?(context) && chat.actor_ref == context.actor_ref && chat.tenant_ref == context.tenant_ref)
           run = OperationRun.find_by(id: intent_ref, actor_ref: context.actor_ref, tenant_ref: context.tenant_ref)
           unless run && run.id == intent_ref && run.resource_key == resource.key.to_s && run.operation == definition.key.to_s &&
-              run.target_id == record.id.to_s && run.status == "proposed" && run.origin == (chat ? "assistant" : "ui") && run.parent_run_id.nil?
+              run.target_id == record.id.to_s && run.status == "proposed" && run.origin == origin && run.parent_run_id.nil?
             raise AccessDenied
           end
           raise AccessDenied, "APPROVAL_EXPIRED" unless run.expires_at && run.expires_at > Time.current
@@ -97,6 +100,8 @@ module RailsAiAdmin
           raise AccessDenied, "APPROVAL_INVALIDATED" unless run.input_digest && run.input_digest == InputSchema.digest(input_values(context, resource, definition, record, wire))
           reference, correlation = if chat
             [ chat.context_reference, { adapter: ASSISTANT_ADAPTER, call_id: call_id, context: chat.context_reference } ]
+          elsif assistant_call
+            [ assistant_call.fetch(:conversation), { adapter: "raa_assistant", call_id: assistant_call.fetch(:call_id), context: assistant_call.fetch(:conversation) } ]
           else
             [ "raa:intent:#{run.id}", { adapter: "raa_native_review", call_id: run.id, context: "raa:intent:#{run.id}" } ]
           end

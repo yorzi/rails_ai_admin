@@ -38,6 +38,9 @@ when at least one resource grants it. Every tool call also applies the actor's
 current index, show, read, search, filter and operation grants, so the model
 never sees more than the same person could open.
 
+Member proposals also require the explicit `assistant: true` operation flag
+(`surface: true` remains necessary); a native review alone grants no AI exposure.
+
 **Storage.** `RailsAiAdmin::Assistant::Chat` and `Message` use RubyLLM 2.1.1's
 `acts_as_chat`/`acts_as_message` with Engine table names. A chat belongs to one
 actor, tenant and security version. Tool calls and usages live in RubyLLM's
@@ -125,3 +128,14 @@ fixed versioned constant, not host-overridable yet. Chats have no retention job.
 Host B packaged evidence and a Chromium check are recorded separately in
 `COMPATIBILITY.md` when run. Prompt injection is mitigated by data/instruction
 separation, grants and human confirmation, not eliminated.
+
+## Response persistence hardening (2026-11-06)
+
+An in-flight provider request can outlive its lease. Worker-scoped callbacks on
+Engine-owned Message saves and deletes now lock Chat then Turn and validate the
+owner, generation, active state and unexpired lease before persistence. The
+transaction also encloses RubyLLM's tool-call/result links. No persistence lock
+is held across provider I/O. A replacement worker removes abandoned empty
+assistant placeholders before rebuilding the SDK chat; a stale worker cannot
+publish a late answer or tool call. Actual provider usage remains accounted for,
+even when its response is rejected, and product chat models are unchanged.

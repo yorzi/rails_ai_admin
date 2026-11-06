@@ -121,8 +121,9 @@ this file records current scope without rewriting its historical review claims.
   rails_tool_views `deliver` (whose 1.0.2 interactions need a global adapter).
   Both test databases, packaged Host B beside its product chat and a Chromium
   check (three defects fixed) verify it with RubyLLM's real provider and tool
-  loop against offline fixtures. Live providers, streaming, budgets, page
-  context, aggregate tools and retention remain open.
+  loop against offline fixtures. One live flow per model family through
+  OpenRouter is recorded separately; native APIs, live recovery, streaming,
+  budgets, page context, aggregate tools and retention remain open.
 - Server-owned intents with input/identity/epoch/version/expiry binding, database
   serialization, replay, atomic domain/audit/receipt, callback rollback handling
   and separate post-commit warning (synchronous parts of RAA-0112/0113).
@@ -161,9 +162,10 @@ this file records current scope without rewriting its historical review claims.
 - Public Jekyll/RDoc/LLM documentation, threat model and initial ADRs. ADRs are
   implementation decisions awaiting owner review, not an approved Gate A.
 
-See COMPATIBILITY.md for exact executed combinations. CI is configured for Ruby
-3.4/4.0 and SQLite/PostgreSQL, packaged installation, asset reproducibility,
-documentation and advisory scanning. No remote CI run has occurred.
+See COMPATIBILITY.md for dated executed combinations. CI uses Ruby 4.0.9
+from `.ruby-version`, SQLite/PostgreSQL, both packaged hosts, asset
+reproducibility, documentation and advisory scanning. Earlier remote runs
+passed; each new candidate still needs green CI on its exact commit.
 
 ## Next implementation checkpoint
 
@@ -183,9 +185,8 @@ columns (LIST-019), has_one/has_many :through and CRUD-021 attach/detach policie
 The resource DSL, three-domain CRUD, status/controller extension, recovery, list
 navigation and belongs_to/has_many reads now have local evidence; this does not
 close the full Phase 2 or release gates.
-Prepare the narrow Order Review shared-operation/Surface proof after its relevant
-prerequisites are verified; the existing ordinary Order workbench supplies its
-conventional execution baseline.
+The Order workbench supplies the conventional shared-operation baseline;
+Chat/Surface and continuation have their own implemented and dated evidence.
 
 Continue the shared execution contracts while the full Phase 1 evidence remains open:
 
@@ -202,7 +203,8 @@ Continue the shared execution contracts while the full Phase 1 evidence remains 
    evidence. Add the allowed-failure Rails main prewarning and complete the wider
    CI/security/browser matrices after their prerequisites exist.
 4. Continue the documented rails_tool_views 1.0.2 host-owned shared-runtime
-   integration; DEP-001/006 are closed, while admin Surface acceptance is open.
+   integration; DEP-001/006 are closed. The initial admin Surface and continuation
+   slices have local evidence; broader Surface acceptance remains open.
    DEP-007 is closed: admin Chat uses Engine-owned Chat/Message tables and
    RubyLLM's shared ToolCall/Usage tables, isolated per chat; an equal-id
    product chat contract test covers it.
@@ -213,12 +215,13 @@ Continue the shared execution contracts while the full Phase 1 evidence remains 
   status/controller extension, the complete resource DSL (menus, scopes, filters,
   index tables) and generic open-tab recovery have local evidence; persistent drafts and
   custom-operation recovery stay open.
-- Early proof: ordinary Order Review and one trusted Surface through the same
-  Operation, then an offline released RubyLLM loop and continuation faults.
+- Early proof follow-up: extend the existing Chat/Surface/continuation fault
+  coverage and native-provider evidence; the initial offline flow is implemented.
 - Phases 3–4: associations, batch/selection, CSV, private files, audit explorer,
   dashboards and the complete conventional P0 baseline.
-- Phases 5–7: isolated persistent Chat, released-SDK integration, quotas, revocation,
-  single business approval authority, Surface coexistence and durable continuation.
+- Phases 5–7: expand the existing persistent Chat, shared-runtime Surface and
+  continuation implementation with quotas, streaming, context, retention and
+  the complete revocation/failure/evaluation matrix.
 - Phases 8–9: migration/independent users, broader performance/accessibility and
   security review, packaged RC/restore evidence and explicit release approval.
 

@@ -386,6 +386,9 @@ grants it. Tools (`list_resources`, `describe_resource`, `search_records`,
 `get_record`, and `propose_operation` with Surfaces) apply current index, show,
 read, search, filter and operation grants and return bounded JSON with fixed
 error codes. A chat is bound to actor, tenant and security version.
+Both proposal tools also require `operation ..., surface: true, assistant: true`.
+Search returns a bounded `next_offset` continuation after byte truncation,
+independent of the native index page size; the 1,000-record cap is explicit.
 
 A request only admits a turn keyed per chat; workers claim the lowest active
 turn under a lease and fencing generation, rebuild authority with
@@ -395,8 +398,18 @@ presents `raa_operation_review`; the human's Surface confirmation commits the
 business write and admits one `intent:` continuation turn in the same
 transaction. `rails_ai_admin:assistant:scan`/`drain` recover queued or expired
 turns. Usage rows are owned by the admin chat. No streaming, budgets, page
-context, live-provider evidence or retention exist yet. See ADR 0022 and the
+context or retention exist yet. One live flow per model family through
+OpenRouter is recorded separately; native APIs and live failure recovery remain
+unverified. See ADR 0022 and the
 Admin Assistant guide.
+
+`operation ..., assistant: true` (requires `surface: true`) lets
+`Integrations::ProposeOperation.new(context:, conversation: "raa:conversation:<id>")`,
+a `RubyLLM::Tool` named `raa_propose_operation`, propose that operation: the
+server runs `Runner#preflight` with `origin: :assistant` and a per-tool-call
+UUIDv5 `intent_id`, then presents `raa_operation_review`. The tool cannot
+confirm; replays re-present, conflict, or report `reviewed`. Provider settings
+stay in `RubyLLM.context`. See ADR 0023.
 
 ## Host controllers and fixed statuses
 

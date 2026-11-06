@@ -138,7 +138,7 @@ module RailsAiAdmin
       # proposal is authorized against its record by propose_operation.
       def operations(resource, _access)
         RailsAiAdmin.operation_registry.custom(resource).filter_map do |definition|
-          next unless definition.scope == :member && resource.surface_operation?(definition.key)
+          next unless definition.scope == :member && resource.assistant_operation?(definition.key)
           { "key" => definition.key.to_s, "description" => definition.description.to_s.truncate(200),
             "input" => definition.handler_class.input.map { |field| field_entry(field).merge("required" => field.options[:required] == true) } }
         end
@@ -147,28 +147,45 @@ module RailsAiAdmin
 
     class SearchRecords < Tool
       PAGE_LIMIT = 20
-      description "Search one resource's records with optional text and typed filters. Returns up to 20 records per page."
+      MAX_RECORDS = 1_000
+      description "Search one resource's records with optional text and typed filters. Returns up to 20 records. When has_more is true, pass next_offset as offset to continue, including after truncation."
       parameters({ "type" => "object", "required" => [ "resource" ], "additionalProperties" => false,
         "properties" => {
           "resource" => { "type" => "string" },
           "query" => { "type" => "string", "maxLength" => 200, "description" => "Text matched against searchable fields" },
           "filters" => { "type" => "object", "description" => "Field name to {\"eq\"|\"gte\"|\"lte\": value}",
             "additionalProperties" => { "type" => "object", "additionalProperties" => { "type" => %w[string number boolean] } } },
-          "page" => { "type" => "integer", "minimum" => 1, "maximum" => 50 }
+          "page" => { "type" => "integer", "minimum" => 1, "maximum" => 50 },
+          "offset" => { "type" => "integer", "minimum" => 0, "maximum" => MAX_RECORDS - 1, "description" => "The next_offset returned by the previous result" }
         } })
 
       def self.tool_name = "search_records"
 
       private
 
-      def perform(tool_call:, resource:, query: nil, filters: nil, page: 1)
+      def perform(tool_call:, resource:, query: nil, filters: nil, page: 1, offset: nil)
         resource = @session.resource(resource)
         access = @session.access(resource)
         raise AccessDenied, "INVALID_QUERY" unless page.is_a?(Integer) && page.between?(1, 50)
-        result = Queries::List.new(@session.context, resource).call(search: query.presence, page: page.to_s, filters: wire_filters(filters))
-        records = result.records.first(PAGE_LIMIT)
-        { "resource" => resource.key.to_s, "page" => result.number, "has_more" => result.has_next || result.records.size > PAGE_LIMIT,
-          "records" => records.map { |record| record_entry(access, record, :index) } }
+        offset = (page - 1) * PAGE_LIMIT if offset.nil?
+        raise AccessDenied, "INVALID_QUERY" unless offset.is_a?(Integer) && offset.between?(0, MAX_RECORDS - 1)
+        result = Queries::List.new(@session.context, resource).call(search: query.presence, page: page.to_s, filters: wire_filters(filters),
+          page_size: [ PAGE_LIMIT, MAX_RECORDS - offset ].min, offset: offset)
+        { "resource" => resource.key.to_s, "page" => result.number, "offset" => offset, "has_more" => result.has_next,
+          "records" => result.records.map { |record| record_entry(access, record, :index) } }
+      end
+
+      # Leave room for continuation metadata before applying the byte bound.
+      # Advance by what the model actually saw, not the number queried.
+      def bounded(result)
+        return result if result["error"]
+        result = super(result.merge("next_offset" => MAX_RECORDS, "limit_reached" => false))
+        records = result.fetch("records")
+        return failure("UNAVAILABLE") if records.empty? && result["truncated"]
+        next_offset = result.fetch("offset") + records.size
+        more = result["has_more"] || result["truncated"] == true
+        result.merge("next_offset" => more && next_offset < MAX_RECORDS ? next_offset : nil,
+          "has_more" => more && next_offset < MAX_RECORDS, "limit_reached" => more && next_offset >= MAX_RECORDS)
       end
 
       def wire_filters(filters)
@@ -228,7 +245,7 @@ module RailsAiAdmin
         raise AccessDenied, "INVALID_QUERY" unless input.is_a?(Hash) && operation.is_a?(String) && id.is_a?(String)
         resource = @session.resource(resource)
         definition = RailsAiAdmin.operation_registry.fetch(resource, operation)
-        raise AccessDenied unless definition.custom? && definition.scope == :member && resource.surface_operation?(definition.key)
+        raise AccessDenied unless definition.custom? && definition.scope == :member && resource.assistant_operation?(definition.key)
         tool_views = Assistant.tool_views
         replay = tool_views.assistant_surface(@session.context, @session.chat, tool_call.id)
         return acknowledgment(replay) if replay

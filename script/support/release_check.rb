@@ -38,6 +38,7 @@ class ReleaseCheck
   private
 
   def prerelease? = Gem::Version.new(version).prerelease?
+  def development? = Gem::Version.new(version).segments.include?("dev")
 
   def version_check
     raise ArgumentError unless Gem::Version.correct?(version)
@@ -56,14 +57,14 @@ class ReleaseCheck
     config = YAML.safe_load_file(File.join(@root, "docs/site/_config.yml"))
     problems = []
     problems << "version is #{config['version'].inspect}" unless config["version"] == version
-    problems << "released must be #{!prerelease?}" unless config["released"] == !prerelease?
+    problems << "released must be #{!development?}" unless config["released"] == !development?
     return Check.new("docs_config", :ok, "docs/site/_config.yml matches #{version}") if problems.empty?
     Check.new("docs_config", :error, "docs/site/_config.yml: #{problems.join('; ')}")
   end
 
   def changelog_check
     headings = File.read(File.join(@root, "CHANGELOG.md")).scan(/^## (.+)$/).flatten.map(&:strip)
-    if prerelease?
+    if development?
       return Check.new("changelog", :ok, "Unreleased section present") if headings.first == "Unreleased"
       return Check.new("changelog", :error, "Start CHANGELOG.md with an Unreleased section")
     end
@@ -73,7 +74,7 @@ class ReleaseCheck
 
   # The gemspec globs the tree, so an untracked local file would ship silently.
   def package_files_check
-    spec = Dir.chdir(@root) { Gem::Specification.load("rails_ai_admin.gemspec") }
+    spec = Dir.chdir(@root) { Gem::Specification.load(File.join(@root, "rails_ai_admin.gemspec")) }
     return Check.new("package_files", :error, "rails_ai_admin.gemspec did not load") unless spec
     tracked, status = Open3.capture2("git", "-C", @root, "ls-files", "-z")
     return Check.new("package_files", :review, "git ls-files failed; package contents unverified") unless status.success?
@@ -90,7 +91,7 @@ class ReleaseCheck
   end
 
   def metadata_check
-    spec = Dir.chdir(@root) { Gem::Specification.load("rails_ai_admin.gemspec") }
+    spec = Dir.chdir(@root) { Gem::Specification.load(File.join(@root, "rails_ai_admin.gemspec")) }
     required = %w[source_code_uri changelog_uri bug_tracker_uri]
     missing = required.reject { |key| spec.metadata[key].to_s.start_with?("https://") }
     missing << "rubygems_mfa_required" unless spec.metadata["rubygems_mfa_required"] == "true"
@@ -101,13 +102,14 @@ class ReleaseCheck
 
   # Publishing stays blocked in the gemspec until the owner approves a release.
   def publish_gate_check
-    spec = Dir.chdir(@root) { Gem::Specification.load("rails_ai_admin.gemspec") }
+    spec = Dir.chdir(@root) { Gem::Specification.load(File.join(@root, "rails_ai_admin.gemspec")) }
     host = spec.metadata["allowed_push_host"]
     if host == BLOCKED_PUSH_HOST
-      return Check.new("publish_gate", prerelease? ? :closed : :error,
+      return Check.new("publish_gate", development? ? :closed : :error,
         "allowed_push_host blocks `gem push`. Only the owner changes it, in the release commit, after approval.")
     end
-    return Check.new("publish_gate", :error, "allowed_push_host is open in a prerelease build") if prerelease?
+    return Check.new("publish_gate", :error, "allowed_push_host is open in a development build") if development?
+    return Check.new("publish_gate", :error, "allowed_push_host must be https://rubygems.org") unless host == "https://rubygems.org"
     Check.new("publish_gate", :review, "allowed_push_host is #{host}; confirm the owner's recorded approval")
   end
 
