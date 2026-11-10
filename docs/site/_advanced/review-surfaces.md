@@ -36,7 +36,13 @@ end
 ```
 
 Boot fails with a configuration error if `surfaces` is enabled but
-rails_tool_views is not loaded. Without the opt-in, the admin loads no
+rails_tool_views is not loaded, or if rails_tool_views' `parent_controller`
+(by default `"::ApplicationController"`) does not name an
+`ActionController::Base` subclass. rails_tool_views' own controller inherits that
+class whenever the application eager loads, so an API-only or minimal host
+without an `ApplicationController` would otherwise fail production boot. Add the
+controller, or set `config.parent_controller` in your `RailsToolViews.configure`
+block. Without the opt-in, the admin loads no
 rails_tool_views code and draws no Surface routes. `rails_ai_admin:doctor`
 reports the state under `surfaces`.
 

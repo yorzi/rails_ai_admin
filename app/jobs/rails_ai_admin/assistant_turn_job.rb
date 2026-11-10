@@ -4,7 +4,7 @@ module RailsAiAdmin
   # Runs due assistant turns of one chat. Loading this file loads no RubyLLM
   # code; the assistant is required only when a job actually runs.
   class AssistantTurnJob < ActiveJob::Base
-    queue_as :rails_ai_admin
+    queue_as { RailsAiAdmin.configuration.queue_name }
 
     def perform(chat_ref)
       return unless RailsAiAdmin.configuration.assistant

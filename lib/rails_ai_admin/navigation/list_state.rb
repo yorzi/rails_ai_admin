@@ -91,6 +91,11 @@ module RailsAiAdmin
       def normalize_scope!(access, values, strict)
         name = values["scope"]
         return unless name
+        # "No list tab" only means something while a default tab would apply.
+        if name == Queries::NamedScope::NONE
+          values.delete("scope") unless access.named_scopes.any?(&:default?)
+          return
+        end
         if strict && access.resource.scopes.none? { |definition| definition.name.to_s == name }
           raise AccessDenied, "INVALID_QUERY"
         end
@@ -175,7 +180,7 @@ module RailsAiAdmin
         valid &&= !values["sort"] || values["sort"] == "" || values["sort"].match?(/\A[a-z][a-z0-9_]{0,79}\z/)
         valid &&= !values["direction"] || %w[asc desc].include?(values["direction"])
         valid &&= !values["page"] || values["page"].match?(/\A[1-9]\d{0,3}\z/) && values["page"].to_i <= 1000
-        valid &&= !values["scope"] || values["scope"] == "" || values["scope"].match?(Queries::NamedScope::NAME)
+        valid &&= !values["scope"] || values["scope"] == "" || values["scope"] == Queries::NamedScope::NONE || values["scope"].match?(Queries::NamedScope::NAME)
         unless valid
           @discarded = true
           return {}

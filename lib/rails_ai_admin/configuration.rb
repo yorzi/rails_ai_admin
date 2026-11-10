@@ -12,7 +12,10 @@ module RailsAiAdmin
       # Opt-in admin Chat. The host loads ruby_llm and names an adapter that
       # builds a RubyLLM::Context per admin Context; global RubyLLM settings
       # are never read for credentials or changed.
-      :assistant, :assistant_adapter, :assistant_model, :assistant_provider, :assistant_protocol
+      :assistant, :assistant_adapter, :assistant_model, :assistant_provider, :assistant_protocol,
+      # Active Job queue for collection, outbox and assistant jobs (RAA-020).
+      # Workers with explicit queue lists must include it.
+      :queue_name
 
     def initialize
       @authentication_path = nil
@@ -26,6 +29,7 @@ module RailsAiAdmin
       @collection_auto_dispatch = false
       @field_types = {}
       @surfaces = false
+      @queue_name = "rails_ai_admin"
       @assistant = false
       @assistant_adapter = nil
       @assistant_model = nil
@@ -47,8 +51,15 @@ module RailsAiAdmin
       end
       raise ConfigurationError, "collection_auto_dispatch must be boolean" unless [ true, false ].include?(collection_auto_dispatch)
       raise ConfigurationError, "surfaces must be boolean" unless [ true, false ].include?(surfaces)
+      unless (queue_name.is_a?(String) || queue_name.is_a?(Symbol)) && queue_name.to_s.match?(/\A[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}\z/)
+        raise ConfigurationError, "queue_name must be a short queue name"
+      end
+      self.queue_name = queue_name.to_s.freeze
       if surfaces && !defined?(::RailsToolViews::Engine)
         raise ConfigurationError, "surfaces requires the host to load rails_tool_views (add it to the Gemfile and run its installer)"
+      end
+      if surfaces && (problem = surfaces_parent_controller_problem)
+        raise ConfigurationError, problem
       end
       validate_assistant!
       unless authentication_path.nil? || authentication_path.is_a?(String) && authentication_path.valid_encoding? && authentication_path.ascii_only? && authentication_path.match?(INTERNAL_PATH)
@@ -67,6 +78,19 @@ module RailsAiAdmin
       authorization_adapter.freeze
       [ assistant_adapter, assistant_model, assistant_provider, assistant_protocol ].each { |value| value&.freeze }
       freeze
+    end
+
+    # rails_tool_views' own controller inherits its parent_controller when the
+    # host eager loads; a missing "::ApplicationController" (an API-only or
+    # minimal host) would otherwise fail production boot with a bare NameError
+    # (RAA-009, DEP-010). Returns nil when the parent resolves.
+    def surfaces_parent_controller_problem
+      return unless defined?(::RailsToolViews) && ::RailsToolViews.respond_to?(:configuration)
+      name = ::RailsToolViews.configuration.parent_controller.to_s
+      parent = name.safe_constantize
+      return if parent.is_a?(Class) && parent <= ::ActionController::Base
+      "surfaces needs rails_tool_views' parent_controller (#{name.inspect}) to name an ActionController::Base subclass. " \
+        "Add that controller, or set config.parent_controller in your RailsToolViews.configure block."
     end
 
     private

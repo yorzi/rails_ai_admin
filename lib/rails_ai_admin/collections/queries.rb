@@ -4,7 +4,9 @@ module RailsAiAdmin
   module Collections
     class Queries
       Entry = Data.define(:record_id, :label, :status, :code, :audit_ref, :warning, :work_statuses)
-      Snapshot = Data.define(:job_ref, :resource_key, :operation, :description, :status, :counts, :entries, :hidden_count, :can_cancel, :warning)
+      # waiting_since: when the oldest still-queued item of an active run was
+      # queued, so a page can say that nothing has picked it up (RAA-020).
+      Snapshot = Data.define(:job_ref, :resource_key, :operation, :description, :status, :counts, :entries, :hidden_count, :can_cancel, :warning, :waiting_since)
 
       def fetch(context:, job_ref:, summary: false)
         ActiveRecord::Base.while_preventing_writes do
@@ -26,8 +28,10 @@ module RailsAiAdmin
           rescue AccessDenied
             false
           end
+          waiting = Contract::ACTIVE.include?(parent.status) && items.none? { |item| item.status == "running" } ?
+            items.select { |item| item.status == "queued" }.map(&:created_at).compact.min : nil
           Snapshot.new(parent.id, resource.key.to_s, parent.operation, definition.description, parent.status, counts,
-            entries.freeze, summary ? 0 : items.size - entries.size, cancellable, parent.warning_code)
+            entries.freeze, summary ? 0 : items.size - entries.size, cancellable, parent.warning_code, waiting)
         end
       rescue StandardError => error
         raise if error.is_a?(AccessDenied) || error.is_a?(ConfigurationError)

@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+- Unbreak ordinary flows (audit 2026-11-10). A list page leaves out an in-scope
+  row whose `show` is denied and says so instead of returning 404 for the whole
+  page; `TestKit.assert_scope_matches_show` finds the disagreement (RAA-001). An
+  association panel's "View all" link carries the new `scope=_none` list state so
+  the child's default tab no longer hides children the panel showed (RAA-006).
+  "Capture selection" with nothing ticked returns to the list with a notice,
+  duplicate ids collapse, and the button stays disabled until a row is ticked
+  (RAA-013). A delete blocked by a foreign key or `restrict_with_error` returns
+  the new `RESTRICTED` code with the model's reason instead of "Conflict… open a
+  fresh form" (RAA-012). Form pages no longer write: they issue a signed form
+  reference that becomes the intent on first submit or recovery, and
+  `rails_ai_admin:prune` removes expired unused intents and selections (RAA-005,
+  ADR 0025). Boot and doctor report a rails_tool_views `parent_controller` that
+  does not resolve when Surfaces are on (RAA-009). Job pages say when work is
+  waiting for a worker, doctor reports a backlog, and `config.queue_name`
+  makes the `rails_ai_admin` queue name configurable (RAA-020). Error summaries use
+  a sentence per result code with the code as secondary text.
 - Stop silent data changes from conventional forms (audit 2026-11-10):
   blank or whitespace-only text is stored as null in a nullable field and
   rejected with "cannot be blank" when the field is `required` or

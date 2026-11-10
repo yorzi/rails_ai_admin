@@ -86,3 +86,4 @@
 .raa .raa-chat-composer { display:grid; gap:.5rem; margin-top:1rem; }
 .raa .raa-chat-composer textarea { width:100%; box-sizing:border-box; }
 .raa .raa-chat-list { padding-left:1.25rem; }
+.raa .raa-code { color:var(--raa-muted); font-size:.8rem; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }

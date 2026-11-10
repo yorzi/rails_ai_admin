@@ -20,7 +20,8 @@ module RailsAiAdmin
         @resource = resource
       end
 
-      # scope: nil uses the declared default when it is currently granted.
+      # scope: nil uses the declared default when it is currently granted;
+      # NamedScope::NONE applies no named scope at all.
       # A named scope must be declared and granted; it is never discarded here.
       # filters: { "field" => { "eq" | "gte" | "lte" => "wire string" } }, ANDed.
       # Every field needs a current :filter grant and a declared operator.
@@ -33,12 +34,16 @@ module RailsAiAdmin
         unless search.nil? || search.is_a?(String) && search.valid_encoding? && (search.encoding == Encoding::UTF_8 || search.ascii_only?) && search.length <= 200 && !search.match?(/[\x00-\x1f\x7f]/)
           raise AccessDenied, "INVALID_QUERY"
         end
-        unless scope.nil? || scope.is_a?(String) && scope.valid_encoding? && scope.ascii_only? && scope.match?(NamedScope::NAME)
+        unless scope.nil? || scope == NamedScope::NONE || scope.is_a?(String) && scope.valid_encoding? && scope.ascii_only? && scope.match?(NamedScope::NAME)
           raise AccessDenied, "INVALID_QUERY"
         end
         granted = @access.named_scopes
-        named = scope.nil? ? granted.find(&:default?) : granted.find { |definition| definition.name.to_s == scope }
-        raise AccessDenied, "INVALID_QUERY" if scope && !named
+        unscoped = scope == NamedScope::NONE
+        named = if unscoped then nil
+        elsif scope.nil? then granted.find(&:default?)
+        else granted.find { |definition| definition.name.to_s == scope }
+        end
+        raise AccessDenied, "INVALID_QUERY" if scope && !unscoped && !named
         relation = @access.relation
         relation = named.apply(relation) if named
         relation = apply_filters(relation, filters)

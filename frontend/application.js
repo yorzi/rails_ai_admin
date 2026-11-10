@@ -239,6 +239,22 @@ class PollController extends Controller {
     this.element.removeEventListener("turbo:submit-end", this.changed);
   }
 }
+// Enables "Capture selection" once a row is ticked. The boxes live in the
+// table and join the form through form="…". Without JavaScript the button
+// stays enabled and an empty submit returns to the list with a notice.
+class SelectionController extends Controller {
+  static targets = ["submit"];
+  connect() {
+    this.update = () => {
+      const boxes = document.querySelectorAll(`input[type="checkbox"][form="${this.element.id}"]`);
+      if (this.hasSubmitTarget) this.submitTarget.disabled = ![...boxes].some((box) => box.checked);
+    };
+    document.addEventListener("change", this.update);
+    this.update();
+  }
+  disconnect() { document.removeEventListener("change", this.update); }
+}
+application.register("raa-selection", SelectionController);
 application.register("raa-poll", PollController);
 application.register("raa-form-recovery", FormRecoveryController);
 application.register("raa-dirty-form", DirtyFormController);

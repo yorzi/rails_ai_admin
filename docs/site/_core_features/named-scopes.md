@@ -103,6 +103,13 @@ granted default is omitted from URLs, so `/admin/orders` and
 `/admin/orders?scope=drafts` give the same canonical list. Tabs keep search and
 sort and reset the page.
 
+`scope=_none` shows the whole authorized relation even when a default exists. It
+narrows nothing the policy relation does not already allow, and it cannot collide
+with a declared name. The engine uses it for an association panel's **View all**
+link, so that list matches the panel. The list then says it is showing every
+record without a list tab. Where no granted default applies, `_none` is dropped
+as redundant. Other names that start with `_` are invalid.
+
 `scope` is the fifth list-hint key alongside `q`, `sort`, `direction` and `page`,
 and travels through record, operation, selection and job flows like the others.
 An undeclared or malformed name is an invalid query (422). A declared scope whose
@@ -116,7 +123,7 @@ page = RailsAiAdmin::Queries::List.new(context, OrderAdmin).call(scope: "reviewe
 page.scope # => "reviewed"
 ```
 
-`call(scope: nil)` applies the granted default. An ungranted or unknown name
+`call(scope: nil)` applies the granted default; `call(scope: "_none")` applies none. An ungranted or unknown name
 raises `AccessDenied` with `INVALID_QUERY`; the query API never falls back.
 
 ## Templates and Tests

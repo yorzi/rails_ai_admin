@@ -23,6 +23,9 @@ module RailsAiAdmin
       end
       require "rails_ai_admin/integrations/tool_views"
       return Check.new("surfaces", :error, "surfaces is enabled but rails_tool_views is not loaded.") unless Integrations::ToolViews.available?
+      if @configuration.respond_to?(:surfaces_parent_controller_problem) && (problem = @configuration.surfaces_parent_controller_problem)
+        return Check.new("surfaces", :error, problem)
+      end
       unless ::RailsToolViews::Surface.table_exists? && ::RailsToolViews::ActionExecution.table_exists?
         return Check.new("surfaces", :error, "Run the rails_tool_views installer migrations before enabling admin Surfaces.")
       end
@@ -70,7 +73,9 @@ module RailsAiAdmin
         Check.new("files", :unsupported, "Private attachment management is not implemented."),
         selection_check,
         Check.new("queue", @work_registry.definitions.empty? && collections.zero? ? :closed : :review,
-          "#{@work_registry.definitions.size} outbox handlers; #{collections} collection handlers; auto_dispatch=#{config.outbox_auto_dispatch}/#{config.collection_auto_dispatch}. Schedule both pending scans and verify persistent queues/downstream idempotency."),
+          "#{@work_registry.definitions.size} outbox handlers; #{collections} collection handlers; auto_dispatch=#{config.outbox_auto_dispatch}/#{config.collection_auto_dispatch}; " \
+          "jobs use the #{queue_name(config).inspect} queue. Schedule the pending scans, make sure a worker processes that queue, and verify persistent queues/downstream idempotency."),
+        backlog_check,
         surface_check
       ]
       result.concat(override_checks)
@@ -92,7 +97,8 @@ module RailsAiAdmin
           writable = !resource.readonly?
           status = writable && (!same_pool || !locking || model.composite_primary_key?) ? :error : :ok
           status = :error if writable && !%w[SQLite PostgreSQL].include?(model.connection.adapter_name)
-          message = "same_pool=#{same_pool}; lock_version=#{locking}; readonly=#{resource.readonly?}. Host callbacks must be database-only."
+          message = "same_pool=#{same_pool}; lock_version=#{locking}; readonly=#{resource.readonly?}. Host callbacks must be database-only. " \
+            "List pages omit in-scope records that deny show; check scope/show agreement with TestKit.assert_scope_matches_show."
           result << Check.new("resource:#{resource.key}", status, message)
           result.concat(schema_checks(resource, model))
           @operation_registry.custom(resource).each do |definition|
@@ -109,6 +115,30 @@ module RailsAiAdmin
     end
 
     private
+
+    BACKLOG_AGE = 15.minutes
+
+    def queue_name(config) = config.respond_to?(:queue_name) ? config.queue_name.to_s : "rails_ai_admin"
+
+    # Work that has been due for a while means no worker or scan is running it
+    # (RAA-020). Counts only; no record content or payload is read.
+    def backlog_check(now: Time.current)
+      cutoff = now - BACKLOG_AGE
+      due = ->(relation, table) { relation.where(table[:next_attempt_at].eq(nil).or(table[:next_attempt_at].lteq(now))).where(table[:created_at].lt(cutoff)) }
+      collection = due.call(BatchItem.where(status: "queued"), BatchItem.arel_table).count
+      outbox = due.call(WorkItem.where(status: "pending"), WorkItem.arel_table).count
+      turns = 0
+      if @configuration.respond_to?(:assistant) && @configuration.assistant
+        require "rails_ai_admin/assistant"
+        turns = due.call(Assistant::Turn.where(status: "queued"), Assistant::Turn.arel_table).count if Assistant::Turn.table_exists?
+      end
+      total = collection + outbox + turns
+      return Check.new("backlog", :ok, "No admin work has waited longer than #{BACKLOG_AGE.inspect}.") if total.zero?
+      Check.new("backlog", :review, "#{collection} collection items, #{outbox} outbox items and #{turns} assistant turns have waited longer than #{BACKLOG_AGE.inspect}. " \
+        "Check that a worker processes the #{queue_name(@configuration).inspect} queue and that the rails_ai_admin scans are scheduled.")
+    rescue ActiveRecord::ActiveRecordError, NameError
+      Check.new("backlog", :review, "Cannot inspect queued admin work. Check database connectivity and pending engine migrations.")
+    end
 
     def override_checks
       return [ Check.new("overrides", :review, "Run doctor inside the host to inspect standard app/views override metadata.") ] unless @application

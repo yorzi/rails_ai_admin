@@ -148,7 +148,7 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
     get "/staff/orders/forms/recover", headers: { "X-RailsAiAdmin-Recovery-Intent" => ref }
     assert_response :success
     assert_equal "ready", response.headers["X-RailsAiAdmin-Form-Recovery"]
-    assert_equal @user.security_version.to_s, RailsAiAdmin::OperationRun.find(ref).security_version
+    assert_equal @user.security_version.to_s, RailsAiAdmin::OperationRun.find(RailsAiAdmin::Operations::FormIntent.id_for(ref)).security_version
     assert_select "input[name='record[total]'][value='123.45']"
     assert_select "input[name='record[delivery_on]'][value='2026-11-02']"
     assert_select "select[name='record[expedited]'] option[selected][value=false]"

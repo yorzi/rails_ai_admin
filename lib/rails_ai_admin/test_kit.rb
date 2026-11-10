@@ -68,6 +68,28 @@ module RailsAiAdmin
       true
     end
 
+    # The policy scope and the record-level show decision should agree: list
+    # pages omit in-scope records whose show is denied (RAA-001), which reads as
+    # missing data. Checks up to sample records in primary-key order and names
+    # only how many disagree, never their content.
+    def self.assert_scope_matches_show(context:, resource:, sample: 100)
+      raise ArgumentError, "sample must be between 1 and 1000" unless sample.is_a?(Integer) && sample.between?(1, 1000)
+      access = Authorization::Access.new(context, resource)
+      model = resource.model_class
+      records = access.relation.reorder(model.arel_table[model.primary_key].asc).limit(sample).to_a
+      denied = records.count do |record|
+        access.authorize!(:show, record)
+        false
+      rescue AccessDenied
+        true
+      end
+      if denied.positive?
+        raise AssertionError, "#{denied} of #{records.size} sampled #{resource.key} records are in the policy scope but deny show; " \
+          "narrow the scope or allow show so list pages do not omit them"
+      end
+      true
+    end
+
     def self.assert_hidden(context:, resource:, field:, actions: FIELD_ACTIONS, record: nil)
       access = Authorization::Access.new(context, resource)
       actions.each do |action|

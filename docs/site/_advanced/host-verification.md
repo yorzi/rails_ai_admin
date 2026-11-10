@@ -80,7 +80,15 @@ RailsAiAdmin::TestKit.assert_isolated(
 RailsAiAdmin::TestKit.assert_hidden(
   context: context, resource: CustomerAdmin, field: :secret
 )
+RailsAiAdmin::TestKit.assert_scope_matches_show(
+  context: context, resource: CustomerAdmin, sample: 100
+)
 ```
+
+`assert_scope_matches_show` checks that every sampled record in the policy scope
+also passes the record-level `show` check. List pages leave out in-scope rows that
+deny `show` and say "Some records on this page are not available to you", which
+reads as missing data. The assertion names how many records disagree, never which.
 
 Run the same matrix for anonymous users, readers, writers, different tenants and
 revoked sessions. These helpers cover initial access, complete SQL scope and field

@@ -204,7 +204,7 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
     patch "/operations/tickets/#{@ticket.id}", params: { authenticity_token: token, intent_ref: intent, record: { subject: "Forbidden update" } }
     assert_response :not_found
     assert_equal "Support task", @ticket.reload.subject
-    assert_equal "proposed", RailsAiAdmin::OperationRun.find(intent).status
+    assert_equal "proposed", RailsAiAdmin::OperationRun.find(RailsAiAdmin::Operations::FormIntent.id_for(intent)).status
   end
 
   def test_tenant_switch_does_not_transfer_an_existing_intent
@@ -442,7 +442,8 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
       # Devise clears the old session's CSRF state on timeout too.
       assert_response :unprocessable_content
       assert_equal "Support task", @ticket.reload.subject
-      assert_equal "proposed", RailsAiAdmin::OperationRun.find(intent).status
+      # The rejected request never consumed the form: no run is past proposed.
+      refute RailsAiAdmin::OperationRun.where(id: RailsAiAdmin::Operations::FormIntent.id_for(intent)).where.not(status: "proposed").exists?
     end
   end
 

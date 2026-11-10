@@ -12,7 +12,15 @@ module RailsAiAdmin
       Row = Data.define(:id, :label, :linked)
       # list_filter is the canonical list filter for "view all", present only
       # while the child's reference field carries a current filter grant.
-      Panel = Data.define(:name, :label, :resource_key, :rows, :more, :list_filter)
+      # list_params is the complete list state for that link: like the panel,
+      # it shows every child, not the child's default list tab (RAA-006).
+      # unscoped_list is true when the child has a granted default list tab.
+      Panel = Data.define(:name, :label, :resource_key, :rows, :more, :list_filter, :unscoped_list) do
+        def list_params
+          return unless list_filter
+          unscoped_list ? { filter: list_filter, scope: Queries::NamedScope::NONE } : { filter: list_filter }
+        end
+      end
 
       Definition = Data.define(:name, :resource, :explicit_via, :label, :limit) do
         def self.build(name, resource:, via:, label:, limit:)
@@ -60,7 +68,8 @@ module RailsAiAdmin
             Row.new(child_record.id.to_s.freeze, access.record_label(child_record, view: :index).freeze, linked)
           end
           filter = access.fields(:filter).include?(field) ? { field.name.to_s => { "eq" => record.id.to_s } }.freeze : nil
-          Panel.new(definition.name, definition.caption, child.key, rows.freeze, records.size > definition.limit, filter)
+          Panel.new(definition.name, definition.caption, child.key, rows.freeze, records.size > definition.limit, filter,
+            access.named_scopes.any?(&:default?))
         rescue AccessDenied
           nil
         end

@@ -56,9 +56,13 @@ The recovery request, relative to the engine mount, is:
 
 | Request | Binding |
 | --- | --- |
-| `GET /:resource/forms/recover` | `X-RailsAiAdmin-Recovery-Intent` header containing the existing server-issued UUID |
+| `GET /:resource/forms/recover` | `X-RailsAiAdmin-Recovery-Intent` header containing the form's `intent_ref` value |
 
-The UUID is not placed in a query string or form URL. The GET carries no draft
+A native form page writes nothing: its `intent_ref` is a signed form reference
+that becomes an intent on the first submit (ADR 0025). Recovery of a form that was
+never submitted materializes that same intent, then applies the checks below; a
+submitted form's intent already exists. The reference is not placed in a query
+string or form URL. The GET carries no draft
 input or proposed business values; the host resolves the current authenticated
 Context normally. The response is private/no-store and varies by Cookie and the
 recovery-intent and return-state headers. A successful HTML response carries

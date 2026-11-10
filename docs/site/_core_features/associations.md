@@ -139,7 +139,9 @@ The panel reads children only through the child resource:
   only where the child show grant allows.
 * A **View all** link opens the child list filtered by this parent only while
   the child reference field has a filter grant. Otherwise the panel says how many
-  rows it shows.
+  rows it shows. Like the panel, the link lists every child: when the child has a
+  granted default list tab, the link carries `scope=_none` so the default tab does
+  not hide children the panel showed. See [Named Scopes]({% link _core_features/named-scopes.md %}).
 
 The panel adds no write path. Creating, attaching or detaching children happens
 in the child resource's own forms and operations.

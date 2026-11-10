@@ -30,10 +30,15 @@ module RailsAiAdmin
       @current_scope = @page.scope
       @columns = @resource.index.order(@access.fields(:read, view: :index))
       computed = @columns.map(&:name) | [ @resource.title ]
-      @rows = @page.records.map do |record|
-        @access.authorize!(:show, record)
+      # A record inside the policy scope whose own show check fails is left out
+      # of the page, like an unavailable reference, instead of failing the
+      # whole list (RAA-001). The notice says rows were left out, never which.
+      @rows = @page.records.filter_map do |record|
         values = @access.project(record, view: :index, only: computed)
         { id: record.id, label: record_label(@resource, record, values: values, view: :index), values: values }
+      rescue AccessDenied
+        @omitted_rows = true
+        nil
       end
       # One target query per reference column instead of one per row.
       @columns.select { |field| field.scalar_type == :belongs_to }.each do |field|
@@ -71,8 +76,8 @@ module RailsAiAdmin
 
     def recover_form
       response.headers["Vary"] = [ response.headers["Vary"], "Cookie", "X-RailsAiAdmin-Recovery-Intent", "X-RailsAiAdmin-Return-State" ].compact.join(", ")
-      session = runner.resume_form(context: @context, resource: @resource,
-        intent_ref: request.headers["X-RailsAiAdmin-Recovery-Intent"])
+      @intent_ref = request.headers["X-RailsAiAdmin-Recovery-Intent"]
+      session = runner.resume_form(context: @context, resource: @resource, intent_ref: @intent_ref)
       @intent, @record = session.intent, session.record
       @operation = @intent.operation.to_sym
       build_form_plan(@operation)
@@ -107,34 +112,39 @@ module RailsAiAdmin
       @access.authorize!(operation, @record)
       build_form_plan(operation) unless operation == :destroy
       @errors = {}
-      @intent = runner.prepare(context: @context, resource: @resource, operation: operation,
-        target_id: operation == :create ? nil : @record.id, expected_version: operation == :create ? nil : @record.lock_version)
+      # GET stays read-only: the form carries a signed reference that becomes
+      # an intent on submit (RAA-005, ADR 0025).
+      @intent_ref = runner.issue_form_intent(context: @context, resource: @resource, operation: operation,
+        target_id: operation == :create ? nil : @record.id, expected_version: operation == :create ? nil : @record.lock_version).ref
       render operation == :destroy ? :confirm_destroy : operation == :create ? :new : :edit
     end
 
     def submit(operation)
       input = operation == :destroy ? {} : submitted_input
-      result = runner.execute(context: @context, intent_ref: params[:intent_ref], input: input,
+      @intent_ref = params[:intent_ref]
+      intent_id = runner.materialize_form_intent(context: @context, reference: @intent_ref)
+      result = runner.execute(context: @context, intent_ref: intent_id, input: input,
         human_confirmed: true, origin: :ui,
         binding: { resource_key: @resource.key, operation: operation, target_id: params[:id] })
       if result.success?
         target = operation == :destroy ? list_return_path : resource_path(resource: @resource.key, id: result.record_id, **navigation_params)
-        redirect_to target, status: :see_other, notice: result.warning ? "Changes saved, but a host callback failed. Review operation #{params[:intent_ref]} before continuing." : "Changes saved."
+        redirect_to target, status: :see_other, notice: result.warning ? "Changes saved, but a host callback failed. Review operation #{intent_id} before continuing." : "Changes saved."
       elsif result.code == "NOT_FOUND"
         raise AccessDenied
       else
         @operation = operation
         @record = operation == :create ? @access.relation.new : @access.find!(params[:id], action: operation)
         @access.authorize!(operation, @record)
-        @intent = OperationRun.find_by!(id: params[:intent_ref], actor_ref: @context.actor_ref, tenant_ref: @context.tenant_ref)
+        @intent = OperationRun.find_by!(id: intent_id, actor_ref: @context.actor_ref, tenant_ref: @context.tenant_ref)
         build_form_plan(operation, input) unless operation == :destroy
         names = operation == :destroy ? [] : @form_fields.map { |field| field.name.to_s }
         @errors = result.errors.slice("base", *names)
         @errors["base"] ||= [ "Some inputs are no longer available" ] if (result.errors.keys - [ "base" ] - names).any?
         @failure_code = result.code
-        @needs_reload = result.code != "VALIDATION_FAILED"
+        # A restricted delete can succeed once the references are gone.
+        @needs_reload = !%w[VALIDATION_FAILED RESTRICTED].include?(result.code)
         render operation == :destroy ? :confirm_destroy : operation == :create ? :new : :edit,
-          status: result.code == "VALIDATION_FAILED" ? :unprocessable_content : :conflict
+          status: %w[VALIDATION_FAILED RESTRICTED].include?(result.code) ? :unprocessable_content : :conflict
       end
     rescue ActiveRecord::RecordNotFound
       raise AccessDenied

@@ -40,11 +40,55 @@ module RailsAiAdmin
 
       FormSession = Data.define(:intent, :record)
       FORM_RECOVERY_WINDOW = 1.hour
+      # id is the future OperationRun id; ref is what the form submits.
+      FormReference = Data.define(:id, :ref)
+
+      # Native form pages run the same checks as prepare but write nothing.
+      # The signed reference becomes an intent on first submit (ADR 0025).
+      def issue_form_intent(context:, resource:, operation:, target_id: nil, expected_version: nil)
+        definition = RailsAiAdmin.operation_registry.fetch(resource, operation)
+        raise ConfigurationError, "Form intents cover built-in create, update and destroy" if definition.custom?
+        result = preview(context: context, resource: resource, operation: operation, target_id: target_id,
+          expected_version: expected_version, origin: :ui)
+        raise AccessDenied, result.code if result.is_a?(Result)
+        now = Time.current
+        id = SecureRandom.uuid
+        ref = FormIntent.generate({ id: id, actor_ref: context.actor_ref, tenant_ref: context.tenant_ref,
+          security_version: context.security_version, resource_key: resource.key.to_s, operation: operation.to_s,
+          operation_version: operation_version(resource, operation), target_id: result.target_id,
+          expected_version: result.expected_version, created_at: now.utc.iso8601(6),
+          expires_at: (now + RailsAiAdmin.configuration.intent_ttl).utc.iso8601(6) }, recovery_window: FORM_RECOVERY_WINDOW)
+        FormReference.new(id, ref)
+      end
+
+      # Turns a submitted form reference into its OperationRun id, creating the
+      # proposed row from the signed payload the first time. A UUID passes
+      # through unchanged; anything unverifiable, or another owner's reference,
+      # returns nil. The row commits on its own so a rejected submit keeps the
+      # same intent for the next attempt, exactly as a GET-created one did.
+      def materialize_form_intent(context:, reference:)
+        return reference if FormIntent.uuid?(reference)
+        payload = FormIntent.verify(reference)
+        return unless payload && context.is_a?(Context) && payload["actor_ref"] == context.actor_ref && payload["tenant_ref"] == context.tenant_ref
+        unless OperationRun.exists?(id: payload["id"])
+          OperationRun.transaction(requires_new: true) { OperationRun.create!(FormIntent.run_attributes(payload)) }
+        end
+        payload["id"]
+      rescue ActiveRecord::RecordNotUnique
+        payload["id"]
+      end
 
       # Reopens an unconsumed native form after fresh authentication. No input,
       # business write, approval or replacement intent is admitted here.
       def resume_form(context:, resource:, intent_ref:)
         raise AccessDenied, "UNAUTHENTICATED" unless context.is_a?(Context)
+        unless FormIntent.uuid?(intent_ref)
+          # An unsubmitted form has no row yet; only its own recoverable kind
+          # is materialized, then the same checks as a stored intent apply.
+          payload = FormIntent.verify(intent_ref)
+          raise AccessDenied unless payload && payload["resource_key"] == resource.key.to_s && %w[create update].include?(payload["operation"])
+          intent_ref = materialize_form_intent(context: context, reference: intent_ref) || raise(AccessDenied)
+        end
         raise AccessDenied unless intent_ref.is_a?(String) && intent_ref.match?(/\A[0-9a-f-]{36}\z/)
         OperationRun.transaction(requires_new: true) do
           run = OperationRun.lock.find_by(id: intent_ref, actor_ref: context.actor_ref, tenant_ref: context.tenant_ref)
@@ -235,17 +279,35 @@ module RailsAiAdmin
           errors = error.record.errors.attribute_names.map { |name| names.fetch(name.to_s, name.to_s) }.intersection(allowed).to_h { |name| [ name, [ "is invalid" ] ] }
           audit_failure(context, run, "VALIDATION_FAILED", origin) unless admission
           Result.new(code: "VALIDATION_FAILED", errors: errors.presence || { "base" => [ "is invalid" ] })
-        when ActiveRecord::RecordNotDestroyed, ActiveRecord::RecordNotSaved
+        when ActiveRecord::RecordNotDestroyed
+          if run&.operation == "destroy" && !definition&.custom?
+            # dependent: :restrict_with_error (or a before_destroy abort) says
+            # why; it is a lasting state, not a stale form (RAA-012).
+            audit_failure(context, run, "RESTRICTED", origin) unless admission
+            Result.new(code: "RESTRICTED", errors: { "base" => restriction_messages(error.record) })
+          else
+            audit_failure(context, run, "VALIDATION_FAILED", origin) unless admission
+            Result.new(code: "VALIDATION_FAILED", errors: { "base" => [ "operation was not saved" ] })
+          end
+        when ActiveRecord::RecordNotSaved
           audit_failure(context, run, "VALIDATION_FAILED", origin) unless admission
           Result.new(code: "VALIDATION_FAILED", errors: { "base" => [ "operation was not saved" ] })
+        when ActiveRecord::InvalidForeignKey
+          # On delete, a foreign key means other rows still reference the
+          # record; elsewhere a referenced target vanished after admission.
+          if run&.operation == "destroy" && !definition&.custom?
+            audit_failure(context, run, "RESTRICTED", origin) unless admission
+            Result.new(code: "RESTRICTED", errors: { "base" => [ RESTRICTED_MESSAGE ] })
+          else
+            Result.new(code: "CONFLICT")
+          end
         when ActiveRecord::RangeError
           audit_failure(context, run, "VALIDATION_FAILED", origin) unless admission
           Result.new(code: "VALIDATION_FAILED", errors: { "base" => [ "value is out of range" ] })
         when ExecutionContext::DeadlineExceeded
           audit_failure(context, run, "TIMEOUT", origin) unless admission
           Result.new(code: "TIMEOUT")
-        # InvalidForeignKey: a referenced target vanished after admission.
-        when ActiveRecord::StaleObjectError, ActiveRecord::RecordNotUnique, ActiveRecord::InvalidForeignKey, ActiveRecord::Deadlocked, ActiveRecord::LockWaitTimeout
+        when ActiveRecord::StaleObjectError, ActiveRecord::RecordNotUnique, ActiveRecord::Deadlocked, ActiveRecord::LockWaitTimeout
           Result.new(code: "CONFLICT")
         when ActiveRecord::StatementInvalid
           if defined?(SQLite3::BusyException) && error.cause.is_a?(SQLite3::BusyException)
@@ -276,6 +338,16 @@ module RailsAiAdmin
           @result = result
           super(result.code)
         end
+      end
+
+      RESTRICTED_MESSAGE = "This record is still referenced by other records and cannot be deleted."
+
+      # Host base messages from restrict_with_error are model-authored text
+      # about the record itself; keep at most three, bounded and plain.
+      def restriction_messages(record)
+        messages = Array(record&.errors&.[](:base)).select { |message| message.is_a?(String) && message.valid_encoding? }
+          .map { |message| message.gsub(/[[:cntrl:]]/, " ").squish.truncate(200) }.reject(&:empty?).first(3)
+        messages.presence || [ RESTRICTED_MESSAGE ]
       end
 
       def reject!(code, errors: {})

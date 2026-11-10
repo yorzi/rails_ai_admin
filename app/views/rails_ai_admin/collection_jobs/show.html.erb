@@ -1,6 +1,10 @@
 <p><%= link_to "Collection jobs", collection_jobs_path %> · <%= link_to list_return_label, list_return_path %></p>
 <h1><%= @job.description %></h1>
 <p>Status: <strong><%= @job.status.humanize %></strong></p>
+<% if @job.waiting_since %>
+  <p class="raa-notice" role="status">Waiting for a worker. The oldest item has been queued for <%= distance_of_time_in_words(@job.waiting_since, Time.current) %>.
+  <% if @job.waiting_since < 5.minutes.ago %>If this does not change, ask the host maintainer to check that a job worker processes the <code><%= RailsAiAdmin.configuration.queue_name %></code> queue or that the collection scan is scheduled.<% end %></p>
+<% end %>
 <p><%= @job.counts.map { |status, count| "#{status.humanize}: #{count}" }.join(" · ") %></p>
 <p><%= link_to "Refresh status", collection_job_path(job_ref: @job.job_ref, **navigation_params) %></p>
 <% if @job.warning %><p class="raa-errors" role="alert">The committed run has a host callback warning. Ask the host maintainer to review it.</p><% end %>

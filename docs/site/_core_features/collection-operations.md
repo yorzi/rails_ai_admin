@@ -224,6 +224,22 @@ dispatcher.scan_pending!(limit: 100, inline: false)
 result = dispatcher.run(admitted.job_ref, limit: 100)
 ```
 
+All admin jobs use the `rails_ai_admin` Active Job queue. A worker with an
+explicit queue list (Sidekiq, a narrowed Solid Queue worker) must include it, or
+choose another name:
+
+```ruby
+RailsAiAdmin.configure do |config|
+  config.queue_name = "admin"
+end
+```
+
+While an admitted run has queued items and none is running, its job page says
+"Waiting for a worker" with the age of the oldest queued item, and after five
+minutes names the queue to check. `rails_ai_admin:doctor` reports a `backlog`
+review when collection items, outbox items or assistant turns have been due for
+more than 15 minutes.
+
 `run` visits at most 100 items per call and must run outside an existing database
 transaction. Scans accept limits from 1 through 1,000. Setting
 `collection_auto_dispatch = true` only accelerates after-commit enqueue; recurring

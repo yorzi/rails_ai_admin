@@ -28,7 +28,20 @@ are not returned as errors because they may contain confidential values.
 Audit model instances are append-only through the normal Active Record model API.
 Direct SQL and database administrators remain outside that boundary. Framework
 audits cover writes through its runner, not all changes made by the host elsewhere.
-There is no retention/purge scheduler or Audit Explorer in the initial slice.
+There is no Audit Explorer in the initial slice, and audit rows are never purged
+by the engine.
+
+Native form pages create no row; an intent exists only after a submit (ADR 0025).
+Expired intents that were never used and expired selections are removed by:
+
+```sh
+bin/rails rails_ai_admin:prune          # expired more than 7 days ago
+DAYS=30 bin/rails rails_ai_admin:prune
+```
+
+Schedule it like the scans. It never removes a run that started or succeeded, a
+collection run or its children, anything referenced by work or batch rows, or a
+selection that a run still references.
 
 `rails_ai_admin_work_items` separately stores typed delivery payloads, payload and
 external-request digests, handler/version binding, deadline, lease owner/generation
