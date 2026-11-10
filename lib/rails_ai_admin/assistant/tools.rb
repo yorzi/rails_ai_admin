@@ -266,7 +266,6 @@ module RailsAiAdmin
         result.merge("next_offset" => more && next_offset < MAX_RECORDS ? next_offset : nil,
           "has_more" => more && next_offset < MAX_RECORDS, "limit_reached" => more && next_offset >= MAX_RECORDS)
       end
-
     end
 
     # One bounded number, so "how many" never means paging (roadmap
