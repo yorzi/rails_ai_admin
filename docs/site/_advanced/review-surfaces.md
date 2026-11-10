@@ -116,9 +116,18 @@ call shows the same review instead of creating another. Keep provider settings
 in `RubyLLM.context`; the admin never changes your global RubyLLM
 configuration.
 
+## Confirm or Dismiss
+
+A Surface shows the operation's input and the proposed visible changes from its
+pure preflight. **Confirm and execute** runs the operation once. **Dismiss**
+expires the unconfirmed intent and changes nothing else; a dismissed review can
+no longer be confirmed. A review shown inside an admin chat returns to that
+chat after either action. The admin bundle registers rails_tool_views' own
+Stimulus controller, so the Surface's saving and failure status texts appear.
+
 ## Not Available Yet
 
-The admin does not persist assistant chats yet, no AI follow-up or continuation
-is delivered after confirmation, inputs cannot be edited inside the Surface, and
-Surface templates are not in the override catalog. Close and retention of admin Surfaces are not
+Inputs cannot be edited inside the Surface, and Surface templates are not in the
+override catalog. Assistant chats and their follow-up after a confirmation or a
+dismissal are described in [Admin Chat](admin-assistant.html). Close and retention of admin Surfaces are not
 wired up. See the development status for the remaining AI milestones.

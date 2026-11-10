@@ -72,7 +72,7 @@ class AssistantProposalsTest < ActionDispatch::IntegrationTest
       get "/backoffice/assistant/surfaces/#{result[:surface_id]}"
       assert_response :success
       assert_select "p", text: /An assistant proposed this/
-      fields = css_select("form[action$='/actions'] input[type=hidden]").to_h { |node| [ node["name"], node["value"] ] }
+      fields = css_select("form[action$='/actions']").first.css("input[type=hidden]").to_h { |node| [ node["name"], node["value"] ] }
       post "/backoffice/assistant/surfaces/#{result[:surface_id]}/actions", params: fields
       assert_response :see_other
       assert_equal [ "Reviewed by assistant", 1 ], [ @customer.reload.name, @customer.points ]

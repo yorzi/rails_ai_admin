@@ -33,6 +33,10 @@ module RailsAiAdmin
       Integrations::ToolViews.review(Integrations::ToolViews.current_context, props)
     end
 
+    def admin_surface_changes(review, wire)
+      Integrations::ToolViews.proposed_changes(review, wire)
+    end
+
     def admin_surface_display_values(review, wire)
       Integrations::ToolViews.display_values(review, wire)
     end

@@ -153,11 +153,15 @@ Results are bounded JSON (16 KB). Errors carry only a fixed code such as
 1. The model calls `propose_operation`. The admin authorizes the operation
    against the record, runs its preflight and saves an unconfirmed intent with
    origin `assistant`. Nothing in your data changes.
-2. The conversation shows the review Surface. A retried tool call shows the
-   same review rather than preparing another one.
-3. The person confirms. In one transaction, the shared Runner writes the change,
-   audit and receipt, the Surface records its new revision, and the chat
-   receives one continuation turn describing the committed result.
+2. The conversation shows the review Surface with the input and the proposed
+   visible changes (before → after) from the operation's pure preflight, as the
+   native confirmation page does. A retried tool call shows the same review
+   rather than preparing another one.
+3. The person confirms or dismisses it, and returns to the conversation either
+   way. Confirming writes the change, audit and receipt in one transaction with
+   the Surface's new revision, and the chat receives one continuation turn
+   describing the committed result. Dismissing expires the unconfirmed intent,
+   changes nothing else and tells the chat once that the user declined.
 4. The assistant replies to that result in the same conversation.
 
 A repeated confirmation, or a confirmation on the native page first, writes

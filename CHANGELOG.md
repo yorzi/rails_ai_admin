@@ -15,6 +15,10 @@
   tool result (RAA-018). A short assistant note precedes a new message after
   an unanswered one (RAA-030). `config.assistant_daily_message_limit`
   (default 100 per actor per 24 hours) is the minimal spend guard.
+  Review Surfaces show the proposed visible changes, offer **Dismiss** (which
+  expires the intent and tells the chat once), return to the chat after either
+  action, and get rails_tool_views' Stimulus controller from the admin bundle
+  (RAA-019).
 - Unbreak ordinary flows (audit 2026-11-10). A list page leaves out an in-scope
   row whose `show` is denied and says so instead of returning 404 for the whole
   page; `TestKit.assert_scope_matches_show` finds the disagreement (RAA-001). An

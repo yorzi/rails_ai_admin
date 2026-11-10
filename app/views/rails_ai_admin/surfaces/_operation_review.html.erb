@@ -6,15 +6,25 @@
   <dl class="raa-details">
     <% admin_surface_display_values(review, props["input"]).each do |field, text| %><dt><%= field.label %></dt><dd><%= text %></dd><% end %>
   </dl>
-  <% if run.status == "succeeded" %>
+  <% if local_assigns[:state].is_a?(Hash) && state["outcome"] == "dismissed" %>
+    <p>Dismissed. Nothing was changed.</p>
+  <% elsif run.status == "succeeded" %>
     <p>Completed. Recorded as operation <code><%= run.id %></code>.</p>
   <% elsif run.status == "proposed" && run.expires_at > Time.current && run.security_version == review.access.context.security_version %>
+    <% changes = admin_surface_changes(review, props["input"]) %>
+    <% if changes.any? %>
+      <h3>Proposed visible changes</h3>
+      <dl class="raa-details"><% changes.each do |field, before, after| %><dt><%= field.label %></dt><dd><%= before %> → <%= after %></dd><% end %></dl>
+    <% end %>
     <% if run.origin == "assistant" %>
       <p>An assistant proposed this. Nothing has been saved yet; only your confirmation applies this exact target and input, once.</p>
     <% else %>
       <p>Nothing has been saved yet. Confirming applies this exact target and input once, whether you confirm here or on the original page.</p>
     <% end %>
-    <%= admin_surface_action_form(surface, :confirm) do |form| %><%= form.submit "Confirm and execute", name: nil %><% end %>
+    <div class="raa-actions">
+      <%= admin_surface_action_form(surface, :confirm) do |form| %><%= form.submit "Confirm and execute", name: nil %><% end %>
+      <%= admin_surface_action_form(surface, :dismiss) do |form| %><%= form.submit "Dismiss", name: nil, class: "raa-secondary" %><% end %>
+    </div>
   <% else %>
     <p>This review can no longer be confirmed. Start a new review from the record.</p>
   <% end %>

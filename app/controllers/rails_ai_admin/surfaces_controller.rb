@@ -55,7 +55,7 @@ module RailsAiAdmin
           @surface_scope = admin_scope
           render turbo_stream: turbo_stream.replace(@surface.dom_id, helpers.admin_surface(@surface, scope: admin_scope))
         end
-        format.html { redirect_to admin_surface_path(surface_id: result[:surface_id]), status: :see_other }
+        format.html { redirect_to surface_return_path(result[:surface_id]), status: :see_other }
       end
     rescue ::RailsToolViews::Error => error
       reject(error)
@@ -78,6 +78,19 @@ module RailsAiAdmin
     end
 
     def admin_scope = @admin_scope ||= tool_views.scope_for(@context)
+
+    # A review shown in a conversation returns there, so confirming or
+    # dismissing keeps the person in the chat (RAA-019).
+    def surface_return_path(surface_id)
+      reference = ::RailsToolViews::Surface.where(id: surface_id).pick(:context_ref)
+      chat_ref = reference.is_a?(String) && reference[/\Araa:chat:([0-9a-f-]{36})\z/, 1]
+      if chat_ref && RailsAiAdmin.configuration.assistant
+        require "rails_ai_admin/assistant"
+        chat = Assistant::Chat.owned(@context, chat_ref)
+        return assistant_conversation_path(chat_ref: chat.ref) if chat
+      end
+      admin_surface_path(surface_id: surface_id)
+    end
 
     def confirmed_input
       value = params[:confirmed_input]

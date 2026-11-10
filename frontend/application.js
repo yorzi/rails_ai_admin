@@ -1,5 +1,6 @@
 import * as Turbo from "@hotwired/turbo";
 import { Application, Controller } from "@hotwired/stimulus";
+import railsToolViewsController from "./vendor/rails_tool_views_controller.js";
 
 const application = Application.start();
 class DirtyFormController extends Controller {
@@ -255,6 +256,9 @@ class SelectionController extends Controller {
   disconnect() { document.removeEventListener("change", this.update); }
 }
 application.register("raa-selection", SelectionController);
+// Review Surfaces carry data-controller="rails-tool-views" for saving and
+// failure status text (RAA-019); the factory is rails_tool_views' own.
+application.register("rails-tool-views", railsToolViewsController(Controller));
 application.register("raa-poll", PollController);
 application.register("raa-form-recovery", FormRecoveryController);
 application.register("raa-dirty-form", DirtyFormController);

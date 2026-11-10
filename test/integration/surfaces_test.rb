@@ -46,7 +46,7 @@ class SurfacesTest < ActionDispatch::IntegrationTest
   end
 
   def confirm_fields
-    css_select("form[action$='/actions'] input[type=hidden]").to_h { |node| [ node["name"], node["value"] ] }
+    css_select("form[action$='/actions']").first.css("input[type=hidden]").to_h { |node| [ node["name"], node["value"] ] }
   end
 
   def admin_scope(actor: 1)
