@@ -38,10 +38,10 @@ module RailsAiAdmin
         self
       end
 
-      def build(name, type:, **options)
-        return Field.new(name, type: type, **options) if Field::TYPES.include?(type.to_sym)
+      def build(name, type:, source: nil, **options)
+        return Field.new(name, type: type, source: source, **options) if Field::TYPES.include?(type.to_sym)
         definition = @entries.fetch(type.to_s) { raise ConfigurationError, "Unregistered field type" }
-        Field.new(name, type: type, plugin: definition, **options)
+        Field.new(name, type: type, plugin: definition, source: source, **options)
       end
     end
   end

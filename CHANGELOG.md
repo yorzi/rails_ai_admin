@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Stop silent data changes from conventional forms (audit 2026-11-10):
+  blank or whitespace-only text is stored as null in a nullable field and
+  rejected with "cannot be blank" when the field is `required` or
+  `nullable: false` (RAA-002, RAA-003); decimals honour the column's precision
+  and scale, or new `precision:`/`scale:` options, reject extra digits instead
+  of rounding and display padded to the scale (RAA-004, RAA-014); impossible
+  date-times such as `2026-02-30T10:00` are rejected (RAA-010); NUL and other
+  control characters are rejected in text input, with tab and line breaks
+  still allowed in `textarea` (RAA-016). The admin layout disables Turbo hover
+  prefetch so hovering a link no longer prepares an intent (RAA-005).
+  `required: true` now also rejects a null value.
 - Reconcile the association/Chat branch with remote main, retaining the standalone
   assistant proposal API and its explicit `assistant: true` opt-in. Admin Chat
   now honors that flag too; native Surface permission alone grants no proposal.

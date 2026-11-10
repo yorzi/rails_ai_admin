@@ -4,6 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="turbo-cache-control" content="no-cache">
+  <%# Turbo 8 prefetches links on hover. Admin form pages prepare an intent on GET,
+      so a prefetch would write a row per hover (RAA-005); keep navigation explicit. %>
+  <meta name="turbo-prefetch" content="false">
   <meta name="csp-nonce" content="<%= @admin_csp_nonce %>">
   <title><%= RailsAiAdmin.configuration.title %></title>
   <%= csrf_meta_tags %>

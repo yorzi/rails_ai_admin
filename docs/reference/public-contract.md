@@ -39,7 +39,12 @@ Registered `Fields::Type` classes refine scalars through `config.field_types`
 class-name strings and optional trusted field partials (ADR 0009).
 Fields use explicit readonly/required/nullable/create/edit/searchable/sortable/filterable
 flags. Search/sort/filter grants are independent of read/write. Resources do not scan
-model tables at boot. Reserved slugs are rejected by the registry.
+model tables at boot. Submitted blank text (empty or whitespace only) is null
+for a nullable field and "cannot be blank" for a `required` or
+`nullable: false` field; text rejects control characters (a `textarea` admits
+tab, LF and CR). Decimal fields accept `precision:`/`scale:` options, or read
+the column's limits lazily on first coercion, and reject out-of-scale input
+instead of rounding. Timestamps reject impossible calendar dates and clock times. Reserved slugs are rejected by the registry.
 
 Scalar projection and record titles require a model attribute (or the single
 primary-key `id` alias) before invoking its getter. Arbitrary model methods cannot

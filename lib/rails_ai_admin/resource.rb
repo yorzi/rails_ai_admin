@@ -110,7 +110,7 @@ module RailsAiAdmin
       def operation_scopes = @operation_scopes
 
       def fields(&block)
-        FieldBuilder.new(@fields).instance_eval(&block) if block
+        FieldBuilder.new(@fields, source: self).instance_eval(&block) if block
         @fields.values
       end
 
@@ -185,13 +185,15 @@ module RailsAiAdmin
 
     # Collects field declarations without consulting the database at boot.
     class FieldBuilder
-      def initialize(fields)
+      # source is the declaring Resource, consulted lazily for column limits.
+      def initialize(fields, source: nil)
         @fields = fields
+        @source = source
       end
 
       def field(name, type:, **options)
         raise ConfigurationError, "Duplicate field #{name}" if @fields.key?(name.to_sym)
-        @fields[name.to_sym] = RailsAiAdmin.field_registry.build(name, type: type, **options)
+        @fields[name.to_sym] = RailsAiAdmin.field_registry.build(name, type: type, source: @source, **options)
       end
 
       def virtual(name, type:, depends_on:, compute:, **options)

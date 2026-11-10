@@ -67,7 +67,7 @@ class DeveloperToolsTest < Minitest::Test
       create_table :schema_suggestion_records, force: true do |t|
         t.string :name, limit: 80, null: false
         t.text :description
-        t.decimal :price
+        t.decimal :price, precision: 8, scale: 2
         t.boolean :active
         t.date :starts_on
         t.integer :state
@@ -102,6 +102,8 @@ class DeveloperToolsTest < Minitest::Test
     assert_equal "text :name, nullable: false, max_length: 80", name.declaration
     assert_equal "enum :state, values: [\"open\", \"closed\"]", report.suggestions.find { |entry| entry.name == "state" }.declaration
     assert report.suggestions.find { |entry| entry.name == "created_at" }.options[:readonly]
+    # RAA-004: decimal limits are written into the suggested declaration.
+    assert_equal "decimal :price, precision: 8, scale: 2", report.suggestions.find { |entry| entry.name == "price" }.declaration
   end
 
   def test_generator_only_enables_readonly_id_and_never_samples_records

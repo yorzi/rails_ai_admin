@@ -116,7 +116,7 @@ class OperationTest < Minitest::Test
     intent = prepare
     result = execute(intent, { "name" => "" })
     assert_equal "VALIDATION_FAILED", result.code
-    assert_equal [ "is invalid" ], result.errors["name"]
+    assert_equal [ "cannot be blank" ], result.errors["name"]
     assert_equal "proposed", intent.reload.status
     assert_nil intent.approved_by_ref
     assert execute(intent).success?

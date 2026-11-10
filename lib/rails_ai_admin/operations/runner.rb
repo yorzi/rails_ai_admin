@@ -387,7 +387,7 @@ module RailsAiAdmin
           next if field.virtual?
           next unless original.key?(name) && (changes.key?(name) || changes.key?(field.name))
           value = changes.key?(name) ? changes[name] : changes[field.name]
-          value = field.coerce(value, time_zone: access.context.time_zone)
+          value = field.coerce_output(value, time_zone: access.context.time_zone)
           [ name, { "before" => original[name], "after" => value } ]
         end.to_h
       rescue ArgumentError, ActiveRecord::ReadOnlyError

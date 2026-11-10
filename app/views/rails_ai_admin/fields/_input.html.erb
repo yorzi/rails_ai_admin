@@ -3,7 +3,7 @@
 <% when :enum, :select %><%= form.select field.name, admin_field_choices(field, value), { selected: value, include_blank: field.options[:nullable] ? "Not set" : "Choose a value" }, input_options %>
 <% when :belongs_to %><%= admin_reference_input(form, field, value, input_options) %>
 <% when :integer %><%= form.number_field field.name, value: value, step: 1, **input_options %>
-<% when :decimal %><%= form.text_field field.name, value: value.is_a?(BigDecimal) ? value.to_s("F") : value, inputmode: "decimal", **input_options %>
+<% when :decimal %><%= form.text_field field.name, value: value.is_a?(BigDecimal) ? field.format_decimal(value) : value, inputmode: "decimal", **input_options %>
 <% when :date %><%= form.date_field field.name, value: value, **input_options %>
 <% when :datetime %><%= form.text_field field.name, value: value.respond_to?(:iso8601) ? value.iso8601(6) : value, placeholder: "2026-10-30T09:30:00+08:00", **input_options %>
 <% else %><%= form.text_field field.name, value: value, maxlength: field.options[:max_length], **input_options %>
