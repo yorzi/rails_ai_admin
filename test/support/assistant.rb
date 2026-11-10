@@ -129,13 +129,14 @@ module AssistantHelpers
   end
 
   # Like with_operations, with one configuration stub (stubs do not nest).
-  def with_assistant(surfaces: true)
+  def with_assistant(surfaces: true, resources: nil)
     AssistantPolicy.denied = false
     AssistantPolicy.receipt_grant = AssistantPolicy.delivery_grant = AssistantPolicy.input_grant = true
     OperationJobContext.epoch = "1"
     ReviewContractOperation.work_kind = "customers.reviewed"
     OperationContractWork.transport = ->(_delivery, _input) { true }
     config = assistant_configuration(surfaces: surfaces)
+    config.resources = resources if resources
     registry = RailsAiAdmin::Registry.new(config.resources)
     operations = RailsAiAdmin::Operations::Registry.new(registry.resources)
     work = RailsAiAdmin::Outbox::Registry.new(config.work_handlers)
