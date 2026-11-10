@@ -77,18 +77,83 @@ module RailsAiAdmin
         failure("UNAVAILABLE")
       end
 
-      def text(field, value) = field.format(value, time_zone: @session.context.time_zone).truncate(500)
+      def time_zone = @session.context.time_zone
 
-      def values(access, record, view)
+      # Typed JSON for the model (RAA-017): null stays null, booleans and
+      # integers keep their JSON types, decimals are exact strings padded to
+      # their scale, dates and times are ISO 8601, a select is {value, label}
+      # and a reference is {id, label, resource}. A registered field type keeps
+      # its formatted text, because its formatter may deliberately redact.
+      def typed(field, value, references)
+        return nil if value.nil?
+        return field.format(value, time_zone: time_zone).truncate(500) if field.plugin?
+        case field.scalar_type
+        when :boolean, :integer then value
+        when :decimal then field.format_decimal(value)
+        when :date then value.iso8601
+        when :datetime then value.in_time_zone(time_zone).iso8601
+        when :select then { "value" => value.to_s, "label" => field.format(value, time_zone: time_zone) }
+        when :belongs_to
+          reference = references.reference(field, value.to_s)
+          { "id" => reference.id, "label" => reference.label.to_s.truncate(200), "resource" => reference.visible ? reference.resource_key.to_s : nil }
+        else value.to_s.truncate(500)
+        end
+      end
+
+      def values(access, record, view, references)
         fields = access.fields(:read, record, view: view).index_by { |field| field.name.to_s }
         access.project(record, view: view).filter_map do |name, value|
           field = fields[name]
-          [ name, text(field, value) ] if field
+          [ name, typed(field, value, references) ] if field
         end.to_h
       end
 
-      def record_entry(access, record, view)
-        { "id" => record.id.to_s, "label" => access.record_label(record, view: view), "fields" => values(access, record, view) }
+      def reference_resolver(access) = Fields::Association.new(access.context, access.resource)
+
+      def record_entry(access, record, view, references = reference_resolver(access))
+        { "id" => record.id.to_s, "label" => access.record_label(record, view: view), "fields" => values(access, record, view, references) }
+      end
+
+      # Records the actor may list but not open are left out, as on the list
+      # page (RAA-001), and counted so the model can say so.
+      def record_entries(access, records, view)
+        resolver = reference_resolver(access)
+        access.fields(:read, nil, view: view).select { |field| field.scalar_type == :belongs_to }.each do |field|
+          resolver.prime(field, records.filter_map { |record| record.has_attribute?(field.column) ? record.read_attribute(field.column)&.to_s : nil })
+        end
+        omitted = 0
+        entries = records.filter_map do |record|
+          record_entry(access, record, view, resolver)
+        rescue AccessDenied
+          omitted += 1
+          nil
+        end
+        [ entries, omitted ]
+      end
+
+      def wire_filters(filters)
+        return nil if filters.nil? || filters == {}
+        raise AccessDenied, "INVALID_QUERY" unless filters.is_a?(Hash) && filters.size <= Queries::List::MAX_FILTER_CONDITIONS
+        filters.to_h do |name, conditions|
+          raise AccessDenied, "INVALID_QUERY" unless conditions.is_a?(Hash)
+          [ name.to_s, conditions.to_h { |operator, value| [ operator.to_s, scalar(value) ] } ]
+        end
+      end
+
+      def scalar(value)
+        case value
+        when String then value
+        when Integer, Float, true, false then value.to_s
+        else raise AccessDenied, "INVALID_QUERY"
+        end
+      end
+
+      # The assistant sees the whole policy relation unless it names a granted
+      # list tab; a default tab never applies silently (RAA-007).
+      def list_scope(scope)
+        return Queries::NamedScope::NONE if scope.nil?
+        raise AccessDenied, "INVALID_QUERY" unless scope.is_a?(String) && scope.match?(Queries::NamedScope::NAME)
+        scope
       end
     end
 
@@ -120,8 +185,12 @@ module RailsAiAdmin
         result = {
           "key" => resource.key.to_s, "label" => resource.label,
           "fields" => access.fields(:read, nil, view: :show).map { |field| field_entry(field) },
-          "search" => access.fields(:search).map { |field| field.name.to_s },
-          "filters" => access.fields(:filter).map { |field| { "field" => field.name.to_s, "operators" => field.filter_operators.map(&:to_s) } }
+          # Match mode per field: "prefix" means "Love" does not find "Ada Lovelace" (RAA-021).
+          "search" => access.fields(:search).map { |field| { "field" => field.name.to_s, "match" => (field.options[:searchable] == true ? :prefix : field.options[:searchable]).to_s } },
+          "filters" => access.fields(:filter).map { |field| { "field" => field.name.to_s, "operators" => field.filter_operators.map(&:to_s) } },
+          "sort" => access.fields(:sort).map { |field| field.name.to_s },
+          # Search and count apply no list tab unless one is named (RAA-007).
+          "scopes" => access.named_scopes.map { |definition| { "name" => definition.name.to_s, "label" => definition.label, "default_in_ui" => definition.default? } }
         }
         result["operations"] = operations(resource, access) if RailsAiAdmin.configuration.surfaces
         result
@@ -148,13 +217,18 @@ module RailsAiAdmin
     class SearchRecords < Tool
       PAGE_LIMIT = 20
       MAX_RECORDS = 1_000
-      description "Search one resource's records with optional text and typed filters. Returns up to 20 records. When has_more is true, pass next_offset as offset to continue, including after truncation."
+      description "Search one resource's records with optional text, typed filters, a list scope and a sort. Returns up to 20 records. " \
+        "Every record you may see is searched unless you pass scope. To count records, use count_records instead of paging. " \
+        "When has_more is true, pass next_offset as offset to continue, including after truncation."
       parameters({ "type" => "object", "required" => [ "resource" ], "additionalProperties" => false,
         "properties" => {
           "resource" => { "type" => "string" },
-          "query" => { "type" => "string", "maxLength" => 200, "description" => "Text matched against searchable fields" },
-          "filters" => { "type" => "object", "description" => "Field name to {\"eq\"|\"gte\"|\"lte\": value}",
+          "query" => { "type" => "string", "maxLength" => 200, "description" => "Text matched against searchable fields with each field's match mode" },
+          "filters" => { "type" => "object", "description" => "Field name to {\"eq\"|\"gte\"|\"lte\": value}; use select values, not labels",
             "additionalProperties" => { "type" => "object", "additionalProperties" => { "type" => %w[string number boolean] } } },
+          "scope" => { "type" => "string", "description" => "Optional scope name from describe_resource" },
+          "sort" => { "type" => "string", "description" => "Optional sortable field from describe_resource" },
+          "direction" => { "type" => "string", "enum" => %w[asc desc] },
           "page" => { "type" => "integer", "minimum" => 1, "maximum" => 50 },
           "offset" => { "type" => "integer", "minimum" => 0, "maximum" => MAX_RECORDS - 1, "description" => "The next_offset returned by the previous result" }
         } })
@@ -163,16 +237,21 @@ module RailsAiAdmin
 
       private
 
-      def perform(tool_call:, resource:, query: nil, filters: nil, page: 1, offset: nil)
+      def perform(tool_call:, resource:, query: nil, filters: nil, scope: nil, sort: nil, direction: nil, page: 1, offset: nil)
         resource = @session.resource(resource)
         access = @session.access(resource)
         raise AccessDenied, "INVALID_QUERY" unless page.is_a?(Integer) && page.between?(1, 50)
+        raise AccessDenied, "INVALID_QUERY" unless sort.nil? || sort.is_a?(String) && sort.match?(Field::NAME)
+        raise AccessDenied, "INVALID_QUERY" unless direction.nil? || %w[asc desc].include?(direction)
         offset = (page - 1) * PAGE_LIMIT if offset.nil?
         raise AccessDenied, "INVALID_QUERY" unless offset.is_a?(Integer) && offset.between?(0, MAX_RECORDS - 1)
         result = Queries::List.new(@session.context, resource).call(search: query.presence, page: page.to_s, filters: wire_filters(filters),
-          page_size: [ PAGE_LIMIT, MAX_RECORDS - offset ].min, offset: offset)
-        { "resource" => resource.key.to_s, "page" => result.number, "offset" => offset, "has_more" => result.has_next,
-          "records" => result.records.map { |record| record_entry(access, record, :index) } }
+          scope: list_scope(scope), sort: sort, direction: direction || "asc", page_size: [ PAGE_LIMIT, MAX_RECORDS - offset ].min, offset: offset)
+        records, omitted = record_entries(access, result.records, :index)
+        { "resource" => resource.key.to_s, "applied_scope" => result.scope,
+          "applied_sort" => result.sort ? { "field" => result.sort, "direction" => result.direction } : nil,
+          "page" => result.number, "offset" => offset, "has_more" => result.has_next,
+          "omitted" => omitted, "records" => records }
       end
 
       # Leave room for continuation metadata before applying the byte bound.
@@ -188,21 +267,30 @@ module RailsAiAdmin
           "has_more" => more && next_offset < MAX_RECORDS, "limit_reached" => more && next_offset >= MAX_RECORDS)
       end
 
-      def wire_filters(filters)
-        return nil if filters.nil? || filters == {}
-        raise AccessDenied, "INVALID_QUERY" unless filters.is_a?(Hash) && filters.size <= Queries::List::MAX_FILTER_CONDITIONS
-        filters.to_h do |name, conditions|
-          raise AccessDenied, "INVALID_QUERY" unless conditions.is_a?(Hash)
-          [ name.to_s, conditions.to_h { |operator, value| [ operator.to_s, scalar(value) ] } ]
-        end
-      end
+    end
 
-      def scalar(value)
-        case value
-        when String then value
-        when Integer, Float, true, false then value.to_s
-        else raise AccessDenied, "INVALID_QUERY"
-        end
+    # One bounded number, so "how many" never means paging (roadmap
+    # "aggregate tools"). Same grants, filters and scope rule as search.
+    class CountRecords < Tool
+      description "Count one resource's records matching optional text, typed filters and a list scope. " \
+        "Every record you may see is counted unless you pass scope. Counts above the cap are reported as capped."
+      parameters({ "type" => "object", "required" => [ "resource" ], "additionalProperties" => false,
+        "properties" => {
+          "resource" => { "type" => "string" },
+          "query" => { "type" => "string", "maxLength" => 200 },
+          "filters" => { "type" => "object", "description" => "Field name to {\"eq\"|\"gte\"|\"lte\": value}",
+            "additionalProperties" => { "type" => "object", "additionalProperties" => { "type" => %w[string number boolean] } } },
+          "scope" => { "type" => "string", "description" => "Optional scope name from describe_resource" }
+        } })
+
+      def self.tool_name = "count_records"
+
+      private
+
+      def perform(tool_call:, resource:, query: nil, filters: nil, scope: nil)
+        resource = @session.resource(resource)
+        result = Queries::List.new(@session.context, resource).count(search: query.presence, filters: wire_filters(filters), scope: list_scope(scope))
+        { "resource" => resource.key.to_s, "applied_scope" => result.scope, "count" => result.count, "capped" => result.capped }
       end
     end
 
@@ -267,6 +355,6 @@ module RailsAiAdmin
       end
     end
 
-    TOOLS = [ ListResources, DescribeResource, SearchRecords, GetRecord ].freeze
+    TOOLS = [ ListResources, DescribeResource, SearchRecords, CountRecords, GetRecord ].freeze
   end
 end

@@ -13,6 +13,9 @@ module RailsAiAdmin
       # builds a RubyLLM::Context per admin Context; global RubyLLM settings
       # are never read for credentials or changed.
       :assistant, :assistant_adapter, :assistant_model, :assistant_provider, :assistant_protocol,
+      # Messages one actor may send the assistant in any 24 hours; nil removes
+      # the limit. Each message can cost several provider calls.
+      :assistant_daily_message_limit,
       # Active Job queue for collection, outbox and assistant jobs (RAA-020).
       # Workers with explicit queue lists must include it.
       :queue_name
@@ -35,6 +38,7 @@ module RailsAiAdmin
       @assistant_model = nil
       @assistant_provider = nil
       @assistant_protocol = nil
+      @assistant_daily_message_limit = 100
     end
 
     # Validates and freezes the boot configuration without reading domain tables.
@@ -108,6 +112,9 @@ module RailsAiAdmin
       end
       unless assistant_model.is_a?(String) && assistant_model.match?(/\A[A-Za-z0-9][A-Za-z0-9._:\/-]{0,99}\z/)
         raise ConfigurationError, "assistant_model must name one model"
+      end
+      unless assistant_daily_message_limit.nil? || assistant_daily_message_limit.is_a?(Integer) && assistant_daily_message_limit.between?(1, 100_000)
+        raise ConfigurationError, "assistant_daily_message_limit must be nil or a whole number from 1 to 100000"
       end
       [ assistant_provider, assistant_protocol ].each do |value|
         raise ConfigurationError, "assistant_provider and assistant_protocol must be short lowercase names" unless value.nil? || value.is_a?(String) && value.match?(PROVIDER_NAME)

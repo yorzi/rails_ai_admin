@@ -16,8 +16,22 @@ module RailsAiAdmin
         "list_resources" => "Listed the available resources",
         "describe_resource" => "Read the fields of %<resource>s",
         "search_records" => "Searched %<resource>s",
+        "count_records" => "Counted records in %<resource>s",
         "get_record" => "Opened a record in %<resource>s",
         "propose_operation" => "Prepared a review in %<resource>s"
+      }.freeze
+      # The line for a call whose stored result is an error (RAA-018).
+      FAILED_ACTIVITY = {
+        "list_resources" => "Tried to list the available resources",
+        "describe_resource" => "Tried to read the fields of %<resource>s",
+        "search_records" => "Tried to search %<resource>s",
+        "count_records" => "Tried to count records in %<resource>s",
+        "get_record" => "Tried to open a record in %<resource>s",
+        "propose_operation" => "Tried to prepare a review in %<resource>s"
+      }.freeze
+      FAILURE_REASONS = {
+        "NOT_FOUND" => "not available", "INVALID_QUERY" => "the request was not valid", "CONFLICT" => "the record changed",
+        "VALIDATION_FAILED" => "the input was not valid", "UNAVAILABLE" => "not available"
       }.freeze
 
       def initialize(context, chat)
@@ -28,6 +42,8 @@ module RailsAiAdmin
         continuation_ids = @chat.turns.where(kind: "continuation").where.not(user_message_id: nil).pluck(:user_message_id).to_set
         messages = @chat.messages.where.not(role: "system").includes(:ruby_llm_tool_calls, :ruby_llm_parent_tool_call)
           .reorder(id: :desc).limit(MESSAGE_LIMIT).to_a.reverse
+        @results = messages.select { |message| message.role == "tool" && message.ruby_llm_parent_tool_call }
+          .to_h { |message| [ message.ruby_llm_parent_tool_call.id, message.content ] }
         persisted = messages.flat_map do |message|
           case message.role
           when "user"
@@ -56,9 +72,20 @@ module RailsAiAdmin
         Entry.new(kind, text.to_s, links, surface_id, message.created_at)
       end
 
+      # Derived from the stored result, so a failed call never reads as done.
       def activity_text(call)
-        template = ACTIVITY.fetch(call.name) { return "Used a tool" }
-        format(template, resource: resource_label(call.arguments.is_a?(Hash) ? call.arguments["resource"] : nil))
+        return "Used a tool" unless ACTIVITY.key?(call.name)
+        resource = resource_label(call.arguments.is_a?(Hash) ? call.arguments["resource"] : nil)
+        code = result_error(call)
+        return format(ACTIVITY.fetch(call.name), resource: resource) unless code
+        "#{format(FAILED_ACTIVITY.fetch(call.name), resource: resource)} (#{FAILURE_REASONS.fetch(code, 'not available')})"
+      end
+
+      def result_error(call)
+        data = JSON.parse(@results.fetch(call.id, nil).to_s)
+        data["error"].to_s if data.is_a?(Hash) && data["error"].is_a?(String)
+      rescue JSON::ParserError
+        nil
       end
 
       def resource_label(key)

@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Make the assistant more trustworthy (audit 2026-11-10, partial). Searches
+  cover the whole policy relation unless the model names a granted scope, and
+  accept `sort`/`direction`; every result reports `applied_scope` and
+  `applied_sort`, and `describe_resource` lists scopes, sortable fields and each
+  search field's match mode (RAA-007, RAA-021). A new `count_records` tool
+  answers "how many" with the capped index count. Tool values are typed JSON
+  (null, booleans, integers, exact decimals, ISO times, `{value, label}`
+  selects, `{id, label, resource}` references); `PROMPT_VERSION` is 2
+  (RAA-017). Retryable provider failures schedule their own retry and the chat
+  shows "Retrying (n of 3)" (RAA-008). Activity lines come from the stored
+  tool result (RAA-018). A short assistant note precedes a new message after
+  an unanswered one (RAA-030). `config.assistant_daily_message_limit`
+  (default 100 per actor per 24 hours) is the minimal spend guard.
 - Unbreak ordinary flows (audit 2026-11-10). A list page leaves out an in-scope
   row whose `show` is denied and says so instead of returning 404 for the whole
   page; `TestKit.assert_scope_matches_show` finds the disagreement (RAA-001). An

@@ -65,6 +65,7 @@ module RailsAiAdmin
     end
 
     def virtual? = !@computation.nil?
+    def plugin? = !@plugin.nil?
 
     def compute(values, time_zone:)
       klass = @computation.handler_class

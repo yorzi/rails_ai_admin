@@ -31,36 +31,7 @@ module RailsAiAdmin
           raise AccessDenied, "INVALID_QUERY"
         end
         raise AccessDenied, "INVALID_QUERY" unless %w[asc desc].include?(direction)
-        unless search.nil? || search.is_a?(String) && search.valid_encoding? && (search.encoding == Encoding::UTF_8 || search.ascii_only?) && search.length <= 200 && !search.match?(/[\x00-\x1f\x7f]/)
-          raise AccessDenied, "INVALID_QUERY"
-        end
-        unless scope.nil? || scope == NamedScope::NONE || scope.is_a?(String) && scope.valid_encoding? && scope.ascii_only? && scope.match?(NamedScope::NAME)
-          raise AccessDenied, "INVALID_QUERY"
-        end
-        granted = @access.named_scopes
-        unscoped = scope == NamedScope::NONE
-        named = if unscoped then nil
-        elsif scope.nil? then granted.find(&:default?)
-        else granted.find { |definition| definition.name.to_s == scope }
-        end
-        raise AccessDenied, "INVALID_QUERY" if scope && !unscoped && !named
-        relation = @access.relation
-        relation = named.apply(relation) if named
-        relation = apply_filters(relation, filters)
-        if search.present?
-          fields = @access.fields(:search)
-          raise AccessDenied, "INVALID_QUERY" if fields.empty?
-          predicates = fields.map do |field|
-            term = ActiveRecord::Base.sanitize_sql_like(search)
-            pattern = case field.options[:searchable]
-            when :exact then term
-            when :contains then "%#{term}%"
-            else "#{term}%"
-            end
-            @resource.model_class.arel_table[field.column].matches(pattern, "\\")
-          end
-          relation = relation.where(predicates.reduce(&:or))
-        end
+        relation, named = filtered_relation(search: search, scope: scope, filters: filters)
         settings = @resource.index
         size = page_size || settings.page_size
         raise AccessDenied, "INVALID_QUERY" unless size.is_a?(Integer) && size.between?(1, Presentation::IndexSettings::MAX_PAGE_SIZE)
@@ -94,6 +65,16 @@ module RailsAiAdmin
           count: total && [ total, COUNT_LIMIT ].min, count_capped: !!total && total > COUNT_LIMIT)
       end
 
+      # The bounded number of records the same search/scope/filters match,
+      # capped like the index count. Same grants and validation as call.
+      CountResult = Data.define(:count, :capped, :scope)
+      def count(search: nil, scope: nil, filters: nil)
+        @access.authorize!(:index)
+        relation, named = filtered_relation(search: search, scope: scope, filters: filters)
+        total = relation.except(:order).limit(COUNT_LIMIT + 1).count
+        CountResult.new([ total, COUNT_LIMIT ].min, total > COUNT_LIMIT, named&.name&.to_s)
+      end
+
       # Coerces each wire value through the field's scalar contract. Values are
       # bound by Arel; no operator, column or SQL text comes from the request.
       def self.filter_value(field, operator, raw, time_zone:)
@@ -106,6 +87,40 @@ module RailsAiAdmin
       end
 
       private
+
+      def filtered_relation(search:, scope:, filters:)
+        unless search.nil? || search.is_a?(String) && search.valid_encoding? && (search.encoding == Encoding::UTF_8 || search.ascii_only?) && search.length <= 200 && !search.match?(/[\x00-\x1f\x7f]/)
+          raise AccessDenied, "INVALID_QUERY"
+        end
+        unless scope.nil? || scope == NamedScope::NONE || scope.is_a?(String) && scope.valid_encoding? && scope.ascii_only? && scope.match?(NamedScope::NAME)
+          raise AccessDenied, "INVALID_QUERY"
+        end
+        granted = @access.named_scopes
+        unscoped = scope == NamedScope::NONE
+        named = if unscoped then nil
+        elsif scope.nil? then granted.find(&:default?)
+        else granted.find { |definition| definition.name.to_s == scope }
+        end
+        raise AccessDenied, "INVALID_QUERY" if scope && !unscoped && !named
+        relation = @access.relation
+        relation = named.apply(relation) if named
+        relation = apply_filters(relation, filters)
+        if search.present?
+          fields = @access.fields(:search)
+          raise AccessDenied, "INVALID_QUERY" if fields.empty?
+          predicates = fields.map do |field|
+            term = ActiveRecord::Base.sanitize_sql_like(search)
+            pattern = case field.options[:searchable]
+            when :exact then term
+            when :contains then "%#{term}%"
+            else "#{term}%"
+            end
+            @resource.model_class.arel_table[field.column].matches(pattern, "\\")
+          end
+          relation = relation.where(predicates.reduce(&:or))
+        end
+        [ relation, named ]
+      end
 
       def apply_filters(relation, filters)
         return relation if filters.nil?
