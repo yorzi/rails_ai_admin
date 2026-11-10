@@ -129,7 +129,7 @@ module AssistantHelpers
   end
 
   # Like with_operations, with one configuration stub (stubs do not nest).
-  def with_assistant(surfaces: true, resources: nil)
+  def with_assistant(surfaces: true, resources: nil, policy: nil, adapter: nil, model: nil)
     AssistantPolicy.denied = false
     AssistantPolicy.receipt_grant = AssistantPolicy.delivery_grant = AssistantPolicy.input_grant = true
     OperationJobContext.epoch = "1"
@@ -137,6 +137,9 @@ module AssistantHelpers
     OperationContractWork.transport = ->(_delivery, _input) { true }
     config = assistant_configuration(surfaces: surfaces)
     config.resources = resources if resources
+    config.authorization_adapter = policy if policy
+    config.assistant_adapter = adapter if adapter
+    config.assistant_model = model if model
     registry = RailsAiAdmin::Registry.new(config.resources)
     operations = RailsAiAdmin::Operations::Registry.new(registry.resources)
     work = RailsAiAdmin::Outbox::Registry.new(config.work_handlers)
