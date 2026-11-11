@@ -46,6 +46,26 @@ class FlowRegressionsContractTest < ActiveSupport::TestCase
     with_tool_views_parent("::MissingHostApplicationController") { assert RailsAiAdmin::Configuration.new.finalize! }
   end
 
+  # The gemspec no longer depends on rails_tool_views or ruby_llm; a feature
+  # that needs one checks the host-loaded version at boot (RAA-026).
+  def test_raa_026_optional_gems_are_not_runtime_dependencies_and_boot_checks_their_range
+    names = Gem::Specification.load(File.expand_path("../../rails_ai_admin.gemspec", __dir__)).runtime_dependencies.map(&:name)
+    assert_empty names & RailsAiAdmin::Configuration::OPTIONAL_GEMS.keys
+    assert_nil RailsAiAdmin::Configuration.optional_gem_problem("rails_tool_views", "surfaces")
+    assert_nil RailsAiAdmin::Configuration.optional_gem_problem("ruby_llm", "assistant")
+    old = RailsAiAdmin::Configuration.optional_gem_problem("ruby_llm", "assistant", version: "2.0.0")
+    assert_equal "assistant needs ruby_llm >= 2.1.1, < 3 in the host Gemfile (2.0.0 is loaded)", old
+    assert_includes RailsAiAdmin::Configuration.optional_gem_problem("ruby_llm", "assistant", version: "3.0.0"), "3.0.0 is loaded"
+    assert_equal "surfaces needs rails_tool_views ~> 1.0.2 in the host Gemfile (it is not loaded)",
+      RailsAiAdmin::Configuration.optional_gem_problem("rails_tool_views", "surfaces", version: nil)
+    with_tool_views_parent("ActionController::Base") do
+      RailsAiAdmin::Configuration.stub(:optional_gem_problem, ->(name, feature) { "#{feature} needs #{name}" }) do
+        error = assert_raises(RailsAiAdmin::ConfigurationError) { surfaces_configuration.finalize! }
+        assert_equal "surfaces needs rails_tool_views", error.message
+      end
+    end
+  end
+
   def test_raa_020_queue_name_is_configurable_and_validated
     assert_equal "rails_ai_admin", RailsAiAdmin::Configuration.new.queue_name
     config = RailsAiAdmin::Configuration.new

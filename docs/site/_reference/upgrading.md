@@ -46,6 +46,13 @@ recreate or edit persisted receipts to force execution.
   `parent_controller` at boot.
 * Pages address records only by canonical primary-key text, and routes no longer
   accept a format suffix.
+* With `config.authentication_path` set, a signed-out page visit (a plain HTML
+  GET) now redirects with 303 to that path plus `return_to`, instead of a 401.
+  Form submissions, recovery, frames and non-HTML requests still get 401. Update
+  host tests that expected a 401 for a page visit.
+* The gemspec no longer depends on `ruby_llm` or `rails_tool_views`. A host that
+  enables `config.assistant` or `config.surfaces` must list the gem in its own
+  Gemfile; boot reports a missing gem or a version outside the supported range.
 
 Back up the host database, test migrations against a disposable copy, run the host
 policy matrix and verify packaged installation before using a changed build.

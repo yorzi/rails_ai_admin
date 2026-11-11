@@ -29,7 +29,8 @@ creates no assistant tables and never calls a provider.
 
 ## Install
 
-Add `ruby_llm` to your Gemfile and run the generator:
+The gem does not depend on RubyLLM. Add `ruby_llm` (>= 2.1.1, < 3; boot checks
+the range) to your Gemfile and run the generator:
 
 ```sh
 bin/rails generate rails_ai_admin:assistant

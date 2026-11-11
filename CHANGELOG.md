@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- `ruby_llm` and `rails_tool_views` are no longer runtime dependencies, so a
+  conventional install pulls no AI code. Hosts that enable `config.assistant`
+  or `config.surfaces` add the gem themselves; boot checks the supported range
+  (`Configuration::OPTIONAL_GEMS`) (RAA-026).
 - Make daily use pleasant (audit 2026-11-10). Model validation messages reach
   the page for writable fields (`config.validation_messages = :generic` keeps
   "is invalid"), and a field type's `valid?` may return a message (RAA-011).

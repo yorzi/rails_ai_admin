@@ -4,6 +4,22 @@ module RailsAiAdmin
   # Declares host adapters as names so development reload resolves fresh classes.
   class Configuration
     INTERNAL_PATH = /\A\/(?:[a-zA-Z0-9_-]+\/)*[a-zA-Z0-9_-]*\z/.freeze
+    # Gems an opt-in feature needs in the host's own Gemfile. The gemspec does
+    # not depend on them, so a conventional install pulls no AI code; boot
+    # enforces the supported range instead (RAA-026).
+    OPTIONAL_GEMS = {
+      "rails_tool_views" => { constant: "::RailsToolViews::VERSION", requirement: [ "~> 1.0.2" ].freeze }.freeze,
+      "ruby_llm" => { constant: "::RubyLLM::VERSION", requirement: [ ">= 2.1.1", "< 3" ].freeze }.freeze
+    }.freeze
+
+    # Nil when the loaded version of an optional gem is supported, otherwise a
+    # message naming the feature, the range and what is loaded.
+    def self.optional_gem_problem(name, feature, version: OPTIONAL_GEMS.fetch(name).fetch(:constant).safe_constantize)
+      requirement = Gem::Requirement.new(*OPTIONAL_GEMS.fetch(name).fetch(:requirement))
+      return if version && requirement.satisfied_by?(Gem::Version.new(version))
+      "#{feature} needs #{name} #{requirement} in the host Gemfile (#{version ? "#{version} is loaded" : 'it is not loaded'})"
+    end
+
     attr_accessor :context_adapter, :authorization_adapter, :resources, :title, :intent_ttl,
       :work_handlers, :outbox_auto_dispatch, :collection_auto_dispatch, :field_types, :authentication_path,
       # Opt-in rails_tool_views review Surfaces. The host loads rails_tool_views
@@ -74,6 +90,9 @@ module RailsAiAdmin
       if surfaces && !defined?(::RailsToolViews::Engine)
         raise ConfigurationError, "surfaces requires the host to load rails_tool_views (add it to the Gemfile and run its installer)"
       end
+      if surfaces && (problem = self.class.optional_gem_problem("rails_tool_views", "surfaces"))
+        raise ConfigurationError, problem
+      end
       if surfaces && (problem = surfaces_parent_controller_problem)
         raise ConfigurationError, problem
       end
@@ -118,6 +137,9 @@ module RailsAiAdmin
       return unless assistant
       unless defined?(::RubyLLM::Railtie)
         raise ConfigurationError, "assistant requires the host to load ruby_llm (add it to the Gemfile)"
+      end
+      if (problem = self.class.optional_gem_problem("ruby_llm", "assistant"))
+        raise ConfigurationError, problem
       end
       unless assistant_adapter.is_a?(String) && assistant_adapter.match?(/\A[A-Z]\w*(?:::[A-Z]\w*)*\z/)
         raise ConfigurationError, "assistant_adapter must be a constant name string"

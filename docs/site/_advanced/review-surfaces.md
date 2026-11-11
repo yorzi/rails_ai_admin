@@ -19,8 +19,9 @@ After reading this guide, you will know:
 
 ## Opt In
 
-Admin review Surfaces build on the host's own rails_tool_views installation. Add
-the gem to your Gemfile, run its installer migrations, then enable the admin
+Admin review Surfaces build on the host's own rails_tool_views installation. The
+gem does not depend on it: add `rails_tool_views` (~> 1.0.2; boot checks the range)
+to your Gemfile, run its installer migrations, then enable the admin
 integration and choose the member operations that may be reviewed:
 
 ```ruby
