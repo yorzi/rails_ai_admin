@@ -1,4 +1,5 @@
 <p><%= link_to list_return_label, list_return_path %></p>
+<% admin_title "Selected records", @resource.label %>
 <h1>Selected records</h1>
 <p><%= pluralize(@selection.targets.size, "fixed target") %>. This selection does not approve or execute an operation.</p>
 <p>Expires <time datetime="<%= @selection.expires_at.iso8601 %>"><%= @selection.expires_at.in_time_zone(@context.time_zone).strftime("%Y-%m-%d %H:%M:%S %Z") %></time>.</p>

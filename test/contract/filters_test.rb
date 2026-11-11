@@ -178,6 +178,7 @@ class FiltersTest < Minitest::Test
     checks = RailsAiAdmin::Doctor.new(configuration: RailsAiAdmin::Configuration.new, registry: RailsAiAdmin::Registry.new([ "FilterSampleAdmin" ]), application: nil).checks
     check = checks.find { |entry| entry.name == "filter_indexes:filter_samples" }
     assert_equal :review, check.status
-    assert_match(/\A6 filterable declarations/, check.message)
+    # RAA-026: the line names what it counts.
+    assert_match(/\AFilterable declarations in no index: 6 fields \(label, kind, amount, due_on, seen_at, flagged\)/, check.message)
   end
 end

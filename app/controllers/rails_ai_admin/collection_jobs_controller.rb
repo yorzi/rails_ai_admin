@@ -2,7 +2,9 @@
 
 module RailsAiAdmin
   class CollectionJobsController < ApplicationController
+    # The page exists only where its menu link does (RAA-030).
     def index
+      raise AccessDenied unless collection_jobs_available?
       @jobs = Collections::Queries.new.recent(context: @context)
     end
 

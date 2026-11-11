@@ -237,7 +237,7 @@ module RailsAiAdmin
             changed_fields = resource.fields.select { |field| before[field.column] != record.attributes_before_type_cast[field.column] }.map { |field| field.name.to_s }
             WorkItem.where(operation_run_id: run.id).update_all(expected_version: record.lock_version)
           else
-            record.assign_attributes(column_attributes(resource, values)) if run.operation == "update"
+            record.assign_attributes(column_attributes(resource, unchanged_precision(resource, record, values))) if run.operation == "update"
             names = field_names_by_column(resource)
             changed_fields = record.changes.keys.map { |column| names.fetch(column, column) } & values.keys
             persisted = definition.handler_class.new.perform(nil, record, values)
@@ -276,7 +276,7 @@ module RailsAiAdmin
             access&.fields(:write, error.record, operation: run.operation)&.map { |field| field.name.to_s } || []
           end
           names = definition&.custom? || !access ? {} : field_names_by_column(access.resource)
-          errors = error.record.errors.attribute_names.map { |name| names.fetch(name.to_s, name.to_s) }.intersection(allowed).to_h { |name| [ name, [ "is invalid" ] ] }
+          errors = validation_errors(error.record.errors, names, allowed)
           audit_failure(context, run, "VALIDATION_FAILED", origin) unless admission
           Result.new(code: "VALIDATION_FAILED", errors: errors.presence || { "base" => [ "is invalid" ] })
         when ActiveRecord::RecordNotDestroyed
@@ -338,6 +338,28 @@ module RailsAiAdmin
           @result = result
           super(result.code)
         end
+      end
+
+      # The host model's own messages for fields this actor may write, and its
+      # base messages (RAA-011). config.validation_messages = :generic keeps
+      # the earlier "is invalid" for every field instead.
+      def validation_errors(model_errors, names, allowed)
+        generic = RailsAiAdmin.configuration.validation_messages == :generic
+        errors = model_errors.attribute_names.each_with_object({}) do |attribute, result|
+          next if attribute == :base
+          name = names.fetch(attribute.to_s, attribute.to_s)
+          next unless allowed.include?(name)
+          result[name] = generic ? [ "is invalid" ] : bounded_messages(model_errors.messages_for(attribute))
+        end
+        base = generic ? [] : bounded_messages(model_errors.messages_for(:base), fallback: false)
+        errors["base"] = base if base.any?
+        errors
+      end
+
+      def bounded_messages(messages, fallback: true)
+        kept = Array(messages).select { |message| message.is_a?(String) && message.valid_encoding? }
+          .map { |message| message.gsub(/[[:cntrl:]]/, " ").squish.truncate(200) }.reject(&:empty?).uniq.first(3)
+        kept.empty? && fallback ? [ "is invalid" ] : kept
       end
 
       RESTRICTED_MESSAGE = "This record is still referenced by other records and cannot be deleted."
@@ -430,6 +452,19 @@ module RailsAiAdmin
           result[field.name.to_s] = [ Fields::Association::UNAVAILABLE ] unless resolver.admissible?(field, value)
         end
         reject!("VALIDATION_FAILED", errors: errors) if errors.any?
+      end
+
+      # A form shows a timestamp to the second. Submitting it back unchanged
+      # must not drop the stored fraction (RAA-002/RAA-015), so a whole-second
+      # value equal to the stored one truncated keeps the stored one.
+      def unchanged_precision(resource, record, values)
+        fields = resource.fields.index_by { |field| field.name.to_s }
+        values.to_h do |name, value|
+          field = fields[name]
+          stored = field && field.scalar_type == :datetime && record.has_attribute?(field.column) ? record.read_attribute(field.column) : nil
+          kept = stored.respond_to?(:usec) && value.respond_to?(:usec) && value.usec.zero? && stored.usec.nonzero? && stored.change(usec: 0) == value
+          [ name, kept ? stored : value ]
+        end
       end
 
       def column_attributes(resource, values)

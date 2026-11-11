@@ -95,7 +95,7 @@ class NativeFormRecoveryTest < ActionDispatch::IntegrationTest
     RailsAiAdmin.stub(:configuration, config) { recover(token) }
     assert_response :success
     assert_select "input[name='record[points]']", count: 0
-    assert_select "output", text: "0"
+    assert_select ".raa-readonly", text: "0"
     form = css_select("form[data-raa-form-recovery-fields-value]").first
     assert_equal %w[name active], JSON.parse(form["data-raa-form-recovery-fields-value"])
     assert_equal 0, @customer.reload.points

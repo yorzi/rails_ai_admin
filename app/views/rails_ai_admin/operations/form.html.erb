@@ -1,5 +1,6 @@
 <div id="<%= @flow_id %>">
 <p><%= link_to list_return_label, list_return_path %></p>
+<% admin_title @definition.description, @resource.label %>
 <h1><%= @definition.description %></h1>
 <%= form_with url: operation_preflight_path(resource: @resource.key, id: @record.id, operation: @definition.key), method: :post, local: true, scope: :input, namespace: "raa_#{@resource.key}_#{@record.id}_#{@definition.key}", data: { controller: "raa-dirty-form", action: "input->raa-dirty-form#change submit->raa-dirty-form#submit turbo:submit-end->raa-dirty-form#finish" } do |form| %>
   <%= return_navigation_fields %>

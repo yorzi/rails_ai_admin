@@ -1,4 +1,5 @@
 <div id="<%= @flow_id %>">
+<% admin_title "Confirm #{@definition.description}", @resource.label %>
 <h1>Confirm <%= @definition.description %></h1>
 <p>Review this exact target and input. Nothing has been saved yet. Changed input requires a new review.</p>
 <p>Target: <%= @resource.label %> #<%= @record.id %></p>

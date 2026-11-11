@@ -74,7 +74,7 @@ class InputIntegrityTest < Minitest::Test
     assert_equal({ precision: 5, scale: 1 }, declared.decimal_limits)
     assert_equal BigDecimal("1234.5"), declared.coerce("1234.5")
     assert_equal "is out of range", error_for(declared, "12345.6")
-    assert_equal "must have at most 1 decimal places", error_for(declared, "1.25")
+    assert_equal "must have at most 1 decimal place", error_for(declared, "1.25")
     schema = JSONSchemer.schema(declared.json_schema)
     %w[1234.5 1.0 1.50 0.5 .5 -12 0012.3].each { |value| assert schema.valid?(value), value }
     %w[1.25 12345 12345.6 .25 abc].each { |value| refute schema.valid?(value), value }

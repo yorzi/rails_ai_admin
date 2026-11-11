@@ -1,10 +1,11 @@
+<%# A select without a blank option always has a value, so HTML `required` is invalid there; aria-required still marks it. %>
 <% case field.scalar_type; when :textarea %><%= form.text_area field.name, value: value, maxlength: field.options[:max_length], rows: 5, **input_options %>
-<% when :boolean %><%= form.select field.name, [["Yes", "true"], ["No", "false"]], { selected: value.to_s, include_blank: field.options[:nullable] ? "Not set" : false }, input_options %>
+<% when :boolean %><%= form.select field.name, [["Yes", "true"], ["No", "false"]], { selected: value.to_s, include_blank: field.options[:nullable] ? "Not set" : false }, field.options[:nullable] ? input_options : input_options.except(:required) %>
 <% when :enum, :select %><%= form.select field.name, admin_field_choices(field, value), { selected: value, include_blank: field.options[:nullable] ? "Not set" : "Choose a value" }, input_options %>
 <% when :belongs_to %><%= admin_reference_input(form, field, value, input_options) %>
 <% when :integer %><%= form.number_field field.name, value: value, step: 1, **input_options %>
 <% when :decimal %><%= form.text_field field.name, value: value.is_a?(BigDecimal) ? field.format_decimal(value) : value, inputmode: "decimal", **input_options %>
 <% when :date %><%= form.date_field field.name, value: value, **input_options %>
-<% when :datetime %><%= form.text_field field.name, value: value.respond_to?(:iso8601) ? value.iso8601(6) : value, placeholder: "2026-10-30T09:30:00+08:00", **input_options %>
+<% when :datetime %><%= form.datetime_local_field field.name, value: admin_datetime_input_value(value), step: 1, **input_options %>
 <% else %><%= form.text_field field.name, value: value, maxlength: field.options[:max_length], **input_options %>
 <% end %>

@@ -174,6 +174,7 @@ module RailsAiAdmin
           return {}
         end
         values = raw.stringify_keys
+        values["q"] = values["q"].strip if values["q"].is_a?(String) && values["q"].valid_encoding?
         filter = parse_filter(values.delete("filter"))
         valid = !filter.equal?(INVALID) && (values.keys - KEYS).empty? && values.values.all? { |value| value.nil? || value.is_a?(String) && value.valid_encoding? && (value.encoding == Encoding::UTF_8 || value.ascii_only?) }
         valid &&= !values["q"] || values["q"].length <= 200 && !values["q"].match?(/[\x00-\x1f\x7f]/)

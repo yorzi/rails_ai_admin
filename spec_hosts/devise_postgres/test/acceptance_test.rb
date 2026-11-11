@@ -39,6 +39,12 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
     css_select("input[name=authenticity_token]").first["value"]
   end
 
+  # Signed-out page visits go to Devise's sign-in page (authentication_path).
+  def assert_sign_in_redirect
+    assert_response :see_other
+    assert_equal "/staff_users/sign_in", URI(response.location).path
+  end
+
   def login
     get "/staff_users/sign_in"
     assert_response :success
@@ -115,10 +121,10 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
     assert_equal %w[rails_ai_admin_assistant_chats rails_ai_admin_assistant_messages rails_ai_admin_assistant_turns],
       ActiveRecord::Base.connection.tables.select { |name| name.start_with?("rails_ai_admin_assistant_") }.sort
     get "/operations/tickets"
-    assert_response :unauthorized
+    assert_sign_in_redirect
     refute_includes response.body, "Support task"
     get "/operations/assistant"
-    assert_response :unauthorized
+    assert_sign_in_redirect
   end
 
   def test_packaged_custom_field_and_fixed_select_validation
@@ -130,7 +136,7 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
     assert_select ".raa-tab-links a", count: 2
     assert_select "section[hidden]", count: 0
     assert_select "fieldset legend", text: "Classification"
-    assert_select "output", text: "open · P0 · restricted note"
+    assert_select ".raa-readonly[role=group]", text: "open · P0 · restricted note"
     assert_select ".raa-field-help", text: "Use an integer priority."
     assert_select "input[data-custom-field=trimmed_text]"
     assert_select "select[name='record[state]'] option[value=triaged]", text: "Triaged"
@@ -246,7 +252,7 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
     delete "/staff_users/sign_out", params: { authenticity_token: logout_token }
     assert_response :see_other
     get "/operations/tickets"
-    assert_response :unauthorized
+    assert_sign_in_redirect
   end
 
   def test_host_product_surface_settings_and_ownership_are_preserved
@@ -404,7 +410,7 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
       get "/operations/tickets"
       assert_response :redirect
       follow_redirect!
-      assert_response :unauthorized
+      assert_sign_in_redirect
       patch "/operations/tickets/#{@ticket.id}", params: { authenticity_token: token, intent_ref: intent, record: { subject: "Not yet saved" } }
       assert_response :unprocessable_content
       assert_equal "session", response.headers["X-RailsAiAdmin-Form-Recovery"]
@@ -436,7 +442,7 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
       # Devise's GET timeout flow redirects to the attempted path after signing
       # out. The next request must resolve an unauthenticated admin context.
       follow_redirect!
-      assert_response :unauthorized
+      assert_sign_in_redirect
       refute_includes response.body, "Support task"
       patch "/operations/tickets/#{@ticket.id}", params: { authenticity_token: token, intent_ref: intent, record: { subject: "Expired session" } }
       # Devise clears the old session's CSRF state on timeout too.

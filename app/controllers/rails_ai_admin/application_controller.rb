@@ -81,8 +81,26 @@ module RailsAiAdmin
 
     def deny_access(error)
       status = Presentation::Status.for_code(error.code)
+      if status.kind == "authentication_required" && (target = sign_in_redirect)
+        return redirect_to(target, status: :see_other)
+      end
       mark_form_recovery if status.kind == "authentication_required"
       admin_status(status.kind)
+    end
+
+    # A plain page visit by a signed-out person goes to the host's sign-in
+    # page with the requested path (RAA-024). Form submissions, recovery,
+    # frames and non-HTML requests keep the 401, so no open form is lost. The
+    # query string is left out: it can carry search text. The host must still
+    # validate return_to before redirecting to it.
+    def sign_in_redirect
+      path = RailsAiAdmin.configuration.authentication_path
+      return unless path.is_a?(String) && path.match?(Configuration::INTERNAL_PATH)
+      return unless request.get? && request.format.html? && !request.xhr?
+      return if request.headers["Turbo-Frame"] || request.headers["X-RailsAiAdmin-Recovery-Intent"]
+      requested = request.path
+      return path unless requested.is_a?(String) && requested.match?(%r{\A/(?![/\\])[^\s]*\z}) && requested.length <= 2000
+      "#{path}?#{{ return_to: requested }.to_query}"
     end
 
     def mark_form_recovery

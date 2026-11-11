@@ -1,3 +1,4 @@
 <h1>Operation needs a new review</h1>
-<p>The operation was not submitted successfully: <%= @failure_code %>. Check the current record and permissions before preparing a new intent.</p>
+<p><%= admin_outcome(@failure_code) %></p>
+<p>Nothing was changed. Check the current record and your permissions, then start a new review.</p>
 <%= link_to "Review current record", resource_path(resource: @resource.key, id: params[:id], **navigation_params) %>

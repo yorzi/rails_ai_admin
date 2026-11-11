@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+- Make daily use pleasant (audit 2026-11-10). Model validation messages reach
+  the page for writable fields (`config.validation_messages = :generic` keeps
+  "is invalid"), and a field type's `valid?` may return a message (RAA-011).
+  Timestamps use a native `datetime-local` input in the context zone and display
+  as "30 Oct 2026 01:30 UTC" inside `<time>`; an unchanged save keeps stored
+  fractions of a second; long text keeps line breaks (RAA-015). Required fields
+  carry `required`, `aria-required` and a marker; readonly values are no longer
+  `<output>` live regions (RAA-023). Pages have specific titles and headings,
+  Cancel on edit returns to the record, the fixed "Development preview" became
+  `config.environment_label`, a `session_links` partial holds the signed-in
+  user, and a signed-out page visit redirects to `authentication_path` with
+  `return_to` (RAA-024). Lists put search beside the heading, fold filters into
+  `<details>`, add a page select-all and an Edit link per row (RAA-025). Codes
+  become sentences on forms, failure pages and job tables (RAA-027). Search is
+  trimmed and states its match mode; doctor names the fields it counts and gives
+  index advice that matches the SQL (RAA-021, RAA-026). Empty values sort last
+  (RAA-028); the collection review uses labels and formatting (RAA-029); only
+  canonical ids address a record (RAA-022); `/jobs` follows its menu grant
+  (RAA-030). Strings touched here moved to `config/locales/en.yml`.
 - Make the assistant more trustworthy (audit 2026-11-10, partial). Searches
   cover the whole policy relation unless the model names a granted scope, and
   accept `sort`/`direction`; every result reports `applied_scope` and

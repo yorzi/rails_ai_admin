@@ -6,7 +6,7 @@
 .raa .raa-skip:focus { top:1rem; }
 .raa .raa-header { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:1rem 1.5rem; background:var(--raa-panel); border-bottom:1px solid var(--raa-line); }
 .raa .raa-header a { color:var(--raa-text); font-size:1.15rem; font-weight:700; text-decoration:none; }
-.raa .raa-header span { color:var(--raa-muted); font-size:.8rem; }
+
 .raa .raa-shell { display:grid; grid-template-columns:14rem minmax(0,1fr); min-height:calc(100vh - 4rem); }
 .raa nav[aria-label="Admin resources"] { padding:1.5rem 1rem; border-right:1px solid var(--raa-line); }
 .raa nav[aria-label="Admin resources"] a { display:block; padding:.65rem .8rem; margin-bottom:.2rem; border-radius:.4rem; text-decoration:none; }
@@ -51,7 +51,10 @@
 .raa .raa-form-panel { border:1px solid var(--raa-line); border-radius:.4rem; margin:1.25rem 0; padding:0 1rem; min-width:0; }
 .raa .raa-form-panel legend { padding:0 .4rem; font-weight:600; }
 .raa .raa-field-help { color:var(--raa-muted); font-size:.9rem; }
-.raa .raa-field output { display:block; overflow-wrap:anywhere; padding:.6rem 0; }
+.raa .raa-field .raa-readonly { display:block; overflow-wrap:anywhere; padding:.6rem 0; }
+.raa .raa-field .raa-label { display:block; margin-bottom:.35rem; font-weight:600; }
+.raa .raa-required { color:var(--raa-danger); }
+.raa .raa-visually-hidden { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
 .raa [hidden] { display:none !important; }
 
 .raa .raa-status-page { max-width:48rem; margin:4rem auto; }
@@ -87,3 +90,12 @@
 .raa .raa-chat-composer textarea { width:100%; box-sizing:border-box; }
 .raa .raa-chat-list { padding-left:1.25rem; }
 .raa .raa-code { color:var(--raa-muted); font-size:.8rem; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+.raa .raa-multiline { white-space:pre-wrap; }
+.raa .raa-header-meta { display:flex; align-items:center; gap:1rem; }
+.raa .raa-environment { padding:.15rem .5rem; border:1px solid var(--raa-line); border-radius:.3rem; color:var(--raa-muted); font-size:.8rem; }
+.raa .raa-heading .raa-search { display:flex; gap:.5rem; align-items:center; }
+.raa .raa-filter-panel { margin:1rem 0; }
+.raa .raa-filter-panel summary { cursor:pointer; font-weight:600; padding:.4rem 0; }
+.raa .raa-selection-bar { display:flex; flex-wrap:wrap; align-items:center; gap:1rem; margin:.75rem 0; }
+.raa .raa-selection-bar p { margin:0; }
+.raa .raa-row-actions a + a { margin-left:.75rem; }

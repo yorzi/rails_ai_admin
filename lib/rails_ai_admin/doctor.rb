@@ -118,6 +118,9 @@ module RailsAiAdmin
 
     BACKLOG_AGE = 15.minutes
 
+    def count_of(fields, noun) = "#{fields.size} #{fields.size == 1 ? noun : noun.pluralize}"
+    def named(fields) = fields.empty? ? "" : " (#{fields.first(10).map(&:name).join(', ')}#{fields.size > 10 ? ', …' : ''})"
+
     def queue_name(config) = config.respond_to?(:queue_name) ? config.queue_name.to_s : "rails_ai_admin"
 
     # Work that has been due for a while means no worker or scan is running it
@@ -225,20 +228,29 @@ module RailsAiAdmin
       end
       result << Check.new("field_types:#{resource.key}", mismatches.zero? ? :ok : :review,
         "#{mismatches} declarations need scalar type compatibility review. Validate coercion and presentation with host data; metadata alone cannot prove them.")
-      sensitive = resource.fields.count { |field| SchemaSuggestions.sensitive?(model, field.name) }
-      result << Check.new("sensitivity:#{resource.key}", sensitive.zero? ? :ok : :review,
-        "#{sensitive} declarations match sensitive names/encrypted attributes. Review explicit grants; naming heuristics cannot establish safety. Assistant/export are not implemented.")
+      # Each line names the declarations it counts (RAA-026); names are schema
+      # metadata, never record content.
+      sensitive = resource.fields.select { |field| SchemaSuggestions.sensitive?(model, field.name) }
+      result << Check.new("sensitivity:#{resource.key}", sensitive.empty? ? :ok : :review,
+        "Declarations matching sensitive names or encrypted attributes: #{count_of(sensitive, 'field')}#{named(sensitive)}. Review explicit grants, including the assistant? grant; naming heuristics cannot establish safety.")
       indexes = model.connection.indexes(model.table_name)
-      missing = resource.fields.count do |field|
+      missing = resource.fields.select do |field|
         field.options[:sortable] && field.column != model.primary_key && !indexes.any? { |index| index.columns.is_a?(Array) && index.columns.first == field.column }
       end
-      result << Check.new("sort_indexes:#{resource.key}", missing.zero? ? :ok : :review,
-        "#{missing} sortable declarations lack a leading-column index. Review query plans and tenant-composite indexes; this hint is not a performance verdict.")
-      unindexed_filters = resource.fields.count do |field|
+      result << Check.new("sort_indexes:#{resource.key}", missing.empty? ? :ok : :review,
+        "Sortable declarations without a leading-column index: #{count_of(missing, 'field')}#{named(missing)}. Review query plans and tenant-composite indexes; this hint is not a performance verdict.")
+      unindexed_filters = resource.fields.select do |field|
         !field.hidden? && field.filter_operators.any? && field.column != model.primary_key && !indexes.any? { |index| index.columns.is_a?(Array) && index.columns.include?(field.column) }
       end
-      result << Check.new("filter_indexes:#{resource.key}", unindexed_filters.zero? ? :ok : :review,
-        "#{unindexed_filters} filterable declarations appear in no index. Review query plans with the tenant scope; low-cardinality filters may not need one.")
+      result << Check.new("filter_indexes:#{resource.key}", unindexed_filters.empty? ? :ok : :review,
+        "Filterable declarations in no index: #{count_of(unindexed_filters, 'field')}#{named(unindexed_filters)}. Review query plans with the tenant scope; low-cardinality filters may not need one.")
+      searchable = resource.fields.select { |field| field.options[:searchable] && !field.hidden? && !field.virtual? }
+      if searchable.any?
+        modes = searchable.map { |field| "#{field.name} (#{field.options[:searchable] == true ? :prefix : field.options[:searchable]})" }.join(", ")
+        result << Check.new("search:#{resource.key}", :review,
+          "Search uses case-insensitive LIKE on SQLite and ILIKE on PostgreSQL over #{modes}. A plain B-tree index cannot serve ILIKE or contains search; " \
+          "on PostgreSQL use a pg_trgm GIN index, or lower(column) text_pattern_ops for prefix search. SQLite folds ASCII case only, so non-ASCII case differs by database.")
+      end
       references = resource.fields.select { |field| field.scalar_type == :belongs_to }
       if references.any?
         failures = references.filter_map do |field|

@@ -35,7 +35,8 @@ module RailsAiAdmin
       # whole list (RAA-001). The notice says rows were left out, never which.
       @rows = @page.records.filter_map do |record|
         values = @access.project(record, view: :index, only: computed)
-        { id: record.id, label: record_label(@resource, record, values: values, view: :index), values: values }
+        { id: record.id, label: record_label(@resource, record, values: values, view: :index), values: values,
+          editable: allowed_action?(@resource, :update, record) }
       rescue AccessDenied
         @omitted_rows = true
         nil
@@ -45,6 +46,7 @@ module RailsAiAdmin
         admin_associations.prime(field, @rows.filter_map { |row| row[:values][field.name.to_s] })
       end
       @searchable = @access.fields(:search).any?
+      @omitted_rows ||= false
       @selectable = begin
         @access.authorize_selection!
       rescue AccessDenied
@@ -99,6 +101,7 @@ module RailsAiAdmin
     def resolve_resource
       @resource = RailsAiAdmin.registry.fetch(params[:resource])
       @access = Authorization::Access.new(@context, @resource)
+      raise AccessDenied if params.key?(:id) && !@access.canonical_id?(params[:id])
       resolve_list_navigation unless action_name == "index"
     end
 

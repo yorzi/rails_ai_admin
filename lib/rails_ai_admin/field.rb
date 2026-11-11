@@ -26,6 +26,8 @@ module RailsAiAdmin
     # contains/prefix matching stays with search.
     FILTER_OPERATORS = %i[eq gte lte].freeze
     RANGE_TYPES = %i[integer decimal date datetime].freeze
+    # A registered type's own rejection message; passes through coercion.
+    class TypeMessage < ArgumentError; end
     Descriptor = Data.define(:name, :type, :scalar_type, :options, :scalar_json_schema)
     attr_reader :name, :type, :scalar_type, :options, :dependencies, :filter_operators, :column
 
@@ -107,11 +109,17 @@ module RailsAiAdmin
       case scalar_type
       when :boolean then value ? "Yes" : "No"
       when :decimal then format_decimal(value)
-      when :datetime then value.in_time_zone(time_zone).iso8601(6)
+      when :datetime then format_time(value.in_time_zone(time_zone))
       when :date then value.iso8601
       when :select then choice_options.find { |_, key| key == value }&.first || value.to_s
       else value.to_s
       end
+    end
+
+    # "10 Nov 2026 10:44 UTC" in the context zone (RAA-015); seconds appear
+    # only when set. Pages put the exact ISO value in a <time> element.
+    def format_time(time)
+      time.strftime(time.sec.zero? ? "%-d %b %Y %H:%M %Z" : "%-d %b %Y %H:%M:%S %Z")
     end
 
     # Decimal text padded to the declared or column scale ("10.50", not
@@ -142,8 +150,8 @@ module RailsAiAdmin
 
     def coerce_scalar(value, time_zone: "UTC", strict: true)
       if blank_input?(value, strict)
-        raise ArgumentError, "cannot be blank" if strict && (options[:required] || !options[:nullable])
-        raise ArgumentError, "cannot be blank" unless options[:nullable]
+        raise ArgumentError, message(:blank, "cannot be blank") if strict && (options[:required] || !options[:nullable])
+        raise ArgumentError, message(:blank, "cannot be blank") unless options[:nullable]
         return nil
       end
       case scalar_type
@@ -156,7 +164,7 @@ module RailsAiAdmin
         raise ArgumentError, "is too long" if value.length > options[:max_length]
         raise ArgumentError, "is invalid" unless value.valid_encoding?
         if strict && value.match?(scalar_type == :textarea ? TEXTAREA_CONTROLS : TEXT_CONTROLS)
-          raise ArgumentError, "contains control characters"
+          raise ArgumentError, message(:control_characters, "contains control characters")
         end
         String.new(value)
       when :enum, :select
@@ -193,14 +201,14 @@ module RailsAiAdmin
         year, month, day, hour, minute, second, offset_hour, offset_minute = parts.captures.map { |part| part&.to_i }
         unless Date.valid_civil?(year, month, day) && hour <= 23 && minute <= 59 && second.to_i <= 59 &&
             offset_hour.to_i <= 23 && offset_minute.to_i <= 59
-          raise ArgumentError, "is not a valid date and time"
+          raise ArgumentError, message(:invalid_datetime, "is not a valid date and time")
         end
         # datetime-local inputs are interpreted in the authenticated context zone.
         zone = ActiveSupport::TimeZone[time_zone]
         begin
           zone.iso8601(value).utc
         rescue ArgumentError
-          raise ArgumentError, "is not a valid date and time", cause: nil
+          raise ArgumentError, message(:invalid_datetime, "is not a valid date and time"), cause: nil
         end
       end
     rescue Date::Error, TypeError
@@ -247,9 +255,17 @@ module RailsAiAdmin
       repeated = coerce_scalar(wire(repeated), time_zone: time_zone, strict: strict)
       raise ConfigurationError, "Field normalization must be idempotent" unless normalized == repeated
       valid = invoke(:valid?, immutable_copy(normalized), field: @descriptor, time_zone: time_zone)
-      raise ConfigurationError, "Field validation must return a boolean" unless [ true, false ].include?(valid)
+      # A type may explain a rejection with a short plain message (RAA-011).
+      if valid.is_a?(String)
+        message = valid.gsub(/[[:cntrl:]]/, " ").squish
+        raise ConfigurationError, "Field validation messages must be 1 to 200 characters of plain text" unless message.valid_encoding? && message.length.between?(1, 200)
+        raise TypeMessage, message
+      end
+      raise ConfigurationError, "Field validation must return a boolean or a message" unless [ true, false ].include?(valid)
       raise ArgumentError, "is invalid" unless valid && @validator.valid?(wire(normalized))
       normalized
+    rescue TypeMessage
+      raise
     rescue ArgumentError
       raise ArgumentError, "is invalid", cause: nil if @plugin
       raise
@@ -265,10 +281,15 @@ module RailsAiAdmin
       %i[text textarea id].include?(scalar_type) && value.valid_encoding? && value.match?(BLANK)
     end
 
+    # Field input messages are translatable under rails_ai_admin.fields.errors.
+    def message(key, default, **values)
+      I18n.t(key, scope: %i[rails_ai_admin fields errors], default: default, **values)
+    end
+
     def check_decimal_limits!(number)
       limits = decimal_limits
       scale, precision = limits[:scale], limits[:precision]
-      raise ArgumentError, "must have at most #{scale} decimal places" if scale && number.scale > scale
+      raise ArgumentError, message(:decimal_places, "must have at most %{count} decimal places", count: scale) if scale && number.scale > scale
       return unless precision
       whole_digits = [ number.exponent, 0 ].max
       raise ArgumentError, "is out of range" if whole_digits > precision - (scale || 0)

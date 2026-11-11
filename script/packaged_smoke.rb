@@ -28,6 +28,11 @@ end
 FileUtils.rm_f(File.join(target, "Gemfile.lock"))
 run!(env, target, "bundle", "install", "--local")
 run!(env, target, "bundle", "exec", "ruby", File.join(root, "script/support/verify_installed_package.rb"), package)
+# The generator never overwrites, so remove its earlier outputs that the spec
+# host does not provide itself: each run checks this package's templates.
+%w[app/rails_ai_admin/admin_policy_adapter.rb app/rails_ai_admin/example_admin.rb test/rails_ai_admin/access_test.rb].each do |path|
+  FileUtils.rm_f(File.join(target, path)) unless File.exist?(File.join(root, "spec_hosts/session_sqlite", path))
+end
 run!(env, target, "bundle", "exec", "rails", "generate", "rails_ai_admin:install", "--force")
 # Generated authentication is deliberately closed; use the independent host's
 # reviewed adapters only after checking the installed stub in a fresh process.

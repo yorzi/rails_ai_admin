@@ -1,0 +1,59 @@
+# English source strings. Strings move here as they are edited (RELEASING.md, I18n gate).
+en:
+  rails_ai_admin:
+    outcomes:
+      ok: Done.
+      validation_failed: Some values need attention.
+      conflict: The record changed after this page was opened.
+      restricted: The record is still in use and cannot be deleted.
+      not_found: The record is not available.
+      unauthenticated: Sign in to continue.
+      invalid_query: The list settings are not available.
+      approval_required: This change needs your explicit confirmation.
+      approval_expired: This form expired before it was submitted.
+      approval_invalidated: Your access or the operation changed after this form was
+        opened.
+      idempotency_conflict: This form was already submitted with different values.
+      authorization_revoked: Your access changed before the work ran.
+      selection_invalidated: The selection no longer matches the records.
+      selection_expired: The selection expired.
+      timeout: The operation took too long and was stopped.
+      operation_failed: The operation failed.
+      post_commit_callback_failed: The change was saved, but a follow-up step failed.
+      outcome_unknown: The result could not be confirmed.
+      attempts_exhausted: The work failed after several attempts.
+      cancelled: The work was cancelled.
+      execution_expired: The work expired before it could run.
+      work_expired: The work expired before it could run.
+      handler_changed: The operation changed after the work was queued.
+      unavailable: This is not available right now.
+    fields:
+      errors:
+        blank: cannot be blank
+        control_characters: contains control characters
+        decimal_places:
+          one: must have at most %{count} decimal place
+          other: must have at most %{count} decimal places
+        invalid_datetime: is not a valid date and time
+    resources:
+      index:
+        omitted_rows: Some records on this page are not available to you.
+        no_list_tab: Showing every record you can access, without a list tab.
+        filters: Filters
+        active_filters:
+          one: "%{count} active"
+          other: "%{count} active"
+        selection_help: Tick records below, then capture their current versions (up
+          to 100). This does not change anything.
+      form:
+        required_note_html: Fields marked %{marker} are required.
+    selections:
+      empty: Select at least one record.
+    collection_jobs:
+      waiting: Waiting for a worker. The oldest item has been queued for %{age}.
+      waiting_hint: If this does not change, ask the host maintainer to check that
+        a job worker processes the %{queue} queue or that the collection scan is scheduled.
+    surfaces:
+      proposed_changes: Proposed visible changes
+      dismiss: Dismiss
+      dismissed: Dismissed. Nothing was changed.

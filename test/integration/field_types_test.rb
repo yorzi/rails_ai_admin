@@ -125,6 +125,9 @@ class NativeFieldTypesTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # RAA-015: a native datetime-local input in the context zone, a readable
+  # display with the exact value in <time>, and an unchanged save that keeps
+  # the stored microseconds.
   def test_datetime_form_and_display_preserve_microseconds
     @customer.update!(created_at: Time.iso8601("2026-10-30T01:30:00.123456Z"))
     field = RailsAiAdmin::Field.new(:created_at, type: :datetime)
@@ -134,9 +137,15 @@ class NativeFieldTypesTest < ActionDispatch::IntegrationTest
       with_fields(field) do
         get "/backoffice/customers/#{@customer.id}/edit"
         assert_response :success
-        assert_select "input[name='record[created_at]'][value='2026-10-30T01:30:00.123456Z']"
+        assert_select "input[type='datetime-local'][name='record[created_at]'][value='2026-10-30T01:30'][step='1']"
+        token = css_select("input[name=intent_ref]").first["value"]
         get "/backoffice/customers/#{@customer.id}"
-        assert_select "dd", text: "2026-10-30T01:30:00.123456Z"
+        assert_select "dd time[datetime='2026-10-30T01:30:00Z']", text: "30 Oct 2026 01:30 UTC"
+        patch "/backoffice/customers/#{@customer.id}", params: { intent_ref: token, record: { created_at: "2026-10-30T01:30" } }
+        assert_response :see_other
+        version = @customer.lock_version
+        assert_equal 123_456, @customer.reload.created_at.usec
+        assert_equal version, @customer.lock_version, "an unchanged save writes nothing"
       end
     end
   end
@@ -152,6 +161,20 @@ class NativeFieldTypesTest < ActionDispatch::IntegrationTest
       assert_response :see_other
       get "/backoffice/customers/#{@customer.id}"
       assert_select "dd", text: "Pending review"
+    end
+  end
+
+  # A select with no blank option cannot carry HTML `required` (Rails raises);
+  # aria-required still marks the field (RAA-023).
+  def test_required_boolean_without_blank_option_renders
+    fields = [ RailsAiAdmin::Field.new(:active, type: :boolean, nullable: false), RailsAiAdmin::Field.new(:points, type: :integer, required: true) ]
+    with_fields(*fields) do
+      get "/backoffice/customers/#{@customer.id}/edit"
+      assert_response :success
+      assert_select "select[name='record[active]'][aria-required=true]"
+      assert_select "select[name='record[active]'][required]", count: 0
+      assert_select "select[name='record[active]'] option[value='']", count: 0
+      assert_select "input[name='record[points]'][required]"
     end
   end
 

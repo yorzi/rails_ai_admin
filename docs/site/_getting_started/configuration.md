@@ -112,10 +112,19 @@ RailsAiAdmin.configure do |config|
   config.resources = ["CustomerAdmin"]
   config.title = "Operations"
   config.intent_ttl = 15.minutes
+  config.environment_label = "Staging"        # optional header badge
+  config.validation_messages = :model         # or :generic
+  config.queue_name = "rails_ai_admin"        # Active Job queue for admin jobs
 end
 ```
 
-`intent_ttl` accepts 60 through 3600 seconds. Configuration and resource definitions
+`intent_ttl` accepts 60 through 3600 seconds. `environment_label` (nil by
+default) shows a short badge in the header; nothing is shown without it.
+`validation_messages = :model` shows the host model's own validation messages
+for fields the person may write, and its base messages; `:generic` shows "is
+invalid" for every field, for hosts whose messages could carry values an editor
+should not see. `queue_name` must be included in any worker with an explicit
+queue list. Configuration and resource definitions
 are process-wide, while authority is per request. Use names for reloadable host
 classes and do not mutate configuration after boot.
 
@@ -148,11 +157,24 @@ writing. When no admin mount exists, a different route occupying the
 `rails_ai_admin` name is also rejected. The engine does not install login/logout
 routes or redirect to a guessed host sign-in page.
 
-## Connect the Optional Recovery Sign-In Link
+## Show the Signed-In User
+
+The header renders the empty partial `rails_ai_admin/shared/_session.html.erb`.
+Override it in the host (`app/views/rails_ai_admin/shared/_session.html.erb`) to
+show the current user's name and a sign-out button; `main_app` reaches host
+routes and the admin `@context` is available. It is the `session_links` entry in
+the [Template Catalog]({% link _reference/template-catalog.md %}).
+
+## Connect Sign-In
 
 `config.authentication_path` defaults to nil. Set it to a fixed internal host
-path such as `/users/sign_in` to offer a new-tab sign-in link for paused generic
-create/update forms. Include the full host relative-URL-root prefix when used.
+path such as `/users/sign_in`. A signed-out person who opens an admin page by a
+plain GET is then redirected there with `return_to` set to the requested path
+(without its query string, which can hold search text). Your sign-in action must
+validate `return_to` as an internal path before redirecting to it. Form
+submissions, Turbo Frame requests and form recovery keep the 401 response, so
+an open form is never discarded, and the same path is offered as a new-tab
+sign-in link for paused generic create/update forms. Include the full host relative-URL-root prefix when used.
 Only conservative slash-separated alphanumeric/underscore/hyphen segments are
 accepted; query strings, fragments and external URLs are rejected. With nil,
 users sign in manually through the host.

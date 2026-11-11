@@ -33,8 +33,11 @@ module RailsAiAdmin
         "UNAVAILABLE" => "This is not available right now."
       }.freeze
 
+      # Translatable under rails_ai_admin.outcomes; English is the fallback.
       def self.sentence(code)
-        SENTENCES.fetch(code.to_s) { "The request could not be completed." }
+        fallback = SENTENCES.fetch(code.to_s) { "The request could not be completed." }
+        return fallback unless code.to_s.match?(/\A[A-Z][A-Z_]{1,63}\z/)
+        I18n.t(code.to_s.downcase, scope: %i[rails_ai_admin outcomes], default: fallback)
       end
     end
   end

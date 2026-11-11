@@ -3,6 +3,25 @@
 module RailsAiAdmin
   # Original project-owned outline glyphs, with fixed SVG attributes and paths.
   module NavigationHelper
+    # Page title parts, most specific first (RAA-024). The first call wins, so
+    # a page rendered inside another keeps the outer page's title.
+    def admin_title(*parts)
+      @raa_title_parts ||= parts.compact.map { |part| part.to_s.squish.truncate(80) }.reject(&:empty?)
+      nil
+    end
+
+    # A result code as a sentence, with the code kept as secondary text for
+    # support (RAA-027).
+    def admin_outcome(code)
+      return "" if code.blank?
+      safe_join([ Presentation::Outcomes.sentence(code), " ", tag.span("(#{code})", class: "raa-code") ])
+    end
+
+    # "Edit ORD-0001 · Orders · Administration".
+    def admin_page_title
+      [ *Array(@raa_title_parts), RailsAiAdmin.configuration.title ].join(" · ")
+    end
+
     ICON_PATHS = {
       "users" => [ "M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z", "M2 21v-3a6 6 0 0 1 12 0v3M17 4a4 4 0 0 1 0 8M18 15a5 5 0 0 1 4 5v1" ],
       "shopping-bag" => [ "M4 7h16l1 14H3L4 7ZM8 8V6a4 4 0 0 1 8 0v2" ],

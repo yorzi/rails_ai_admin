@@ -9,7 +9,7 @@ module RailsAiAdmin
       # Nothing ticked is an ordinary mistake: return to the same list (RAA-013).
       if Array(params[:target_ids]).compact_blank.empty?
         Authorization::Access.new(@context, @resource).authorize_selection!
-        redirect_to list_return_path, status: :see_other, notice: "Select at least one record."
+        redirect_to list_return_path, status: :see_other, notice: t("rails_ai_admin.selections.empty", default: "Select at least one record.")
         return
       end
       selection = Selections::Builder.new.capture(context: @context, resource: @resource, target_ids: params[:target_ids])

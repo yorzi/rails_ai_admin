@@ -8,14 +8,20 @@
       so a prefetch would write a row per hover (RAA-005); keep navigation explicit. %>
   <meta name="turbo-prefetch" content="false">
   <meta name="csp-nonce" content="<%= @admin_csp_nonce %>">
-  <title><%= RailsAiAdmin.configuration.title %></title>
+  <%# "Edit ORD-0001 · Orders · Administration" (RAA-024). Views provide :raa_title. %>
+  <title><%= admin_page_title %></title>
   <%= csrf_meta_tags %>
   <%= stylesheet_link_tag "rails_ai_admin", "data-turbo-track": "reload" %>
   <%= javascript_include_tag "rails_ai_admin", type: "module", "data-turbo-track": "reload", defer: true, preload_links_header: false %>
 </head>
 <body class="raa">
   <a class="raa-skip" href="#raa-main">Skip to content</a>
-  <header class="raa-header"><%= link_to RailsAiAdmin.configuration.title, root_path %><span>Development preview</span></header>
+  <header class="raa-header"><%= link_to RailsAiAdmin.configuration.title, root_path %>
+    <div class="raa-header-meta">
+      <% if RailsAiAdmin.configuration.environment_label %><span class="raa-environment"><%= RailsAiAdmin.configuration.environment_label %></span><% end %>
+      <%= render "rails_ai_admin/shared/session" %>
+    </div>
+  </header>
   <div class="raa-shell">
     <nav aria-label="Admin resources">
       <div class="raa-nav-primary">

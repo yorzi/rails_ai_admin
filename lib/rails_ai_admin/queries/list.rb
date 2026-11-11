@@ -47,7 +47,8 @@ module RailsAiAdmin
           sortable.find { |entry| entry.name == settings.default_sort }
         end
         if field
-          relation = relation.reorder(table[field.column].public_send(direction))
+          # Empty values sort last in both directions on every database (RAA-028).
+          relation = relation.reorder(table[field.column].public_send(direction).nulls_last)
           relation = relation.order(table[primary].asc) unless field.column == primary
         else
           relation = relation.reorder(table[primary].asc)
@@ -89,6 +90,8 @@ module RailsAiAdmin
       private
 
       def filtered_relation(search:, scope:, filters:)
+        # Leading and trailing spaces are never part of the term (RAA-021).
+        search = search.strip if search.is_a?(String) && search.valid_encoding?
         unless search.nil? || search.is_a?(String) && search.valid_encoding? && (search.encoding == Encoding::UTF_8 || search.ascii_only?) && search.length <= 200 && !search.match?(/[\x00-\x1f\x7f]/)
           raise AccessDenied, "INVALID_QUERY"
         end

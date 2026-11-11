@@ -20,6 +20,33 @@ Existing development intents from before this change can return
 `APPROVAL_INVALIDATED`. Reopen their forms and review current permissions; do not
 recreate or edit persisted receipts to force execution.
 
+## Changes From the 2026-11-10 Audit Work
+
+* Native form pages no longer create an `OperationRun`; `intent_ref` is a signed
+  form reference until the first submit (ADR 0025). Host tests that looked up
+  `OperationRun.find(form_value)` should use
+  `RailsAiAdmin::Operations::FormIntent.id_for(form_value)`, and expect a run only
+  after a submit. Rotating `secret_key_base` invalidates open forms.
+* Template contracts changed: `resource_new`, `resource_edit` and `resource_form`
+  (revision 5) and `resource_destroy` (3) render `@intent_ref` instead of
+  `@intent`; `resource_index` (6) adds `@omitted_rows`; `resource_errors` (3)
+  shows outcome sentences; `layout` (4) adds page titles, the environment label
+  and the new `session_links` partial. Regenerate or review overrides that doctor
+  reports as stale.
+* Blank text is null in nullable fields and "cannot be blank" in required or
+  non-null ones; `required: true` also rejects null. Text input rejects control
+  characters. Decimals reject digits beyond the column's scale or precision.
+* `required` and model validation messages now reach the page; set
+  `config.validation_messages = :generic` for the earlier behaviour.
+* `search_records` in Admin Chat no longer applies a default list tab, and its
+  values are typed (`PROMPT_VERSION` 2). The chat enforces
+  `assistant_daily_message_limit` (100 by default).
+* A delete blocked by references returns `RESTRICTED`, not `CONFLICT`.
+* Admin jobs use `config.queue_name`; Surfaces need a resolvable rails_tool_views
+  `parent_controller` at boot.
+* Pages address records only by canonical primary-key text, and routes no longer
+  accept a format suffix.
+
 Back up the host database, test migrations against a disposable copy, run the host
 policy matrix and verify packaged installation before using a changed build.
 Never delete live operation receipts to get a replay to execute again. Keep

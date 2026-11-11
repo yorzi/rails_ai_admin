@@ -43,6 +43,11 @@ run!(env, target, "bundle", "exec", "rails", "generate", "rails_tool_views:insta
 raise "Dependency installer changed the existing custom mount" unless File.binread(routes_file) == routes_before
 FileUtils.rm_f(File.join(target, "config/initializers/rails_tool_views.rb"))
 run!(env, target, "bundle", "exec", "rails", "runner", "raise unless Gem.loaded_specs.fetch('rails_tool_views').version.to_s == '1.0.2'; raise unless Rails.application.routes.url_helpers.rails_tool_views_path == '/product_surfaces'")
+# The generator never overwrites, so remove its earlier outputs that the spec
+# host does not provide itself: each run checks this package's templates.
+%w[app/rails_ai_admin/admin_policy_adapter.rb app/rails_ai_admin/example_admin.rb test/rails_ai_admin/access_test.rb].each do |path|
+  FileUtils.rm_f(File.join(target, path)) unless File.exist?(File.join(source, path))
+end
 run!(env, target, "bundle", "exec", "rails", "generate", "rails_ai_admin:install", "--force")
 run!(env, target, "bundle", "exec", "rails", "runner", "raise unless AdminContext.new.resolve(nil).nil?")
 # Admin Chat storage beside the product's RubyLLM tables; the generated adapter

@@ -246,9 +246,17 @@ class PollController extends Controller {
 class SelectionController extends Controller {
   static targets = ["submit"];
   connect() {
-    this.update = () => {
-      const boxes = document.querySelectorAll(`input[type="checkbox"][form="${this.element.id}"]`);
-      if (this.hasSubmitTarget) this.submitTarget.disabled = ![...boxes].some((box) => box.checked);
+    this.all = document.querySelector("[data-raa-select-all]");
+    if (this.all) this.all.hidden = false;
+    this.update = (event) => {
+      const boxes = [...document.querySelectorAll(`input[type="checkbox"][form="${this.element.id}"]`)];
+      if (event?.target === this.all) boxes.forEach((box) => { box.checked = this.all.checked; });
+      const checked = boxes.filter((box) => box.checked).length;
+      if (this.all) {
+        this.all.checked = boxes.length > 0 && checked === boxes.length;
+        this.all.indeterminate = checked > 0 && checked < boxes.length;
+      }
+      if (this.hasSubmitTarget) this.submitTarget.disabled = checked === 0;
     };
     document.addEventListener("change", this.update);
     this.update();

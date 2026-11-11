@@ -3,13 +3,16 @@
 <% help_id = "#{form.field_id(field.name)}--help" %>
 <% has_error = entry.editable && errors.key?(field.name.to_s) %>
 <% descriptions = [field.options[:help_text] ? help_id : nil, has_error ? error_id : nil].compact.join(" ") %>
+<% required = entry.editable && admin_field_required?(field) %>
 <div class="raa-field">
-  <%= form.label field.name, field.label %>
   <% if entry.editable %>
-    <% input_options = { aria: { invalid: has_error, describedby: descriptions.presence } } %>
+    <%= form.label field.name do %><%= field.label %><% if required %> <span class="raa-required" aria-hidden="true">*</span><% end %><% end %>
+    <% input_options = { required: required || nil, aria: { invalid: has_error, required: required || nil, describedby: descriptions.presence } } %>
     <%= render partial: field.form_partial || "rails_ai_admin/fields/input", locals: { field: field, form: form, value: entry.value, input_options: input_options } %>
   <% else %>
-    <output id="<%= form.field_id(field.name) %>" aria-describedby="<%= descriptions.presence %>"><%= admin_field_value(field, entry.value, view: :show) %></output>
+    <%# A readonly value is plain text named by its label, not a live region (RAA-023). %>
+    <span class="raa-label" id="<%= form.field_id(field.name) %>--label"><%= field.label %></span>
+    <div class="raa-readonly" id="<%= form.field_id(field.name) %>" role="group" aria-labelledby="<%= form.field_id(field.name) %>--label" aria-describedby="<%= descriptions.presence %>"><%= admin_field_value(field, entry.value, view: :show) %></div>
   <% end %>
   <% if field.options[:help_text] %><p class="raa-field-help" id="<%= help_id %>"><%= field.options[:help_text] %></p><% end %>
   <% if has_error %><p class="raa-field-error" id="<%= error_id %>"><%= errors[field.name.to_s].join(", ") %></p><% end %>
