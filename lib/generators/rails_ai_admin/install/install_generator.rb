@@ -46,7 +46,7 @@ module RailsAiAdmin
         route 'mount RailsAiAdmin::Engine => "/admin", as: :rails_ai_admin' if mounts.empty?
         say "Access remains closed. Implement AdminContext and an explicit policy adapter; then run db:migrate and rails_ai_admin:doctor."
         say "ExampleAdmin is unregistered. Review it or generate your own resource. Run bin/rails test test/rails_ai_admin/access_test.rb."
-        say "Setup documentation: #{Engine.root.join('README.md')}"
+        say "Guide: #{GUIDES}/_getting_started/getting-started.md"
       end
     end
   end

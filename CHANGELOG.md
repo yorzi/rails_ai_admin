@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Generator output links the guides in the source repository instead of
+  local `docs/` paths the gem does not ship, and the Chat generator names the
+  supported ruby_llm range. The overview no longer calls Chat, Surfaces and
+  associations later milestones (RAA-026).
 - Support Ruby 3.3+ and Rails 8.0.5.2+ (was Ruby 4.0.9+ and Rails 8.1.4.1+).
   A CI compatibility job runs the engine suite on Ruby 3.3 and 4.0 with Rails
   8.0 and 8.1, on SQLite and PostgreSQL. Engine migrations declare

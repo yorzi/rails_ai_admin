@@ -321,4 +321,16 @@ class DeveloperToolsTest < Minitest::Test
       assert checks.any? { |check| check.name == "job_context" }
     end
   end
+
+  # The package ships no docs/ directory; generator output links guides that
+  # exist in the repository instead of local paths (RAA-026).
+  def test_generator_guide_links_name_existing_guides
+    sources = Dir[File.expand_path("../../lib/generators/**/*_generator.rb", __dir__)].map { |path| File.read(path) }.join
+    links = sources.scan(%r{\#\{GUIDES\}/([\w./-]+)}).flatten
+    assert_operator links.size, :>=, 2
+    links.each { |link| assert File.file?(File.expand_path("../../docs/site/#{link}", __dir__)), link }
+    refute_match(/See docs\//, sources)
+    assert_equal "https://github.com/yorzi/rails_ai_admin/blob/main/docs/site", RailsAiAdmin::Generators::GUIDES
+    assert RailsAiAdmin::Generators::GUIDES.start_with?(Gem::Specification.load(File.expand_path("../../rails_ai_admin.gemspec", __dir__)).homepage)
+  end
 end

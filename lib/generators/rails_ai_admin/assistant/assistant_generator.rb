@@ -17,8 +17,8 @@ module RailsAiAdmin
         target = "app/rails_ai_admin/admin_assistant.rb"
         template "admin_assistant.rb", target unless File.exist?(File.join(destination_root, target))
         say "The assistant stays unavailable: AdminAssistant#llm_context returns nil, and no resource grants assistant?."
-        say "Add ruby_llm to the Gemfile, run db:migrate, then set config.assistant = true, config.assistant_adapter = \"AdminAssistant\" and config.assistant_model."
-        say "Schedule rails_ai_admin:assistant:scan to recover lost jobs. See docs/site/_advanced/admin-assistant.md."
+        say "Add ruby_llm (#{Configuration::OPTIONAL_GEMS.fetch('ruby_llm').fetch(:requirement).join(', ')}) to the Gemfile, run db:migrate, then set config.assistant = true, config.assistant_adapter = \"AdminAssistant\" and config.assistant_model."
+        say "Schedule rails_ai_admin:assistant:scan to recover lost jobs. Guide: #{GUIDES}/_advanced/admin-assistant.md"
       end
     end
   end

@@ -130,5 +130,6 @@ Stimulus controller, so the Surface's saving and failure status texts appear.
 
 Inputs cannot be edited inside the Surface, and Surface templates are not in the
 override catalog. Assistant chats and their follow-up after a confirmation or a
-dismissal are described in [Admin Chat](admin-assistant.html). Close and retention of admin Surfaces are not
-wired up. See the development status for the remaining AI milestones.
+dismissal are described in [Admin Chat](admin-assistant.html). A review ends by
+Confirm or Dismiss; rails_tool_views' own close and retention of admin Surfaces
+are not wired up.

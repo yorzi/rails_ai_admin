@@ -57,10 +57,12 @@ exercises a different authentication, model, policy and asset configuration from
 the native-session SQLite host. These are author-controlled synthetic consumers,
 not independent users or production adoption.
 
-It does not implement the full development plan. Associations, CSV, private files,
-larger batch workflows, dashboards with metrics, saved views, global actions,
-custom CRUD overrides, broader asynchronous business workflows, Chat and Surface workflows
-remain later milestones. Work delivers a committed fact after the domain
+It does not implement the full development plan. `has_one` and nested editing,
+association search, CSV export, private files, larger batch workflows, dashboards
+with metrics, saved views, global actions, custom CRUD overrides and broader
+asynchronous business workflows remain later milestones. `belongs_to` references
+and readonly `has_many` panels, opt-in admin Chat and opt-in review Surfaces are
+available. Work delivers a committed fact after the domain
 transaction; it is not a parallel asynchronous business-operation path.
 
 RubyLLM and `rails_tool_views` are optional. The gem does not depend on them: add

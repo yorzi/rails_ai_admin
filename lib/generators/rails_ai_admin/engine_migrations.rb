@@ -8,6 +8,10 @@ module RailsAiAdmin
     # host already has is kept even with --force: it may have run, and
     # replacing it under a new timestamp would run it twice. Schema changes
     # ship as new migrations.
+    # The gem ships no docs/ directory, so generator output links the guides
+    # in the source repository (RAA-026).
+    GUIDES = "https://github.com/yorzi/rails_ai_admin/blob/main/docs/site"
+
     module EngineMigrations # :nodoc:
       def self.included(base)
         base.include Rails::Generators::Migration
