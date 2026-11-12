@@ -11,7 +11,8 @@ durable outbox for one declared post-commit effect, and an opt-in admin Chat
 whose proposals become review Surfaces. Native-provider evidence, streaming and AI
 budgets, association search and broader association writes, CSV, private files,
 metrics dashboards and the broader batch/job-center workflows remain future work. The
-development plan describes the target product, not the supported feature set.
+[development plan](docs/development-plan.md) describes the target product, not the
+supported feature set.
 
 The engine supports custom policy adapters and an optional Pundit adapter with
 explicit policy mappings per resource. The host owns authentication, tenants,
