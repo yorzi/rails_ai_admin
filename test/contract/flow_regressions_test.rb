@@ -66,6 +66,16 @@ class FlowRegressionsContractTest < ActiveSupport::TestCase
     end
   end
 
+  def test_doctor_flags_rails_releases_below_each_series_patch
+    doctor = RailsAiAdmin::Doctor.new(application: nil)
+    assert_equal :ok, doctor.send(:rails_check).status
+    { "8.0.5.2" => :ok, "8.1.4.1" => :ok, "8.1.5" => :ok, "8.1.4" => :error, "8.1.0" => :error, "8.0.5.1" => :error, "8.2.0" => :error }.each do |version, status|
+      assert_equal status, doctor.send(:rails_check, version: Gem::Version.new(version)).status, version
+    end
+    assert_includes doctor.send(:rails_check, version: Gem::Version.new("8.1.4")).message, "8.1.4.1"
+    assert_includes doctor.checks.map(&:name), "rails"
+  end
+
   def test_raa_020_queue_name_is_configurable_and_validated
     assert_equal "rails_ai_admin", RailsAiAdmin::Configuration.new.queue_name
     config = RailsAiAdmin::Configuration.new

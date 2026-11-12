@@ -4,7 +4,7 @@
 # Chats, messages and turns are Engine-owned. Tool calls and usages live in
 # RubyLLM's own shared tables, isolated per chat by their polymorphic message
 # and chat columns; they are created here only when the host has none yet.
-class CreateRailsAiAdminAssistant < ActiveRecord::Migration[8.1]
+class CreateRailsAiAdminAssistant < ActiveRecord::Migration[8.0]
   def up
     key = reference_type
     create_ruby_llm_tables(key)

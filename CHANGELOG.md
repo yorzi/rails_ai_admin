@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Support Ruby 3.3+ and Rails 8.0.5.2+ (was Ruby 4.0.9+ and Rails 8.1.4.1+).
+  A CI compatibility job runs the engine suite on Ruby 3.3 and 4.0 with Rails
+  8.0 and 8.1, on SQLite and PostgreSQL. Engine migrations declare
+  `Migration[8.0]` (the same schema on 8.1); `json >= 2.13` is a dependency so
+  override headers reject duplicate keys on json 2.x too; doctor reports a
+  Rails 8.1 below the patched 8.1.4.1.
 - The install and assistant generators keep an engine migration the host
   already has, even with `--force`. Rails would otherwise remove a changed
   one and copy it under a new timestamp, so an already-run migration ran

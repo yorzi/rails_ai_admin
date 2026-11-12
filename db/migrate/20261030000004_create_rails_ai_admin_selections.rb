@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class CreateRailsAiAdminSelections < ActiveRecord::Migration[8.1]
+class CreateRailsAiAdminSelections < ActiveRecord::Migration[8.0]
   def change
     create_table :rails_ai_admin_selections, id: :string, limit: 36 do |t|
       t.string :actor_ref, :tenant_ref, :security_version, null: false, limit: 150

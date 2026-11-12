@@ -30,7 +30,9 @@ module RailsAiAdmin
         raise ConfigurationError, "Invalid override header" if line.bytesize > MAX_BYTES || !line.valid_encoding?
         json = line.match(/\A<%# rails_ai_admin:override (\{.*\}) %>\r?\n?\z/)&.captures&.first
         raise ConfigurationError, "Invalid override header" unless json
-        data = JSON.parse(json, object_class: HeaderObject, max_nesting: 2)
+        # json 2.x builds objects without HeaderObject#[]=, so the parser's own
+        # duplicate check is what rejects a repeated key there.
+        data = JSON.parse(json, object_class: HeaderObject, max_nesting: 2, allow_duplicate_key: false)
         unless data.keys.sort == KEYS.sort && data["format"].is_a?(Integer) && data["format"] == 1 && data["key"] == entry.key &&
             data["contract"].is_a?(Integer) && data["contract"].between?(1, 1_000_000) &&
             data["source_sha256"].is_a?(String) && data["source_sha256"].match?(/\A[0-9a-f]{64}\z/) &&

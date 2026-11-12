@@ -62,8 +62,9 @@ the broader security matrix and later Beta/1.0 gates remain open.
 | Real providers | One full flow per model family through OpenRouter on 2026-11-03 is recorded above. Native OpenAI/Anthropic APIs and live failure recovery remain unverified; no paid call was made during the 2026-11-06 hardening pass |
 | Assistant evaluation set | `test/assistant_eval/questions.yml`: 20 fixed questions (counts with and without a scope, filters and ranges, sort, contains and non-ASCII search, a reference label, a two-step count, another tenant's record, an ungranted field, a proposal, a refused delete and two prompt injections), graded for tool calls, result values, answer text, proposals, unchanged business data and no foreign or ungranted values. 2026-11-10: the offline replay passes 21 / 21 through RubyLLM's real tool loop; reverting the RAA-007 fix fails 4 questions. **Live run pending:** run it against at least one real model before each release (instructions in `test/contract/assistant_eval_test.rb`) and record the model, date and score here. No paid call was made on 2026-11-10 |
 
-Runtime bounds: Ruby >= 4.0.9 (development and CI pin `.ruby-version` 4.0.9); Rails >= 8.1.4.1 and < 8.2;
-json_schemer ~> 2.5; base64 ~> 0.3; turbo-rails ~> 2.0; stimulus-rails ~> 1.3. Optional, from the host's Gemfile and
+Runtime bounds: Ruby >= 3.3 (development pins `.ruby-version` 4.0.9); Rails >= 8.0.5.2 and < 8.2 (8.0.5.2 and 8.1.4.1 are the patched releases of each series;
+doctor reports an 8.1 below 8.1.4.1); json >= 2.13
+(Rails 8.0 also needs json < 3); json_schemer ~> 2.5; base64 ~> 0.3; turbo-rails ~> 2.0; stimulus-rails ~> 1.3. Optional, from the host's Gemfile and
 checked at boot only when the feature is on: rails_tool_views ~> 1.0.2 (`config.surfaces`) and RubyLLM >= 2.1.1 and
 < 3 (`config.assistant`). These bounds are candidate dependency constraints, not proof every resolvable combination works.
 The lockfile records actual resolution, including Linux/source platform metadata.

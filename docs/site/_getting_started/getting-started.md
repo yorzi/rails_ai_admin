@@ -34,9 +34,12 @@ host's bundle. During source development, a sibling checkout is also usable:
 gem "rails_ai_admin", path: "../rails_ai_admin"
 ```
 
-The runtime requires Ruby 4.0.9 or newer and Rails 8.1.4 to below 8.2. The dependency
-range does not prove every combination has passed; consult `COMPATIBILITY.md` in
-the checkout for executed evidence. Generic writes target SQLite and PostgreSQL.
+The runtime requires Ruby 3.3 or newer and Rails 8.0.5.2 to below 8.2; on Rails 8.1
+use 8.1.4.1 or newer (doctor reports an older patch release). CI runs the
+engine suite on Ruby 3.3 and 4.0 with Rails 8.0 and 8.1; the range does not prove
+every combination has passed, so consult `COMPATIBILITY.md` in the checkout for
+executed evidence. On Rails 8.0 keep `json` below 3: Active Support 8.0's encoder
+fails on json 3. Generic writes target SQLite and PostgreSQL.
 
 ## Install the Closed Engine
 

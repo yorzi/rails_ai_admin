@@ -3,8 +3,9 @@ PATH
   specs:
     rails_ai_admin (0.1.0.dev)
       base64 (~> 0.3)
+      json (>= 2.13)
       json_schemer (~> 2.5)
-      rails (>= 8.1.4.1, < 8.2)
+      rails (>= 8.0.5.2, < 8.2)
       stimulus-rails (~> 1.3)
       turbo-rails (~> 2.0)
 

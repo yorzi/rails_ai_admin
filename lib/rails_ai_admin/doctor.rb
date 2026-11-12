@@ -69,6 +69,7 @@ module RailsAiAdmin
         adapter_check("context", config.context_adapter, { resolve: [ 1, [] ] }),
         adapter_check("policy", config.authorization_adapter, { scope: [ 0, %i[context resource relation] ], allowed?: [ 0, %i[context action resource record] ], fields: [ 0, %i[context resource action record] ] }),
         autoload_check,
+        rails_check,
         assistant_check,
         Check.new("files", :unsupported, "Private attachment management is not implemented."),
         selection_check,
@@ -122,6 +123,18 @@ module RailsAiAdmin
     def named(fields) = fields.empty? ? "" : " (#{fields.first(10).map(&:name).join(', ')}#{fields.size > 10 ? ', …' : ''})"
 
     def queue_name(config) = config.respond_to?(:queue_name) ? config.queue_name.to_s : "rails_ai_admin"
+
+    # The gemspec admits Rails 8.0.5.2 and up, the patched 8.0 release, but
+    # cannot also exclude 8.1 releases older than their patch, 8.1.4.1.
+    PATCHED_RAILS = { "8.0" => "8.0.5.2", "8.1" => "8.1.4.1" }.freeze
+
+    def rails_check(version: Rails.gem_version)
+      series = version.segments.first(2).join(".")
+      patched = PATCHED_RAILS[series]
+      return Check.new("rails", :ok, "Rails #{version} is at or above the patched #{series} release.") if patched && version >= Gem::Version.new(patched)
+      Check.new("rails", :error, "Rails #{version} is older than the patched #{series} release (#{patched || 'unknown series'}). " \
+        "Update Rails; known advisories affect this version.")
+    end
 
     # Work that has been due for a while means no worker or scan is running it
     # (RAA-020). Counts only; no record content or payload is read.

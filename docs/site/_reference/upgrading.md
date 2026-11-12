@@ -50,6 +50,10 @@ recreate or edit persisted receipts to force execution.
   GET) now redirects with 303 to that path plus `return_to`, instead of a 401.
   Form submissions, recovery, frames and non-HTML requests still get 401. Update
   host tests that expected a 401 for a page visit.
+* The supported range is now Ruby 3.3+ and Rails 8.0.5.2 to below 8.2.
+  Engine migrations declare `ActiveRecord::Migration[8.0]`; on Rails 8.1 that
+  produces the same schema, so a host that already ran them changes nothing.
+  Rails 8.0 hosts keep `json` below 3.
 * Re-running `rails_ai_admin:install` or `rails_ai_admin:assistant`, with or
   without `--force`, keeps engine migrations already in `db/migrate`. If an
   earlier forced run replaced one under a new timestamp, delete the new copy
