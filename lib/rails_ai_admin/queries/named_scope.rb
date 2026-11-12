@@ -8,6 +8,10 @@ module RailsAiAdmin
     # condition inside the body cannot widen the result.
     class NamedScope
       NAME = /\A[a-z][a-z0-9_]{0,39}\z/
+      # List state for "no list tab": the whole policy relation even when a
+      # default scope exists (RAA-006). It cannot collide with NAME, and it
+      # narrows nothing the policy relation does not already allow.
+      NONE = "_none"
       MAX_SCOPES = 20
       attr_reader :name, :label, :body
 

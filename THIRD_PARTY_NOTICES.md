@@ -11,7 +11,8 @@ Runtime dependencies retain their own notices in their distributed packages:
 | Turbo / turbo-rails | MIT | https://github.com/hotwired/turbo-rails |
 | Stimulus / stimulus-rails | MIT | https://github.com/hotwired/stimulus-rails |
 
-The prebuilt ESM contains Turbo 8.0.23 and Stimulus 3.2.2. Their complete notices
+The prebuilt ESM contains Turbo 8.0.23, Stimulus 3.2.2 and the rails_tool_views 1.0.2
+Stimulus controller. Their complete notices
 ship in `app/assets/builds/rails_ai_admin.LICENSE.txt`, generated from the sources
 recorded in `frontend/licenses/README.md`. The host needs no Node build for these
 assets. Dependency installation and license declarations do not prove a security

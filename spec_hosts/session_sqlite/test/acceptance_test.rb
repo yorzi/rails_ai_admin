@@ -148,7 +148,7 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
     get "/staff/orders/forms/recover", headers: { "X-RailsAiAdmin-Recovery-Intent" => ref }
     assert_response :success
     assert_equal "ready", response.headers["X-RailsAiAdmin-Form-Recovery"]
-    assert_equal @user.security_version.to_s, RailsAiAdmin::OperationRun.find(ref).security_version
+    assert_equal @user.security_version.to_s, RailsAiAdmin::OperationRun.find(RailsAiAdmin::Operations::FormIntent.id_for(ref)).security_version
     assert_select "input[name='record[total]'][value='123.45']"
     assert_select "input[name='record[delivery_on]'][value='2026-11-02']"
     assert_select "select[name='record[expedited]'] option[selected][value=false]"
@@ -262,8 +262,10 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
     get "/staff/customers/forms/recover", headers: { "X-RailsAiAdmin-Recovery-Intent" => ref, "X-RailsAiAdmin-Return-State" => encoded }
     assert_response :success
     assert_select "input[name='return_to[q]'][value='客户 🚀']"
+    # Cancel on an edit form returns to the record, keeping the list hints.
     cancel = css_select("main a").find { |node| node.text == "Cancel" }
-    assert_equal state, Rack::Utils.parse_nested_query(URI(cancel["href"]).query)
+    assert_equal "/staff/customers/#{@customer.id}", URI(cancel["href"]).path
+    assert_equal({ "return_to" => state }, Rack::Utils.parse_nested_query(URI(cancel["href"]).query))
     get "/staff/customers/#{@customer.id}/confirm_destroy", params: { return_to: state }
     assert_response :success
     delete "/staff/customers/#{@customer.id}", params: { authenticity_token: css_select("input[name=authenticity_token]").first["value"], intent_ref: css_select("input[name=intent_ref]").first["value"], return_to: state }
@@ -315,8 +317,10 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
     refute ActiveRecord::Base.connection.tables.any? { |table| table.include?("assistant") || table.include?("tool_views") }
     assert_equal "Ai", "ai".camelize
     assert_equal Ai, "Ai".constantize
+    # Anonymous requests go to the host's sign-in page (authentication_path).
     get "/staff/customers"
-    assert_equal 401, response.status
+    assert_equal 303, response.status
+    assert_equal "/login", URI(response.location).path
     login
     get "/staff/customers"
     assert_equal 200, response.status
@@ -328,7 +332,7 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
     assert_select ".raa-tab-links a", count: 2
     assert_select "section[hidden]", count: 0
     assert_select "fieldset legend", text: "Rewards"
-    assert_select "output", minimum: 2
+    assert_select ".raa-readonly[role=group]", minimum: 2
     assert_select ".raa-field-help", text: "Use whole points."
     token = css_select("input[name=authenticity_token]").first["value"]
     intent = css_select("input[name=intent_ref]").first["value"]

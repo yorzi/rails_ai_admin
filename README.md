@@ -11,7 +11,8 @@ durable outbox for one declared post-commit effect, and an opt-in admin Chat
 whose proposals become review Surfaces. Native-provider evidence, streaming and AI
 budgets, association search and broader association writes, CSV, private files,
 metrics dashboards and the broader batch/job-center workflows remain future work. The
-development plan describes the target product, not the supported feature set.
+[development plan](docs/development-plan.md) describes the target product, not the
+supported feature set.
 
 The engine supports custom policy adapters and an optional Pundit adapter with
 explicit policy mappings per resource. The host owns authentication, tenants,
@@ -46,6 +47,15 @@ follows current index grants; hiding an entry changes no direct authorization.
 
 ## Develop
 
+To see the admin before installing it anywhere, run the demo. It copies the
+packaged session/SQLite host to `tmp/demo`, seeds sample data and serves it on
+127.0.0.1 only; Ctrl-C stops it:
+
+```sh
+bin/demo               # http://127.0.0.1:3917/staff, admin@example.test / demo-password
+bin/demo --assistant   # also admin Chat, against an offline fake provider (no key)
+```
+
 ```sh
 bundle install
 bundle exec rake test
@@ -54,9 +64,11 @@ bundle exec rake build
 
 The build creates `pkg/rails_ai_admin-<version>.gem` (currently `0.1.0.dev`); it
 does not publish. `bundle exec rake release:check` reports release readiness, and
-[RELEASING.md](RELEASING.md) lists the next release's open gates and procedure. Use the
-[installation guide](docs/site/_getting_started/getting-started.md) to add a local
-build or development checkout to a host. Then run:
+[RELEASING.md](RELEASING.md) lists the next release's open gates and procedure. The
+[ten-minute quickstart](docs/site/_getting_started/quickstart.md) goes from an app
+with Rails 8 sign-in to a working, policy-checked Users admin. The
+[installation guide](docs/site/_getting_started/getting-started.md) covers other
+hosts and adding a local build or development checkout. Then run:
 
 ```sh
 bin/rails generate rails_ai_admin:install

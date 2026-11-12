@@ -48,10 +48,15 @@ module RailsAiAdmin
       Assistant::Coordinator.admit!(@chat, kind: "message", content: params[:content], admission_key: params[:admission_key])
       redirect_to assistant_conversation_path(chat_ref: @chat.ref), status: :see_other
     rescue AccessDenied => error
-      raise unless error.code == "INVALID_QUERY"
+      raise unless %w[INVALID_QUERY RATE_LIMITED].include?(error.code)
       prepare_transcript
       @admission_key = params[:admission_key].is_a?(String) && params[:admission_key].match?(Assistant::Coordinator::ADMISSION_KEY) ? params[:admission_key] : "message:#{SecureRandom.uuid}"
       @draft = params[:content].is_a?(String) ? params[:content].first(Assistant::Coordinator::MAX_CONTENT + 1) : ""
+      if error.code == "RATE_LIMITED"
+        @message_error = "You have sent #{RailsAiAdmin.configuration.assistant_daily_message_limit} messages to the assistant in the last 24 hours, " \
+          "which is this administration's limit. Your message was not sent; try again later."
+        return render :show, status: :too_many_requests
+      end
       @message_error = "Write a message of up to #{Assistant::Coordinator::MAX_CONTENT} characters."
       render :show, status: :unprocessable_content
     end
@@ -114,6 +119,8 @@ module RailsAiAdmin
       last = @chat.turns.reorder(sequence: :desc).first
       @pending = @current && @chat.turns.where(status: Assistant::Turn::ACTIVE).exists?
       @running = @pending && @chat.turns.where(status: "running").exists?
+      retrying = @pending && @chat.turns.where(status: "queued").where.not(error_code: nil).reorder(:sequence).first
+      @retry_status = "Retrying (#{retrying.attempts + 1} of #{Assistant::Coordinator::MAX_ATTEMPTS})…" if retrying
       @failure = last if last&.status == "failed" || last&.status == "cancelled"
       @failure_message = @failure && FAILURES.fetch(@failure.error_code.to_s, FAILURES["ASSISTANT_FAILED"])
       @retryable = @current && @failure&.status == "failed" && RETRYABLE.include?(@failure.error_code)

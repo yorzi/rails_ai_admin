@@ -1,9 +1,10 @@
-<h1>Delete record</h1>
+<% admin_title "Delete #{record_label(@resource, @record)}", @resource.label %>
+<h1>Delete <%= record_label(@resource, @record) %></h1>
 <%= render "errors" %>
 <p>Delete <strong><%= record_label(@resource, @record) %></strong>? This runs the model's destroy callbacks and cannot be undone here.</p>
 <%= form_with url: resource_path(resource: @resource.key, id: @record.id), method: :delete, local: true do |form| %>
   <%= return_navigation_fields %>
-  <%= hidden_field_tag :intent_ref, @intent.id %>
+  <%= hidden_field_tag :intent_ref, @intent_ref %>
   <%= form.submit "Confirm deletion", class: "raa-danger", disabled: @needs_reload %>
   <%= link_to "Cancel", resource_path(resource: @resource.key, id: @record.id, **navigation_params) %>
 <% end %>

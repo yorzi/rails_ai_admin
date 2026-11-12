@@ -6,6 +6,12 @@ module RailsAiAdmin
     def create
       @resource = RailsAiAdmin.registry.fetch(params[:resource])
       resolve_list_navigation
+      # Nothing ticked is an ordinary mistake: return to the same list (RAA-013).
+      if Array(params[:target_ids]).compact_blank.empty?
+        Authorization::Access.new(@context, @resource).authorize_selection!
+        redirect_to list_return_path, status: :see_other, notice: t("rails_ai_admin.selections.empty", default: "Select at least one record.")
+        return
+      end
       selection = Selections::Builder.new.capture(context: @context, resource: @resource, target_ids: params[:target_ids])
       redirect_to selection_path(selection_ref: selection.selection_ref, **navigation_params), status: :see_other
     end

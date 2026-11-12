@@ -97,13 +97,22 @@ class SelectionsTest < Minitest::Test
     end
   end
 
-  def test_bounds_bad_id_shapes_and_duplicate_canonical_targets_are_rejected_before_persistence
+  def test_bounds_and_bad_id_shapes_are_rejected_before_persistence
     with_selection_policy do |builder|
-      [ [], [ @customer.id ] * 101, [ @customer.id, "0#{@customer.id}" ], [ "#{@customer.id}junk" ], [ nil ], [ true ], [ {} ], "all", [ "a" * 151 ], [ "1\n" ] ].each do |ids|
+      [ [], [ @customer.id ] * 101, [ "#{@customer.id}junk" ], [ nil ], [ true ], [ {} ], "all", [ "a" * 151 ], [ "1\n" ] ].each do |ids|
         error = assert_raises(RailsAiAdmin::AccessDenied) { capture(builder, ids) }
         assert_equal "INVALID_QUERY", error.code
       end
       assert_empty RailsAiAdmin::Selection.all
+    end
+  end
+
+  # RAA-013: a repeated or zero-padded id names the same target once.
+  def test_duplicate_canonical_targets_are_one_target
+    with_selection_policy do |builder|
+      result = capture(builder, [ @customer.id, "0#{@customer.id}", @customer.id.to_s ])
+      assert_equal [ @customer.id.to_s ], result.targets.map(&:id)
+      assert_equal 1, RailsAiAdmin::SelectionItem.count
     end
   end
 

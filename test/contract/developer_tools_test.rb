@@ -67,7 +67,7 @@ class DeveloperToolsTest < Minitest::Test
       create_table :schema_suggestion_records, force: true do |t|
         t.string :name, limit: 80, null: false
         t.text :description
-        t.decimal :price
+        t.decimal :price, precision: 8, scale: 2
         t.boolean :active
         t.date :starts_on
         t.integer :state
@@ -102,6 +102,19 @@ class DeveloperToolsTest < Minitest::Test
     assert_equal "text :name, nullable: false, max_length: 80", name.declaration
     assert_equal "enum :state, values: [\"open\", \"closed\"]", report.suggestions.find { |entry| entry.name == "state" }.declaration
     assert report.suggestions.find { |entry| entry.name == "created_at" }.options[:readonly]
+    # RAA-004: decimal limits are written into the suggested declaration.
+    assert_equal "decimal :price, precision: 8, scale: 2", report.suggestions.find { |entry| entry.name == "price" }.declaration
+  end
+
+  # Authority flags are not offered as editable fields (found in the
+  # quickstart trial: users.admin was suggested as a boolean).
+  def test_schema_suggestions_treat_admin_flags_as_authority
+    %w[admin is_admin super_admin superuser admin_level].each do |name|
+      assert RailsAiAdmin::SchemaSuggestions.sensitive?(SchemaSuggestionRecord, name), name
+    end
+    %w[administered_on badminton name].each do |name|
+      refute RailsAiAdmin::SchemaSuggestions.sensitive?(SchemaSuggestionRecord, name), name
+    end
   end
 
   def test_generator_only_enables_readonly_id_and_never_samples_records
@@ -122,6 +135,46 @@ class DeveloperToolsTest < Minitest::Test
       assert_match(/fields do\s+id :id\s+end/, active)
       RubyVM::InstructionSequence.compile(source)
       refute sql.any? { |statement| statement.match?(/\b(?:FROM|UPDATE|INTO)\s+["`]?schema_suggestion_records\b/i) }, sql.join("\n")
+    end
+  end
+
+  # --fields enables schema suggestions by name; anything the schema would
+  # not suggest (sensitive, relationship, tenant, internal) is refused.
+  def test_generator_fields_enable_only_schema_suggested_fields
+    Dir.mktmpdir("raa-generator-", File.expand_path("../../tmp", __dir__)) do |directory|
+      output, = capture_io do
+        RailsAiAdmin::Generators::ResourceGenerator.new([ "SchemaSuggestionRecord" ], [ "--fields", "name:text", "price", "customer" ], destination_root: directory).invoke_all
+      end
+      source = File.read(File.join(directory, "app/rails_ai_admin/schema_suggestion_record_admin.rb"))
+      active = source.lines.reject { |line| line.lstrip.start_with?("#") }.join
+      assert_includes active, "title :name"
+      assert_includes active, "readonly"
+      assert_includes active, "    text :name, nullable: false, max_length: 80\n"
+      assert_includes active, "    decimal :price, precision: 8, scale: 2\n"
+      assert_includes active, %(    belongs_to :customer, foreign_key: "owner_ref"\n)
+      assert_includes source, "    # boolean :active"
+      refute_includes source, "# text :name"
+      RubyVM::InstructionSequence.compile(source)
+      assert_includes output, "Enabled readonly fields: id, name, price, customer"
+      refused = {
+        %w[password_digest] => "not a suggested field",
+        %w[account_id] => "not a suggested field",
+        %w[name:boolean] => "is text in the schema, not boolean",
+        %w[Name] => "Use name or name:type",
+        %w[name name] => "listed twice"
+      }
+      refused.each do |fields, message|
+        FileUtils.rm_rf(File.join(directory, "app"))
+        error = assert_raises(Rails::Generators::Error) do
+          capture_io { RailsAiAdmin::Generators::ResourceGenerator.new([ "SchemaSuggestionRecord" ], [ "--fields", *fields ], destination_root: directory).invoke_all }
+        end
+        assert_includes error.message, message, fields.inspect
+        refute File.exist?(File.join(directory, "app/rails_ai_admin/schema_suggestion_record_admin.rb")), fields.inspect
+      end
+      error = assert_raises(Rails::Generators::Error) do
+        capture_io { RailsAiAdmin::Generators::ResourceGenerator.new([ "NoSchemaModel" ], [ "--fields", "name" ], destination_root: directory).invoke_all }
+      end
+      assert_includes error.message, "Schema unavailable"
     end
   end
 
@@ -221,10 +274,16 @@ class DeveloperToolsTest < Minitest::Test
         capture_io { RailsAiAdmin::Generators::InstallGenerator.new([], { force: true }, destination_root: directory, application: application).invoke_all }
         paths = %w[app/rails_ai_admin/admin_policy_adapter.rb app/rails_ai_admin/example_admin.rb test/rails_ai_admin/access_test.rb]
         paths.each { |path| File.open(File.join(directory, path), "a") { |file| file.puts "# reviewed host extension" } }
+        # A migration from an older engine build may already have run; a forced
+        # re-install keeps it instead of recreating it under a new timestamp.
+        installed = Dir[File.join(directory, "db/migrate/*.rb")].sort
+        File.open(installed.first, "a") { |file| file.puts "# copied from an older engine build" }
         application.routes.draw { mount RailsAiAdmin::Engine => "/admin", as: :rails_ai_admin }
-        capture_io { RailsAiAdmin::Generators::InstallGenerator.new([], { force: true }, destination_root: directory, application: application).invoke_all }
+        output, = capture_io { RailsAiAdmin::Generators::InstallGenerator.new([], { force: true }, destination_root: directory, application: application).invoke_all }
         paths.each { |path| assert_includes File.read(File.join(directory, path)), "# reviewed host extension" }
-        assert_equal 5, Dir[File.join(directory, "db/migrate/*.rb")].size
+        assert_equal installed, Dir[File.join(directory, "db/migrate/*.rb")].sort
+        assert_includes File.read(installed.first), "# copied from an older engine build"
+        assert_equal 5, output.scan(/exist\s+db\/migrate\//).size
         assert_equal 1, File.read(File.join(directory, "config/routes.rb")).scan("mount RailsAiAdmin::Engine").size
       end
     end
@@ -311,6 +370,34 @@ class DeveloperToolsTest < Minitest::Test
       assert_equal :review, queue.status
       assert_includes queue.message, "1 collection handlers"
       assert checks.any? { |check| check.name == "job_context" }
+    end
+  end
+
+  # The package ships no docs/ directory; generator output links guides that
+  # exist in the repository instead of local paths (RAA-026).
+  def test_generator_guide_links_name_existing_guides
+    sources = Dir[File.expand_path("../../lib/generators/**/*_generator.rb", __dir__)].map { |path| File.read(path) }.join
+    links = sources.scan(%r{\#\{GUIDES\}/([\w./-]+)}).flatten
+    assert_operator links.size, :>=, 2
+    links.each { |link| assert File.file?(File.expand_path("../../docs/site/#{link}", __dir__)), link }
+    refute_match(/See docs\//, sources)
+    assert_equal "https://github.com/yorzi/rails_ai_admin/blob/main/docs/site", RailsAiAdmin::Generators::GUIDES
+    assert RailsAiAdmin::Generators::GUIDES.start_with?(Gem::Specification.load(File.expand_path("../../rails_ai_admin.gemspec", __dir__)).homepage)
+  end
+
+  # The install templates stay closed, but their commented quickstart examples
+  # must still be valid Ruby once uncommented.
+  def test_install_template_examples_are_closed_and_compile_when_uncommented
+    root = File.expand_path("../../lib/generators/rails_ai_admin/install/templates", __dir__)
+    %w[admin_context.rb admin_policy_adapter.rb].each do |name|
+      source = File.read(File.join(root, name))
+      active = source.lines.reject { |line| line.lstrip.start_with?("#") }.join
+      refute_match(/cookie_jar|relation\.all|:users/, active, name)
+      prose, example = source.split("\n  #\n", 2)
+      assert example, name
+      uncommented = example.lines.map { |line| line.sub(/\A  # ?/, "  ").sub(/\A  #\z/, "") }.join
+      closed = name == "admin_context.rb" ? prose.sub(/  def resolve\(controller\).*?\n  end\n/m, "") : prose
+      RubyVM::InstructionSequence.compile(closed + "\n" + uncommented)
     end
   end
 end

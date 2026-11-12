@@ -38,6 +38,19 @@ module RailsAiAdmin
         raise AccessDenied
       end
 
+      # "1abc", "01" and " 1" would otherwise be cast to record 1 (RAA-022).
+      # Pages address a record only by the primary key's canonical text; the
+      # trusted Runner API still canonicalizes through the scoped lookup.
+      def canonical_id?(id)
+        return id.positive? if id.is_a?(Integer)
+        return false unless id.is_a?(String) && id.valid_encoding? && id.bytesize.between?(1, 150) && !id.match?(/[[:cntrl:]]|[[:space:]]/)
+        case resource.model_class.type_for_attribute(resource.model_class.primary_key).type
+        when :integer then id.match?(/\A[1-9][0-9]{0,18}\z/)
+        when :uuid then id.match?(/\A[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}\z/)
+        else true
+        end
+      end
+
       VIEWS = %i[index show create edit].freeze
 
       def fields(action, record = nil, operation: nil, view: nil)

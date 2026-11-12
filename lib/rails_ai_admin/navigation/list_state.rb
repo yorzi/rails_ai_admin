@@ -91,6 +91,11 @@ module RailsAiAdmin
       def normalize_scope!(access, values, strict)
         name = values["scope"]
         return unless name
+        # "No list tab" only means something while a default tab would apply.
+        if name == Queries::NamedScope::NONE
+          values.delete("scope") unless access.named_scopes.any?(&:default?)
+          return
+        end
         if strict && access.resource.scopes.none? { |definition| definition.name.to_s == name }
           raise AccessDenied, "INVALID_QUERY"
         end
@@ -169,13 +174,14 @@ module RailsAiAdmin
           return {}
         end
         values = raw.stringify_keys
+        values["q"] = values["q"].strip if values["q"].is_a?(String) && values["q"].valid_encoding?
         filter = parse_filter(values.delete("filter"))
         valid = !filter.equal?(INVALID) && (values.keys - KEYS).empty? && values.values.all? { |value| value.nil? || value.is_a?(String) && value.valid_encoding? && (value.encoding == Encoding::UTF_8 || value.ascii_only?) }
         valid &&= !values["q"] || values["q"].length <= 200 && !values["q"].match?(/[\x00-\x1f\x7f]/)
         valid &&= !values["sort"] || values["sort"] == "" || values["sort"].match?(/\A[a-z][a-z0-9_]{0,79}\z/)
         valid &&= !values["direction"] || %w[asc desc].include?(values["direction"])
         valid &&= !values["page"] || values["page"].match?(/\A[1-9]\d{0,3}\z/) && values["page"].to_i <= 1000
-        valid &&= !values["scope"] || values["scope"] == "" || values["scope"].match?(Queries::NamedScope::NAME)
+        valid &&= !values["scope"] || values["scope"] == "" || values["scope"] == Queries::NamedScope::NONE || values["scope"].match?(Queries::NamedScope::NAME)
         unless valid
           @discarded = true
           return {}

@@ -7,7 +7,7 @@ release and opens publishing.
 
 ## Release ladder
 
-The development plan (§0.6) defines these labels. Each one must be earned in
+The [development plan](docs/development-plan.md) (§0.6) defines these labels. Each one must be earned in
 order and cannot be claimed early:
 
 | Label | Version | Must prove |

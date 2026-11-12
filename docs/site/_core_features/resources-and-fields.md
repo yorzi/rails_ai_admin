@@ -99,11 +99,13 @@ Use either pattern in your resource as appropriate. Individual fields accept
 primary keys cannot be writable even if the host grants them. Unknown or currently
 unwritable submitted fields are rejected rather than silently mass assigned.
 
-`required: true` requires presence in create input; it does not replace model
-validations or imply `nullable: false`. Updates are partial: an omitted field keeps
+`required: true` requires a value in create input: the key must be present and
+the value must not be null or blank. It does not replace model validations. Updates are partial: an omitted field keeps
 its existing value. The engine retains normal Active Record validations/callbacks.
-It returns generic errors on permitted fields so arbitrary validator messages do
-not expose confidential values.
+Validation failures show the host model's own messages for fields the person may
+write ("has already been taken", "must be less than 100") and its base messages,
+each bounded to 200 characters. Set `config.validation_messages = :generic` to
+show "is invalid" instead when model messages could include confidential values.
 
 ## Narrow Each View Without Widening Permission
 
@@ -204,12 +206,45 @@ Refreshing or closing the original DOM is outside that preservation boundary.
 
 * `false` and `0` remain values rather than becoming missing input.
 * Explicit null is accepted only when `nullable` permits it.
-* Empty text remains an empty string. Blank non-text input becomes null when allowed.
+* Blank input is empty text, or text that contains only whitespace. A nullable
+  field stores blank input as null, so saving an unchanged form never turns a
+  null column into `""`. A field declared `required: true` or `nullable: false`
+  rejects blank input with "cannot be blank". Text that is not blank is stored
+  exactly as typed; it is never trimmed.
+* `text` rejects every control character, including tab and line breaks.
+  `textarea` accepts tab, line feed and carriage return and rejects the other
+  control characters. NUL is never accepted.
 * Integer form strings use base ten, including leading zeros.
-* Decimal input uses exact `BigDecimal` arithmetic and rejects float input.
-* Dates use ISO `YYYY-MM-DD`. Timestamps use ISO input; absent offsets are interpreted
-  in the authenticated context's time zone and normalized to UTC.
+* Decimal input uses exact `BigDecimal` arithmetic and rejects float input. It
+  is never rounded: a value with more fractional digits than the scale, or more
+  whole digits than the precision allows, is rejected with a field message.
+* Dates use ISO `YYYY-MM-DD`. Forms edit timestamps with a native
+  `datetime-local` control in the context's time zone, to the second; saving an
+  unchanged form keeps a stored fraction of a second. Pages show
+  "30 Oct 2026 01:30 UTC" with the exact value in a `<time>` element, and
+  `textarea` values keep their line breaks. Timestamps accept ISO input; absent offsets are interpreted
+  in the authenticated context's time zone and normalized to UTC. A day or
+  clock time that does not exist, such as `2026-02-30T10:00` or `T24:00`, is
+  rejected rather than rolled into the next month.
 * Enum values must match the declared string list. Nested hashes and arrays are rejected.
+
+These input rules apply to submitted values. A computed field or an operation
+preview returned by host code is checked for its scalar type only.
+
+### Decimal Precision and Scale
+
+A decimal field reads its precision and scale from the resource's column the
+first time it coerces or formats a value, never at boot. Declare them to make
+the limit part of the reviewed declaration and of the published JSON Schema:
+
+```ruby
+decimal :credit, precision: 8, scale: 2
+```
+
+Explicit options take precedence over the column. Operation inputs have no
+column, so declare the options there when the value is bounded. The resource
+generator writes both options from the column. Display and form values are
+padded to the scale (`10.50`, not `10.5`) and never rounded.
 
 Text length defaults to 2000 characters. Change `max_length` deliberately for a
 text field. Field coercion and supported JSON Schema generation share one schema
@@ -219,9 +254,19 @@ does not make a provider or Surface integration available.
 ## Search and Sort a Bounded Index
 
 A declared `searchable: :prefix` uses prefix search. `:exact` and `:contains` are
-also recognized. Search additionally requires a policy `:search` field grant.
+also recognized. The search box says which mode applies ("Starts with…",
+"Contains…", "Exact match…") and leading and trailing spaces are ignored.
+Matching is case-insensitive through `LIKE` on SQLite and `ILIKE` on PostgreSQL;
+SQLite folds ASCII letters only, so `ZOË` finds `Zoë` on PostgreSQL but not on
+SQLite. A plain B-tree index cannot serve `ILIKE` or contains search; doctor's
+`search` line names the fields and the index that can. Search additionally requires a policy `:search` field grant.
 Literal `%`, `_` and backslash are escaped rather than treated as user-supplied
-SQL patterns. Sort accepts an explicitly granted field and `asc` or `desc`.
+SQL patterns. Sort accepts an explicitly granted field and `asc` or `desc`; empty
+values sort last in both directions on both databases.
+
+Pages address a record only by its primary key's canonical text: `/orders/01`,
+`/orders/1abc` and `/orders/1.5` are not found. A string primary key that
+contains a dot or a slash, or equals `new`, cannot be addressed by a page.
 
 The initial index uses pages of 25 records, a stable primary-key tie-breaker and
 one extra row to determine whether a next page exists. It normally runs no total

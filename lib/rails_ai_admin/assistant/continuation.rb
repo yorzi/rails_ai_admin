@@ -13,19 +13,20 @@ module RailsAiAdmin
 
       def chat_reference?(value) = value.is_a?(String) && value.match?(CHAT_REFERENCE)
 
-      def admit!(context:, context_ref:, review:, outcome:)
+      def admit!(context:, context_ref:, review:, outcome:, decision: "confirmed")
         match = context_ref.is_a?(String) && context_ref.match(CHAT_REFERENCE)
         return unless match
         chat = Chat.owned(context, match[1])
         return unless chat&.current_for?(context)
-        Coordinator.admit!(chat, kind: "continuation", content: content(review, outcome), admission_key: "intent:#{review.run.id}")
+        Coordinator.admit!(chat, kind: "continuation", content: content(review, outcome, decision), admission_key: "intent:#{review.run.id}")
       end
 
       # Server-written summary of the committed outcome; no Surface input text.
-      def content(review, outcome)
+      def content(review, outcome, decision = "confirmed")
         subject = "#{review.resource.label.singularize} \"#{review.access.record_label(review.record)}\""
         action = review.definition.description.to_s.truncate(120)
-        "Review result: the user confirmed \"#{action}\" for #{subject}. #{outcome}"
+        verb = decision == "dismissed" ? "dismissed" : "confirmed"
+        "Review result: the user #{verb} \"#{action}\" for #{subject}. #{outcome}"
       end
     end
   end

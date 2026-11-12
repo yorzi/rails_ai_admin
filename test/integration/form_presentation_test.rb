@@ -60,7 +60,7 @@ class FormPresentationTest < ActionDispatch::IntegrationTest
       assert_select ".raa-tab-links a", text: "Account"
       assert_select "section[hidden]", count: 0
       assert_select "fieldset legend", text: "Basics"
-      assert_select "output", text: "Yes"
+      assert_select ".raa-readonly[role=group]", text: "Yes"
       assert_select "input[name='record[active]']", count: 0
       input = css_select("input[name='record[name]'][aria-describedby]").first
       assert input
@@ -123,7 +123,7 @@ class FormPresentationTest < ActionDispatch::IntegrationTest
       TestPolicy.deny_show = true
       get "/backoffice/form_customers/new"
       assert_response :success
-      assert_select "output", count: 0
+      assert_select ".raa-readonly", count: 0
       assert_select "input[name='record[name]']"
     end
   end

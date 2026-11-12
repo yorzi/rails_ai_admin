@@ -1,9 +1,30 @@
 # Compatibility
 
-Status checked 2026-11-06. This is unreleased development evidence.
+Status checked 2026-11-12. This is unreleased development evidence.
 The rows below retain dated historical runs; old clean dependency scans do not
 apply to a new candidate. Current hardening evidence is recorded separately.
 CI configuration is not a completed CI run; no production support is declared.
+
+## 2026-11-12 dependency update
+
+Locks moved to the latest releases: Ruby 4.0.9 and Rails 8.1.4.1 were already
+current; RubyLLM 2.1.1 → 2.2.0, minitest 6.1.0, Bundler 4.0.24, prism 2.1.0,
+jekyll-vitepress-theme 1.12.0 and Host B esbuild 0.28.2. RubyLLM 2.2.0 broke
+admin Chat on the 2.1 schema (38 failing engine tests); the 2.2 upgrade
+migration and an earlier context binding fix it, and RubyLLM >= 2.2.0 is now
+required. The Rails 8.0 lock keeps Rails 8.0.5.2 (the latest 8.0) and json 2.21.2.
+
+- Engine suite: 473 tests / 4,062 assertions on Ruby 4.0.9 and 3.3.5, each with
+  Rails 8.1.4.1 and 8.0.5.2, each on SQLite and PostgreSQL 17 (eight
+  combinations). A second SQLite run on an existing database reruns the upgrade
+  migration cleanly. One Rails 8.0/PostgreSQL run had a single failure that four
+  reruns did not reproduce; it is not explained.
+- Packaged Host A: 17 / 346; 18 / 399 with overrides. Host B (fresh RubyLLM 2.2
+  product tables beside the admin's): 27 / 425; 28 / 453 with overrides on both
+  Propshaft and Sprockets. Recovery and collection recovery probes pass.
+- bundle-audit is clean for all three lockfiles against advisory DB
+  `4d71b123428e33f694e805ce15351ee3d8d62ef7` (2026-11-11); npm audit is clean.
+  RuboCop, asset reproducibility and the Jekyll build pass. No live provider call.
 
 ## 2026-11-06 release hardening
 
@@ -60,10 +81,13 @@ the broader security matrix and later Beta/1.0 gates remain open.
 | Host B Propshaft 1.3.2 or Sprockets 4.4.1 / sprockets-rails 3.5.2, jsbundling-rails 1.3.1 | Both production precompiles and eager boots passed; host esbuild 0.25.12 bundle built; each variant passed Host B acceptance. These are two variants of one host |
 | Host B development reload and process recovery | Real source reload replaced computation/field/model/resource/policy/context/Operation/Work classes and registries; a changed plugin version rejected old field contracts; killed precommit transaction rolled back domain/claim/audit; response-loss replay returned one receipt. Separate worker processes died before/after synthetic effects: expired-lease idempotent replay applied once, non-idempotent pre-effect retry succeeded, and unknown non-idempotent outcome required reconciliation without resend |
 | Real providers | One full flow per model family through OpenRouter on 2026-11-03 is recorded above. Native OpenAI/Anthropic APIs and live failure recovery remain unverified; no paid call was made during the 2026-11-06 hardening pass |
+| Assistant evaluation set | `test/assistant_eval/questions.yml`: 20 fixed questions (counts with and without a scope, filters and ranges, sort, contains and non-ASCII search, a reference label, a two-step count, another tenant's record, an ungranted field, a proposal, a refused delete and two prompt injections), graded for tool calls, result values, answer text, proposals, unchanged business data and no foreign or ungranted values. 2026-11-10: the offline replay passes 21 / 21 through RubyLLM's real tool loop; reverting the RAA-007 fix fails 4 questions. **Live run pending:** run it against at least one real model before each release (instructions in `test/contract/assistant_eval_test.rb`) and record the model, date and score here. No paid call was made on 2026-11-10 |
 
-Runtime bounds: Ruby >= 4.0.9 (development and CI pin `.ruby-version` 4.0.9); Rails >= 8.1.4.1 and < 8.2; rails_tool_views ~> 1.0.2;
-RubyLLM >= 2.1.1 and < 3; json_schemer ~> 2.5; base64 ~> 0.3; turbo-rails ~> 2.0; stimulus-rails ~> 1.3. These bounds
-are candidate dependency constraints, not proof every resolvable combination works.
+Runtime bounds: Ruby >= 3.3 (development pins `.ruby-version` 4.0.9); Rails >= 8.0.5.2 and < 8.2 (8.0.5.2 and 8.1.4.1 are the patched releases of each series;
+doctor reports an 8.1 below 8.1.4.1); json >= 2.13
+(Rails 8.0 also needs json < 3); json_schemer ~> 2.5; base64 ~> 0.3; turbo-rails ~> 2.0; stimulus-rails ~> 1.3. Optional, from the host's Gemfile and
+checked at boot only when the feature is on: rails_tool_views ~> 1.0.2 (`config.surfaces`) and RubyLLM >= 2.2.0 and
+< 3 (`config.assistant`). These bounds are candidate dependency constraints, not proof every resolvable combination works.
 The lockfile records actual resolution, including Linux/source platform metadata.
 
 Published rails_tool_views 1.0.2 package SHA-256:

@@ -54,7 +54,8 @@ module RailsAiAdmin
             raise unless error.code == "UNKNOWN_COMPONENT"
             register
           end
-          unless component.policy.equal?(POLICY) && component.actions.fetch("confirm").handler.equal?(CONFIRM)
+          unless component.policy.equal?(POLICY) && component.actions.fetch("confirm").handler.equal?(CONFIRM) &&
+              component.actions["dismiss"]&.handler.equal?(DISMISS)
             raise ConfigurationError, "#{KEY} is registered by other code"
           end
           component
@@ -160,7 +161,7 @@ module RailsAiAdmin
           # A completed review is a receipt: like native replay it needs the
           # independent receipt grant, not the (possibly lapsed) command grant.
           when :read then review.run.status != "succeeded" || receipt?(review)
-          when :action then access.action == "confirm"
+          when :action then %w[confirm dismiss].include?(access.action)
           else false
           end
         end
@@ -194,6 +195,38 @@ module RailsAiAdmin
           end
         end
 
+        # Declining is a decision too (RAA-019): the unapproved intent expires
+        # at once, nothing else changes, and a chat hears about it once.
+        def dismiss(request)
+          context = current_context
+          review = review(context, request.props) if context && request.actor == context.actor_ref && request.tenant == context.tenant_ref
+          raise ::RailsToolViews::Error.new("NOT_ALLOWED", status: 403) unless review
+          expired = OperationRun.where(id: review.run.id, status: "proposed", approved_by_ref: nil)
+            .update_all(expires_at: Time.current, updated_at: Time.current)
+          raise ::RailsToolViews::Error.new("CONFLICT", status: 409, message: "This review was already decided.") unless expired == 1
+          continue_chat(context, request, review, "Nothing was changed.", decision: "dismissed")
+          ::RailsToolViews::Transition.new(state: { "outcome" => "dismissed", "message" => "Dismissed. Nothing was changed." }, agent: false)
+        end
+
+        # The visible before/after values the operation's pure preflight
+        # proposes, as the native confirmation page shows them. Empty once the
+        # review cannot be confirmed or the preview is no longer valid.
+        def proposed_changes(review, wire)
+          return [] unless review.run.status == "proposed"
+          context = review.access.context
+          preview = Operations::Runner.new.preview(context: context, resource: review.resource, operation: review.definition.key,
+            target_id: review.record.id, expected_version: review.run.expected_version, input: JSON.parse(wire), origin: :surface)
+          return [] unless preview.is_a?(Operations::Runner::Preview)
+          readable = review.access.fields(:read, review.record, view: :show).index_by { |field| field.name.to_s }
+          preview.changes.filter_map do |name, change|
+            field = readable[name]
+            next unless field
+            [ field, field.format(change["before"], time_zone: context.time_zone), field.format(change["after"], time_zone: context.time_zone) ]
+          end
+        rescue AccessDenied, ConfigurationError, JSON::ParserError
+          []
+        end
+
         # Typed display values. While proposed, only the actor's current input
         # grants; once committed, the recorded input through the operation's
         # declared contract (as receipt replay does), behind the receipt grant.
@@ -225,10 +258,10 @@ module RailsAiAdmin
 
         # Same transaction as the Surface revision; nothing is admitted when
         # the confirmation rolls back.
-        def continue_chat(context, request, review, outcome)
+        def continue_chat(context, request, review, outcome, decision: "confirmed")
           return unless RailsAiAdmin.configuration.assistant
           require "rails_ai_admin/assistant"
-          Assistant::Continuation.admit!(context: context, context_ref: request.context_ref, review: review, outcome: outcome)
+          Assistant::Continuation.admit!(context: context, context_ref: request.context_ref, review: review, outcome: outcome, decision: decision)
         rescue AccessDenied
           # A closed chat never blocks the human's committed business outcome.
           nil
@@ -236,7 +269,8 @@ module RailsAiAdmin
 
         def register
           ::RailsToolViews.register(KEY, description: "Admin operation review", version: VERSION, schema: SCHEMA, partial: PARTIAL,
-            policy: POLICY, actions: { confirm: { schema: CONFIRM_SCHEMA, policy: POLICY, handler: CONFIRM } }, expose_to: [])
+            policy: POLICY, actions: { confirm: { schema: CONFIRM_SCHEMA, policy: POLICY, handler: CONFIRM },
+              dismiss: { schema: CONFIRM_SCHEMA, policy: POLICY, handler: DISMISS } }, expose_to: [])
         rescue ::RailsToolViews::Error => error
           raise unless error.code == "DUPLICATE_COMPONENT"
           ::RailsToolViews.registry.fetch(KEY)
@@ -260,6 +294,7 @@ module RailsAiAdmin
 
       POLICY = ->(access) { ToolViews.authorize(access) }
       CONFIRM = ->(request) { ToolViews.confirm(request) }
+      DISMISS = ->(request) { ToolViews.dismiss(request) }
     end
   end
 end

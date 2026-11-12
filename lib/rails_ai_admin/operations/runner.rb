@@ -40,11 +40,55 @@ module RailsAiAdmin
 
       FormSession = Data.define(:intent, :record)
       FORM_RECOVERY_WINDOW = 1.hour
+      # id is the future OperationRun id; ref is what the form submits.
+      FormReference = Data.define(:id, :ref)
+
+      # Native form pages run the same checks as prepare but write nothing.
+      # The signed reference becomes an intent on first submit (ADR 0025).
+      def issue_form_intent(context:, resource:, operation:, target_id: nil, expected_version: nil)
+        definition = RailsAiAdmin.operation_registry.fetch(resource, operation)
+        raise ConfigurationError, "Form intents cover built-in create, update and destroy" if definition.custom?
+        result = preview(context: context, resource: resource, operation: operation, target_id: target_id,
+          expected_version: expected_version, origin: :ui)
+        raise AccessDenied, result.code if result.is_a?(Result)
+        now = Time.current
+        id = SecureRandom.uuid
+        ref = FormIntent.generate({ id: id, actor_ref: context.actor_ref, tenant_ref: context.tenant_ref,
+          security_version: context.security_version, resource_key: resource.key.to_s, operation: operation.to_s,
+          operation_version: operation_version(resource, operation), target_id: result.target_id,
+          expected_version: result.expected_version, created_at: now.utc.iso8601(6),
+          expires_at: (now + RailsAiAdmin.configuration.intent_ttl).utc.iso8601(6) }, recovery_window: FORM_RECOVERY_WINDOW)
+        FormReference.new(id, ref)
+      end
+
+      # Turns a submitted form reference into its OperationRun id, creating the
+      # proposed row from the signed payload the first time. A UUID passes
+      # through unchanged; anything unverifiable, or another owner's reference,
+      # returns nil. The row commits on its own so a rejected submit keeps the
+      # same intent for the next attempt, exactly as a GET-created one did.
+      def materialize_form_intent(context:, reference:)
+        return reference if FormIntent.uuid?(reference)
+        payload = FormIntent.verify(reference)
+        return unless payload && context.is_a?(Context) && payload["actor_ref"] == context.actor_ref && payload["tenant_ref"] == context.tenant_ref
+        unless OperationRun.exists?(id: payload["id"])
+          OperationRun.transaction(requires_new: true) { OperationRun.create!(FormIntent.run_attributes(payload)) }
+        end
+        payload["id"]
+      rescue ActiveRecord::RecordNotUnique
+        payload["id"]
+      end
 
       # Reopens an unconsumed native form after fresh authentication. No input,
       # business write, approval or replacement intent is admitted here.
       def resume_form(context:, resource:, intent_ref:)
         raise AccessDenied, "UNAUTHENTICATED" unless context.is_a?(Context)
+        unless FormIntent.uuid?(intent_ref)
+          # An unsubmitted form has no row yet; only its own recoverable kind
+          # is materialized, then the same checks as a stored intent apply.
+          payload = FormIntent.verify(intent_ref)
+          raise AccessDenied unless payload && payload["resource_key"] == resource.key.to_s && %w[create update].include?(payload["operation"])
+          intent_ref = materialize_form_intent(context: context, reference: intent_ref) || raise(AccessDenied)
+        end
         raise AccessDenied unless intent_ref.is_a?(String) && intent_ref.match?(/\A[0-9a-f-]{36}\z/)
         OperationRun.transaction(requires_new: true) do
           run = OperationRun.lock.find_by(id: intent_ref, actor_ref: context.actor_ref, tenant_ref: context.tenant_ref)
@@ -193,7 +237,7 @@ module RailsAiAdmin
             changed_fields = resource.fields.select { |field| before[field.column] != record.attributes_before_type_cast[field.column] }.map { |field| field.name.to_s }
             WorkItem.where(operation_run_id: run.id).update_all(expected_version: record.lock_version)
           else
-            record.assign_attributes(column_attributes(resource, values)) if run.operation == "update"
+            record.assign_attributes(column_attributes(resource, unchanged_precision(resource, record, values))) if run.operation == "update"
             names = field_names_by_column(resource)
             changed_fields = record.changes.keys.map { |column| names.fetch(column, column) } & values.keys
             persisted = definition.handler_class.new.perform(nil, record, values)
@@ -232,20 +276,38 @@ module RailsAiAdmin
             access&.fields(:write, error.record, operation: run.operation)&.map { |field| field.name.to_s } || []
           end
           names = definition&.custom? || !access ? {} : field_names_by_column(access.resource)
-          errors = error.record.errors.attribute_names.map { |name| names.fetch(name.to_s, name.to_s) }.intersection(allowed).to_h { |name| [ name, [ "is invalid" ] ] }
+          errors = validation_errors(error.record.errors, names, allowed)
           audit_failure(context, run, "VALIDATION_FAILED", origin) unless admission
           Result.new(code: "VALIDATION_FAILED", errors: errors.presence || { "base" => [ "is invalid" ] })
-        when ActiveRecord::RecordNotDestroyed, ActiveRecord::RecordNotSaved
+        when ActiveRecord::RecordNotDestroyed
+          if run&.operation == "destroy" && !definition&.custom?
+            # dependent: :restrict_with_error (or a before_destroy abort) says
+            # why; it is a lasting state, not a stale form (RAA-012).
+            audit_failure(context, run, "RESTRICTED", origin) unless admission
+            Result.new(code: "RESTRICTED", errors: { "base" => restriction_messages(error.record) })
+          else
+            audit_failure(context, run, "VALIDATION_FAILED", origin) unless admission
+            Result.new(code: "VALIDATION_FAILED", errors: { "base" => [ "operation was not saved" ] })
+          end
+        when ActiveRecord::RecordNotSaved
           audit_failure(context, run, "VALIDATION_FAILED", origin) unless admission
           Result.new(code: "VALIDATION_FAILED", errors: { "base" => [ "operation was not saved" ] })
+        when ActiveRecord::InvalidForeignKey
+          # On delete, a foreign key means other rows still reference the
+          # record; elsewhere a referenced target vanished after admission.
+          if run&.operation == "destroy" && !definition&.custom?
+            audit_failure(context, run, "RESTRICTED", origin) unless admission
+            Result.new(code: "RESTRICTED", errors: { "base" => [ RESTRICTED_MESSAGE ] })
+          else
+            Result.new(code: "CONFLICT")
+          end
         when ActiveRecord::RangeError
           audit_failure(context, run, "VALIDATION_FAILED", origin) unless admission
           Result.new(code: "VALIDATION_FAILED", errors: { "base" => [ "value is out of range" ] })
         when ExecutionContext::DeadlineExceeded
           audit_failure(context, run, "TIMEOUT", origin) unless admission
           Result.new(code: "TIMEOUT")
-        # InvalidForeignKey: a referenced target vanished after admission.
-        when ActiveRecord::StaleObjectError, ActiveRecord::RecordNotUnique, ActiveRecord::InvalidForeignKey, ActiveRecord::Deadlocked, ActiveRecord::LockWaitTimeout
+        when ActiveRecord::StaleObjectError, ActiveRecord::RecordNotUnique, ActiveRecord::Deadlocked, ActiveRecord::LockWaitTimeout
           Result.new(code: "CONFLICT")
         when ActiveRecord::StatementInvalid
           if defined?(SQLite3::BusyException) && error.cause.is_a?(SQLite3::BusyException)
@@ -276,6 +338,38 @@ module RailsAiAdmin
           @result = result
           super(result.code)
         end
+      end
+
+      # The host model's own messages for fields this actor may write, and its
+      # base messages (RAA-011). config.validation_messages = :generic keeps
+      # the earlier "is invalid" for every field instead.
+      def validation_errors(model_errors, names, allowed)
+        generic = RailsAiAdmin.configuration.validation_messages == :generic
+        errors = model_errors.attribute_names.each_with_object({}) do |attribute, result|
+          next if attribute == :base
+          name = names.fetch(attribute.to_s, attribute.to_s)
+          next unless allowed.include?(name)
+          result[name] = generic ? [ "is invalid" ] : bounded_messages(model_errors.messages_for(attribute))
+        end
+        base = generic ? [] : bounded_messages(model_errors.messages_for(:base), fallback: false)
+        errors["base"] = base if base.any?
+        errors
+      end
+
+      def bounded_messages(messages, fallback: true)
+        kept = Array(messages).select { |message| message.is_a?(String) && message.valid_encoding? }
+          .map { |message| message.gsub(/[[:cntrl:]]/, " ").squish.truncate(200) }.reject(&:empty?).uniq.first(3)
+        kept.empty? && fallback ? [ "is invalid" ] : kept
+      end
+
+      RESTRICTED_MESSAGE = "This record is still referenced by other records and cannot be deleted."
+
+      # Host base messages from restrict_with_error are model-authored text
+      # about the record itself; keep at most three, bounded and plain.
+      def restriction_messages(record)
+        messages = Array(record&.errors&.[](:base)).select { |message| message.is_a?(String) && message.valid_encoding? }
+          .map { |message| message.gsub(/[[:cntrl:]]/, " ").squish.truncate(200) }.reject(&:empty?).first(3)
+        messages.presence || [ RESTRICTED_MESSAGE ]
       end
 
       def reject!(code, errors: {})
@@ -360,6 +454,19 @@ module RailsAiAdmin
         reject!("VALIDATION_FAILED", errors: errors) if errors.any?
       end
 
+      # A form shows a timestamp to the second. Submitting it back unchanged
+      # must not drop the stored fraction (RAA-002/RAA-015), so a whole-second
+      # value equal to the stored one truncated keeps the stored one.
+      def unchanged_precision(resource, record, values)
+        fields = resource.fields.index_by { |field| field.name.to_s }
+        values.to_h do |name, value|
+          field = fields[name]
+          stored = field && field.scalar_type == :datetime && record.has_attribute?(field.column) ? record.read_attribute(field.column) : nil
+          kept = stored.respond_to?(:usec) && value.respond_to?(:usec) && value.usec.zero? && stored.usec.nonzero? && stored.change(usec: 0) == value
+          [ name, kept ? stored : value ]
+        end
+      end
+
       def column_attributes(resource, values)
         columns = resource.fields.to_h { |field| [ field.name.to_s, field.column ] }
         values.transform_keys { |name| columns.fetch(name, name) }
@@ -387,7 +494,7 @@ module RailsAiAdmin
           next if field.virtual?
           next unless original.key?(name) && (changes.key?(name) || changes.key?(field.name))
           value = changes.key?(name) ? changes[name] : changes[field.name]
-          value = field.coerce(value, time_zone: access.context.time_zone)
+          value = field.coerce_output(value, time_zone: access.context.time_zone)
           [ name, { "before" => original[name], "after" => value } ]
         end.to_h
       rescue ArgumentError, ActiveRecord::ReadOnlyError

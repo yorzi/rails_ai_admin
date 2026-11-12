@@ -33,7 +33,7 @@ class ListNavigationTest < ActionDispatch::IntegrationTest
     assert_response :success
     view = css_select("main a").find { |node| node.text.start_with?("View ") }
     assert_equal @state, query(view["href"])["return_to"]
-    assert_equal @state, query(main_link("New record"))["return_to"]
+    assert_equal @state, query(main_link("New customer"))["return_to"]
     assert_select "th[aria-sort=descending] a", text: "Name"
     assert_equal "asc", query(main_link("Name"))["direction"]
     refute query(main_link("Name")).key?("page")
@@ -51,7 +51,9 @@ class ListNavigationTest < ActionDispatch::IntegrationTest
     assert_hidden_state
     form = css_select("form[data-controller~='raa-form-recovery']").first
     assert_nil URI(form["action"]).query
-    assert_equal @state, query(main_link("Cancel"))
+    # Cancel on an edit form returns to the record, keeping the list hints (RAA-024).
+    assert_equal "/backoffice/customers/#{@customer.id}", URI(main_link("Cancel")).path
+    assert_equal({ "return_to" => @state }, query(main_link("Cancel")))
     ref = intent
     patch "/backoffice/customers/#{@customer.id}", params: { intent_ref: ref, return_to: @state, record: { name: "" } }
     assert_response :unprocessable_content
@@ -133,10 +135,10 @@ class ListNavigationTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_hidden_state(state)
     assert_includes response.headers["Vary"], "X-RailsAiAdmin-Return-State"
-    assert_equal state, query(main_link("Cancel"))
+    assert_equal({ "return_to" => state }, query(main_link("Cancel")))
     get "/backoffice/customers/forms/recover", headers: { "X-RailsAiAdmin-Recovery-Intent" => ref, "X-RailsAiAdmin-Return-State" => "!bad!" }
     assert_response :success
-    assert_equal "/backoffice/customers", main_link("Cancel")
+    assert_equal "/backoffice/customers/#{@customer.id}", main_link("Cancel")
     assert_select "input[name^='return_to']", count: 0
     assert_select ".raa-notice", text: /Some list settings/
   end

@@ -29,18 +29,25 @@ creates no assistant tables and never calls a provider.
 
 ## Install
 
-Add `ruby_llm` to your Gemfile and run the generator:
+The gem does not depend on RubyLLM. Add `ruby_llm` (>= 2.2.0, < 3; boot checks
+the range) to your Gemfile and run the generator:
 
 ```sh
 bin/rails generate rails_ai_admin:assistant
 bin/rails db:migrate
 ```
 
-The migration creates three Engine-owned tables: `rails_ai_admin_assistant_chats`,
+The migrations create three Engine-owned tables: `rails_ai_admin_assistant_chats`,
 `_messages` and `_turns`. Tool calls and token usage go into RubyLLM's own
-`ruby_llm_tool_calls` and `ruby_llm_usages` tables. The migration creates those
-only when your application has none yet. Admin rows never share records with
-your product's conversations, even when ids are equal.
+`ruby_llm_tool_calls` and `ruby_llm_usages` tables. The migrations create those,
+and RubyLLM 2.2's `ruby_llm_queued_messages` and `ruby_llm_chat_files`, only when
+your application has none yet, and add only the RubyLLM 2.2 columns that are
+missing. Admin rows never share records with your product's conversations, even
+when ids are equal.
+
+In an app without Active Storage, RubyLLM logs once at boot that
+`RailsAiAdmin::Assistant::Message` has no attachments. Admin Chat sends no
+attachments, so you can ignore that line.
 
 The generator also writes `app/rails_ai_admin/admin_assistant.rb`. It returns
 `nil`, which keeps the assistant unavailable. Replace it with your provider
@@ -86,8 +93,18 @@ Boot fails when `ruby_llm` is not loaded. Proposals also need
 `surface: true, assistant: true`. Native Surface permission alone does not
 expose an operation to the assistant.
 
-Assistant turns run in Active Job. Use a persistent queue and schedule recovery
-for jobs lost in a crash:
+Each actor may send 100 messages in any 24 hours by default; the next message is
+refused with a plain explanation before any provider call. Continuations after a
+confirmed review are not counted. Change or remove the limit deliberately:
+
+```ruby
+config.assistant_daily_message_limit = 300  # or nil for no limit
+```
+
+Assistant turns run in Active Job on the `rails_ai_admin` queue (see
+`config.queue_name`). A retryable failure schedules its own delayed retry, so a
+host without a scheduler still retries. Use a persistent queue and schedule
+recovery for jobs lost in a crash:
 
 ```sh
 bin/rails rails_ai_admin:assistant:scan   # enqueue chats with due turns
@@ -122,10 +139,18 @@ not open. Another tenant's record and a missing record return the same
 | Tool | Returns |
 | --- | --- |
 | `list_resources` | Exposed resource keys and labels |
-| `describe_resource` | Readable fields, searchable and filterable fields, and member operations that can be proposed |
-| `search_records` | Up to 20 records through the shared list query, independent of the native page size. When `has_more` is true, pass `next_offset` as `offset`, including after byte truncation. At 1,000 records, `limit_reached` asks for a narrower query |
+| `describe_resource` | Readable fields, searchable fields with their match mode (`prefix`, `contains`, `exact`), filterable and sortable fields, granted list scopes, and member operations that can be proposed |
+| `search_records` | Up to 20 records through the shared list query, independent of the native page size. It searches every record the actor may see unless the model passes a granted `scope`; a resource's default list tab never applies silently. Accepts `sort` and `direction`. Every result reports `applied_scope`, `applied_sort` and how many records were `omitted` because their `show` check failed. When `has_more` is true, pass `next_offset` as `offset`, including after byte truncation. At 1,000 records, `limit_reached` asks for a narrower query |
+| `count_records` | The number of records matching the same query, filters and scope, capped like the index count (`capped: true` above it) |
 | `get_record` | One record's readable fields |
 | `propose_operation` | A review Surface for one member operation (only with `config.surfaces`) |
+
+Field values are typed JSON: null is `null`, booleans and integers keep their
+JSON types, decimals are exact strings padded to their scale, dates and times
+are ISO 8601, a select is `{value, label}` (filter with the value) and a
+reference is `{id, label, resource}`, with `resource: null` when the actor
+cannot open the target. A registered field type is sent as its formatted text,
+because its formatter may redact. The instructions carry `PROMPT_VERSION` 2.
 
 Results are bounded JSON (16 KB). Errors carry only a fixed code such as
 `NOT_FOUND`, `INVALID_QUERY` or `CONFLICT`, never a stack trace or SQL.
@@ -135,11 +160,15 @@ Results are bounded JSON (16 KB). Errors carry only a fixed code such as
 1. The model calls `propose_operation`. The admin authorizes the operation
    against the record, runs its preflight and saves an unconfirmed intent with
    origin `assistant`. Nothing in your data changes.
-2. The conversation shows the review Surface. A retried tool call shows the
-   same review rather than preparing another one.
-3. The person confirms. In one transaction, the shared Runner writes the change,
-   audit and receipt, the Surface records its new revision, and the chat
-   receives one continuation turn describing the committed result.
+2. The conversation shows the review Surface with the input and the proposed
+   visible changes (before → after) from the operation's pure preflight, as the
+   native confirmation page does. A retried tool call shows the same review
+   rather than preparing another one.
+3. The person confirms or dismisses it, and returns to the conversation either
+   way. Confirming writes the change, audit and receipt in one transaction with
+   the Surface's new revision, and the chat receives one continuation turn
+   describing the committed result. Dismissing expires the unconfirmed intent,
+   changes nothing else and tells the chat once that the user declined.
 4. The assistant replies to that result in the same conversation.
 
 A repeated confirmation, or a confirmation on the native page first, writes
@@ -151,11 +180,14 @@ the meantime, the confirmation still succeeds; only the follow-up is skipped.
 Sending a message saves it as a queued turn and returns at once; no provider
 call runs in a web request. A worker claims the oldest turn of a chat under a
 lease, so later messages wait their turn. The page refreshes while a turn is
-pending and offers a Refresh link without JavaScript.
+pending and offers a Refresh link without JavaScript. Activity lines come from
+each tool's stored result, so a failed call reads "Tried to open a record in
+Customers (not available)", never as done.
 
 | Situation | Result |
 | --- | --- |
-| Provider timeout or server error | Retried up to three times; the message is not repeated |
+| Provider timeout or server error | Retried up to three times with a delayed job the worker schedules itself; the chat shows "Retrying (2 of 3)". The message is not repeated. The scan only recovers a lost job |
+| A request ends without an answer | Before the next message, the assistant records "I could not answer the previous message." so the model does not read two messages as one request |
 | Credentials, model or request rejected | Stops with a message and **Try again** |
 | Worker dies after the answer was saved | The next claim finishes the turn without calling the provider again |
 | Worker loses its lease | It cannot start another provider step or tool call |
@@ -191,10 +223,12 @@ full flow once each against OpenAI, Anthropic and Google models through
 RubyLLM's OpenRouter provider. Native OpenAI and Anthropic APIs, provider
 failures against a live service and repeated runs are not verified yet.
 
-`search_records` matches its query as one contiguous phrase, like the index
-search box: a live model that searched for `lobby printer` did not find a
-ticket titled `Printer offline in lobby`. Some models also answer in Markdown,
+`search_records` matches its query as one contiguous phrase with each field's
+match mode, like the index search box: a live model that searched for
+`lobby printer` did not find a ticket titled `Printer offline in lobby`.
+`describe_resource` now tells the model each field's mode. Some models also answer in Markdown,
 which the transcript shows as literal characters.
 
-Streaming, budget limits, page or selection context, aggregate tools,
-host-overridable instructions and chat retention are not available yet.
+Streaming, cost budgets beyond the message limit, page or selection context,
+aggregates other than counting, host-overridable instructions and chat retention
+are not available yet.

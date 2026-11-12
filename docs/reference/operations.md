@@ -203,8 +203,17 @@ yet implemented. Do not delete receipts inside the supported retry window.
 `Operations::Result` exposes `code`, `status`, `success?`, `retryable?`, `record_id`,
 `audit_ref`, `values`, `errors`, `replayed`, `warning` and `work_refs`. It never returns a domain
 Active Record object. Current error codes include `NOT_FOUND`, `UNAUTHENTICATED`,
-`VALIDATION_FAILED`, `CONFLICT`, `APPROVAL_REQUIRED`, `APPROVAL_EXPIRED`,
+`VALIDATION_FAILED`, `CONFLICT`, `RESTRICTED`, `APPROVAL_REQUIRED`, `APPROVAL_EXPIRED`,
 `APPROVAL_INVALIDATED`, `IDEMPOTENCY_CONFLICT`, `TIMEOUT` and `OPERATION_FAILED`.
+`RESTRICTED` means a built-in delete was blocked because other rows still
+reference the record (a foreign key, or `dependent: :restrict_with_error`, whose
+base messages are returned); it is not a stale form and may succeed once the
+references are gone. `CONFLICT` is kept for stale versions and busy rows.
+
+Native form pages issue a signed form reference instead of creating an intent
+(ADR 0025). Pass it through `Runner#materialize_form_intent(context:, reference:)`,
+which returns the intent UUID (creating the proposed run on first use) or `nil`,
+before `execute`. `Runner#prepare` still creates a row for programmatic callers.
 Misconfiguration raises
 `ConfigurationError` rather than pretending to be a valid write.
 

@@ -19,8 +19,9 @@ After reading this guide, you will know:
 
 ## Opt In
 
-Admin review Surfaces build on the host's own rails_tool_views installation. Add
-the gem to your Gemfile, run its installer migrations, then enable the admin
+Admin review Surfaces build on the host's own rails_tool_views installation. The
+gem does not depend on it: add `rails_tool_views` (~> 1.0.2; boot checks the range)
+to your Gemfile, run its installer migrations, then enable the admin
 integration and choose the member operations that may be reviewed:
 
 ```ruby
@@ -36,7 +37,13 @@ end
 ```
 
 Boot fails with a configuration error if `surfaces` is enabled but
-rails_tool_views is not loaded. Without the opt-in, the admin loads no
+rails_tool_views is not loaded, or if rails_tool_views' `parent_controller`
+(by default `"::ApplicationController"`) does not name an
+`ActionController::Base` subclass. rails_tool_views' own controller inherits that
+class whenever the application eager loads, so an API-only or minimal host
+without an `ApplicationController` would otherwise fail production boot. Add the
+controller, or set `config.parent_controller` in your `RailsToolViews.configure`
+block. Without the opt-in, the admin loads no
 rails_tool_views code and draws no Surface routes. `rails_ai_admin:doctor`
 reports the state under `surfaces`.
 
@@ -110,9 +117,19 @@ call shows the same review instead of creating another. Keep provider settings
 in `RubyLLM.context`; the admin never changes your global RubyLLM
 configuration.
 
+## Confirm or Dismiss
+
+A Surface shows the operation's input and the proposed visible changes from its
+pure preflight. **Confirm and execute** runs the operation once. **Dismiss**
+expires the unconfirmed intent and changes nothing else; a dismissed review can
+no longer be confirmed. A review shown inside an admin chat returns to that
+chat after either action. The admin bundle registers rails_tool_views' own
+Stimulus controller, so the Surface's saving and failure status texts appear.
+
 ## Not Available Yet
 
-The admin does not persist assistant chats yet, no AI follow-up or continuation
-is delivered after confirmation, inputs cannot be edited inside the Surface, and
-Surface templates are not in the override catalog. Close and retention of admin Surfaces are not
-wired up. See the development status for the remaining AI milestones.
+Inputs cannot be edited inside the Surface, and Surface templates are not in the
+override catalog. Assistant chats and their follow-up after a confirmation or a
+dismissal are described in [Admin Chat](admin-assistant.html). A review ends by
+Confirm or Dismiss; rails_tool_views' own close and retention of admin Surfaces
+are not wired up.

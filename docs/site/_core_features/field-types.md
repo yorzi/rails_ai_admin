@@ -88,7 +88,7 @@ Each hook invocation receives a fresh type instance. Use these public signatures
 | Hook | Input and result |
 | --- | --- |
 | `normalize(value, field:, time_zone:)` | Frozen typed scalar; return its normalized scalar |
-| `valid?(value, field:, time_zone:)` | Frozen normalized scalar; return exactly true or false |
+| `valid?(value, field:, time_zone:)` | Frozen normalized scalar; return true, false, or a short message (1–200 characters) shown as the field error |
 | `format(text, field:, time_zone:)` | Frozen built-in display text; return a plain String |
 | `schema(field:)` | Frozen field descriptor; return a scalar keyword Hash |
 
@@ -106,7 +106,8 @@ than mutating the frozen input; `strip`, rather than `strip!`, fits this example
 A non-idempotent or mutating implementation fails closed. Both built-in limits
 and plugin rules apply: trimming cannot rescue raw text already over the core
 maximum. `valid?` returning false, or `ArgumentError` from normalize/valid?,
-becomes generic field validation failure. Incompatible signatures, formatter/
+becomes the generic "is invalid"; returning a message string shows that message
+instead. Incompatible signatures, formatter/
 schema errors or malformed contracts raise `ConfigurationError`. Ordinary
 unexpected hook exceptions are converted to a generic configuration error rather
 than their original diagnostics.

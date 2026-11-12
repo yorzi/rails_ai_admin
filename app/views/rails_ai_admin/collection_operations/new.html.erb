@@ -1,4 +1,5 @@
 <p><%= link_to "Selected records", selection_path(selection_ref: @selection.selection_ref, **navigation_params) %></p>
+<% admin_title @definition.description, @resource.label %>
 <h1><%= @definition.description %></h1>
 <p><%= pluralize(@selection.targets.size, "fixed target") %>. Review before queueing changes.</p>
 <%= form_with scope: :input, url: collection_operation_preflight_path(resource: @resource.key, operation: @definition.key), method: :post, local: true, namespace: "raa_#{@resource.key}_#{@selection.selection_ref}_#{@definition.key}", data: { turbo: false, controller: "raa-dirty-form", action: "input->raa-dirty-form#change submit->raa-dirty-form#submit" } do |form| %>

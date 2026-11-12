@@ -2,6 +2,113 @@
 
 ## Unreleased
 
+- Dependencies are on their latest releases: minitest 6.1.0, prism 2.1.0,
+  Bundler 4.0.24, jekyll-vitepress-theme 1.12.0, Host B esbuild 0.28.2, and
+  CI on ruby/setup-ruby v1.338.0 and Node 26. Ruby 4.0.9 and Rails 8.1.4.1
+  were already current; the Rails 8.0 lock stays on 8.0.5.2 and json 2.x.
+- Admin Chat runs on RubyLLM 2.2.0 and now requires it (`>= 2.2.0, < 3`).
+  RubyLLM 2.2 broke Chat on the old 2.1 schema: a new
+  `upgrade_rails_ai_admin_assistant_to_ruby_llm_2_2` migration adds its claim,
+  phase, provider call id and usage columns and its queued-message and
+  chat-file tables, skipping what a host already has. The provider context is
+  bound before a turn's message is saved, since RubyLLM 2.2 builds its chat
+  then, and usage ownership uses `RubyLLM.with_owner`.
+- `bin/demo` copies the packaged session/SQLite host to `tmp/demo`, seeds it
+  and serves it on 127.0.0.1 until Ctrl-C; `--assistant` adds admin Chat and a
+  review Surface against an offline fake provider in `script/demo`.
+- Schema suggestions and doctor's sensitivity check treat `admin` and
+  `superuser` name parts as authority, so `users.admin` is no longer offered
+  as an editable field.
+- A ten-minute quickstart guide goes from a Rails 8 app with the
+  authentication generator to a working Users admin, then to editing. The
+  generated `AdminContext` and `AdminPolicyAdapter` stay closed but carry a
+  commented, working example for that kind of app.
+- `rails_ai_admin:resource Model --fields name:text points` writes the named
+  schema suggestions as active (still readonly) fields, titles the resource by
+  the first text field, and refuses a field the schema would not suggest or a
+  type that differs from it.
+- Generator output links the guides in the source repository instead of
+  local `docs/` paths the gem does not ship, and the Chat generator names the
+  supported ruby_llm range. The overview no longer calls Chat, Surfaces and
+  associations later milestones (RAA-026).
+- Support Ruby 3.3+ and Rails 8.0.5.2+ (was Ruby 4.0.9+ and Rails 8.1.4.1+).
+  A CI compatibility job runs the engine suite on Ruby 3.3 and 4.0 with Rails
+  8.0 and 8.1, on SQLite and PostgreSQL. Engine migrations declare
+  `Migration[8.0]` (the same schema on 8.1); `json >= 2.13` is a dependency so
+  override headers reject duplicate keys on json 2.x too; doctor reports a
+  Rails 8.1 below the patched 8.1.4.1.
+- The install and assistant generators keep an engine migration the host
+  already has, even with `--force`. Rails would otherwise remove a changed
+  one and copy it under a new timestamp, so an already-run migration ran
+  again.
+- `ruby_llm` and `rails_tool_views` are no longer runtime dependencies, so a
+  conventional install pulls no AI code. Hosts that enable `config.assistant`
+  or `config.surfaces` add the gem themselves; boot checks the supported range
+  (`Configuration::OPTIONAL_GEMS`) (RAA-026).
+- Make daily use pleasant (audit 2026-11-10). Model validation messages reach
+  the page for writable fields (`config.validation_messages = :generic` keeps
+  "is invalid"), and a field type's `valid?` may return a message (RAA-011).
+  Timestamps use a native `datetime-local` input in the context zone and display
+  as "30 Oct 2026 01:30 UTC" inside `<time>`; an unchanged save keeps stored
+  fractions of a second; long text keeps line breaks (RAA-015). Required fields
+  carry `required`, `aria-required` and a marker; readonly values are no longer
+  `<output>` live regions (RAA-023). Pages have specific titles and headings,
+  Cancel on edit returns to the record, the fixed "Development preview" became
+  `config.environment_label`, a `session_links` partial holds the signed-in
+  user, and a signed-out page visit redirects to `authentication_path` with
+  `return_to` (RAA-024). Lists put search beside the heading, fold filters into
+  `<details>`, add a page select-all and an Edit link per row (RAA-025). Codes
+  become sentences on forms, failure pages and job tables (RAA-027). Search is
+  trimmed and states its match mode; doctor names the fields it counts and gives
+  index advice that matches the SQL (RAA-021, RAA-026). Empty values sort last
+  (RAA-028); the collection review uses labels and formatting (RAA-029); only
+  canonical ids address a record (RAA-022); `/jobs` follows its menu grant
+  (RAA-030). Strings touched here moved to `config/locales/en.yml`.
+- Make the assistant more trustworthy (audit 2026-11-10, partial). Searches
+  cover the whole policy relation unless the model names a granted scope, and
+  accept `sort`/`direction`; every result reports `applied_scope` and
+  `applied_sort`, and `describe_resource` lists scopes, sortable fields and each
+  search field's match mode (RAA-007, RAA-021). A new `count_records` tool
+  answers "how many" with the capped index count. Tool values are typed JSON
+  (null, booleans, integers, exact decimals, ISO times, `{value, label}`
+  selects, `{id, label, resource}` references); `PROMPT_VERSION` is 2
+  (RAA-017). Retryable provider failures schedule their own retry and the chat
+  shows "Retrying (n of 3)" (RAA-008). Activity lines come from the stored
+  tool result (RAA-018). A short assistant note precedes a new message after
+  an unanswered one (RAA-030). `config.assistant_daily_message_limit`
+  (default 100 per actor per 24 hours) is the minimal spend guard.
+  Review Surfaces show the proposed visible changes, offer **Dismiss** (which
+  expires the intent and tells the chat once), return to the chat after either
+  action, and get rails_tool_views' Stimulus controller from the admin bundle
+  (RAA-019).
+- Unbreak ordinary flows (audit 2026-11-10). A list page leaves out an in-scope
+  row whose `show` is denied and says so instead of returning 404 for the whole
+  page; `TestKit.assert_scope_matches_show` finds the disagreement (RAA-001). An
+  association panel's "View all" link carries the new `scope=_none` list state so
+  the child's default tab no longer hides children the panel showed (RAA-006).
+  "Capture selection" with nothing ticked returns to the list with a notice,
+  duplicate ids collapse, and the button stays disabled until a row is ticked
+  (RAA-013). A delete blocked by a foreign key or `restrict_with_error` returns
+  the new `RESTRICTED` code with the model's reason instead of "Conflict… open a
+  fresh form" (RAA-012). Form pages no longer write: they issue a signed form
+  reference that becomes the intent on first submit or recovery, and
+  `rails_ai_admin:prune` removes expired unused intents and selections (RAA-005,
+  ADR 0025). Boot and doctor report a rails_tool_views `parent_controller` that
+  does not resolve when Surfaces are on (RAA-009). Job pages say when work is
+  waiting for a worker, doctor reports a backlog, and `config.queue_name`
+  makes the `rails_ai_admin` queue name configurable (RAA-020). Error summaries use
+  a sentence per result code with the code as secondary text.
+- Stop silent data changes from conventional forms (audit 2026-11-10):
+  blank or whitespace-only text is stored as null in a nullable field and
+  rejected with "cannot be blank" when the field is `required` or
+  `nullable: false` (RAA-002, RAA-003); decimals honour the column's precision
+  and scale, or new `precision:`/`scale:` options, reject extra digits instead
+  of rounding and display padded to the scale (RAA-004, RAA-014); impossible
+  date-times such as `2026-02-30T10:00` are rejected (RAA-010); NUL and other
+  control characters are rejected in text input, with tab and line breaks
+  still allowed in `textarea` (RAA-016). The admin layout disables Turbo hover
+  prefetch so hovering a link no longer prepares an intent (RAA-005).
+  `required: true` now also rejects a null value.
 - Reconcile the association/Chat branch with remote main, retaining the standalone
   assistant proposal API and its explicit `assistant: true` opt-in. Admin Chat
   now honors that flag too; native Surface permission alone grants no proposal.

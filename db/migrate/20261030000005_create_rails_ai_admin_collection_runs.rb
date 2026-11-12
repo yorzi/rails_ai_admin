@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class CreateRailsAiAdminCollectionRuns < ActiveRecord::Migration[8.1]
+class CreateRailsAiAdminCollectionRuns < ActiveRecord::Migration[8.0]
   def change
     remove_check_constraint :rails_ai_admin_operation_runs, "status IN ('proposed', 'running', 'succeeded')", name: "raa_runs_status"
     change_table :rails_ai_admin_operation_runs do |t|

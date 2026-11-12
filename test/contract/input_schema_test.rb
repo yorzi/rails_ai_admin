@@ -6,9 +6,11 @@ require "json_schemer"
 class InputSchemaTest < Minitest::Test
   def test_false_zero_blank_null_and_omission_are_distinct
     schema = RailsAiAdmin::InputSchema.new(TestResource.fields.reject { |f| f.options[:readonly] }, partial: true)
-    result = schema.coerce({ "name" => "", "points" => "0", "active" => false })
+    result = schema.coerce({ "name" => "Ada", "points" => "0", "active" => false })
     assert result.valid?, result.errors.inspect
-    assert_equal({ "name" => "", "points" => 0, "active" => false }, result.values)
+    assert_equal({ "name" => "Ada", "points" => 0, "active" => false }, result.values)
+    # RAA-003: a required, non-null text field rejects blank input.
+    assert_equal [ "cannot be blank" ], schema.coerce({ "name" => "" }).errors["name"]
     assert_empty schema.coerce({}).values
     assert_nil schema.coerce({ "points" => nil }).values["points"]
     refute schema.coerce({ "name" => nil }).valid?

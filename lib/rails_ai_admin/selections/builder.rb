@@ -112,8 +112,8 @@ module RailsAiAdmin
           raise AccessDenied, "INVALID_QUERY" if cast.nil? || cast.to_s.bytesize > 150
           cast.to_s
         end
-        raise AccessDenied, "INVALID_QUERY" unless ids.uniq.size == ids.size
-        ids
+        # A repeated box (or "1" and "01") is one target, not an invalid query (RAA-013).
+        ids.uniq
       end
 
       def scoped_records(access, ids)

@@ -37,7 +37,7 @@ class AssistantIntegrationTest < ActionDispatch::IntegrationTest
   end
 
   def surface_fields
-    css_select("form[action$='/actions'] input[type=hidden]").to_h { |node| [ node["name"], node["value"] ] }
+    css_select("form[action$='/actions']").first.css("input[type=hidden]").to_h { |node| [ node["name"], node["value"] ] }
   end
 
   def test_chat_to_surface_to_one_confirmed_write_and_one_continuation
@@ -80,7 +80,7 @@ class AssistantIntegrationTest < ActionDispatch::IntegrationTest
       assert_enqueued_jobs 1, only: RailsAiAdmin::AssistantTurnJob do
         post "/backoffice/assistant/surfaces/#{surface_id}/actions", params: fields
       end
-      assert_response :see_other
+      assert_redirected_to "/backoffice/assistant/conversations/#{chat.ref}", "confirming keeps the person in the chat"
       assert_equal [ "Reviewed by assistant", 1 ], [ @customer.reload.name, @customer.points ]
       run = RailsAiAdmin::OperationRun.sole
       assert_equal [ "succeeded", "assistant" ], [ run.status, run.origin ]
@@ -172,6 +172,37 @@ class AssistantIntegrationTest < ActionDispatch::IntegrationTest
       assert_response :see_other
       get "/backoffice/assistant/conversations/#{chat.ref}"
       assert_select ".raa-notice", text: /archived/
+    end
+  end
+
+  # RAA-019: the review in a chat shows the proposed changes, keeps the person
+  # in the conversation and can be declined.
+  def test_a_chat_review_shows_changes_returns_to_the_chat_and_can_be_dismissed
+    with_assistant do
+      chat = start_chat
+      say(chat, "Mark Alice reviewed")
+      LLMFixture.tool("propose_operation", { resource: "contract_customers", id: @customer.id.to_s, operation: "review", input: { note: "Checked" } })
+      LLMFixture.reply("Please confirm.")
+      perform_enqueued_jobs(only: RailsAiAdmin::AssistantTurnJob)
+      get "/backoffice/assistant/conversations/#{chat.ref}"
+      assert_select "section.rails-tool-views-surface h3", text: "Proposed visible changes"
+      assert_select "section.rails-tool-views-surface dd", text: "Alice → Checked"
+      refute_includes response.body, "never expose this preview", "only readable fields are previewed"
+      dismiss = css_select("form[action$='/actions']").find { |form| form.css("input[name=action_name]").first["value"] == "dismiss" }
+      fields = dismiss.css("input[type=hidden]").to_h { |node| [ node["name"], node["value"] ] }
+      assert_enqueued_jobs 1, only: RailsAiAdmin::AssistantTurnJob do
+        post dismiss["action"], params: fields
+      end
+      assert_redirected_to "/backoffice/assistant/conversations/#{chat.ref}"
+      follow_redirect!
+      assert_select "section.rails-tool-views-surface p", text: "Dismissed. Nothing was changed."
+      assert_select "section.rails-tool-views-surface input[type=submit][value='Confirm and execute']", count: 0
+      assert_equal [ "Alice", 0 ], [ @customer.reload.name, @customer.points ]
+      continuation = chat.turns.find_by!(kind: "continuation")
+      assert_includes continuation.content, "the user dismissed"
+      run = RailsAiAdmin::OperationRun.sole
+      assert_equal "proposed", run.status
+      assert run.expires_at <= Time.current, "a dismissed review can no longer be confirmed"
     end
   end
 end

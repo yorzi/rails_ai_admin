@@ -27,15 +27,20 @@ compatibility statuses and upgrade review. Field-type-specific partials take
 precedence over global field defaults. No Surface wrapper is cataloged. Non-HTML plain status responses and host exceptions_app handling remain
 outside this ERB template catalog.
 
-The current catalog contains 29 entries. resource_index uses contract revision 5;
-resource_new/resource_edit/resource_form use revision 4; layout and resource_show use revision 3; dashboard, other navigation-aware
-templates, resource_errors/input_fields and field_form use revision 2; remaining entries
-use revision 1. Source bytes and context revision
+The current catalog contains 30 entries. resource_index uses contract revision 6;
+resource_new/resource_edit/resource_form use revision 5 (they render `@intent_ref`,
+a signed form reference, instead of `@intent`); layout uses revision 4;
+resource_destroy, resource_errors and resource_show use revision 3; dashboard,
+other navigation-aware templates, input_fields and field_form use revision 2;
+remaining entries, including the new `session_links`
+(`rails_ai_admin/shared/_session.html.erb`, empty by default, for the signed-in
+user and sign-out links), use revision 1. Source bytes and context revision
 can change independently; always inspect the installed version when upgrading.
 
 resource_errors form/fields locals and input_fields plan are optional.
 Generic resource form assigns keep form_fields/form_values writable-only;
-form_plan adds separately authorized readonly output. field_row receives a plan
+form_plan adds separately authorized readonly values (a labelled
+`.raa-readonly` group, no longer an `<output>` live region). field_row receives a plan
 entry and preserves editable/readonly help/error rendering.
 
 form_recovery has no explicit assigns/locals, but requires its enclosing

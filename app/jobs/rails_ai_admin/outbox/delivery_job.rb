@@ -3,7 +3,7 @@
 module RailsAiAdmin
   module Outbox
     class DeliveryJob < ActiveJob::Base
-      queue_as :rails_ai_admin
+      queue_as { RailsAiAdmin.configuration.queue_name }
 
       def perform(work_ref)
         Dispatcher.new.run(work_ref)

@@ -4,6 +4,6 @@
   <% if panel.rows.empty? %><p>No records.</p><% else %>
   <ul><% panel.rows.each do |row| %><li><% if row.linked %><%= link_to row.label, resource_path(resource: panel.resource_key, id: row.id) %><% else %><%= row.label %><% end %></li><% end %></ul>
   <% end %>
-  <% if panel.list_filter %><p><%= link_to "View all in #{panel.label}", resources_path(resource: panel.resource_key, filter: panel.list_filter) %></p><% elsif panel.more %><p>Showing the first <%= panel.rows.size %>.</p><% end %>
+  <% if panel.list_filter %><p><%= link_to "View all in #{panel.label}", resources_path(resource: panel.resource_key, **panel.list_params) %></p><% elsif panel.more %><p>Showing the first <%= panel.rows.size %>.</p><% end %>
 </section>
 <% end %>

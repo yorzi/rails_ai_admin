@@ -4,7 +4,7 @@
 # Chats, messages and turns are Engine-owned. Tool calls and usages live in
 # RubyLLM's own shared tables, isolated per chat by their polymorphic message
 # and chat columns; they are created here only when the host has none yet.
-class CreateRailsAiAdminAssistant < ActiveRecord::Migration[8.1]
+class CreateRailsAiAdminAssistant < ActiveRecord::Migration[8.0]
   def up
     key = reference_type
     create_ruby_llm_tables(key)
@@ -22,7 +22,7 @@ class CreateRailsAiAdminAssistant < ActiveRecord::Migration[8.1]
     add_index :rails_ai_admin_assistant_chats, [ :tenant_ref, :actor_ref, :updated_at ], name: "raa_assistant_chats_owner"
     add_check_constraint :rails_ai_admin_assistant_chats, "status IN ('active', 'archived')", name: "raa_assistant_chats_status"
 
-    # Columns follow RubyLLM 2.1.1's message template.
+    # Columns follow RubyLLM 2.1.1's message template; the 2.2 upgrade migration adds the rest.
     create_table :rails_ai_admin_assistant_messages, id: key do |t|
       t.references :chat, null: false, type: key, foreign_key: { to_table: :rails_ai_admin_assistant_chats }, index: { name: "raa_assistant_messages_chat" }
       t.string :role, null: false
@@ -75,7 +75,8 @@ class CreateRailsAiAdminAssistant < ActiveRecord::Migration[8.1]
     column&.type == :uuid ? :uuid : :bigint
   end
 
-  # Mirrors the RubyLLM 2.1.1 install template for the tables admin Chat uses.
+  # Mirrors the RubyLLM 2.1.1 install template for the tables admin Chat uses;
+  # UpgradeRailsAiAdminAssistantToRubyLlm22 brings them to 2.2.
   def create_ruby_llm_tables(key)
     json = connection.adapter_name.match?(/postg/i) ? :jsonb : :json
     unless table_exists?(:ruby_llm_models)

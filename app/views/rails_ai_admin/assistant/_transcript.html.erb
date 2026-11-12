@@ -21,7 +21,7 @@
     <% end %>
   </ol>
   <% if @pending %>
-    <p class="raa-chat-status" role="status" data-raa-pending><%= @running ? "The assistant is working…" : "Waiting for the assistant…" %>
+    <p class="raa-chat-status" role="status" data-raa-pending><%= @retry_status || (@running ? "The assistant is working…" : "Waiting for the assistant…") %>
       <%= link_to "Refresh", assistant_conversation_path(chat_ref: @chat.ref), data: { turbo_frame: "_top" } %></p>
     <%= button_to "Stop", cancel_assistant_conversation_path(chat_ref: @chat.ref), method: :post, class: "raa-button", form: { data: { turbo_frame: "_top" } } %>
   <% elsif @failure %>

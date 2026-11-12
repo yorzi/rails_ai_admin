@@ -9,6 +9,15 @@ namespace :rails_ai_admin do
     abort "Resolve errors before enabling writes." if checks.any? { |check| check.status == :error }
   end
 
+  desc "Delete proposed intents and selections that expired more than DAYS (default 7) days ago"
+  task prune: :environment do
+    require "rails_ai_admin/prune"
+    days = ENV.fetch("DAYS", "7")
+    abort "DAYS must be a whole number of days" unless days.match?(/\A\d{1,4}\z/)
+    result = RailsAiAdmin::Prune.new(older_than: days.to_i.days).call
+    puts "Deleted #{result.intents} expired intents and #{result.selections} expired selections."
+  end
+
   namespace :collections do
     desc "Enqueue up to 100 due collection runs; schedule recurring scans in the host"
     task scan: :environment do

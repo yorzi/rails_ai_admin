@@ -9,20 +9,34 @@ module RailsAiAdmin
   # only narrow the permissions returned by the host policy.
   class Field
     TYPES = %i[id text textarea integer decimal boolean date datetime enum select belongs_to].freeze
-    OPTIONS = %i[readonly required nullable values max_length searchable sortable filterable create edit label choices index show hidden help_text tab panel resource foreign_key].freeze
+    OPTIONS = %i[readonly required nullable values max_length searchable sortable filterable create edit label choices index show hidden help_text tab panel resource foreign_key precision scale].freeze
     # A belongs_to value is the target's opaque primary-key text, never a record.
     REFERENCE = /\A[A-Za-z0-9][A-Za-z0-9_-]{0,99}\z/
     NAME = /\A[a-z][a-z0-9_]*\z/
+    # Input text that is empty or only whitespace is blank (RAA-002/003).
+    BLANK = /\A[[:space:]]*\z/
+    # NUL and other C0 controls are never accepted in single-line text; a
+    # textarea additionally admits tab, line feed and carriage return (RAA-016).
+    TEXT_CONTROLS = /[\x00-\x1F\x7F]/
+    TEXTAREA_CONTROLS = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/
+    DATETIME = /\A(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,6})?)?(?:Z|[+-](\d{2}):(\d{2}))?\z/
+    # Upper bound for decimal wire text, matching the integer bound.
+    MAX_NUMBER_TEXT = 100
     # Typed list filter operators. Text-like values only support exact equality;
     # contains/prefix matching stays with search.
     FILTER_OPERATORS = %i[eq gte lte].freeze
     RANGE_TYPES = %i[integer decimal date datetime].freeze
+    # A registered type's own rejection message; passes through coercion.
+    class TypeMessage < ArgumentError; end
     Descriptor = Data.define(:name, :type, :scalar_type, :options, :scalar_json_schema)
     attr_reader :name, :type, :scalar_type, :options, :dependencies, :filter_operators, :column
 
-    def initialize(name, type:, plugin: nil, compute: nil, depends_on: nil, **options)
+    # source is the declaring Resource class. It is consulted lazily, on the
+    # first decimal coercion, for column precision and scale; never at boot.
+    def initialize(name, type:, plugin: nil, compute: nil, depends_on: nil, source: nil, **options)
       @name, @type = name.to_sym, type.to_sym
       @plugin = plugin
+      @source = source
       @plugin_metadata = plugin && immutable_copy(plugin.metadata)
       @scalar_type = @plugin_metadata ? @plugin_metadata.fetch(:scalar) : @type
       raise ConfigurationError, "Invalid field name" unless @name.to_s.match?(/\A[a-z][a-z0-9_]*\z/)
@@ -53,12 +67,13 @@ module RailsAiAdmin
     end
 
     def virtual? = !@computation.nil?
+    def plugin? = !@plugin.nil?
 
     def compute(values, time_zone:)
       klass = @computation.handler_class
       raise ConfigurationError, "Computation changed; reload resource definitions" unless klass.metadata == @computation_metadata
       result = ActiveRecord::Base.while_preventing_writes { klass.new.call(values, field: @descriptor, time_zone: time_zone) }
-      coerce(result, time_zone: time_zone)
+      coerce_output(result, time_zone: time_zone)
     rescue ConfigurationError
       raise
     rescue StandardError
@@ -93,35 +108,50 @@ module RailsAiAdmin
       return "—" if value.nil?
       case scalar_type
       when :boolean then value ? "Yes" : "No"
-      when :decimal then value.is_a?(BigDecimal) ? value.to_s("F") : value.to_s
-      when :datetime then value.in_time_zone(time_zone).iso8601(6)
+      when :decimal then format_decimal(value)
+      when :datetime then format_time(value.in_time_zone(time_zone))
       when :date then value.iso8601
       when :select then choice_options.find { |_, key| key == value }&.first || value.to_s
       else value.to_s
       end
     end
 
-    # Coerces form or JSON scalar values, preserving false, zero and null.
-    def coerce(value, time_zone: "UTC")
-      typed = coerce_scalar(value, time_zone: time_zone)
-      return typed unless @plugin && !typed.nil?
-      normalized = invoke(:normalize, immutable_copy(typed), field: @descriptor, time_zone: time_zone)
-      normalized = coerce_scalar(wire(normalized), time_zone: time_zone)
-      repeated = invoke(:normalize, immutable_copy(normalized), field: @descriptor, time_zone: time_zone)
-      repeated = coerce_scalar(wire(repeated), time_zone: time_zone)
-      raise ConfigurationError, "Field normalization must be idempotent" unless normalized == repeated
-      valid = invoke(:valid?, immutable_copy(normalized), field: @descriptor, time_zone: time_zone)
-      raise ConfigurationError, "Field validation must return a boolean" unless [ true, false ].include?(valid)
-      raise ArgumentError, "is invalid" unless valid && @validator.valid?(wire(normalized))
-      normalized
-    rescue ArgumentError
-      raise ArgumentError, "is invalid", cause: nil if @plugin
-      raise
+    # "10 Nov 2026 10:44 UTC" in the context zone (RAA-015); seconds appear
+    # only when set. Pages put the exact ISO value in a <time> element.
+    def format_time(time)
+      time.strftime(time.sec.zero? ? "%-d %b %Y %H:%M %Z" : "%-d %b %Y %H:%M:%S %Z")
     end
 
-    def coerce_scalar(value, time_zone: "UTC")
-      if value.nil? || (value == "" && !%i[text textarea].include?(scalar_type))
-        raise ArgumentError, "cannot be blank" unless options[:nullable]
+    # Decimal text padded to the declared or column scale ("10.50", not
+    # "10.5"). It never rounds: a stored value with more digits keeps them, so
+    # a form prefilled from it submits the same number back (RAA-014).
+    def format_decimal(value)
+      number = value.is_a?(BigDecimal) ? value : BigDecimal(value.to_s)
+      return number.to_s("F") unless number.finite?
+      scale = decimal_limits[:scale]
+      return number.to_s("F") unless scale
+      whole, fraction = number.to_s("F").split(".")
+      fraction = fraction.to_s.delete_suffix("0") if fraction == "0"
+      fraction = fraction.to_s.ljust(scale, "0")
+      fraction.empty? ? whole : "#{whole}.#{fraction}"
+    rescue ArgumentError, TypeError
+      value.to_s
+    end
+
+    # Coerces form or JSON input values, preserving false, zero and null. Input
+    # is strict: blank text, control characters, out-of-scale decimals and
+    # impossible calendar dates are rejected with a field message.
+    def coerce(value, time_zone: "UTC") = coerce_value(value, time_zone, strict: true)
+
+    # Internal: types a value produced by host code (a computation or a
+    # preflight preview). It checks the scalar type only, so a handler result is
+    # never rejected by the input-only rules above.
+    def coerce_output(value, time_zone: "UTC") = coerce_value(value, time_zone, strict: false)
+
+    def coerce_scalar(value, time_zone: "UTC", strict: true)
+      if blank_input?(value, strict)
+        raise ArgumentError, message(:blank, "cannot be blank") if strict && (options[:required] || !options[:nullable])
+        raise ArgumentError, message(:blank, "cannot be blank") unless options[:nullable]
         return nil
       end
       case scalar_type
@@ -133,6 +163,9 @@ module RailsAiAdmin
         raise ArgumentError, "must be text" unless value.is_a?(String)
         raise ArgumentError, "is too long" if value.length > options[:max_length]
         raise ArgumentError, "is invalid" unless value.valid_encoding?
+        if strict && value.match?(scalar_type == :textarea ? TEXTAREA_CONTROLS : TEXT_CONTROLS)
+          raise ArgumentError, message(:control_characters, "contains control characters")
+        end
         String.new(value)
       when :enum, :select
         raise ArgumentError, "is not an allowed value" unless choice_values.include?(value)
@@ -146,8 +179,10 @@ module RailsAiAdmin
         number
       when :decimal
         raise ArgumentError, "must be a decimal" unless value.is_a?(Integer) || value.is_a?(BigDecimal) || (value.is_a?(String) && value.match?(/\A[+-]?(?:\d+(?:\.\d*)?|\.\d+)\z/))
+        raise ArgumentError, "is out of range" if value.is_a?(String) && value.length > MAX_NUMBER_TEXT
         number = BigDecimal(value.to_s)
         raise ArgumentError, "must be finite" unless number.finite?
+        check_decimal_limits!(number) if strict
         number
       when :boolean
         return true if [ true, "1", "true" ].include?(value)
@@ -159,13 +194,34 @@ module RailsAiAdmin
         Date.iso8601(value)
       when :datetime
         value = value.to_time.getutc.iso8601(6) if value.is_a?(Time) || value.is_a?(ActiveSupport::TimeWithZone) || value.is_a?(DateTime)
-        raise ArgumentError, "must be an ISO timestamp" unless value.is_a?(String) && value.match?(/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,6})?)?(?:Z|[+-]\d{2}:\d{2})?\z/)
+        parts = value.is_a?(String) && value.match(DATETIME)
+        raise ArgumentError, "must be an ISO timestamp" unless parts
+        # Ruby and Active Support roll 2026-02-30 into March (DEP-013); an
+        # impossible calendar day or clock time is rejected instead (RAA-010).
+        year, month, day, hour, minute, second, offset_hour, offset_minute = parts.captures.map { |part| part&.to_i }
+        unless Date.valid_civil?(year, month, day) && hour <= 23 && minute <= 59 && second.to_i <= 59 &&
+            offset_hour.to_i <= 23 && offset_minute.to_i <= 59
+          raise ArgumentError, message(:invalid_datetime, "is not a valid date and time")
+        end
         # datetime-local inputs are interpreted in the authenticated context zone.
         zone = ActiveSupport::TimeZone[time_zone]
-        zone.iso8601(value).utc
+        begin
+          zone.iso8601(value).utc
+        rescue ArgumentError
+          raise ArgumentError, message(:invalid_datetime, "is not a valid date and time"), cause: nil
+        end
       end
     rescue Date::Error, TypeError
       raise ArgumentError, "is invalid"
+    end
+
+    # Precision and scale come from explicit precision:/scale: options, or else
+    # from the declaring resource's decimal column on first use.
+    def decimal_limits
+      return {} unless scalar_type == :decimal
+      explicit = options.slice(:precision, :scale)
+      return explicit if explicit.any?
+      column_decimal_limits
     end
 
     # Schema describes normalized wire values; ordinary form strings are parsed
@@ -180,7 +236,7 @@ module RailsAiAdmin
     def scalar_json_schema
       case scalar_type
       when :integer then { "type" => "integer", "minimum" => -(2**63), "maximum" => 2**63 - 1 }
-      when :decimal then { "type" => "string", "pattern" => "^[+-]?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)$" }
+      when :decimal then { "type" => "string", "pattern" => decimal_pattern }
       when :boolean then { "type" => "boolean" }
       when :enum, :select then { "type" => "string", "enum" => choice_values }
       when :belongs_to then { "type" => "string", "pattern" => "^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$" }
@@ -189,6 +245,75 @@ module RailsAiAdmin
     end
 
     private
+
+    def coerce_value(value, time_zone, strict:)
+      typed = coerce_scalar(value, time_zone: time_zone, strict: strict)
+      return typed unless @plugin && !typed.nil?
+      normalized = invoke(:normalize, immutable_copy(typed), field: @descriptor, time_zone: time_zone)
+      normalized = coerce_scalar(wire(normalized), time_zone: time_zone, strict: strict)
+      repeated = invoke(:normalize, immutable_copy(normalized), field: @descriptor, time_zone: time_zone)
+      repeated = coerce_scalar(wire(repeated), time_zone: time_zone, strict: strict)
+      raise ConfigurationError, "Field normalization must be idempotent" unless normalized == repeated
+      valid = invoke(:valid?, immutable_copy(normalized), field: @descriptor, time_zone: time_zone)
+      # A type may explain a rejection with a short plain message (RAA-011).
+      if valid.is_a?(String)
+        message = valid.gsub(/[[:cntrl:]]/, " ").squish
+        raise ConfigurationError, "Field validation messages must be 1 to 200 characters of plain text" unless message.valid_encoding? && message.length.between?(1, 200)
+        raise TypeMessage, message
+      end
+      raise ConfigurationError, "Field validation must return a boolean or a message" unless [ true, false ].include?(valid)
+      raise ArgumentError, "is invalid" unless valid && @validator.valid?(wire(normalized))
+      normalized
+    rescue TypeMessage
+      raise
+    rescue ArgumentError
+      raise ArgumentError, "is invalid", cause: nil if @plugin
+      raise
+    end
+
+    # Output values keep the historical rule (only non-text "" is blank) so a
+    # computation or preview is typed, never reinterpreted.
+    def blank_input?(value, strict)
+      return true if value.nil?
+      return false unless value.is_a?(String)
+      return value.empty? && !%i[text textarea].include?(scalar_type) unless strict
+      return true if value.empty?
+      %i[text textarea id].include?(scalar_type) && value.valid_encoding? && value.match?(BLANK)
+    end
+
+    # Field input messages are translatable under rails_ai_admin.fields.errors.
+    def message(key, default, **values)
+      I18n.t(key, scope: %i[rails_ai_admin fields errors], default: default, **values)
+    end
+
+    def check_decimal_limits!(number)
+      limits = decimal_limits
+      scale, precision = limits[:scale], limits[:precision]
+      raise ArgumentError, message(:decimal_places, "must have at most %{count} decimal places", count: scale) if scale && number.scale > scale
+      return unless precision
+      whole_digits = [ number.exponent, 0 ].max
+      raise ArgumentError, "is out of range" if whole_digits > precision - (scale || 0)
+    end
+
+    def column_decimal_limits
+      return {} if virtual? || !@source.respond_to?(:model_class)
+      column = @source.model_class.columns_hash[@column]
+      return {} unless column&.type == :decimal
+      limits = { precision: column.precision, scale: column.scale }.compact
+      limits.delete(:precision) unless limits[:precision].is_a?(Integer) && limits[:precision].positive?
+      limits.delete(:scale) unless limits[:scale].is_a?(Integer) && limits[:scale] >= 0
+      limits
+    rescue ActiveRecord::ActiveRecordError, ConfigurationError, NameError
+      {}
+    end
+
+    def decimal_pattern
+      precision, scale = options[:precision], options[:scale]
+      whole = precision ? (precision - scale.to_i).then { |digits| digits.zero? ? "0*" : "0*[0-9]{1,#{digits}}" } : "[0-9]+"
+      fraction = scale ? (scale.zero? ? "(?:\\.0*)?" : "(?:\\.[0-9]{0,#{scale}}0*)?") : "(?:\\.[0-9]*)?"
+      bare = scale ? (scale.zero? ? "\\.0+" : "\\.[0-9]{1,#{scale}}0*") : "\\.[0-9]+"
+      "^[+-]?(?:#{whole}#{fraction}|#{bare})$"
+    end
 
     def configure_computation!(handler, dependencies, options)
       @dependencies = [].freeze
@@ -212,6 +337,13 @@ module RailsAiAdmin
           options[:max_length].is_a?(Integer) && (1..65_536).cover?(options[:max_length]) &&
           (options[:label].nil? || options[:label].is_a?(String) && options[:label].length.between?(1, 200) && options[:label].valid_encoding?)
         raise ConfigurationError, "Field flags, label or length are invalid"
+      end
+      precision, scale = options[:precision], options[:scale]
+      if !precision.nil? || !scale.nil?
+        unless scalar_type == :decimal && (precision.nil? || precision.is_a?(Integer) && precision.between?(1, 1000)) &&
+            (scale.nil? || scale.is_a?(Integer) && scale.between?(0, precision || 1000))
+          raise ConfigurationError, "precision and scale are decimal options with 1..1000 digits and 0 <= scale <= precision"
+        end
       end
       { help_text: 500, tab: 80, panel: 80 }.each do |key, limit|
         value = options[key]

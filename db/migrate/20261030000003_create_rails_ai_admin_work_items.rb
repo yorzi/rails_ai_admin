@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class CreateRailsAiAdminWorkItems < ActiveRecord::Migration[8.1]
+class CreateRailsAiAdminWorkItems < ActiveRecord::Migration[8.0]
   def change
     create_table :rails_ai_admin_work_items, id: :string, limit: 36 do |t|
       t.string :operation_run_id, null: false, limit: 36

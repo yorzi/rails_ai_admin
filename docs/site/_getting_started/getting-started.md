@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Getting Started
-nav_order: 1
+nav_order: 2
 description: Install the development gem and connect a closed admin engine to your host.
 ---
 
@@ -9,6 +9,9 @@ description: Install the development gem and connect a closed admin engine to yo
 
 {{ page.description }}
 {: .fs-6 .fw-300 }
+
+For the shortest path from an app with sign-in to a working Users admin, follow
+the [Ten-Minute Quickstart]({% link _getting_started/quickstart.md %}).
 
 After reading this guide, you will know:
 
@@ -34,9 +37,12 @@ host's bundle. During source development, a sibling checkout is also usable:
 gem "rails_ai_admin", path: "../rails_ai_admin"
 ```
 
-The runtime requires Ruby 4.0.9 or newer and Rails 8.1.4 to below 8.2. The dependency
-range does not prove every combination has passed; consult `COMPATIBILITY.md` in
-the checkout for executed evidence. Generic writes target SQLite and PostgreSQL.
+The runtime requires Ruby 3.3 or newer and Rails 8.0.5.2 to below 8.2; on Rails 8.1
+use 8.1.4.1 or newer (doctor reports an older patch release). CI runs the
+engine suite on Ruby 3.3 and 4.0 with Rails 8.0 and 8.1; the range does not prove
+every combination has passed, so consult `COMPATIBILITY.md` in the checkout for
+executed evidence. On Rails 8.0 keep `json` below 3: Active Support 8.0's encoder
+fails on json 3. Generic writes target SQLite and PostgreSQL.
 
 ## Install the Closed Engine
 
@@ -77,8 +83,8 @@ verb restrictions or multiple admin mounts are rejected before files are written
 If no admin mount exists but another route already owns the `rails_ai_admin` name,
 installation refuses the collision rather than adding a conflicting route.
 
-The setup message points to the installed gem's actual README file; there is no
-hosted documentation URL yet. `ExampleAdmin` is an unregistered declaration to
+The setup message links this guide in the source repository; the gem ships no
+`docs/` directory. `ExampleAdmin` is an unregistered declaration to
 review, not a discovered business model or live endpoint. The generated test checks
 the anonymous HTTP boundary; run it before and after adapting authentication:
 
@@ -110,11 +116,24 @@ Configuration freezes after initialization; the registry rebuilds in `to_prepare
 enabled, and does not register it. If schema metadata is available, supported
 scalar columns appear as commented suggestions. Sensitive names, encrypted
 attributes, foreign keys and polymorphic foreign-type columns, the STI inheritance
-column, `lock_version`, authority-like names such as `role`, `permission` and
-`security_version`, and unsupported column types are excluded. A declared
+column, `lock_version`, authority-like names such as `role`, `permission`, `admin`,
+`superuser` and `security_version`, and unsupported column types are excluded. A declared
 non-polymorphic `belongs_to` becomes a commented `belongs_to` suggestion instead
 of a raw key column; see [Associations]({% link _core_features/associations.md %}).
 The generator reads schema metadata, not sample records or business values.
+
+To enable some suggestions straight away, name them with `--fields`; each may
+carry its type as a check:
+
+```sh
+bin/rails generate rails_ai_admin:resource Customer --fields name:text points active
+```
+
+Each named field must be one the schema already suggests, so a sensitive,
+foreign-key, tenant or internal column is refused rather than enabled, and a type
+that differs from the suggestion is an error. Named fields are written active, the
+first text field becomes the title, and the resource stays `readonly`; the other
+suggestions stay commented. Your policy must still grant the fields.
 
 An unknown model or an unavailable/unmigrated table does not cause automatic
 exposure: the generator leaves the safe readonly declaration without relying on

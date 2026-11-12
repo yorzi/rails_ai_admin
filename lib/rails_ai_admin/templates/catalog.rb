@@ -12,15 +12,16 @@ module RailsAiAdmin
         "layout" => [ "layouts/rails_ai_admin/application.html.erb", %i[context admin_csp_nonce], [] ],
         "status_layout" => [ "layouts/rails_ai_admin/status.html.erb", %i[admin_status], [] ],
         "status_page" => [ "rails_ai_admin/statuses/show.html.erb", %i[admin_status status_sign_in_path], [] ],
+        "session_links" => [ "rails_ai_admin/shared/_session.html.erb", %i[context], [] ],
         "resource_navigation" => [ "rails_ai_admin/shared/_navigation.html.erb", [], %i[groups] ],
         "dashboard" => [ "rails_ai_admin/dashboard/index.html.erb", %i[context], [] ],
-        "resource_index" => [ "rails_ai_admin/resources/index.html.erb", %i[context resource page columns rows searchable selectable sortable_fields list_scopes current_scope filter_fields], [] ],
+        "resource_index" => [ "rails_ai_admin/resources/index.html.erb", %i[context resource page columns rows searchable selectable sortable_fields list_scopes current_scope filter_fields omitted_rows], [] ],
         "resource_show" => [ "rails_ai_admin/resources/show.html.erb", %i[context resource record values fields operations association_panels], [] ],
         "resource_associations" => [ "rails_ai_admin/resources/_associations.html.erb", [], %i[panels] ],
-        "resource_new" => [ "rails_ai_admin/resources/new.html.erb", %i[context resource record operation intent form_fields form_values form_plan errors failure_code needs_reload], [] ],
-        "resource_edit" => [ "rails_ai_admin/resources/edit.html.erb", %i[context resource record operation intent form_fields form_values form_plan errors failure_code needs_reload], [] ],
-        "resource_form" => [ "rails_ai_admin/resources/form.html.erb", %i[context resource record operation intent form_fields form_values form_plan errors failure_code needs_reload], [] ],
-        "resource_destroy" => [ "rails_ai_admin/resources/confirm_destroy.html.erb", %i[context resource record intent errors failure_code needs_reload], [] ],
+        "resource_new" => [ "rails_ai_admin/resources/new.html.erb", %i[context resource record operation intent_ref form_fields form_values form_plan errors failure_code needs_reload], [] ],
+        "resource_edit" => [ "rails_ai_admin/resources/edit.html.erb", %i[context resource record operation intent_ref form_fields form_values form_plan errors failure_code needs_reload], [] ],
+        "resource_form" => [ "rails_ai_admin/resources/form.html.erb", %i[context resource record operation intent_ref form_fields form_values form_plan errors failure_code needs_reload], [] ],
+        "resource_destroy" => [ "rails_ai_admin/resources/confirm_destroy.html.erb", %i[context resource record intent_ref errors failure_code needs_reload], [] ],
         "form_recovery" => [ "rails_ai_admin/resources/_recovery.html.erb", [], [] ],
         "resource_errors" => [ "rails_ai_admin/resources/_errors.html.erb", %i[errors failure_code needs_reload], %i[form fields] ],
         "field_index" => [ "rails_ai_admin/fields/_index.html.erb", [], %i[field value text] ],
@@ -43,16 +44,18 @@ module RailsAiAdmin
         navigation = %w[layout resource_index resource_show resource_new resource_edit resource_form resource_destroy operation_form operation_confirmation operation_failure collection_form collection_confirmation collection_failure job_show selection].include?(key)
         assigns += [ :list_navigation ] if navigation
         revision = if key == "layout"
-          3
+          4 # page titles, environment label and the session_links slot (RAA-024)
         elsif key == "dashboard"
           2
         elsif key == "resource_index"
-          5
+          6 # omitted_rows (RAA-001)
         elsif key == "resource_show"
           3
         elsif %w[resource_new resource_edit resource_form].include?(key)
-          4
-        elsif navigation || %w[resource_errors input_fields field_form].include?(key)
+          5 # intent_ref replaces intent (ADR 0025)
+        elsif %w[resource_destroy resource_errors].include?(key)
+          3 # intent_ref; outcome sentences and RESTRICTED
+        elsif navigation || %w[input_fields field_form].include?(key)
           2
         else
           1

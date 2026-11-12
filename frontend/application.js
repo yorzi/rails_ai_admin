@@ -1,5 +1,6 @@
 import * as Turbo from "@hotwired/turbo";
 import { Application, Controller } from "@hotwired/stimulus";
+import railsToolViewsController from "./vendor/rails_tool_views_controller.js";
 
 const application = Application.start();
 class DirtyFormController extends Controller {
@@ -239,6 +240,33 @@ class PollController extends Controller {
     this.element.removeEventListener("turbo:submit-end", this.changed);
   }
 }
+// Enables "Capture selection" once a row is ticked. The boxes live in the
+// table and join the form through form="…". Without JavaScript the button
+// stays enabled and an empty submit returns to the list with a notice.
+class SelectionController extends Controller {
+  static targets = ["submit"];
+  connect() {
+    this.all = document.querySelector("[data-raa-select-all]");
+    if (this.all) this.all.hidden = false;
+    this.update = (event) => {
+      const boxes = [...document.querySelectorAll(`input[type="checkbox"][form="${this.element.id}"]`)];
+      if (event?.target === this.all) boxes.forEach((box) => { box.checked = this.all.checked; });
+      const checked = boxes.filter((box) => box.checked).length;
+      if (this.all) {
+        this.all.checked = boxes.length > 0 && checked === boxes.length;
+        this.all.indeterminate = checked > 0 && checked < boxes.length;
+      }
+      if (this.hasSubmitTarget) this.submitTarget.disabled = checked === 0;
+    };
+    document.addEventListener("change", this.update);
+    this.update();
+  }
+  disconnect() { document.removeEventListener("change", this.update); }
+}
+application.register("raa-selection", SelectionController);
+// Review Surfaces carry data-controller="rails-tool-views" for saving and
+// failure status text (RAA-019); the factory is rails_tool_views' own.
+application.register("rails-tool-views", railsToolViewsController(Controller));
 application.register("raa-poll", PollController);
 application.register("raa-form-recovery", FormRecoveryController);
 application.register("raa-dirty-form", DirtyFormController);

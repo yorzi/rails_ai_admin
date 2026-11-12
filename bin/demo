@@ -1,0 +1,135 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Runs a local demo admin: a fresh copy of the packaged session/SQLite host
+# (spec_hosts/session_sqlite) on this checkout, seeded with sample data and
+# served on 127.0.0.1 only. Every run rebuilds tmp/demo from scratch.
+#
+#   bin/demo                  serve http://127.0.0.1:3917/staff; Ctrl-C stops it
+#   bin/demo --assistant      also turn on admin Chat against an offline fake
+#                             provider (no key, no network)
+#   bin/demo --setup-only     prepare tmp/demo and exit
+#   bin/demo --port 4000      choose the port; the fake provider uses port + 1
+
+require "bundler"
+require "fileutils"
+require "optparse"
+
+options = { port: 3917, assistant: false, serve: true }
+OptionParser.new do |parser|
+  parser.banner = "Usage: bin/demo [--assistant] [--port PORT] [--setup-only]"
+  parser.on("--assistant", "Enable admin Chat with an offline fake provider") { options[:assistant] = true }
+  parser.on("--port PORT", Integer, "Port on 127.0.0.1 (default 3917)") { |port| options[:port] = port }
+  parser.on("--setup-only", "Prepare tmp/demo and exit without serving") { options[:serve] = false }
+end.parse!
+abort "bin/demo: choose a port from 1024 to 65534" unless options[:port].between?(1024, 65_534)
+
+ROOT = File.expand_path("..", __dir__)
+ASSETS = File.join(ROOT, "script/demo")
+TARGET = File.join(ROOT, "tmp/demo")
+ENV_VARS = { "BUNDLE_GEMFILE" => File.join(TARGET, "Gemfile"), "BUNDLE_PATH" => File.join(ROOT, "vendor/bundle"),
+  "BUNDLE_APP_CONFIG" => File.join(TARGET, ".bundle"), "RAILS_ENV" => "development" }.freeze
+
+def step(message) = puts("==> #{message}")
+
+def run!(*command)
+  ok = Bundler.with_unbundled_env { system(ENV_VARS, *command, chdir: TARGET, out: File::NULL) }
+  abort "bin/demo: failed: #{command.join(' ')} (rerun it inside tmp/demo to see the output)" unless ok
+end
+
+def edit(path, before, after)
+  file = File.join(TARGET, path)
+  source = File.read(file)
+  abort "bin/demo: #{path} changed; update bin/demo" unless source.include?(before)
+  File.write(file, source.sub(before, after))
+end
+
+step "Copying the session/SQLite host to tmp/demo"
+FileUtils.rm_rf(TARGET)
+FileUtils.mkdir_p(File.dirname(TARGET))
+FileUtils.cp_r(File.join(ROOT, "spec_hosts/session_sqlite"), TARGET)
+FileUtils.mkdir_p(%w[storage log].map { |dir| File.join(TARGET, dir) })
+edit("Gemfile", %(gem "rails_ai_admin", "0.1.0.dev"), %(gem "rails_ai_admin", path: #{ROOT.inspect}))
+FileUtils.cp(File.join(ASSETS, "seeds.rb"), File.join(TARGET, "db/seeds.rb"))
+
+if options[:assistant]
+  File.write(File.join(TARGET, "Gemfile"), %(gem "ruby_llm", "2.2.0"\ngem "rails_tool_views", "1.0.2"\n), mode: "a")
+  # rails_tool_views controllers inherit the host's ApplicationController.
+  File.write(File.join(TARGET, "app/controllers/application_controller.rb"), "class ApplicationController < ActionController::Base\nend\n")
+  File.write(File.join(TARGET, "app/rails_ai_admin/admin_assistant.rb"), <<~RUBY)
+    # Points admin Chat at the offline fake provider started by bin/demo.
+    class AdminAssistant
+      def llm_context(context:)
+        RubyLLM.context do |config|
+          config.openai_api_key = "offline-demo"
+          config.openai_api_base = "http://127.0.0.1:#{options[:port] + 1}/v1"
+          config.request_timeout = 5
+          config.max_retries = 0
+        end
+      end
+    end
+  RUBY
+  edit("app/rails_ai_admin/customer_admin.rb", %(operation :award_points, handler: "AwardCustomerPoints"),
+    %(operation :award_points, handler: "AwardCustomerPoints", surface: true, assistant: true))
+  edit("app/rails_ai_admin/admin_policy_adapter.rb", "class AdminPolicyAdapter < RailsAiAdmin::Authorization::Adapter\n",
+    "class AdminPolicyAdapter < RailsAiAdmin::Authorization::Adapter\n  def assistant?(context:, resource:) = %i[customers orders].include?(resource.key)\n\n")
+  edit("config/initializers/rails_ai_admin.rb", "  config.resources =", <<~RUBY.gsub(/^/, "  ") + "  config.resources =")
+    config.surfaces = true
+    config.assistant = true
+    config.assistant_adapter = "AdminAssistant"
+    config.assistant_model = "gpt-4.1-mini"
+    config.assistant_provider = "openai"
+    config.assistant_protocol = "chat_completions"
+  RUBY
+end
+
+step "Installing gems (prefers those already installed)"
+FileUtils.rm_f(File.join(TARGET, "Gemfile.lock"))
+run!("bundle", "install", "--prefer-local")
+step "Running the install generators"
+run!("bundle", "exec", "rails", "generate", "rails_ai_admin:install", "--skip")
+if options[:assistant]
+  run!("bundle", "exec", "rails", "generate", "rails_tool_views:install", "--skip")
+  run!("bundle", "exec", "rails", "generate", "rails_ai_admin:assistant", "--skip")
+end
+step "Migrating and seeding a fresh database"
+run!("bundle", "exec", "rails", "db:migrate", "db:seed")
+
+admin = "http://127.0.0.1:#{options[:port]}/staff"
+puts <<~TEXT
+
+  Demo ready in tmp/demo.
+    Admin:    #{admin}  (sign in at http://127.0.0.1:#{options[:port]}/login)
+    Logins:   admin@example.test (writes), viewer@example.test (reads only),
+              other@example.test (another tenant); password demo-password
+TEXT
+puts "    Chat:     #{admin}/assistant; try \"search customers for ada\" or \"award 5 points to 1\"" if options[:assistant]
+exit unless options[:serve]
+
+pids = []
+stop = lambda do
+  pids.each do |pid|
+    Process.kill("TERM", pid)
+  rescue Errno::ESRCH
+    nil
+  end
+  pids.each do |pid|
+    Process.wait(pid)
+  rescue Errno::ECHILD
+    nil
+  end
+end
+%w[INT TERM].each { |signal| trap(signal) { stop.call; exit } }
+Bundler.with_unbundled_env do
+  if options[:assistant]
+    pids << Process.spawn(ENV_VARS, "bundle", "exec", "puma", "--quiet", "-b", "tcp://127.0.0.1:#{options[:port] + 1}",
+      File.join(ASSETS, "fake_llm.ru"), chdir: TARGET, out: File.join(TARGET, "log/fake_llm.log"), err: [ :child, :out ])
+  end
+  pids << Process.spawn(ENV_VARS, "bundle", "exec", "puma", "-b", "tcp://127.0.0.1:#{options[:port]}", "config.ru", chdir: TARGET)
+end
+puts "\nServing on 127.0.0.1 only. Press Ctrl-C to stop#{options[:assistant] ? ' both servers' : ''}."
+begin
+  Process.wait(pids.last)
+ensure
+  stop.call
+end

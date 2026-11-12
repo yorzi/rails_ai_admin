@@ -13,7 +13,7 @@ module RailsAiAdmin
     TYPES = { string: :text, text: :textarea, integer: :integer, decimal: :decimal,
       boolean: :boolean, date: :date, datetime: :datetime, timestamp: :datetime }.freeze
     # Heuristics are a conservative starting point, never a sensitivity proof.
-    SENSITIVE = /password|token|secret|credential|ciphertext|encrypted|(?:\A|_)(?:api_key|private_key|access_key|signing_key|otp|ssn|salt|session|digest|role|roles|permission|permissions|security_version)(?:_|\z)|_digest\z/i
+    SENSITIVE = /password|token|secret|credential|ciphertext|encrypted|(?:\A|_)(?:api_key|private_key|access_key|signing_key|otp|ssn|salt|session|digest|role|roles|permission|permissions|security_version|admin|superuser)(?:_|\z)|_digest\z/i
     IDENTIFIER = /\A[a-z][a-z0-9_]*\z/
     # Reassigning a tenant is an authority change, so tenant-like references are
     # never suggested, even as comments.
@@ -68,6 +68,12 @@ module RailsAiAdmin
         end
         options[:nullable] = false unless column.null
         options[:max_length] = column.limit if %i[text textarea].include?(type) && column.limit.is_a?(Integer) && column.limit.positive?
+        # Explicit limits keep the declaration reviewable; coercion would
+        # otherwise read the same values from the column on first use.
+        if type == :decimal && column.precision.is_a?(Integer) && column.precision.between?(1, 1000)
+          options[:precision] = column.precision
+          options[:scale] = column.scale if column.scale.is_a?(Integer) && column.scale.between?(0, column.precision)
+        end
         options[:readonly] = true if %w[created_at updated_at].include?(name)
         Suggestion.new(name, type, options.freeze)
       end

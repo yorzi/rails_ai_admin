@@ -39,6 +39,12 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
     css_select("input[name=authenticity_token]").first["value"]
   end
 
+  # Signed-out page visits go to Devise's sign-in page (authentication_path).
+  def assert_sign_in_redirect
+    assert_response :see_other
+    assert_equal "/staff_users/sign_in", URI(response.location).path
+  end
+
   def login
     get "/staff_users/sign_in"
     assert_response :success
@@ -115,10 +121,10 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
     assert_equal %w[rails_ai_admin_assistant_chats rails_ai_admin_assistant_messages rails_ai_admin_assistant_turns],
       ActiveRecord::Base.connection.tables.select { |name| name.start_with?("rails_ai_admin_assistant_") }.sort
     get "/operations/tickets"
-    assert_response :unauthorized
+    assert_sign_in_redirect
     refute_includes response.body, "Support task"
     get "/operations/assistant"
-    assert_response :unauthorized
+    assert_sign_in_redirect
   end
 
   def test_packaged_custom_field_and_fixed_select_validation
@@ -130,7 +136,7 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
     assert_select ".raa-tab-links a", count: 2
     assert_select "section[hidden]", count: 0
     assert_select "fieldset legend", text: "Classification"
-    assert_select "output", text: "open · P0 · restricted note"
+    assert_select ".raa-readonly[role=group]", text: "open · P0 · restricted note"
     assert_select ".raa-field-help", text: "Use an integer priority."
     assert_select "input[data-custom-field=trimmed_text]"
     assert_select "select[name='record[state]'] option[value=triaged]", text: "Triaged"
@@ -204,7 +210,7 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
     patch "/operations/tickets/#{@ticket.id}", params: { authenticity_token: token, intent_ref: intent, record: { subject: "Forbidden update" } }
     assert_response :not_found
     assert_equal "Support task", @ticket.reload.subject
-    assert_equal "proposed", RailsAiAdmin::OperationRun.find(intent).status
+    assert_equal "proposed", RailsAiAdmin::OperationRun.find(RailsAiAdmin::Operations::FormIntent.id_for(intent)).status
   end
 
   def test_tenant_switch_does_not_transfer_an_existing_intent
@@ -246,7 +252,7 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
     delete "/staff_users/sign_out", params: { authenticity_token: logout_token }
     assert_response :see_other
     get "/operations/tickets"
-    assert_response :unauthorized
+    assert_sign_in_redirect
   end
 
   def test_host_product_surface_settings_and_ownership_are_preserved
@@ -404,7 +410,7 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
       get "/operations/tickets"
       assert_response :redirect
       follow_redirect!
-      assert_response :unauthorized
+      assert_sign_in_redirect
       patch "/operations/tickets/#{@ticket.id}", params: { authenticity_token: token, intent_ref: intent, record: { subject: "Not yet saved" } }
       assert_response :unprocessable_content
       assert_equal "session", response.headers["X-RailsAiAdmin-Form-Recovery"]
@@ -436,13 +442,14 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
       # Devise's GET timeout flow redirects to the attempted path after signing
       # out. The next request must resolve an unauthenticated admin context.
       follow_redirect!
-      assert_response :unauthorized
+      assert_sign_in_redirect
       refute_includes response.body, "Support task"
       patch "/operations/tickets/#{@ticket.id}", params: { authenticity_token: token, intent_ref: intent, record: { subject: "Expired session" } }
       # Devise clears the old session's CSRF state on timeout too.
       assert_response :unprocessable_content
       assert_equal "Support task", @ticket.reload.subject
-      assert_equal "proposed", RailsAiAdmin::OperationRun.find(intent).status
+      # The rejected request never consumed the form: no run is past proposed.
+      refute RailsAiAdmin::OperationRun.where(id: RailsAiAdmin::Operations::FormIntent.id_for(intent)).where.not(status: "proposed").exists?
     end
   end
 
@@ -604,9 +611,10 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
       { id: "c2", object: "chat.completion", model: "gpt-4.1-mini", choices: [ { index: 0, finish_reason: "stop", message: { role: "assistant", content: "Please confirm the closing review." } } ] }
     ]
     stub_request(:post, "https://api.openai.com/v1/chat/completions").to_return(*turns.map { |turn| { status: 200, headers: { "Content-Type" => "application/json" }, body: turn.to_json } })
-    answer = RubyLLM.context { |config| config.openai_api_key = "synthetic-offline-key" }
+    llm = RubyLLM.context { |config| config.openai_api_key = "synthetic-offline-key" }
       .chat(model: "gpt-4.1-mini", provider: :openai, protocol: :chat_completions, assume_model_exists: true)
-      .with_tools(tool).ask("Close this duplicate ticket.")
+      .with_tools(tool)
+    answer = llm.ask("Close this duplicate ticket.")
     assert_equal "Please confirm the closing review.", answer.content
     assert_equal "open", @ticket.reload.state, "the assistant's turn never writes"
     run = RailsAiAdmin::OperationRun.find_by!(origin: "assistant")
@@ -627,7 +635,9 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
     assert_response :see_other
     assert_equal [ "closed", "Duplicate of an earlier report" ], [ @ticket.reload.state, @ticket.internal_note ]
     assert_equal [ "surface" ], RailsAiAdmin::AuditEvent.where(correlation_ref: run.id, status: "succeeded").pluck(:origin)
-    assert_equal "reviewed", tool.call(**arguments, tool_call: RubyLLM::ToolCall.new(id: "call_triage_1", name: tool.name, arguments: arguments.stringify_keys))[:status]
+    # RubyLLM 2.2 gives each tool call its own id and keeps the provider's beside it.
+    call = llm.messages.select(&:tool_call?).flat_map { |message| message.tool_calls.to_a }.find { |candidate| candidate.provider_call_id == "call_triage_1" }
+    assert_equal "reviewed", tool.call(**arguments, tool_call: call)[:status]
     assert_equal 1, RailsAiAdmin::WorkItem.where(operation_run_id: run.id).count
   end
 

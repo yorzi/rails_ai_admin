@@ -6,6 +6,7 @@ require "rails_ai_admin/assistant"
 require "rails_ai_admin/integrations/tool_views"
 require_relative "../../app/jobs/rails_ai_admin/assistant_turn_job"
 require_relative "../../db/assistant_migrate/20261103000001_create_rails_ai_admin_assistant"
+require_relative "../../db/assistant_migrate/20261112000001_upgrade_rails_ai_admin_assistant_to_ruby_llm_2_2"
 
 class AssistantPolicy < OperationContractPolicy
   class_attribute :exposed, default: true
@@ -78,11 +79,14 @@ module AssistantHelpers
   def self.prepare_schema
     ActiveRecord::Migration.verbose = false
     CreateRailsAiAdminAssistant.new.migrate(:up) unless ActiveRecord::Base.connection.table_exists?(:rails_ai_admin_assistant_turns)
+    UpgradeRailsAiAdminAssistantToRubyLlm22.new.migrate(:up)
     return if ActiveRecord::Base.connection.table_exists?(:product_messages)
     ActiveRecord::Schema.define do
       create_table :product_chats do |t|
         t.references :ruby_llm_model, foreign_key: { to_table: :ruby_llm_models }
         t.boolean :cancelled, null: false, default: false
+        t.string :claim_token
+        t.datetime :claimed_until
         t.timestamps
       end
       create_table :product_messages do |t|
@@ -91,6 +95,8 @@ module AssistantHelpers
         t.text :content
         t.boolean :cache_until_here, null: false, default: false
         t.string :cache_ttl
+        t.string :phase
+        t.text :continuation
         t.timestamps
       end
     end
@@ -129,13 +135,17 @@ module AssistantHelpers
   end
 
   # Like with_operations, with one configuration stub (stubs do not nest).
-  def with_assistant(surfaces: true)
+  def with_assistant(surfaces: true, resources: nil, policy: nil, adapter: nil, model: nil)
     AssistantPolicy.denied = false
     AssistantPolicy.receipt_grant = AssistantPolicy.delivery_grant = AssistantPolicy.input_grant = true
     OperationJobContext.epoch = "1"
     ReviewContractOperation.work_kind = "customers.reviewed"
     OperationContractWork.transport = ->(_delivery, _input) { true }
     config = assistant_configuration(surfaces: surfaces)
+    config.resources = resources if resources
+    config.authorization_adapter = policy if policy
+    config.assistant_adapter = adapter if adapter
+    config.assistant_model = model if model
     registry = RailsAiAdmin::Registry.new(config.resources)
     operations = RailsAiAdmin::Operations::Registry.new(registry.resources)
     work = RailsAiAdmin::Outbox::Registry.new(config.work_handlers)

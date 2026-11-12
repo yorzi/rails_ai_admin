@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 RailsAiAdmin::Engine.routes.draw do
+  # HTML only: "/orders/1.5" is not record 1 in format "5" (RAA-022).
+  scope format: false do
   root to: "dashboard#index"
   # Drawn only for hosts that opt in and load rails_tool_views themselves.
   if RailsAiAdmin.configuration.surfaces
@@ -38,4 +40,5 @@ RailsAiAdmin::Engine.routes.draw do
   get ":resource/:id", to: "resources#show", as: :resource
   patch ":resource/:id", to: "resources#update"
   delete ":resource/:id", to: "resources#destroy"
+  end
 end

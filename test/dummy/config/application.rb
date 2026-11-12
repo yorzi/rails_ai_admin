@@ -15,7 +15,7 @@ require "ruby_llm"
 
 module Dummy
   class Application < Rails::Application
-    config.load_defaults 8.1
+    config.load_defaults Rails::VERSION::STRING.to_f
     config.root = File.expand_path("..", __dir__)
     config.eager_load = false
     config.enable_reloading = false

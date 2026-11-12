@@ -50,6 +50,11 @@ class Invoice < ActiveRecord::Base
   validates :number, presence: true
 end
 
+# Input-integrity fixture (RAA-002/004/010/016): nullable text, a bounded
+# decimal and a timestamp.
+class Payment < ActiveRecord::Base
+end
+
 class UuidCustomer < ActiveRecord::Base
   validates :name, presence: true
   before_create { self.id ||= SecureRandom.uuid }
@@ -115,6 +120,18 @@ module DatabaseHelpers
         end
       end
     end
+    unless Payment.table_exists?
+      ActiveRecord::Schema.define do
+        create_table :payments do |t|
+          t.integer :account_id, null: false
+          t.string :reference
+          t.text :note
+          t.decimal :amount, precision: 8, scale: 2
+          t.datetime :paid_at
+          t.integer :lock_version, null: false, default: 0
+        end
+      end
+    end
     unless UuidCustomer.table_exists?
       uuid_type = ActiveRecord::Base.connection.adapter_name == "PostgreSQL" ? :uuid : :string
       ActiveRecord::Schema.define do
@@ -149,6 +166,7 @@ module DatabaseHelpers
     TestPolicy.granted_scopes = []
     TestPolicy.granted_filters = []
     FilterSample.delete_all
+    Payment.delete_all
     @customer = Customer.create!(account_id: 1, name: "Alice", secret: "never show")
     @other = Customer.create!(account_id: 2, name: "Other tenant")
   end

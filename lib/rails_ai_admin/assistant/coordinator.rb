@@ -18,6 +18,10 @@ module RailsAiAdmin
       MAX_CONTENT = 4_000
       ADMISSION_KEY = /\A[a-z]{1,16}:[A-Za-z0-9-]{1,64}\z/
       CLAIM_KEY = :rails_ai_admin_assistant_claim
+      # Recorded before a new human message when the previous request ended
+      # without an answer (RAA-030), so a provider never reads two unanswered
+      # user messages as one request. It is shown in the transcript too.
+      UNANSWERED_NOTE = "I could not answer the previous message."
       # Provider-side failures that a later attempt may recover from.
       RETRYABLE = [ ::RubyLLM::Error, ::Faraday::Error, ::Timeout::Error, ::Errno::ETIMEDOUT ].freeze
 
@@ -71,6 +75,7 @@ module RailsAiAdmin
           raise AccessDenied, "CHAT_CLOSED" unless locked.status == "active"
           existing = Turn.find_by(chat_id: locked.id, admission_key: admission_key)
           next existing if existing && existing.admission_key == admission_key
+          raise AccessDenied, "RATE_LIMITED" if kind == "message" && over_daily_limit?(locked)
           sequence = Turn.where(chat_id: locked.id).maximum(:sequence).to_i + 1
           created = Turn.create!(id: SecureRandom.uuid, chat_id: locked.id, sequence: sequence, kind: kind,
             admission_key: admission_key, content: text, status: "queued")
@@ -79,6 +84,15 @@ module RailsAiAdmin
         end
         enqueue_after_commit(chat.ref)
         turn
+      end
+
+      # The smallest spend control (roadmap "budgets"): human messages per
+      # actor and tenant in a rolling 24 hours. Continuations are not counted.
+      def self.over_daily_limit?(chat)
+        limit = RailsAiAdmin.configuration.assistant_daily_message_limit
+        return false if limit.nil?
+        chats = Chat.where(actor_ref: chat.actor_ref, tenant_ref: chat.tenant_ref).select(:id)
+        Turn.where(chat_id: chats, kind: "message").where(Turn.arel_table[:created_at].gt(24.hours.ago)).count >= limit
       end
 
       # Workers are an accelerator; a recurring scan recovers lost jobs.
@@ -146,10 +160,11 @@ module RailsAiAdmin
         llm = Assistant.llm_context(context)
         return finish(claim, "failed", "AI_UNAVAILABLE") unless llm
         self.class.with_claim(claim) do
+          Runtime.bind(chat, llm)
           admit_message!(claim, chat, turn)
           Runtime.configure(chat, session, llm)
           steps = 0
-          ::RubyLLM.with_usage_owner(chat) do
+          ::RubyLLM.with_owner(chat) do
             loop do
               renew!(claim)
               break if chat.complete?
@@ -196,6 +211,8 @@ module RailsAiAdmin
           chat.messages.where(role: "assistant", content: [ nil, "" ], finish_reason: nil)
             .where.missing(:ruby_llm_tool_calls).destroy_all
           next if locked.user_message_id
+          last = chat.messages.where.not(role: "system").reorder(id: :desc).pick(:role)
+          chat.add_message(role: :assistant, content: UNANSWERED_NOTE) if %w[user tool].include?(last)
           message = chat.add_message(role: :user, content: locked.content)
           locked.update!(user_message_id: message.id)
         end
@@ -220,11 +237,23 @@ module RailsAiAdmin
         fenced_update(claim, status: status, error_code: code, completed_at: Time.current, lease_owner: nil, lease_expires_at: nil)
       end
 
+      # Schedules the retry itself so a host without a recurring scan still
+      # retries (RAA-008). The scan stays the recovery path for a lost job.
       def retry_later(claim, code)
         turn = Turn.find(claim.turn_id)
         return finish(claim, "failed", code) if turn.attempts >= MAX_ATTEMPTS
-        fenced_update(claim, status: "queued", error_code: code, next_attempt_at: Time.current + (2**turn.attempts).seconds,
-          lease_owner: nil, lease_expires_at: nil)
+        due = Time.current + (2**turn.attempts).seconds
+        queued = fenced_update(claim, status: "queued", error_code: code, next_attempt_at: due, lease_owner: nil, lease_expires_at: nil)
+        schedule_retry(claim, due) if queued
+        queued
+      end
+
+      def schedule_retry(claim, due)
+        AssistantTurnJob.set(wait_until: due).perform_later(Chat.where(id: claim.chat_id).pick(:ref))
+      rescue StandardError, NotImplementedError
+        # An adapter without scheduled jobs (inline) or a lost enqueue is
+        # recovered by rails_ai_admin:assistant:scan.
+        nil
       end
 
       # An acknowledgment belongs only to the attempt that holds the lease.
