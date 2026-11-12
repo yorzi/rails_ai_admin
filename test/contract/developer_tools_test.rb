@@ -106,6 +106,17 @@ class DeveloperToolsTest < Minitest::Test
     assert_equal "decimal :price, precision: 8, scale: 2", report.suggestions.find { |entry| entry.name == "price" }.declaration
   end
 
+  # Authority flags are not offered as editable fields (found in the
+  # quickstart trial: users.admin was suggested as a boolean).
+  def test_schema_suggestions_treat_admin_flags_as_authority
+    %w[admin is_admin super_admin superuser admin_level].each do |name|
+      assert RailsAiAdmin::SchemaSuggestions.sensitive?(SchemaSuggestionRecord, name), name
+    end
+    %w[administered_on badminton name].each do |name|
+      refute RailsAiAdmin::SchemaSuggestions.sensitive?(SchemaSuggestionRecord, name), name
+    end
+  end
+
   def test_generator_only_enables_readonly_id_and_never_samples_records
     sql = []
     listener = ->(_name, _start, _finish, _id, payload) { sql << payload[:sql] }

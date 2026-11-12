@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Schema suggestions and doctor's sensitivity check treat `admin` and
+  `superuser` name parts as authority, so `users.admin` is no longer offered
+  as an editable field.
 - A ten-minute quickstart guide goes from a Rails 8 app with the
   authentication generator to a working Users admin, then to editing. The
   generated `AdminContext` and `AdminPolicyAdapter` stay closed but carry a
