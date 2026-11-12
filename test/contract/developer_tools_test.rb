@@ -127,6 +127,46 @@ class DeveloperToolsTest < Minitest::Test
     end
   end
 
+  # --fields enables schema suggestions by name; anything the schema would
+  # not suggest (sensitive, relationship, tenant, internal) is refused.
+  def test_generator_fields_enable_only_schema_suggested_fields
+    Dir.mktmpdir("raa-generator-", File.expand_path("../../tmp", __dir__)) do |directory|
+      output, = capture_io do
+        RailsAiAdmin::Generators::ResourceGenerator.new([ "SchemaSuggestionRecord" ], [ "--fields", "name:text", "price", "customer" ], destination_root: directory).invoke_all
+      end
+      source = File.read(File.join(directory, "app/rails_ai_admin/schema_suggestion_record_admin.rb"))
+      active = source.lines.reject { |line| line.lstrip.start_with?("#") }.join
+      assert_includes active, "title :name"
+      assert_includes active, "readonly"
+      assert_includes active, "    text :name, nullable: false, max_length: 80\n"
+      assert_includes active, "    decimal :price, precision: 8, scale: 2\n"
+      assert_includes active, %(    belongs_to :customer, foreign_key: "owner_ref"\n)
+      assert_includes source, "    # boolean :active"
+      refute_includes source, "# text :name"
+      RubyVM::InstructionSequence.compile(source)
+      assert_includes output, "Enabled readonly fields: id, name, price, customer"
+      refused = {
+        %w[password_digest] => "not a suggested field",
+        %w[account_id] => "not a suggested field",
+        %w[name:boolean] => "is text in the schema, not boolean",
+        %w[Name] => "Use name or name:type",
+        %w[name name] => "listed twice"
+      }
+      refused.each do |fields, message|
+        FileUtils.rm_rf(File.join(directory, "app"))
+        error = assert_raises(Rails::Generators::Error) do
+          capture_io { RailsAiAdmin::Generators::ResourceGenerator.new([ "SchemaSuggestionRecord" ], [ "--fields", *fields ], destination_root: directory).invoke_all }
+        end
+        assert_includes error.message, message, fields.inspect
+        refute File.exist?(File.join(directory, "app/rails_ai_admin/schema_suggestion_record_admin.rb")), fields.inspect
+      end
+      error = assert_raises(Rails::Generators::Error) do
+        capture_io { RailsAiAdmin::Generators::ResourceGenerator.new([ "NoSchemaModel" ], [ "--fields", "name" ], destination_root: directory).invoke_all }
+      end
+      assert_includes error.message, "Schema unavailable"
+    end
+  end
+
   def test_unavailable_schema_falls_back_to_an_unregistered_readonly_resource
     refute RailsAiAdmin::SchemaSuggestions.new(nil).call.available
     Dir.mktmpdir("raa-generator-", File.expand_path("../../tmp", __dir__)) do |directory|

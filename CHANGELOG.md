@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- `rails_ai_admin:resource Model --fields name:text points` writes the named
+  schema suggestions as active (still readonly) fields, titles the resource by
+  the first text field, and refuses a field the schema would not suggest or a
+  type that differs from it.
 - Generator output links the guides in the source repository instead of
   local `docs/` paths the gem does not ship, and the Chat generator names the
   supported ruby_llm range. The overview no longer calls Chat, Surfaces and

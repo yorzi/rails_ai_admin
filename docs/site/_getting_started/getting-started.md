@@ -80,8 +80,8 @@ verb restrictions or multiple admin mounts are rejected before files are written
 If no admin mount exists but another route already owns the `rails_ai_admin` name,
 installation refuses the collision rather than adding a conflicting route.
 
-The setup message points to the installed gem's actual README file; there is no
-hosted documentation URL yet. `ExampleAdmin` is an unregistered declaration to
+The setup message links this guide in the source repository; the gem ships no
+`docs/` directory. `ExampleAdmin` is an unregistered declaration to
 review, not a discovered business model or live endpoint. The generated test checks
 the anonymous HTTP boundary; run it before and after adapting authentication:
 
@@ -118,6 +118,19 @@ column, `lock_version`, authority-like names such as `role`, `permission` and
 non-polymorphic `belongs_to` becomes a commented `belongs_to` suggestion instead
 of a raw key column; see [Associations]({% link _core_features/associations.md %}).
 The generator reads schema metadata, not sample records or business values.
+
+To enable some suggestions straight away, name them with `--fields`; each may
+carry its type as a check:
+
+```sh
+bin/rails generate rails_ai_admin:resource Customer --fields name:text points active
+```
+
+Each named field must be one the schema already suggests, so a sensitive,
+foreign-key, tenant or internal column is refused rather than enabled, and a type
+that differs from the suggestion is an error. Named fields are written active, the
+first text field becomes the title, and the resource stays `readonly`; the other
+suggestions stay commented. Your policy must still grant the fields.
 
 An unknown model or an unavailable/unmigrated table does not cause automatic
 exposure: the generator leaves the safe readonly declaration without relying on
