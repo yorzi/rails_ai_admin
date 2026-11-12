@@ -223,10 +223,16 @@ class DeveloperToolsTest < Minitest::Test
         capture_io { RailsAiAdmin::Generators::InstallGenerator.new([], { force: true }, destination_root: directory, application: application).invoke_all }
         paths = %w[app/rails_ai_admin/admin_policy_adapter.rb app/rails_ai_admin/example_admin.rb test/rails_ai_admin/access_test.rb]
         paths.each { |path| File.open(File.join(directory, path), "a") { |file| file.puts "# reviewed host extension" } }
+        # A migration from an older engine build may already have run; a forced
+        # re-install keeps it instead of recreating it under a new timestamp.
+        installed = Dir[File.join(directory, "db/migrate/*.rb")].sort
+        File.open(installed.first, "a") { |file| file.puts "# copied from an older engine build" }
         application.routes.draw { mount RailsAiAdmin::Engine => "/admin", as: :rails_ai_admin }
-        capture_io { RailsAiAdmin::Generators::InstallGenerator.new([], { force: true }, destination_root: directory, application: application).invoke_all }
+        output, = capture_io { RailsAiAdmin::Generators::InstallGenerator.new([], { force: true }, destination_root: directory, application: application).invoke_all }
         paths.each { |path| assert_includes File.read(File.join(directory, path)), "# reviewed host extension" }
-        assert_equal 5, Dir[File.join(directory, "db/migrate/*.rb")].size
+        assert_equal installed, Dir[File.join(directory, "db/migrate/*.rb")].sort
+        assert_includes File.read(installed.first), "# copied from an older engine build"
+        assert_equal 5, output.scan(/exist\s+db\/migrate\//).size
         assert_equal 1, File.read(File.join(directory, "config/routes.rb")).scan("mount RailsAiAdmin::Engine").size
       end
     end

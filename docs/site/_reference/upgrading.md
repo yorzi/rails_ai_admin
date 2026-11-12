@@ -50,6 +50,10 @@ recreate or edit persisted receipts to force execution.
   GET) now redirects with 303 to that path plus `return_to`, instead of a 401.
   Form submissions, recovery, frames and non-HTML requests still get 401. Update
   host tests that expected a 401 for a page visit.
+* Re-running `rails_ai_admin:install` or `rails_ai_admin:assistant`, with or
+  without `--force`, keeps engine migrations already in `db/migrate`. If an
+  earlier forced run replaced one under a new timestamp, delete the new copy
+  before `db:migrate`.
 * The gemspec no longer depends on `ruby_llm` or `rails_tool_views`. A host that
   enables `config.assistant` or `config.surfaces` must list the gem in its own
   Gemfile; boot reports a missing gem or a version outside the supported range.

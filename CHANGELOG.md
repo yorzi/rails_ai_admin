@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- The install and assistant generators keep an engine migration the host
+  already has, even with `--force`. Rails would otherwise remove a changed
+  one and copy it under a new timestamp, so an already-run migration ran
+  again.
 - `ruby_llm` and `rails_tool_views` are no longer runtime dependencies, so a
   conventional install pulls no AI code. Hosts that enable `config.assistant`
   or `config.surfaces` add the gem themselves; boot checks the supported range

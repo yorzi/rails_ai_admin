@@ -1,23 +1,19 @@
 # frozen_string_literal: true
 
 require "rails/generators"
-require "rails/generators/migration"
 require_relative "engine_mounts"
+require_relative "../engine_migrations"
 
 module RailsAiAdmin
   module Generators
     # Installs conventional tables and a deliberately closed host context.
     class InstallGenerator < Rails::Generators::Base
-      include Rails::Generators::Migration
+      include EngineMigrations
       source_root File.expand_path("templates", __dir__)
 
       def initialize(args = [], options = {}, config = {})
         @host_application = config.fetch(:application) { Rails.application }
         super
-      end
-
-      def self.next_migration_number(dirname)
-        [ Time.now.utc.strftime("%Y%m%d%H%M%S"), format("%014d", current_migration_number(dirname) + 1) ].max
       end
 
       def install
@@ -37,10 +33,7 @@ module RailsAiAdmin
             raise Rails::Generators::Error, "Constant #{constant} already exists outside the generated path"
           end
         end
-        Engine.root.join("db/migrate").glob("*.rb").sort.each do |source|
-          stem = source.basename.to_s.sub(/\A\d+_/, "")
-          migration_template source.to_s, "db/migrate/#{stem}"
-        end
+        copy_engine_migrations("db/migrate")
         template "initializer.rb", "config/initializers/rails_ai_admin.rb"
         template "admin_context.rb", "app/rails_ai_admin/admin_context.rb"
         {
