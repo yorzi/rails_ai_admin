@@ -13,7 +13,7 @@ gem "pundit", "~> 2.5"
 # Optional at runtime: hosts add them to turn on Surfaces and admin Chat
 # (Configuration::OPTIONAL_GEMS holds the supported ranges).
 gem "rails_tool_views", "~> 1.0.2", require: false
-gem "ruby_llm", ">= 2.1.1", "< 3", require: false
+gem "ruby_llm", ">= 2.2.0", "< 3", require: false
 gem "rubocop-rails-omakase", "~> 1.1"
 gem "capybara", "~> 3.40"
 gem "webmock", "~> 3.0"

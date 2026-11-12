@@ -53,8 +53,8 @@ class FlowRegressionsContractTest < ActiveSupport::TestCase
     assert_empty names & RailsAiAdmin::Configuration::OPTIONAL_GEMS.keys
     assert_nil RailsAiAdmin::Configuration.optional_gem_problem("rails_tool_views", "surfaces")
     assert_nil RailsAiAdmin::Configuration.optional_gem_problem("ruby_llm", "assistant")
-    old = RailsAiAdmin::Configuration.optional_gem_problem("ruby_llm", "assistant", version: "2.0.0")
-    assert_equal "assistant needs ruby_llm >= 2.1.1, < 3 in the host Gemfile (2.0.0 is loaded)", old
+    old = RailsAiAdmin::Configuration.optional_gem_problem("ruby_llm", "assistant", version: "2.1.1")
+    assert_equal "assistant needs ruby_llm >= 2.2.0, < 3 in the host Gemfile (2.1.1 is loaded)", old
     assert_includes RailsAiAdmin::Configuration.optional_gem_problem("ruby_llm", "assistant", version: "3.0.0"), "3.0.0 is loaded"
     assert_equal "surfaces needs rails_tool_views ~> 1.0.2 in the host Gemfile (it is not loaded)",
       RailsAiAdmin::Configuration.optional_gem_problem("rails_tool_views", "surfaces", version: nil)

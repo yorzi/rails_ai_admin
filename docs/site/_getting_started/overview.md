@@ -66,7 +66,7 @@ available. Work delivers a committed fact after the domain
 transaction; it is not a parallel asynchronous business-operation path.
 
 RubyLLM and `rails_tool_views` are optional. The gem does not depend on them: add
-`ruby_llm` (>= 2.1.1, < 3) to turn on admin Chat and `rails_tool_views` (~> 1.0.2)
+`ruby_llm` (>= 2.2.0, < 3) to turn on admin Chat and `rails_tool_views` (~> 1.0.2)
 to turn on review Surfaces, and boot rejects a version outside those ranges.
 Ordinary mode loads neither, installs no AI tables, configures no provider and
 needs no model key.

@@ -8,9 +8,9 @@ future product work. Local admin mistakes are not upstream defects.
 
 | Dependency line | Current consumption boundary |
 | --- | --- |
-| Rails `>= 8.1.4, < 8.2` | Isolated engine, Active Record, controller/view/job infrastructure |
+| Rails `>= 8.0.5.2, < 8.2` | Isolated engine, Active Record, controller/view/job infrastructure |
 | rails_tool_views `~> 1.0.2` | Opt-in admin review Surface through admin-owned endpoints and the public API (ADR 0020); assistant proposals present it and continue through the admin inbox, not `deliver` (ADR 0022) |
-| RubyLLM `>= 2.1.1, < 3` | Opt-in admin Chat on Engine-owned tables with `acts_as_chat`/`acts_as_message`, a per-request `RubyLLM.context` and shared ToolCall/Usage tables (ADR 0022); offline fixtures, plus one live run per model family through the OpenRouter provider on 2026-11-03 |
+| RubyLLM `>= 2.2.0, < 3` | Opt-in admin Chat on Engine-owned tables with `acts_as_chat`/`acts_as_message`, a per-request `RubyLLM.context` and shared ToolCall/Usage tables (ADR 0022); offline fixtures, plus one live run per model family through the OpenRouter provider on 2026-11-03 |
 | Pundit 2.5.x / Devise 5.0.4 | Optional host authorization/authentication examples; not runtime requirements |
 | turbo-rails `~> 2.0`, stimulus-rails `~> 1.3` | Bounded Rails integration dependencies; admin ships prebuilt frontend |
 
@@ -120,8 +120,8 @@ process. Source inspection alone does not prove a collision in a real host.
 Future admin Chat/Message tables must remain separate from host product
 conversations, and provider settings must use a verified released isolation API.
 
-ToolCall and Usage rows are isolated per chat, not per table. The 2.1.1
-`acts_as_message` macro maps those associations to RubyLLM's own
+ToolCall and Usage rows are isolated per chat, not per table. The 2.2.0
+`acts_as_message` macro (unchanged here since 2.1.1) maps those associations to RubyLLM's own
 `ruby_llm_tool_calls` and `ruby_llm_usages` tables and has no `tool_call_class`
 keyword; Host B public reflection confirmed both. That matches RubyLLM's ownership
 model, where it owns supporting tables and applications own chats and messages, so
@@ -132,12 +132,16 @@ RubyLLM's dummy app with two chat/message pairs sharing the same ids kept tool
 calls, pending approvals and usages apart and rejected a cross-chat `approve`.
 Admin code reads these rows only through its own associations; do not change the
 SDK's global table names or monkey patch private methods. The usage ledger is
-shared, so pick the admin's usage owner deliberately. Unreleased main-branch queue/claim/approval behavior is not an accepted dependency
-of this slice. Admin Chat's turn inbox, fencing and continuation have offline evidence through RubyLLM's real OpenAI provider and tool loop against WebMock and a loopback fixture (ADR 0022). One full flow per model family through OpenRouter is recorded in COMPATIBILITY.md (2026-11-03); native provider APIs and live failure recovery remain unverified.
+shared, so pick the admin's usage owner deliberately. RubyLLM 2.2 released run claims, a
+message queue and stable tool-call ids: the upgrade migration adds their columns and tables
+(`claim_token`/`claimed_until`, `phase`/`continuation`, `provider_call_id`, `ruby_llm_queued_messages`,
+`ruby_llm_chat_files`), and RubyLLM now builds its chat when a message is first saved, so admin Chat
+binds the per-request context before admitting a message. Admin Chat does not use the queue; its own
+turn inbox orders work. A proposal replays by RubyLLM's persisted tool-call id, not the provider's. Admin Chat's turn inbox, fencing and continuation have offline evidence through RubyLLM's real OpenAI provider and tool loop against WebMock and a loopback fixture (ADR 0022). One full flow per model family through OpenRouter is recorded in COMPATIBILITY.md (2026-11-03); native provider APIs and live failure recovery remain unverified.
 
-Owning source: [RubyLLM 2.1.1 Railtie](https://github.com/crmne/ruby_llm/blob/v2.1.1/lib/ruby_llm/railtie.rb).
-The [released persistence macros](https://github.com/crmne/ruby_llm/blob/v2.1.1/lib/ruby_llm/active_record/acts_as.rb)
-and [Chat persistence](https://github.com/crmne/ruby_llm/blob/v2.1.1/lib/ruby_llm/active_record/chat_methods.rb)
+Owning source: [RubyLLM 2.2.0 Railtie](https://github.com/crmne/ruby_llm/blob/v2.2.0/lib/ruby_llm/railtie.rb).
+The [released persistence macros](https://github.com/crmne/ruby_llm/blob/v2.2.0/lib/ruby_llm/active_record/acts_as.rb)
+and [Chat persistence](https://github.com/crmne/ruby_llm/blob/v2.2.0/lib/ruby_llm/active_record/chat_methods.rb)
 own the shared ToolCall/Usage mapping and its polymorphic scoping.
 
 ## Frontend policy contract

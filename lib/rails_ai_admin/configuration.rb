@@ -9,7 +9,7 @@ module RailsAiAdmin
     # enforces the supported range instead (RAA-026).
     OPTIONAL_GEMS = {
       "rails_tool_views" => { constant: "::RailsToolViews::VERSION", requirement: [ "~> 1.0.2" ].freeze }.freeze,
-      "ruby_llm" => { constant: "::RubyLLM::VERSION", requirement: [ ">= 2.1.1", "< 3" ].freeze }.freeze
+      "ruby_llm" => { constant: "::RubyLLM::VERSION", requirement: [ ">= 2.2.0", "< 3" ].freeze }.freeze
     }.freeze
 
     # Nil when the loaded version of an optional gem is supported, otherwise a

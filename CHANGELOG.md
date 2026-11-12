@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Admin Chat runs on RubyLLM 2.2.0 and now requires it (`>= 2.2.0, < 3`).
+  RubyLLM 2.2 broke Chat on the old 2.1 schema: a new
+  `upgrade_rails_ai_admin_assistant_to_ruby_llm_2_2` migration adds its claim,
+  phase, provider call id and usage columns and its queued-message and
+  chat-file tables, skipping what a host already has. The provider context is
+  bound before a turn's message is saved, since RubyLLM 2.2 builds its chat
+  then, and usage ownership uses `RubyLLM.with_owner`.
 - `bin/demo` copies the packaged session/SQLite host to `tmp/demo`, seeds it
   and serves it on 127.0.0.1 until Ctrl-C; `--assistant` adds admin Chat and a
   review Surface against an offline fake provider in `script/demo`.

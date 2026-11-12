@@ -61,6 +61,12 @@ recreate or edit persisted receipts to force execution.
 * The gemspec no longer depends on `ruby_llm` or `rails_tool_views`. A host that
   enables `config.assistant` or `config.surfaces` must list the gem in its own
   Gemfile; boot reports a missing gem or a version outside the supported range.
+* Admin Chat needs `ruby_llm` 2.2.0 or later. Update the gem, run
+  `bin/rails generate rails_ai_admin:assistant` again to copy the new
+  `upgrade_rails_ai_admin_assistant_to_ruby_llm_2_2` migration, then
+  `bin/rails db:migrate`. It adds RubyLLM 2.2's columns and tables, skipping any
+  that exist. If your app has its own RubyLLM chats, also run RubyLLM's
+  `ruby_llm:upgrade` generator for them, as its upgrade guide describes.
 
 Back up the host database, test migrations against a disposable copy, run the host
 policy matrix and verify packaged installation before using a changed build.

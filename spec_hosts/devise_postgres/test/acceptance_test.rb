@@ -611,9 +611,10 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
       { id: "c2", object: "chat.completion", model: "gpt-4.1-mini", choices: [ { index: 0, finish_reason: "stop", message: { role: "assistant", content: "Please confirm the closing review." } } ] }
     ]
     stub_request(:post, "https://api.openai.com/v1/chat/completions").to_return(*turns.map { |turn| { status: 200, headers: { "Content-Type" => "application/json" }, body: turn.to_json } })
-    answer = RubyLLM.context { |config| config.openai_api_key = "synthetic-offline-key" }
+    llm = RubyLLM.context { |config| config.openai_api_key = "synthetic-offline-key" }
       .chat(model: "gpt-4.1-mini", provider: :openai, protocol: :chat_completions, assume_model_exists: true)
-      .with_tools(tool).ask("Close this duplicate ticket.")
+      .with_tools(tool)
+    answer = llm.ask("Close this duplicate ticket.")
     assert_equal "Please confirm the closing review.", answer.content
     assert_equal "open", @ticket.reload.state, "the assistant's turn never writes"
     run = RailsAiAdmin::OperationRun.find_by!(origin: "assistant")
@@ -634,7 +635,9 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
     assert_response :see_other
     assert_equal [ "closed", "Duplicate of an earlier report" ], [ @ticket.reload.state, @ticket.internal_note ]
     assert_equal [ "surface" ], RailsAiAdmin::AuditEvent.where(correlation_ref: run.id, status: "succeeded").pluck(:origin)
-    assert_equal "reviewed", tool.call(**arguments, tool_call: RubyLLM::ToolCall.new(id: "call_triage_1", name: tool.name, arguments: arguments.stringify_keys))[:status]
+    # RubyLLM 2.2 gives each tool call its own id and keeps the provider's beside it.
+    call = llm.messages.select(&:tool_call?).flat_map { |message| message.tool_calls.to_a }.find { |candidate| candidate.provider_call_id == "call_triage_1" }
+    assert_equal "reviewed", tool.call(**arguments, tool_call: call)[:status]
     assert_equal 1, RailsAiAdmin::WorkItem.where(operation_run_id: run.id).count
   end
 

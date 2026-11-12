@@ -29,7 +29,7 @@ creates no assistant tables and never calls a provider.
 
 ## Install
 
-The gem does not depend on RubyLLM. Add `ruby_llm` (>= 2.1.1, < 3; boot checks
+The gem does not depend on RubyLLM. Add `ruby_llm` (>= 2.2.0, < 3; boot checks
 the range) to your Gemfile and run the generator:
 
 ```sh
@@ -37,11 +37,17 @@ bin/rails generate rails_ai_admin:assistant
 bin/rails db:migrate
 ```
 
-The migration creates three Engine-owned tables: `rails_ai_admin_assistant_chats`,
+The migrations create three Engine-owned tables: `rails_ai_admin_assistant_chats`,
 `_messages` and `_turns`. Tool calls and token usage go into RubyLLM's own
-`ruby_llm_tool_calls` and `ruby_llm_usages` tables. The migration creates those
-only when your application has none yet. Admin rows never share records with
-your product's conversations, even when ids are equal.
+`ruby_llm_tool_calls` and `ruby_llm_usages` tables. The migrations create those,
+and RubyLLM 2.2's `ruby_llm_queued_messages` and `ruby_llm_chat_files`, only when
+your application has none yet, and add only the RubyLLM 2.2 columns that are
+missing. Admin rows never share records with your product's conversations, even
+when ids are equal.
+
+In an app without Active Storage, RubyLLM logs once at boot that
+`RailsAiAdmin::Assistant::Message` has no attachments. Admin Chat sends no
+attachments, so you can ignore that line.
 
 The generator also writes `app/rails_ai_admin/admin_assistant.rb`. It returns
 `nil`, which keeps the assistant unavailable. Replace it with your provider

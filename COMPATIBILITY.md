@@ -65,7 +65,7 @@ the broader security matrix and later Beta/1.0 gates remain open.
 Runtime bounds: Ruby >= 3.3 (development pins `.ruby-version` 4.0.9); Rails >= 8.0.5.2 and < 8.2 (8.0.5.2 and 8.1.4.1 are the patched releases of each series;
 doctor reports an 8.1 below 8.1.4.1); json >= 2.13
 (Rails 8.0 also needs json < 3); json_schemer ~> 2.5; base64 ~> 0.3; turbo-rails ~> 2.0; stimulus-rails ~> 1.3. Optional, from the host's Gemfile and
-checked at boot only when the feature is on: rails_tool_views ~> 1.0.2 (`config.surfaces`) and RubyLLM >= 2.1.1 and
+checked at boot only when the feature is on: rails_tool_views ~> 1.0.2 (`config.surfaces`) and RubyLLM >= 2.2.0 and
 < 3 (`config.assistant`). These bounds are candidate dependency constraints, not proof every resolvable combination works.
 The lockfile records actual resolution, including Linux/source platform metadata.
 

@@ -160,10 +160,11 @@ module RailsAiAdmin
         llm = Assistant.llm_context(context)
         return finish(claim, "failed", "AI_UNAVAILABLE") unless llm
         self.class.with_claim(claim) do
+          Runtime.bind(chat, llm)
           admit_message!(claim, chat, turn)
           Runtime.configure(chat, session, llm)
           steps = 0
-          ::RubyLLM.with_usage_owner(chat) do
+          ::RubyLLM.with_owner(chat) do
             loop do
               renew!(claim)
               break if chat.complete?

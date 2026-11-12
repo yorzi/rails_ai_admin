@@ -22,9 +22,16 @@ module RailsAiAdmin
 
       module_function
 
-      def configure(chat, session, llm)
+      # RubyLLM 2.2 builds the provider chat when a message is first saved, so
+      # the provider settings must be bound before the turn's message is.
+      def bind(chat, llm)
         chat.context = llm
         chat.protocol = RailsAiAdmin.configuration.assistant_protocol&.to_sym
+        chat
+      end
+
+      def configure(chat, session, llm)
+        bind(chat, llm)
         chat.with_instructions(format(PROMPT, title: RailsAiAdmin.configuration.title.to_s.truncate(80)), persist: false)
         tools = TOOLS.map { |klass| klass.new(session) }
         tools << ProposeOperation.new(session) if RailsAiAdmin.configuration.surfaces

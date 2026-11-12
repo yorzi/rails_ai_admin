@@ -19,9 +19,9 @@ After reading this guide, you will know:
 
 ## Use Released Dependency Lines
 
-The gem currently bounds Rails to 8.1.4 through below 8.2, `rails_tool_views` to
-1.0.2 through below 1.1, RubyLLM to 2.1.1 through below 3, `turbo-rails` to 2.x and
-`stimulus-rails` to 1.x. Refer to the lockfile for the exact resolved graph. A
+The gem currently bounds Rails to 8.0.5.2 through below 8.2, `turbo-rails` to 2.x and
+`stimulus-rails` to 1.x. The optional `rails_tool_views` (1.0.2 through below 1.1) and
+RubyLLM (2.2.0 through below 3) come from your Gemfile and are checked at boot. Refer to the lockfile for the exact resolved graph. A
 candidate range does not prove all future versions in that range are compatible.
 
 Conventional installation does not provision assistant tables or configure a
@@ -70,7 +70,7 @@ adapter-side handling; the current coercion/query code covers those cases.
 
 ## Share RubyLLM's Tool Call and Usage Tables
 
-RubyLLM 2.1.1 permits custom Chat/Message class mappings. Its released message macro
+RubyLLM 2.2 permits custom Chat/Message class mappings. Its released message macro
 maps ToolCall and Usage associations to RubyLLM's own `ruby_llm_tool_calls` and
 `ruby_llm_usages` tables, and has no `tool_call_class` keyword. RubyLLM owns those
 supporting tables while applications own chats and messages, so admin Chat uses
