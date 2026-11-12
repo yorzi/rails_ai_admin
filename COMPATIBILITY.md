@@ -1,9 +1,30 @@
 # Compatibility
 
-Status checked 2026-11-06. This is unreleased development evidence.
+Status checked 2026-11-12. This is unreleased development evidence.
 The rows below retain dated historical runs; old clean dependency scans do not
 apply to a new candidate. Current hardening evidence is recorded separately.
 CI configuration is not a completed CI run; no production support is declared.
+
+## 2026-11-12 dependency update
+
+Locks moved to the latest releases: Ruby 4.0.9 and Rails 8.1.4.1 were already
+current; RubyLLM 2.1.1 → 2.2.0, minitest 6.1.0, Bundler 4.0.24, prism 2.1.0,
+jekyll-vitepress-theme 1.12.0 and Host B esbuild 0.28.2. RubyLLM 2.2.0 broke
+admin Chat on the 2.1 schema (38 failing engine tests); the 2.2 upgrade
+migration and an earlier context binding fix it, and RubyLLM >= 2.2.0 is now
+required. The Rails 8.0 lock keeps Rails 8.0.5.2 (the latest 8.0) and json 2.21.2.
+
+- Engine suite: 473 tests / 4,062 assertions on Ruby 4.0.9 and 3.3.5, each with
+  Rails 8.1.4.1 and 8.0.5.2, each on SQLite and PostgreSQL 17 (eight
+  combinations). A second SQLite run on an existing database reruns the upgrade
+  migration cleanly. One Rails 8.0/PostgreSQL run had a single failure that four
+  reruns did not reproduce; it is not explained.
+- Packaged Host A: 17 / 346; 18 / 399 with overrides. Host B (fresh RubyLLM 2.2
+  product tables beside the admin's): 27 / 425; 28 / 453 with overrides on both
+  Propshaft and Sprockets. Recovery and collection recovery probes pass.
+- bundle-audit is clean for all three lockfiles against advisory DB
+  `4d71b123428e33f694e805ce15351ee3d8d62ef7` (2026-11-11); npm audit is clean.
+  RuboCop, asset reproducibility and the Jekyll build pass. No live provider call.
 
 ## 2026-11-06 release hardening
 

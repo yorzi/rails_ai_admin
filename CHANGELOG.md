@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Dependencies are on their latest releases: minitest 6.1.0, prism 2.1.0,
+  Bundler 4.0.24, jekyll-vitepress-theme 1.12.0, Host B esbuild 0.28.2, and
+  CI on ruby/setup-ruby v1.338.0 and Node 26. Ruby 4.0.9 and Rails 8.1.4.1
+  were already current; the Rails 8.0 lock stays on 8.0.5.2 and json 2.x.
 - Admin Chat runs on RubyLLM 2.2.0 and now requires it (`>= 2.2.0, < 3`).
   RubyLLM 2.2 broke Chat on the old 2.1 schema: a new
   `upgrade_rails_ai_admin_assistant_to_ruby_llm_2_2` migration adds its claim,

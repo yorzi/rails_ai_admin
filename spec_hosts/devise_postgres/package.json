@@ -2,5 +2,5 @@
   "name": "support-consumer-assets",
   "private": true,
   "scripts": {"build": "esbuild app/javascript/application.js --bundle --format=esm --outdir=app/assets/builds"},
-  "devDependencies": {"esbuild": "0.25.12"}
+  "devDependencies": {"esbuild": "0.28.2"}
 }
