@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- `bin/demo` copies the packaged session/SQLite host to `tmp/demo`, seeds it
+  and serves it on 127.0.0.1 until Ctrl-C; `--assistant` adds admin Chat and a
+  review Surface against an offline fake provider in `script/demo`.
 - Schema suggestions and doctor's sensitivity check treat `admin` and
   `superuser` name parts as authority, so `users.admin` is no longer offered
   as an editable field.
