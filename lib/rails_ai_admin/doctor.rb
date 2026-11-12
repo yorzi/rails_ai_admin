@@ -94,7 +94,7 @@ module RailsAiAdmin
           end
           model = resource.model_class
           same_pool = model.connection_pool.equal?(OperationRun.connection_pool) && model.connection_pool.equal?(AuditEvent.connection_pool) && model.connection_pool.equal?(WorkItem.connection_pool)
-          locking = model.locking_enabled? && model.locking_column == "lock_version"
+          locking = model.locking_enabled? && model.locking_column == "lock_version" ? true : false
           writable = !resource.readonly?
           status = writable && (!same_pool || !locking || model.composite_primary_key?) ? :error : :ok
           status = :error if writable && !%w[SQLite PostgreSQL].include?(model.connection.adapter_name)

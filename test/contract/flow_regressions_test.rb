@@ -76,6 +76,18 @@ class FlowRegressionsContractTest < ActiveSupport::TestCase
     assert_includes doctor.checks.map(&:name), "rails"
   end
 
+  # locking_enabled? returns nil without the column; doctor printed an
+  # empty "lock_version=" (found in the quickstart trial).
+  def test_doctor_names_a_missing_lock_version_as_false
+    Customer.stub(:locking_enabled?, nil) do
+      check = RailsAiAdmin::Doctor.new(application: nil).checks.find { |entry| entry.name == "resource:customers" }
+      assert_includes check.message, "lock_version=false;"
+      assert_equal :error, check.status, "a writable resource needs lock_version"
+    end
+    check = RailsAiAdmin::Doctor.new(application: nil).checks.find { |entry| entry.name == "resource:customers" }
+    assert_includes check.message, "lock_version=true;"
+  end
+
   def test_raa_020_queue_name_is_configurable_and_validated
     assert_equal "rails_ai_admin", RailsAiAdmin::Configuration.new.queue_name
     config = RailsAiAdmin::Configuration.new
