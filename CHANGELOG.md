@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- A ten-minute quickstart guide goes from a Rails 8 app with the
+  authentication generator to a working Users admin, then to editing. The
+  generated `AdminContext` and `AdminPolicyAdapter` stay closed but carry a
+  commented, working example for that kind of app.
 - `rails_ai_admin:resource Model --fields name:text points` writes the named
   schema suggestions as active (still readonly) fields, titles the resource by
   the first text field, and refuses a field the schema would not suggest or a

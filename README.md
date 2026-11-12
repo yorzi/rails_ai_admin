@@ -55,9 +55,11 @@ bundle exec rake build
 
 The build creates `pkg/rails_ai_admin-<version>.gem` (currently `0.1.0.dev`); it
 does not publish. `bundle exec rake release:check` reports release readiness, and
-[RELEASING.md](RELEASING.md) lists the next release's open gates and procedure. Use the
-[installation guide](docs/site/_getting_started/getting-started.md) to add a local
-build or development checkout to a host. Then run:
+[RELEASING.md](RELEASING.md) lists the next release's open gates and procedure. The
+[ten-minute quickstart](docs/site/_getting_started/quickstart.md) goes from an app
+with Rails 8 sign-in to a working, policy-checked Users admin. The
+[installation guide](docs/site/_getting_started/getting-started.md) covers other
+hosts and adding a local build or development checkout. Then run:
 
 ```sh
 bin/rails generate rails_ai_admin:install

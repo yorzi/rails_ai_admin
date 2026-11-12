@@ -1,7 +1,7 @@
 ---
 layout: default
 title: How Rails AI Admin Works
-nav_order: 3
+nav_order: 4
 description: Understand the current ownership boundary from request to committed receipt.
 ---
 

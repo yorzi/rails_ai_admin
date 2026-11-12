@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Configuration
-nav_order: 2
+nav_order: 3
 description: Connect host sessions and explicit policies without granting implicit access.
 ---
 

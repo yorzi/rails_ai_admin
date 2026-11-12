@@ -373,4 +373,20 @@ class DeveloperToolsTest < Minitest::Test
     assert_equal "https://github.com/yorzi/rails_ai_admin/blob/main/docs/site", RailsAiAdmin::Generators::GUIDES
     assert RailsAiAdmin::Generators::GUIDES.start_with?(Gem::Specification.load(File.expand_path("../../rails_ai_admin.gemspec", __dir__)).homepage)
   end
+
+  # The install templates stay closed, but their commented quickstart examples
+  # must still be valid Ruby once uncommented.
+  def test_install_template_examples_are_closed_and_compile_when_uncommented
+    root = File.expand_path("../../lib/generators/rails_ai_admin/install/templates", __dir__)
+    %w[admin_context.rb admin_policy_adapter.rb].each do |name|
+      source = File.read(File.join(root, name))
+      active = source.lines.reject { |line| line.lstrip.start_with?("#") }.join
+      refute_match(/cookie_jar|relation\.all|:users/, active, name)
+      prose, example = source.split("\n  #\n", 2)
+      assert example, name
+      uncommented = example.lines.map { |line| line.sub(/\A  # ?/, "  ").sub(/\A  #\z/, "") }.join
+      closed = name == "admin_context.rb" ? prose.sub(/  def resolve\(controller\).*?\n  end\n/m, "") : prose
+      RubyVM::InstructionSequence.compile(closed + "\n" + uncommented)
+    end
+  end
 end

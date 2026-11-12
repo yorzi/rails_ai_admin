@@ -10,7 +10,7 @@ hero:
   actions:
     - theme: brand
       text: Get started
-      link: /getting-started/
+      link: /quickstart/
     - theme: alt
       text: Development status
       link: /development-status/
@@ -39,9 +39,11 @@ bundle exec rake test
 bundle exec rake build
 ```
 
-The development package is `pkg/rails_ai_admin-{{ site.version }}.gem`. Follow the
-[installation guide]({% link _getting_started/getting-started.md %}) to connect it to
-a host. It remains closed until you supply authentication and policies.
+The development package is `pkg/rails_ai_admin-{{ site.version }}.gem`. The
+[ten-minute quickstart]({% link _getting_started/quickstart.md %}) takes an app with
+Rails 8 sign-in to a working Users admin; the
+[installation guide]({% link _getting_started/getting-started.md %}) connects other
+hosts. It remains closed until you supply authentication and policies.
 
 ## A First Look
 

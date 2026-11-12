@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Getting Started
-nav_order: 1
+nav_order: 2
 description: Install the development gem and connect a closed admin engine to your host.
 ---
 
@@ -9,6 +9,9 @@ description: Install the development gem and connect a closed admin engine to yo
 
 {{ page.description }}
 {: .fs-6 .fw-300 }
+
+For the shortest path from an app with sign-in to a working Users admin, follow
+the [Ten-Minute Quickstart]({% link _getting_started/quickstart.md %}).
 
 After reading this guide, you will know:
 
