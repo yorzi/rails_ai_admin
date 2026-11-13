@@ -13,6 +13,7 @@ module RailsAiAdmin
     helper RailsAiAdmin::FiltersHelper
     helper RailsAiAdmin::ToolViewsHelper
     helper RailsAiAdmin::HistoryHelper
+    helper RailsAiAdmin::DashboardHelper
     prepend_before_action :secure_headers
     before_action :authenticate_admin
     after_action :notice_discarded_list_settings

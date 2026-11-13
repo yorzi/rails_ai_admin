@@ -314,6 +314,14 @@ en:
         one: More than %{number} records
         other: More than %{number} records
       title: Overview
+      more_than: More than %{number}
+      trend_total:
+        one: "%{number} in the last %{days} days."
+        other: "%{number} in the last %{days} days."
+      trend_capped: Only the most recent 50,000 were counted.
+      show_data: Show the numbers
+      day: Day
+      records: Records
       intro: Select a resource to manage. Available resources follow your current permissions.
       empty: No resources are available for this session.
     associations:

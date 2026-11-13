@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Dashboard widgets: `dashboard { metric :drafts, scope: :drafts; trend
+  :created_at, days: 30 }` adds counts over granted list tabs and daily trend
+  charts (inline SVG with a data table) to the overview, through the list's
+  policy relation and field read grants.
 - CSV import: with `import_records?` and the create grant, an Import CSV page
   checks a file without writing, then creates one record per valid row through
   the native create operation (own policy check, validations and audit), and

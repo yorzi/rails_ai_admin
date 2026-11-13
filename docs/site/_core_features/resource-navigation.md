@@ -165,6 +165,36 @@ same policy relation, default list tab and 10,000 bound as the list, so a larger
 table reads "More than 10,000 records". Other resources show no count and cost
 no query.
 
+## Dashboard Metrics and Trends
+
+A resource can add widgets to the overview:
+
+```ruby
+class OrderAdmin < RailsAiAdmin::Resource
+  # ...
+  scopes do
+    scope :drafts, -> { where(state: "draft") }
+  end
+  dashboard do
+    metric :all                                  # every record in the policy scope
+    metric :drafts, scope: :drafts, label: "Draft orders"
+    trend :created_at, days: 30, label: "New orders"
+  end
+end
+```
+
+* `metric` counts the policy relation, narrowed by a declared list tab when
+  `scope:` names one. The card links to that list. A metric whose tab the actor
+  is not granted (`named_scopes`) is left out. Counts stop at 10,000.
+* `trend` charts records per day for the last 7 to 90 days over a declared
+  `date` or `datetime` field, in the context's time zone. It needs the field's
+  read grant and reads at most 50,000 values. The chart is an inline SVG
+  (no script, CSP-safe); its caption gives the total and **Show the numbers**
+  opens a table of every day for assistive technology.
+
+A resource declares at most eight widgets. Widgets appear for menu resources
+the actor may list; nothing is cached between requests.
+
 ## Preserve the Public Template Contract
 
 The default layout renders `rails_ai_admin/shared/_navigation.html.erb` with the

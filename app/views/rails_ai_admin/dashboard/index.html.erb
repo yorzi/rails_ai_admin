@@ -8,3 +8,26 @@
   <% end %>
 </ul>
 <% if resource_navigation.empty? %><p><%= t("rails_ai_admin.dashboard.empty") %></p><% end %>
+<% @widgets.each do |section| %>
+<section class="raa-dashboard-section" aria-labelledby="raa-dashboard-<%= section.resource.key %>">
+  <h2 id="raa-dashboard-<%= section.resource.key %>"><%= link_to section.resource.label, resources_path(resource: section.resource.key) %></h2>
+  <% if section.metrics.any? %>
+    <ul class="raa-metrics">
+      <% section.metrics.each do |metric| %>
+        <li><%= link_to resources_path(resource: section.resource.key, **(metric.scope ? { scope: metric.scope } : {})) do %><span class="raa-metric-value"><%= admin_number(metric.count, metric.capped) %></span> <span class="raa-metric-label"><%= metric.label %></span><% end %></li>
+      <% end %>
+    </ul>
+  <% end %>
+  <% section.trends.each do |trend| %>
+    <figure class="raa-trend">
+      <figcaption><strong><%= trend.label %></strong> — <%= t("rails_ai_admin.dashboard.trend_total", count: trend.total, days: trend.days.size, number: number_with_delimiter(trend.total)) %><% if trend.capped %> <%= t("rails_ai_admin.dashboard.trend_capped") %><% end %></figcaption>
+      <%= admin_trend_chart(trend) %>
+      <div class="raa-trend-axis" aria-hidden="true"><span><%= l(trend.days.first.first, format: :short) %></span><span><%= l(trend.days.last.first, format: :short) %></span></div>
+      <details><summary><%= t("rails_ai_admin.dashboard.show_data") %></summary>
+        <table><thead><tr><th scope="col"><%= t("rails_ai_admin.dashboard.day") %></th><th scope="col"><%= t("rails_ai_admin.dashboard.records") %></th></tr></thead>
+        <tbody><% trend.days.reverse_each do |day, count| %><tr><td><time datetime="<%= day.iso8601 %>"><%= day.iso8601 %></time></td><td><%= count %></td></tr><% end %></tbody></table>
+      </details>
+    </figure>
+  <% end %>
+</section>
+<% end %>

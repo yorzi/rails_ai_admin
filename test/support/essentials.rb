@@ -51,6 +51,14 @@ module EssentialFixtures
       datetime :updated_at, readonly: true
     end
     has_one :summary
+    scopes do
+      scope :popular, -> { where(views: 10..) }, label: "Popular"
+    end
+    dashboard do
+      metric :all
+      metric :popular, scope: :popular
+      trend :updated_at, days: 14, label: "Updated articles"
+    end
   end
 
   class SummaryAdmin < RailsAiAdmin::Resource
@@ -95,6 +103,7 @@ module EssentialFixtures
     class_attribute :select, default: true
     class_attribute :undeletable, default: []
     class_attribute :hidden_tags, default: []
+    class_attribute :scopes, default: %i[popular]
 
     def self.reset!
       self.read = READ
@@ -104,7 +113,10 @@ module EssentialFixtures
       self.select = true
       self.undeletable = []
       self.hidden_tags = []
+      self.scopes = %i[popular]
     end
+
+    def named_scopes(context:, resource:) = resource.key == :articles ? scopes : []
 
     def select_records?(context:, resource:) = select
 
