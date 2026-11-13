@@ -94,7 +94,7 @@ module RailsAiAdmin
       link = link_to(text, path)
       return link unless view != :index && value.image?
       safe_join([ tag.img(src: resource_file_path(resource: @resource.key, id: record_id, field: field.name, disposition: "inline"),
-        alt: value.filename, class: "raa-file-preview", loading: "lazy"), tag.br, link ])
+        alt: value.filename, class: "raa-file-preview", loading: "lazy"), link ])
     end
 
     # Trix, from the host's Action Text assets, edits a hidden input. The

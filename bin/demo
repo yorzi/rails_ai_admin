@@ -8,8 +8,9 @@
 #   bin/demo                  serve http://127.0.0.1:3917/staff; Ctrl-C stops it
 #   bin/demo --assistant      also turn on admin Chat against an offline fake
 #                             provider (no key, no network)
-#   bin/demo --showcase       also add articles with every everyday field type:
-#                             uploads, rich text, tags, history, CSV export
+#   bin/demo --plain          only the packaged host's customers and orders;
+#                             without it the demo adds articles with every field
+#                             type, uploads, rich text, tags, imports and charts
 #   bin/demo --setup-only     prepare tmp/demo and exit
 #   bin/demo --port 4000      choose the port; the fake provider uses port + 1
 
@@ -17,11 +18,12 @@ require "bundler"
 require "fileutils"
 require "optparse"
 
-options = { port: 3917, assistant: false, showcase: false, serve: true }
+options = { port: 3917, assistant: false, showcase: true, serve: true }
 OptionParser.new do |parser|
-  parser.banner = "Usage: bin/demo [--assistant] [--showcase] [--port PORT] [--setup-only]"
+  parser.banner = "Usage: bin/demo [--assistant] [--plain] [--port PORT] [--setup-only]"
   parser.on("--assistant", "Enable admin Chat with an offline fake provider") { options[:assistant] = true }
-  parser.on("--showcase", "Add articles with uploads, rich text, tags, history and export") { options[:showcase] = true }
+  parser.on("--plain", "Only the packaged customers and orders, without the showcase") { options[:showcase] = false }
+  parser.on("--showcase", "The default; kept for older instructions") { options[:showcase] = true }
   parser.on("--port PORT", Integer, "Port on 127.0.0.1 (default 3917)") { |port| options[:port] = port }
   parser.on("--setup-only", "Prepare tmp/demo and exit without serving") { options[:serve] = false }
 end.parse!
@@ -96,10 +98,16 @@ if options[:showcase]
   FileUtils.cp(File.join(showcase, "migration.rb"), File.join(TARGET, "db/migrate/20261113000001_create_showcase.rb"))
   Dir[File.join(showcase, "models/*.rb")].each { |path| FileUtils.cp(path, File.join(TARGET, "app/models")) }
   Dir[File.join(showcase, "rails_ai_admin/*.rb")].each { |path| FileUtils.cp(path, File.join(TARGET, "app/rails_ai_admin")) }
-  edit("app/rails_ai_admin/admin_policy_adapter.rb", "class AdminPolicyAdapter < RailsAiAdmin::Authorization::Adapter\n",
-    "class AdminPolicyAdapter < RailsAiAdmin::Authorization::Adapter\n#{File.read(File.join(showcase, 'policy.rb'))}\n")
-  edit("app/rails_ai_admin/admin_policy_adapter.rb", "  def fields(context:, resource:, action:, record: nil)\n",
-    "  def fields(context:, resource:, action:, record: nil)\n    return showcase_fields(context: context, resource: resource, action: action) if SHOWCASE.include?(resource.key)\n")
+  policy = File.join(TARGET, "app/rails_ai_admin/admin_policy_adapter.rb")
+  File.write(policy, File.read(policy).sub(/\nend\s*\z/, "\n\n  prepend ShowcasePolicy\nend\n"))
+  edit("app/rails_ai_admin/order_admin.rb", "  operation :review_order", <<~RUBY.chomp + "\n  operation :review_order")
+    dashboard do
+      metric :drafts, scope: :drafts, label: "Orders waiting for review"
+      metric :expedited, scope: :expedited, label: "Expedited orders"
+      trend :delivery_on, days: 30, label: "Deliveries"
+    end
+  RUBY
+  FileUtils.cp(File.join(showcase, "articles-import.csv"), File.join(TARGET, "articles-import.csv"))
   edit("config/initializers/rails_ai_admin.rb", %(config.resources = [ "CustomerAdmin", "CustomerDirectoryAdmin", "OrderAdmin" ]),
     %(config.resources = [ "CustomerAdmin", "CustomerDirectoryAdmin", "OrderAdmin", "ArticleAdmin", "TagAdmin", "SummaryAdmin" ]))
   File.write(File.join(TARGET, "db/seeds.rb"), File.read(File.join(showcase, "seeds.rb")), mode: "a")
@@ -126,7 +134,8 @@ puts <<~TEXT
     Logins:   admin@example.test (writes), viewer@example.test (reads only),
               other@example.test (another tenant); password demo-password
 TEXT
-puts "    Chat:     #{admin}/assistant; try \"search customers for ada\" or \"award 5 points to 1\"" if options[:assistant]
+puts "  Import:   #{admin}/articles/imports/new with tmp/demo/articles-import.csv" if options[:showcase]
+puts "  Chat:     #{admin}/assistant; try \"search customers for ada\" or \"award 5 points to 1\"" if options[:assistant]
 exit unless options[:serve]
 
 pids = []

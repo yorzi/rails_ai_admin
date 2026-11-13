@@ -24,9 +24,10 @@
   `max_files` bound (default 20). Removed blobs are purged after commit; the
   record is touched and audited; show pages render a gallery whose downloads
   name their attachment and are checked like single files.
-- `bin/demo --showcase` adds articles, tags and summaries to the demo host with
-  every everyday field type, uploads, rich text, history, CSV export and bulk
-  delete. `json` and `rich_text` fields stay off list pages unless declared
+- `bin/demo` now adds articles, tags and summaries to the demo host by default
+  (`--plain` leaves them out): every field type, cover and gallery images, rich
+  text, tags, history, the audit log, CSV export and import (with a sample file),
+  bulk delete and overview metrics and trends for articles and orders. `json` and `rich_text` fields stay off list pages unless declared
   `index: true`. The selection page no longer shows raw record versions, and
   rich-text and many-to-many inputs are named by their visible label instead of
   a `<label for>` that pointed at a non-form element.
