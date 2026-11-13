@@ -40,8 +40,33 @@ jobs:
           export SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)"
           bundle exec rake build release:check
           printf '%s  %s\n' 04aaa7b9270b9ef6ddce5141356c026f457459afdb85447fc4dfa7da1e443c53 pkg/rails_ai_admin-0.1.0.gem | sha256sum --check
-      - if: inputs.publish
-        uses: rubygems/configure-rubygems-credentials@dc5a8d8553e6ee01fc26761a49e99e733d17954a # v2.1.0
       - name: Push 0.1.0 to RubyGems
         if: inputs.publish
-        run: gem push pkg/rails_ai_admin-0.1.0.gem
+        # The first push requires an explicit RubyGems owner. The official
+        # credentials action does not yet pass this input to the exchange API.
+        run: |
+          ruby <<'RUBY'
+          require "json"
+          require "net/http"
+          require "rubygems/gem_runner"
+          require "uri"
+
+          request_url = URI(ENV.fetch("ACTIONS_ID_TOKEN_REQUEST_URL"))
+          request_url.query = URI.encode_www_form(URI.decode_www_form(request_url.query.to_s) + [["audience", "rubygems.org"]])
+          request = Net::HTTP::Get.new(request_url)
+          request["Authorization"] = "Bearer #{ENV.fetch("ACTIONS_ID_TOKEN_REQUEST_TOKEN")}"
+          response = Net::HTTP.start(request_url.host, request_url.port, use_ssl: true, open_timeout: 10, read_timeout: 20) { |http| http.request(request) }
+          abort "GitHub OIDC request failed: HTTP #{response.code}" unless response.is_a?(Net::HTTPSuccess)
+          jwt = JSON.parse(response.body).fetch("value")
+
+          exchange_url = URI("https://rubygems.org/api/v1/oidc/trusted_publisher/exchange_token")
+          headers = { "Content-Type" => "application/json", "Accept" => "application/json" }
+          body = JSON.generate(jwt: jwt, owner: "42846")
+          response = Net::HTTP.start(exchange_url.host, exchange_url.port, use_ssl: true, open_timeout: 10, read_timeout: 20) { |http| http.post(exchange_url.request_uri, body, headers) }
+          abort "RubyGems token exchange failed: HTTP #{response.code}" unless response.is_a?(Net::HTTPSuccess)
+          key = JSON.parse(response.body).fetch("rubygems_api_key")
+          abort "Invalid RubyGems key response" unless key.is_a?(String) && key.match?(/\A[a-zA-Z0-9_]+\z/)
+          puts "::add-mask::#{key}"
+          ENV["GEM_HOST_API_KEY"] = key
+          Gem::GemRunner.new.run(["push", "pkg/rails_ai_admin-0.1.0.gem"])
+          RUBY
