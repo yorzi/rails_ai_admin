@@ -95,7 +95,7 @@ selection = builder.capture(
 | `targets` | Immutable ordered list of `Selections::Builder::Target` values |
 
 Each Target has `id` (a canonical string), `expected_version` (the captured
-`lock_version`) and `label` (a current permitted display label). Target order is
+record version: `lock_version`, or `updated_at` in microseconds) and `label` (a current permitted display label). Target order is
 canonical and deterministic; it does not preserve caller order or depend on labels.
 The digest is a manifest commitment, not an authorization token. Record identity
 includes stable model/table/primary-key metadata, so a deployment that remaps IDs
@@ -113,8 +113,8 @@ loads only those IDs with a bound. It does not broaden the saved selection or
 expand an unscoped query into new targets.
 
 The domain model, `Selection` and `SelectionItem` must share one SQLite or
-PostgreSQL connection pool. The model needs one primary key and standard
-`lock_version` optimistic locking. Composite keys, another pool and other
+PostgreSQL connection pool. The model needs one primary key and a record
+version: `lock_version` optimistic locking or an `updated_at` timestamp. Composite keys, another pool and other
 database adapters are not supported by this capture contract.
 
 ## Revalidate Before Using a Preview
@@ -136,7 +136,7 @@ Snapshot of the same targets, never an expanded query result. It checks:
 * Current resource contract, including physical table and primary-key name/types,
   stored count/order/digest consistency and any supplied digest.
 * Current selection/index/show grants and complete record scope.
-* Each exact target's current `lock_version` against its captured version.
+* Each exact target's current record version against its captured version.
 
 Current read-field grants are used again for labels. A hidden title becomes the
 safe `Record #id` fallback instead of exposing a saved label. The engine does not

@@ -89,7 +89,7 @@ the retained input.
 
 The resource/operation schema fingerprint must still match, the target must remain
 in current scope, its action/current writable-field grants must permit the form
-and an update's expected `lock_version` must be unchanged. Recovery has an absolute
+and an update's expected record version must be unchanged. Recovery has an absolute
 one-hour window from the original intent's `created_at`, not an indefinitely
 extendable expiry. A stale target, changed contract, revoked action or completed
 request requires a fresh form rather than automatic recovery/replay.

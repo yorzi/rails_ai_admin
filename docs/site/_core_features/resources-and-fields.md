@@ -64,7 +64,9 @@ The policy name is optional for a custom adapter that supplies its own decisions
 A resource must declare a string `model`, a unique stable `key`, fields and a
 `title` naming a declared field. Keys reserve `assistant`, `audit`, `dashboards`,
 `exports`, `imports`, `jobs`, `selections`, `settings`, `doctor` and `assets`.
-`lock_version` is execution metadata and cannot be a resource field.
+`lock_version` is execution metadata and cannot be a resource field. On a model
+without `lock_version`, `updated_at` carries the record version, so it may be a
+readonly field but never a writable one.
 
 Use [Resource Navigation]({% link _core_features/resource-navigation.md %}) to
 group/label/icon/order sidebar and Overview entries. `navigation false` hides only

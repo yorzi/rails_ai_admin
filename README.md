@@ -16,8 +16,8 @@ supported feature set.
 
 The engine supports custom policy adapters and an optional Pundit adapter with
 explicit policy mappings per resource. The host owns authentication, tenants,
-policies and domain data. Missing context or policy grants deny access. Generic writes require standard `lock_version`
-optimistic locking and the same Active Record connection pool for domain records,
+policies and domain data. Missing context or policy grants deny access. Generic writes require a record version
+(`lock_version`, or else `updated_at`) and the same Active Record connection pool for domain records,
 operation receipts, audit and Work items. Resources with irreversible callback
 effects should remain readonly until their host boundary is redesigned and tested.
 

@@ -338,7 +338,7 @@ module RailsAiAdmin
         return acknowledgment(replay) if replay
         record = @session.access(resource).find!(id, action: definition.key)
         proposal = Operations::Runner.new.preflight(context: @session.context, resource: resource, operation: definition.key,
-          target_id: record.id, expected_version: record.lock_version, input: input, origin: :assistant)
+          target_id: record.id, expected_version: RecordVersion.of(record), input: input, origin: :assistant)
         if proposal.is_a?(Operations::Result)
           return failure(proposal.code == "VALIDATION_FAILED" ? "VALIDATION_FAILED" : proposal.code == "CONFLICT" ? "CONFLICT" : "UNAVAILABLE",
             "fields" => proposal.errors.keys.map(&:to_s))

@@ -118,7 +118,7 @@ module RailsAiAdmin
       # GET stays read-only: the form carries a signed reference that becomes
       # an intent on submit (RAA-005, ADR 0025).
       @intent_ref = runner.issue_form_intent(context: @context, resource: @resource, operation: operation,
-        target_id: operation == :create ? nil : @record.id, expected_version: operation == :create ? nil : @record.lock_version).ref
+        target_id: operation == :create ? nil : @record.id, expected_version: operation == :create ? nil : RecordVersion.of(@record)).ref
       render operation == :destroy ? :confirm_destroy : operation == :create ? :new : :edit
     end
 

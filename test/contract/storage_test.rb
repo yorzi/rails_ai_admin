@@ -17,6 +17,7 @@ end
 class UnlockedCustomer < ActiveRecord::Base
   self.table_name = "customers"
   self.lock_optimistically = false
+  self.record_timestamps = false
 end
 class UnlockedAdmin < RailsAiAdmin::Resource
   model "UnlockedCustomer"
@@ -44,7 +45,7 @@ class StorageTest < Minitest::Test
     SeparatePoolCustomer.remove_connection
   end
 
-  def test_models_without_optimistic_locking_are_rejected_for_generic_writes
+  def test_models_without_a_record_version_are_rejected_for_generic_writes
     RailsAiAdmin.stub(:operation_registry, RailsAiAdmin::Operations::Registry.new([ UnlockedAdmin ])) do
       assert_raises(RailsAiAdmin::ConfigurationError) do
         RailsAiAdmin::Operations::Runner.new.prepare(context: context, resource: UnlockedAdmin, operation: :update, target_id: @customer.id, expected_version: 0)

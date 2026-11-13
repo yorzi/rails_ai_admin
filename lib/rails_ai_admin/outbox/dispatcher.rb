@@ -136,7 +136,7 @@ module RailsAiAdmin
         raise AccessDenied unless record
         access.authorize_delivery!(run.operation, item.kind, record)
         policy = RailsAiAdmin.work_registry.fetch(item.kind).handler_class.record_version_policy
-        raise Blocked, "RECORD_CHANGED" if policy == :exact && item.expected_version != record.lock_version
+        raise Blocked, "RECORD_CHANGED" if policy == :exact && item.expected_version != RecordVersion.of(record)
         # The admission TTL has been consumed. Delivery has its own deadline.
         raise Blocked, "WORK_EXPIRED" unless item.deadline_at > Time.current
         [ context, resource, record ]

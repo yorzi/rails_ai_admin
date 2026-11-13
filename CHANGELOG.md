@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Models no longer need a `lock_version` column. Without one, `updated_at`
+  carries the record version (whole microseconds), compared after a row-locked
+  load inside the write transaction; forms, intents, selections, collection
+  items and Work delivery all use it. `updated_at` then cannot be a writable
+  field, and doctor reports `version=lock_version`, `version=updated_at` or
+  `version=missing` instead of `lock_version=true/false`.
 - Framework I18n: every page heading, button, notice, status page, field
   validation message, Chat message and script message reads
   `config/locales/en.yml` (`rails_ai_admin.*`), and `<html lang>` follows

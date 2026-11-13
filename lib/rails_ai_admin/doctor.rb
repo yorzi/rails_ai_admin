@@ -94,11 +94,11 @@ module RailsAiAdmin
           end
           model = resource.model_class
           same_pool = model.connection_pool.equal?(OperationRun.connection_pool) && model.connection_pool.equal?(AuditEvent.connection_pool) && model.connection_pool.equal?(WorkItem.connection_pool)
-          locking = model.locking_enabled? && model.locking_column == "lock_version" ? true : false
+          version = RecordVersion.strategy(model)
           writable = !resource.readonly?
-          status = writable && (!same_pool || !locking || model.composite_primary_key?) ? :error : :ok
+          status = writable && (!same_pool || version.nil? || model.composite_primary_key?) ? :error : :ok
           status = :error if writable && !%w[SQLite PostgreSQL].include?(model.connection.adapter_name)
-          message = "same_pool=#{same_pool}; lock_version=#{locking}; readonly=#{resource.readonly?}. Host callbacks must be database-only. " \
+          message = "same_pool=#{same_pool}; version=#{version || "missing"}; readonly=#{resource.readonly?}. Host callbacks must be database-only. " \
             "List pages omit in-scope records that deny show; check scope/show agreement with TestKit.assert_scope_matches_show."
           result << Check.new("resource:#{resource.key}", status, message)
           result.concat(schema_checks(resource, model))
@@ -171,7 +171,7 @@ module RailsAiAdmin
     def selection_check
       installed = [ Selection, SelectionItem, BatchItem ].all?(&:table_exists?)
       Check.new("selections", installed ? :review : :error,
-        "Fixed selection tables installed=#{installed}; at most 100 targets with lock_version in one pool. Separate select_records? grant, current scope/show/fields and expiry apply. Selection alone is not approval; collection admission/leases require current host policies and persistent queue scans.")
+        "Fixed selection tables installed=#{installed}; at most 100 targets with lock_version or updated_at in one pool. Separate select_records? grant, current scope/show/fields and expiry apply. Selection alone is not approval; collection admission/leases require current host policies and persistent queue scans.")
     rescue ActiveRecord::ActiveRecordError
       Check.new("selections", :error, "Cannot inspect selection tables. Check database connectivity and pending engine migrations.")
     end

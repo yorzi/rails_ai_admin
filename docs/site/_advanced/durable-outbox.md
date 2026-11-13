@@ -140,7 +140,7 @@ the already consumed intent TTL does not by itself cancel that work. Current
 authority and the Work deadline still apply, and no new targets are admitted.
 
 The default `record_version_policy :exact` requires the target's current
-`lock_version` to equal its version at operation commit. A later legitimate edit
+version (`lock_version`, or else `updated_at`) to equal its version at operation commit. A later legitimate edit
 stops delivery with `RECORD_CHANGED` and `reconciliation_required`. Explicitly use
 `:current` only when the workflow safely uses current state. It still checks
 current scope/authority and cannot change an already bound external request under

@@ -22,7 +22,7 @@ After reading this guide, you will know:
 A collection operation applies one declared `Operation` to each record in a fixed
 [Selection]({% link _core_features/selections.md %}). It is always asynchronous;
 admission does not mutate business records. Given a host `Customer` model with
-integer `points` and standard `lock_version`, define:
+integer `points` and the usual timestamps, define:
 
 ```ruby
 class AwardCustomerPoints < RailsAiAdmin::Operation
@@ -69,7 +69,7 @@ resource with the same key. The handler has the same per-record
 as a member operation. Input has typed string keys. Preflight returns proposed
 resource values without mutation; perform persists its original scoped target
 and returns `success(record)`, `invalid(*input_fields)` or `conflict`. Actual
-attribute changes must advance `lock_version`.
+attribute changes must advance the record version (`lock_version`, or else `updated_at`).
 
 Readonly/disabled resources deny writes. Collection registration cannot override
 CRUD keys or become a global command. Public member `prepare`, `preflight` and
@@ -273,8 +273,8 @@ The Selection and proposed approval must be live at admission. Once admitted,
 execution uses its own deadline; expiry of the already consumed approval does
 not cancel a job. The deadline stops remaining work. Duration/deadline checks do
 not hard-interrupt arbitrary Ruby or SQL. Domain and all receipt/audit/Work/batch/
-Selection tables must share one SQLite/PostgreSQL pool with standard
-`lock_version`. Same-pool `atomic_models` declarations do not authorize or lock
+Selection tables must share one SQLite/PostgreSQL pool with a record
+version (`lock_version` or `updated_at`). Same-pool `atomic_models` declarations do not authorize or lock
 related records. Normal joining transactions are allowed; `requires_new` inside
 the handler is rejected. Collection admission, cancellation, claim and worker
 execution must start outside an already open host transaction; they own the commit

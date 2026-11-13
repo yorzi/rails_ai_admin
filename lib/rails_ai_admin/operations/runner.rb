@@ -104,7 +104,7 @@ module RailsAiAdmin
           access = Authorization::Access.new(context, resource)
           record = load_record(access, run, definition)
           access.authorize!(run.operation, record)
-          if run.operation == "update" && run.expected_version != record.lock_version
+          if run.operation == "update" && run.expected_version != RecordVersion.of(record)
             raise AccessDenied, "CONFLICT"
           end
           raise AccessDenied unless run.operation != "create" || run.target_id.nil? && run.expected_version.nil?
@@ -127,7 +127,7 @@ module RailsAiAdmin
           record = operation == "create" ? access.relation.new : access.find!(target_id, action: operation)
           access.authorize!(operation, record)
           version = operation == "create" ? nil : parse_version(expected_version)
-          raise AccessDenied, "CONFLICT" if version && version != record.lock_version
+          raise AccessDenied, "CONFLICT" if version && version != RecordVersion.of(record)
           raise ConfigurationError, "Create must not have a target" if operation == "create" && target_id
           raise ConfigurationError, "Custom operations require input-bound preflight" if definition.custom? && input.nil?
           values = input.nil? ? nil : coerce!(access, record, definition, input)
@@ -210,7 +210,7 @@ module RailsAiAdmin
           end
           reject!("CONFLICT") unless run.status == "proposed"
           reject!("APPROVAL_REQUIRED") unless admission || human_confirmed == true
-          if run.operation != "create" && record.lock_version != run.expected_version
+          if run.operation != "create" && RecordVersion.of(record) != run.expected_version
             reject!("CONFLICT")
           end
           # A write claim, not a process mutex, serializes SQLite writers too.
@@ -231,11 +231,11 @@ module RailsAiAdmin
               reject!("VALIDATION_FAILED", errors: { "base" => [ "operation did not persist its target" ] })
             end
             record.reload
-            if before != record.attributes_before_type_cast && record.lock_version <= run.expected_version
-              raise ConfigurationError, "Custom writes must advance the target lock_version"
+            if before != record.attributes_before_type_cast && RecordVersion.of(record) == run.expected_version
+              raise ConfigurationError, "Custom writes must advance the target lock_version or updated_at"
             end
             changed_fields = resource.fields.select { |field| before[field.column] != record.attributes_before_type_cast[field.column] }.map { |field| field.name.to_s }
-            WorkItem.where(operation_run_id: run.id).update_all(expected_version: record.lock_version)
+            WorkItem.where(operation_run_id: run.id).update_all(expected_version: RecordVersion.of(record))
           else
             record.assign_attributes(column_attributes(resource, unchanged_precision(resource, record, values))) if run.operation == "update"
             names = field_names_by_column(resource)
@@ -395,8 +395,12 @@ module RailsAiAdmin
         unless model.connection_pool.equal?(OperationRun.connection_pool) && model.connection_pool.equal?(AuditEvent.connection_pool) && model.connection_pool.equal?(WorkItem.connection_pool) && model.connection_pool.equal?(BatchItem.connection_pool)
           raise ConfigurationError, "Domain, intent and audit must use the same connection pool"
         end
-        unless model.locking_enabled? && model.locking_column == "lock_version" && !model.composite_primary_key?
-          raise ConfigurationError, "Generic writes require lock_version and a single primary key"
+        unless RecordVersion.supported?(model)
+          raise ConfigurationError, "Writes require lock_version or an updated_at timestamp, and a single primary key"
+        end
+        version_column = RecordVersion.column(model)
+        if resource.fields.any? { |field| field.column == version_column && (field.writable?(:create) || field.writable?(:update)) }
+          raise ConfigurationError, "#{version_column} carries the record version and cannot be a writable field"
         end
         unless %w[SQLite PostgreSQL].include?(model.connection.adapter_name)
           raise ConfigurationError, "Only SQLite and PostgreSQL are supported for writes"

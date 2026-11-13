@@ -33,8 +33,8 @@ module RailsAiAdmin
       def self.ensure_pool!(resource)
         model = resource.model_class
         unless [ OperationRun, AuditEvent, WorkItem, BatchItem, Selection, SelectionItem ].all? { |klass| klass.connection_pool.equal?(model.connection_pool) } &&
-            model.locking_enabled? && model.locking_column == "lock_version" && !model.composite_primary_key? && %w[SQLite PostgreSQL].include?(model.connection.adapter_name)
-          raise ConfigurationError, "Collection storage and domain must share one SQLite/PostgreSQL pool with lock_version"
+            RecordVersion.supported?(model) && %w[SQLite PostgreSQL].include?(model.connection.adapter_name)
+          raise ConfigurationError, "Collection storage and domain must share one SQLite/PostgreSQL pool with lock_version or updated_at"
         end
       end
 

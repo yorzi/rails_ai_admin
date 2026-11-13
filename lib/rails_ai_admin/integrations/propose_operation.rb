@@ -115,7 +115,7 @@ module RailsAiAdmin
         unless existing
           begin
             proposal = Operations::Runner.new.preflight(context: @context, resource: resource, operation: definition.key,
-              target_id: target.id, expected_version: target.lock_version, input: input, origin: :assistant, intent_id: intent_id)
+              target_id: target.id, expected_version: RecordVersion.of(target), input: input, origin: :assistant, intent_id: intent_id)
           rescue ActiveRecord::RecordNotUnique
             existing = OperationRun.find_by(id: intent_id, actor_ref: @context.actor_ref, tenant_ref: @context.tenant_ref)
           end

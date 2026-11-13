@@ -73,7 +73,7 @@ module RailsAiAdmin
           items.map do |item|
             record = records.fetch(item.target_id)
             access.authorize!(:show, record)
-            raise AccessDenied, "CONFLICT" unless record.lock_version == item.expected_version
+            raise AccessDenied, "CONFLICT" unless RecordVersion.of(record) == item.expected_version
             value = target(access, record, labels: labels, authorized: true)
             yield record if block_given?
             value
@@ -89,9 +89,9 @@ module RailsAiAdmin
       def ensure_storage!(resource)
         model = resource.model_class
         unless [ Selection, SelectionItem ].all? { |klass| klass.connection_pool.equal?(model.connection_pool) } &&
-            model.locking_enabled? && model.locking_column == "lock_version" && !model.composite_primary_key? &&
+            RecordVersion.supported?(model) &&
             %w[SQLite PostgreSQL].include?(model.connection.adapter_name)
-          raise ConfigurationError, "Selections require one SQLite/PostgreSQL pool, a single primary key and lock_version"
+          raise ConfigurationError, "Selections require one SQLite/PostgreSQL pool, a single primary key and lock_version or updated_at"
         end
       end
 
@@ -130,7 +130,7 @@ module RailsAiAdmin
 
       def target(access, record, labels: true, authorized: false)
         access.authorize!(:show, record) unless authorized
-        version = record.lock_version
+        version = RecordVersion.of(record)
         raise ConfigurationError, "Selection versions must be nonnegative integers" unless version.is_a?(Integer) && version >= 0
         label = labels ? access.record_label(record) : "Record ##{record.id}"
         Target.new(record.id.to_s.freeze, version, label.freeze)
