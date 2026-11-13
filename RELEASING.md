@@ -20,7 +20,7 @@ order and cannot be claimed early:
 
 ## Public Preview readiness
 
-Status on 2026-11-06 (release hardening). "Local" means verified in this repository and its packaged
+Status on 2026-11-13 (Public Preview preparation). "Local" means verified in this repository and its packaged
 hosts, not by external users.
 
 | Requirement | Status | Evidence or gap |
@@ -35,20 +35,22 @@ hosts, not by external users.
 | Chat entry (UI/Chat dual entry) | Local | Opt-in admin Chat with grant-filtered tools and proposals as review Surfaces (ADR 0022); Host B and Chromium against offline fixtures; Host B against live models |
 | Early integration proof exit gate | Local | Chat → Surface → one write → one continuation, crash/retry/fencing recovery offline; the same flow live on 2026-11-03 |
 | Live provider check | Local | 2026-11-03: Host B full flow against OpenAI, Anthropic and Google models through OpenRouter, one run each. Native OpenAI/Anthropic APIs and live failure recovery remain open (RAA-0509) |
-| Dependency security | Local clean | Both Ruby lockfiles pass the refreshed advisory scan after the 2026-11-06 patches; exact candidate CI remains required |
+| Dependency security | Local clean | 2026-11-13: the main, Rails 8.0 and docs lockfiles pass bundle-audit (advisory DB of 2026-11-11) and the frontend passes npm audit; exact candidate CI remains required |
 | Reproduced correctness defects | Locally fixed | Late worker responses, search pagination and prerelease release metadata have regression tests (COMPATIBILITY.md) |
 | Phase 2 security regressions (RAA-0210) | Local | `test/integration/security_regressions_test.rb`: every non-GET engine route (Surface and Chat included) rejects a missing CSRF token with no side effect; unwritable, framework and tenant attributes are never assigned; record text and request values are escaped on every page; list and selection pages keep a constant query count. CSRF and XSS checks were mutation-tested |
 | Framework I18n | Local | Every page, notice, status, field message, Chat message and script message reads `config/locales/en.yml`; the test app raises on a missing key, and a test renders a host locale (Translations guide) |
-| Accessibility pass | Partial | Keyboard and 320px Chromium checks for some pages; no screen-reader pass; associations not yet checked |
-| Remote CI on the release commit | Required per candidate | Historical main CI passed on 9892431; the reconciled hardening candidate must pass on its own exact SHA |
-| Listed limitations in release notes | Required | Must name CSV, files, dashboards, Chat limits (no streaming, budgets, page context or retention) and P1 gaps |
+| Accessibility pass | Local (automated) | 2026-11-13, Chromium Lighthouse (axe) in the packaged demo host: 100 on overview, list with filters and reference picker, record with association panel, new form with picker results, delete confirmation, jobs and a 404 status page; picker keyboard path and 320px width checked. A screen-reader pass by a person remains open |
+| Remote CI on the release commit | Required per candidate | Historical main CI passed on 9892431. The `release/v0.1.0` candidate is local and unpushed; it must pass CI on its own exact SHA |
+| Listed limitations in release notes | Drafted | The 0.1.0 section of CHANGELOG.md lists CSV, files, dashboards, Chat limits (no streaming, budgets, page context or retention) and the open association, accessibility and provider gaps |
 | Owner approval and publishing | Owner only | `allowed_push_host` blocks `gem push` today |
 
-**Verdict:** not ready for Public Preview. The Chat+Surface workflow passes
-offline in both test databases, packaged Host B and Chromium, and live in
-packaged Host B against three model families. Remote CI on the release commit
-remains blocking. The Phase 2 security, I18n and accessibility evidence
-should close in parallel.
+**Verdict:** locally ready for Public Preview; not yet published. Every
+product row has local evidence or is listed as a limitation in the release
+notes. Two steps remain, and neither can be done from this repository alone:
+remote CI must pass on the exact candidate commit, and the owner must approve
+the label and open the publish gate. A screen-reader pass and an independent
+install trial are recommended before publishing but are not Public Preview
+gates in the ladder above.
 
 Publishing an earlier, conventional-only prerelease (for example
 `0.1.0.alpha1` with AI disabled and every gap listed) would depart from the
