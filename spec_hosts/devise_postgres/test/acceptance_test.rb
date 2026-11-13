@@ -343,8 +343,10 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
     assert_response :see_other
     chat = RailsAiAdmin::Assistant::Chat.find_by!(ref: response.location.split("/").last)
     follow_redirect!
-    post "/operations/assistant/conversations/#{chat.ref}/messages", params: { authenticity_token: csrf,
-      admission_key: css_select("input[name=admission_key]").first["value"], content: "Triage the support task" }
+    message_path = "/operations/assistant/conversations/#{chat.ref}/messages"
+    composer = css_select("form[action='#{message_path}']").sole
+    fields = composer.css("input[type=hidden]").to_h { |node| [ node["name"], node["value"] ] }
+    post message_path, params: fields.merge(content: "Triage the support task")
     assert_response :see_other
     RailsAiAdmin::Assistant::Coordinator.new.run(chat.ref)
     assert_equal "open", @ticket.reload.state, "the assistant never writes business data"
