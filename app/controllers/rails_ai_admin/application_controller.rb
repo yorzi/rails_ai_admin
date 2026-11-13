@@ -135,7 +135,7 @@ module RailsAiAdmin
       resources_path(resource: @resource.key, **state.symbolize_keys)
     end
 
-    def list_return_label = @list_navigation&.index_allowed? ? @resource.label : "Administration"
+    def list_return_label = @list_navigation&.index_allowed? ? @resource.label : t("rails_ai_admin.layout.administration")
 
     def return_navigation_fields
       helpers.safe_join(Navigation::ListState.form_pairs(navigation_state, "return_to").map { |name, value| helpers.hidden_field_tag(name, value, id: nil) })
@@ -148,7 +148,7 @@ module RailsAiAdmin
 
     def notice_discarded_list_settings
       return unless response.redirect? && return_state_discarded?
-      message = "Some list settings are no longer available."
+      message = t("rails_ai_admin.layout.settings_unavailable")
       flash[:notice] = [ flash[:notice], message ].compact.join(" ") unless flash[:notice].to_s.include?(message)
     end
 

@@ -7,7 +7,7 @@
   <%= hidden_field_tag :expected_version, @record.lock_version %>
   <%= render "rails_ai_admin/resources/errors", form: form, fields: @form_fields %>
   <%= render "rails_ai_admin/shared/input_fields", form: form, fields: @form_fields, values: @form_values, errors: @errors %>
-  <div class="raa-actions"><%= form.submit "Review operation", data: { turbo_submits_with: "Preparing review…" } %>
-  <%= link_to "Cancel", resource_path(resource: @resource.key, id: @record.id, **navigation_params) %></div>
+  <div class="raa-actions"><%= form.submit t("rails_ai_admin.operations.review"), data: { turbo_submits_with: t("rails_ai_admin.operations.preparing") } %>
+  <%= link_to t("rails_ai_admin.actions.cancel"), resource_path(resource: @resource.key, id: @record.id, **navigation_params) %></div>
 <% end %>
 </div>

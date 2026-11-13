@@ -1,5 +1,5 @@
-<% admin_title "Collection jobs" %>
-<h1>Collection jobs</h1>
-<p>Your latest accessible runs in the current tenant.</p>
-<% if @jobs.empty? %><p>No accessible collection runs.</p><% end %>
-<ul><% @jobs.each do |job| %><li><%= link_to job.description, collection_job_path(job_ref: job.job_ref) %> — <%= job.status.humanize %></li><% end %></ul>
+<% admin_title t("rails_ai_admin.layout.collection_jobs") %>
+<h1><%= t("rails_ai_admin.layout.collection_jobs") %></h1>
+<p><%= t("rails_ai_admin.collection_jobs.intro") %></p>
+<% if @jobs.empty? %><p><%= t("rails_ai_admin.collection_jobs.empty") %></p><% end %>
+<ul><% @jobs.each do |job| %><li><%= link_to job.description, collection_job_path(job_ref: job.job_ref) %> — <%= admin_state_name(job.status) %></li><% end %></ul>

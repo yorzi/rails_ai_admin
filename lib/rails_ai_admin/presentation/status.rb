@@ -18,8 +18,12 @@ module RailsAiAdmin
       def self.fetch(kind)
         raise ConfigurationError, "Unknown status kind" unless kind.is_a?(String) || kind.is_a?(Symbol)
         key = kind.to_s
-        values = DEFINITIONS.fetch(key) { raise ConfigurationError, "Unknown status kind" }
-        new(String.new(key).freeze, *values)
+        http_status, code, title, message = DEFINITIONS.fetch(key) { raise ConfigurationError, "Unknown status kind" }
+        # The English text is the fallback, so a missing translation never
+        # breaks the page that reports another failure.
+        title = I18n.t(:title, scope: [ :rails_ai_admin, :statuses, key ], default: title).to_s.freeze
+        message = I18n.t(:message, scope: [ :rails_ai_admin, :statuses, key ], default: message).to_s.freeze
+        new(String.new(key).freeze, http_status, code, title, message)
       end
 
       def self.for_code(code)

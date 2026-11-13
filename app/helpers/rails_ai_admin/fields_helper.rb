@@ -40,9 +40,9 @@ module RailsAiAdmin
       end
       options = choices.options.map(&:dup)
       if value.present? && options.none? { |_, key| key == value }
-        options.unshift([ "#{admin_associations.reference(field, value).label} (not available)", value ])
+        options.unshift([ t("rails_ai_admin.references.not_available", label: admin_associations.reference(field, value).label), value ])
       end
-      form.select(field.name, options, { selected: value, include_blank: field.options[:nullable] ? "None" : "Choose a record" }, input_options)
+      form.select(field.name, options, { selected: value, include_blank: field.options[:nullable] ? t("rails_ai_admin.fields.none") : t("rails_ai_admin.fields.choose_record") }, input_options)
     end
 
     # The typed key input, plus a search box when the actor can list the
@@ -67,10 +67,10 @@ module RailsAiAdmin
     def admin_search_placeholder(fields)
       modes = fields.map { |field| field.options[:searchable] == true ? :prefix : field.options[:searchable] }.uniq
       case modes
-      when [ :prefix ] then "Starts with…"
-      when [ :contains ] then "Contains…"
-      when [ :exact ] then "Exact match…"
-      else "Search…"
+      when [ :prefix ] then t("rails_ai_admin.search.prefix")
+      when [ :contains ] then t("rails_ai_admin.search.contains")
+      when [ :exact ] then t("rails_ai_admin.search.exact")
+      else t("rails_ai_admin.search.any")
       end
     end
 
@@ -90,7 +90,7 @@ module RailsAiAdmin
     def admin_field_choices(field, value)
       choices = field.choice_options.map(&:dup)
       if value.present? && !field.choice_values.include?(value)
-        choices.unshift([ "Unavailable value — select a current option", String.new(value.to_s), { disabled: true } ])
+        choices.unshift([ t("rails_ai_admin.fields.unavailable_value"), String.new(value.to_s), { disabled: true } ])
       end
       choices
     end

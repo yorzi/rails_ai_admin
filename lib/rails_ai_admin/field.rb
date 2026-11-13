@@ -157,45 +157,45 @@ module RailsAiAdmin
       case scalar_type
       when :belongs_to
         value = value.to_s if value.is_a?(Integer) && value.positive?
-        raise ArgumentError, "is not an available choice" unless value.is_a?(String) && value.valid_encoding? && value.match?(REFERENCE)
+        raise ArgumentError, message(:unavailable_choice, "is not an available choice") unless value.is_a?(String) && value.valid_encoding? && value.match?(REFERENCE)
         String.new(value)
       when :text, :textarea, :id
-        raise ArgumentError, "must be text" unless value.is_a?(String)
-        raise ArgumentError, "is too long" if value.length > options[:max_length]
-        raise ArgumentError, "is invalid" unless value.valid_encoding?
+        raise ArgumentError, message(:not_text, "must be text") unless value.is_a?(String)
+        raise ArgumentError, message(:too_long, "is too long") if value.length > options[:max_length]
+        raise ArgumentError, message(:invalid, "is invalid") unless value.valid_encoding?
         if strict && value.match?(scalar_type == :textarea ? TEXTAREA_CONTROLS : TEXT_CONTROLS)
           raise ArgumentError, message(:control_characters, "contains control characters")
         end
         String.new(value)
       when :enum, :select
-        raise ArgumentError, "is not an allowed value" unless choice_values.include?(value)
-        raise ArgumentError, "is invalid" unless value.valid_encoding?
+        raise ArgumentError, message(:not_allowed, "is not an allowed value") unless choice_values.include?(value)
+        raise ArgumentError, message(:invalid, "is invalid") unless value.valid_encoding?
         String.new(value)
       when :integer
-        raise ArgumentError, "must be an integer" unless value.is_a?(Integer) || (value.is_a?(String) && value.match?(/\A[+-]?\d+\z/))
-        raise ArgumentError, "is out of range" if value.is_a?(String) && value.length > 100
+        raise ArgumentError, message(:not_integer, "must be an integer") unless value.is_a?(Integer) || (value.is_a?(String) && value.match?(/\A[+-]?\d+\z/))
+        raise ArgumentError, message(:out_of_range, "is out of range") if value.is_a?(String) && value.length > 100
         number = value.is_a?(String) ? Integer(value, 10) : value
-        raise ArgumentError, "is out of range" unless (-(2**63)..(2**63 - 1)).cover?(number)
+        raise ArgumentError, message(:out_of_range, "is out of range") unless (-(2**63)..(2**63 - 1)).cover?(number)
         number
       when :decimal
-        raise ArgumentError, "must be a decimal" unless value.is_a?(Integer) || value.is_a?(BigDecimal) || (value.is_a?(String) && value.match?(/\A[+-]?(?:\d+(?:\.\d*)?|\.\d+)\z/))
-        raise ArgumentError, "is out of range" if value.is_a?(String) && value.length > MAX_NUMBER_TEXT
+        raise ArgumentError, message(:not_decimal, "must be a decimal") unless value.is_a?(Integer) || value.is_a?(BigDecimal) || (value.is_a?(String) && value.match?(/\A[+-]?(?:\d+(?:\.\d*)?|\.\d+)\z/))
+        raise ArgumentError, message(:out_of_range, "is out of range") if value.is_a?(String) && value.length > MAX_NUMBER_TEXT
         number = BigDecimal(value.to_s)
-        raise ArgumentError, "must be finite" unless number.finite?
+        raise ArgumentError, message(:not_finite, "must be finite") unless number.finite?
         check_decimal_limits!(number) if strict
         number
       when :boolean
         return true if [ true, "1", "true" ].include?(value)
         return false if [ false, "0", "false" ].include?(value)
-        raise ArgumentError, "must be a boolean"
+        raise ArgumentError, message(:not_boolean, "must be a boolean")
       when :date
         value = value.iso8601 if value.is_a?(Date) && !value.is_a?(DateTime)
-        raise ArgumentError, "must be an ISO date" unless value.is_a?(String) && value.match?(/\A\d{4}-\d{2}-\d{2}\z/)
+        raise ArgumentError, message(:not_date, "must be an ISO date") unless value.is_a?(String) && value.match?(/\A\d{4}-\d{2}-\d{2}\z/)
         Date.iso8601(value)
       when :datetime
         value = value.to_time.getutc.iso8601(6) if value.is_a?(Time) || value.is_a?(ActiveSupport::TimeWithZone) || value.is_a?(DateTime)
         parts = value.is_a?(String) && value.match(DATETIME)
-        raise ArgumentError, "must be an ISO timestamp" unless parts
+        raise ArgumentError, message(:not_timestamp, "must be an ISO timestamp") unless parts
         # Ruby and Active Support roll 2026-02-30 into March (DEP-013); an
         # impossible calendar day or clock time is rejected instead (RAA-010).
         year, month, day, hour, minute, second, offset_hour, offset_minute = parts.captures.map { |part| part&.to_i }
@@ -212,7 +212,7 @@ module RailsAiAdmin
         end
       end
     rescue Date::Error, TypeError
-      raise ArgumentError, "is invalid"
+      raise ArgumentError, message(:invalid, "is invalid")
     end
 
     # Precision and scale come from explicit precision:/scale: options, or else
@@ -262,12 +262,12 @@ module RailsAiAdmin
         raise TypeMessage, message
       end
       raise ConfigurationError, "Field validation must return a boolean or a message" unless [ true, false ].include?(valid)
-      raise ArgumentError, "is invalid" unless valid && @validator.valid?(wire(normalized))
+      raise ArgumentError, message(:invalid, "is invalid") unless valid && @validator.valid?(wire(normalized))
       normalized
     rescue TypeMessage
       raise
     rescue ArgumentError
-      raise ArgumentError, "is invalid", cause: nil if @plugin
+      raise ArgumentError, message(:invalid, "is invalid"), cause: nil if @plugin
       raise
     end
 
@@ -282,9 +282,12 @@ module RailsAiAdmin
     end
 
     # Field input messages are translatable under rails_ai_admin.fields.errors.
-    def message(key, default, **values)
+    # The English default keeps a missing translation from failing a write.
+    def self.error_message(key, default, **values)
       I18n.t(key, scope: %i[rails_ai_admin fields errors], default: default, **values)
     end
+
+    def message(key, default, **values) = self.class.error_message(key, default, **values)
 
     def check_decimal_limits!(number)
       limits = decimal_limits
@@ -292,7 +295,7 @@ module RailsAiAdmin
       raise ArgumentError, message(:decimal_places, "must have at most %{count} decimal places", count: scale) if scale && number.scale > scale
       return unless precision
       whole_digits = [ number.exponent, 0 ].max
-      raise ArgumentError, "is out of range" if whole_digits > precision - (scale || 0)
+      raise ArgumentError, message(:out_of_range, "is out of range") if whole_digits > precision - (scale || 0)
     end
 
     def column_decimal_limits
@@ -417,7 +420,7 @@ module RailsAiAdmin
       raise ConfigurationError, "Field type contract changed; reload resource definitions" unless klass.metadata == @plugin_metadata
       ActiveRecord::Base.while_preventing_writes { klass.new.public_send(method, *args, **keywords) }
     rescue ArgumentError
-      raise ArgumentError, "is invalid", cause: nil if %i[normalize valid?].include?(method)
+      raise ArgumentError, message(:invalid, "is invalid"), cause: nil if %i[normalize valid?].include?(method)
       raise ConfigurationError, "Field type hook failed", cause: nil
     rescue ConfigurationError
       raise

@@ -35,7 +35,7 @@ module RailsAiAdmin
       result = Operations::Runner.new.execute(context: @context, intent_ref: params[:intent_ref], input: input,
         human_confirmed: true, binding: { resource_key: @resource.key, operation: @definition.key, target_id: params[:id] })
       if result.success?
-        notice = result.work_refs.any? ? "Operation completed. Follow-up work is pending or separately tracked." : "Operation completed."
+        notice = result.work_refs.any? ? t("rails_ai_admin.operations.completed_with_work") : t("rails_ai_admin.operations.completed")
         notice += " A host callback needs review." if result.warning
         redirect_to resource_path(resource: @resource.key, id: result.record_id, **navigation_params), status: :see_other, notice: notice
       elsif result.code == "NOT_FOUND"

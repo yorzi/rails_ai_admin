@@ -25,7 +25,7 @@ class NativeTemplateOverridesTest < ActionDispatch::IntegrationTest
         header, *lines = path.read.lines
         body = lines.join
         marker = if key == "layout"
-          body.sub('<body class="raa">', '<body class="raa" data-host-override="layout">')
+          body.sub('<body class="raa"', '<body class="raa" data-host-override="layout"')
         elsif key.start_with?("field_")
           %(<span data-host-field="<%= field.name %>" data-host-override="#{key}">#{body}</span>)
         else

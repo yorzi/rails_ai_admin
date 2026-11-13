@@ -2,6 +2,16 @@ import * as Turbo from "@hotwired/turbo";
 import { Application, Controller } from "@hotwired/stimulus";
 import railsToolViewsController from "./vendor/rails_tool_views_controller.js";
 
+// Translated page text comes from the layout's data-raa-messages (en.yml
+// rails_ai_admin.script). A host layout without it keeps the English text.
+const FALLBACK_MESSAGES = {"leave_form": "Leave this form? Unsaved changes will be lost.", "session_attention": "Your session needs attention. Sign in in another tab, then resume here. Unsaved input stays only in this open tab.", "restored_partial": "Session restored. Some fields are no longer editable; their input was not restored. Review the form, then save explicitly.", "restored": "Session restored. Your input is ready for review. Nothing has been saved; submit explicitly when ready.", "return_changed": "Some list settings changed; return links use the current permitted list.", "recovery_failed": "Recovery was not completed. Sign in as the original user and tenant, then try again. Changed records, permissions, schema, time zone, expired recovery windows or completed requests require a fresh form. This tab still holds your input; nothing was submitted again."};
+function message(key) {
+  try {
+    const translated = JSON.parse(document.body?.dataset.raaMessages || "{}")[key];
+    if (typeof translated === "string" && translated !== "") return translated;
+  } catch { /* fall back to English */ }
+  return FALLBACK_MESSAGES[key];
+}
 const application = Application.start();
 class DirtyFormController extends Controller {
   static values = { restored: Boolean };
@@ -11,7 +21,7 @@ class DirtyFormController extends Controller {
       if (this.dirty && !this.submitting) { event.preventDefault(); event.returnValue = ""; }
     };
     this.warnVisit = (event) => {
-      if (this.dirty && !this.submitting && !window.confirm("Leave this form? Unsaved changes will be lost.")) event.preventDefault();
+      if (this.dirty && !this.submitting && !window.confirm(message("leave_form"))) event.preventDefault();
     };
     window.addEventListener("beforeunload", this.warnUnload);
     document.addEventListener("turbo:before-visit", this.warnVisit);
@@ -52,7 +62,7 @@ class FormRecoveryController extends Controller {
     this.pending = true;
     this.element.querySelectorAll('input[type=submit], button[type=submit]').forEach((button) => { button.disabled = true; });
     this.element.dispatchEvent(new CustomEvent("raa:form-paused", { bubbles: true }));
-    this.show("Your session needs attention. Sign in in another tab, then resume here. Unsaved input stays only in this open tab.");
+    this.show(message("session_attention"));
   }
   finished() {
     this.pending = false;
@@ -116,9 +126,9 @@ class FormRecoveryController extends Controller {
       const notice = form.querySelector('[data-raa-form-recovery-target="notice"]');
       notice.hidden = false;
       notice.querySelector('[data-raa-form-recovery-target="message"]').textContent =
-        restored.size < values.size ? "Session restored. Some fields are no longer editable; their input was not restored. Review the form, then save explicitly." : "Session restored. Your input is ready for review. Nothing has been saved; submit explicitly when ready.";
+        restored.size < values.size ? message("restored_partial") : message("restored");
       if (form.dataset.raaFormRecoveryReturnDiscardedValue === "true") {
-        notice.querySelector('[data-raa-form-recovery-target="message"]').textContent += " Some list settings changed; return links use the current permitted list.";
+        notice.querySelector('[data-raa-form-recovery-target="message"]').textContent += " " + message("return_changed");
       }
       form.querySelector('[data-raa-form-recovery-target="resume"]').hidden = true;
       const fresh = document.importNode(form, true);
@@ -127,7 +137,7 @@ class FormRecoveryController extends Controller {
       this.element.replaceWith(fresh);
       requestAnimationFrame(() => fresh.querySelector('[data-raa-form-recovery-target="notice"]').focus());
     } catch {
-      if (this.element.isConnected) this.show("Recovery was not completed. Sign in as the original user and tenant, then try again. Changed records, permissions, schema, time zone, expired recovery windows or completed requests require a fresh form. This tab still holds your input; nothing was submitted again.");
+      if (this.element.isConnected) this.show(message("recovery_failed"));
     } finally {
       this.pending = false;
       if (this.element.isConnected) this.resumeTarget.disabled = false;

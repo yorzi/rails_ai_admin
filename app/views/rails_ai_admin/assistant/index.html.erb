@@ -1,14 +1,14 @@
-<% admin_title "Assistant" %>
-<h1>Assistant</h1>
-<p>Ask about the records you can already see. The assistant reads through your current permissions and cannot change data; any change it suggests opens a review that you confirm yourself.</p>
-<%= button_to "New conversation", assistant_conversations_path, method: :post, class: "raa-button" %>
+<% admin_title t("rails_ai_admin.layout.assistant") %>
+<h1><%= t("rails_ai_admin.layout.assistant") %></h1>
+<p><%= t("rails_ai_admin.assistant.intro") %></p>
+<%= button_to t("rails_ai_admin.assistant.new"), assistant_conversations_path, method: :post, class: "raa-button" %>
 <% if @chats.empty? %>
-  <p>No conversations yet.</p>
+  <p><%= t("rails_ai_admin.assistant.none") %></p>
 <% else %>
   <ul class="raa-chat-list">
     <% @chats.each do |chat| %>
-      <li><%= link_to "Conversation from #{l(chat.created_at.in_time_zone(@context.time_zone), format: :short)}", assistant_conversation_path(chat_ref: chat.ref) %>
-        <% if chat.status == "archived" %> — archived<% elsif !chat.current_for?(@context) %> — closed<% end %></li>
+      <li><%= link_to t("rails_ai_admin.assistant.from", time: l(chat.created_at.in_time_zone(@context.time_zone), format: :short)), assistant_conversation_path(chat_ref: chat.ref) %>
+        <% if chat.status == "archived" %> — <%= t("rails_ai_admin.assistant.archived_mark") %><% elsif !chat.current_for?(@context) %> — <%= t("rails_ai_admin.assistant.closed_mark") %><% end %></li>
     <% end %>
   </ul>
 <% end %>

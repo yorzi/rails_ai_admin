@@ -1,16 +1,16 @@
 <p><%= link_to list_return_label, list_return_path %></p>
-<% admin_title "Selected records", @resource.label %>
-<h1>Selected records</h1>
-<p><%= pluralize(@selection.targets.size, "fixed target") %>. This selection does not approve or execute an operation.</p>
-<p>Expires <time datetime="<%= @selection.expires_at.iso8601 %>"><%= @selection.expires_at.in_time_zone(@context.time_zone).strftime("%Y-%m-%d %H:%M:%S %Z") %></time>.</p>
-<div class="raa-table-scroll" role="region" aria-label="Selected records" tabindex="0">
-<table><caption><%= @resource.label %> — fixed selection</caption>
-<thead><tr><th scope="col">Record</th><th scope="col">ID</th><th scope="col">Version</th></tr></thead>
+<% admin_title t("rails_ai_admin.selections.title"), @resource.label %>
+<h1><%= t("rails_ai_admin.selections.title") %></h1>
+<p><%= t("rails_ai_admin.selections.targets_note", count: @selection.targets.size) %></p>
+<p><%= t("rails_ai_admin.selections.expires_html", time: tag.time(@selection.expires_at.in_time_zone(@context.time_zone).strftime("%Y-%m-%d %H:%M:%S %Z"), datetime: @selection.expires_at.iso8601)) %></p>
+<div class="raa-table-scroll" role="region" aria-label="<%= t("rails_ai_admin.selections.title") %>" tabindex="0">
+<table><caption><%= t("rails_ai_admin.selections.caption", label: @resource.label) %></caption>
+<thead><tr><th scope="col"><%= t("rails_ai_admin.collection_jobs.record") %></th><th scope="col"><%= t("rails_ai_admin.selections.id") %></th><th scope="col"><%= t("rails_ai_admin.selections.version") %></th></tr></thead>
 <tbody><% @selection.targets.each do |target| %><tr>
   <td><%= link_to target.label, resource_path(resource: @resource.key, id: target.id, **navigation_params) %></td>
   <td><%= target.id %></td><td><%= target.expected_version %></td>
 </tr><% end %></tbody></table></div>
-<p>Changes to a selected record require a fresh selection. Unselected and newly matching records are never added automatically.</p>
+<p><%= t("rails_ai_admin.selections.fixed_note") %></p>
 <% @operations.each do |operation| %>
   <p><%= link_to operation.description, collection_operation_form_path(resource: @resource.key, operation: operation.key, selection_ref: @selection.selection_ref, **navigation_params), class: "raa-button" %></p>
 <% end %>

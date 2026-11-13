@@ -225,7 +225,7 @@ module RailsAiAdmin
             raise ConfigurationError, "Unknown operation outcome" unless %w[OK VALIDATION_FAILED CONFLICT].include?(outcome.code)
             if outcome.code != "OK"
               names = outcome.fields & definition.fields(access, record).map { |field| field.name.to_s }
-              reject!(outcome.code, errors: names.any? ? names.to_h { |name| [ name, [ "is invalid" ] ] } : { "base" => [ "operation was rejected" ] })
+              reject!(outcome.code, errors: names.any? ? names.to_h { |name| [ name, [ Field.error_message(:invalid, "is invalid") ] ] } : { "base" => [ Field.error_message(:operation_rejected, "operation was rejected") ] })
             end
             unless record.persisted? && !record.destroyed? && !record.has_changes_to_save? && outcome.record_id == run.target_id
               reject!("VALIDATION_FAILED", errors: { "base" => [ "operation did not persist its target" ] })
@@ -278,7 +278,7 @@ module RailsAiAdmin
           names = definition&.custom? || !access ? {} : field_names_by_column(access.resource)
           errors = validation_errors(error.record.errors, names, allowed)
           audit_failure(context, run, "VALIDATION_FAILED", origin) unless admission
-          Result.new(code: "VALIDATION_FAILED", errors: errors.presence || { "base" => [ "is invalid" ] })
+          Result.new(code: "VALIDATION_FAILED", errors: errors.presence || { "base" => [ Field.error_message(:invalid, "is invalid") ] })
         when ActiveRecord::RecordNotDestroyed
           if run&.operation == "destroy" && !definition&.custom?
             # dependent: :restrict_with_error (or a before_destroy abort) says
@@ -349,7 +349,7 @@ module RailsAiAdmin
           next if attribute == :base
           name = names.fetch(attribute.to_s, attribute.to_s)
           next unless allowed.include?(name)
-          result[name] = generic ? [ "is invalid" ] : bounded_messages(model_errors.messages_for(attribute))
+          result[name] = generic ? [ Field.error_message(:invalid, "is invalid") ] : bounded_messages(model_errors.messages_for(attribute))
         end
         base = generic ? [] : bounded_messages(model_errors.messages_for(:base), fallback: false)
         errors["base"] = base if base.any?
@@ -359,7 +359,7 @@ module RailsAiAdmin
       def bounded_messages(messages, fallback: true)
         kept = Array(messages).select { |message| message.is_a?(String) && message.valid_encoding? }
           .map { |message| message.gsub(/[[:cntrl:]]/, " ").squish.truncate(200) }.reject(&:empty?).uniq.first(3)
-        kept.empty? && fallback ? [ "is invalid" ] : kept
+        kept.empty? && fallback ? [ Field.error_message(:invalid, "is invalid") ] : kept
       end
 
       RESTRICTED_MESSAGE = "This record is still referenced by other records and cannot be deleted."
@@ -449,7 +449,7 @@ module RailsAiAdmin
           value = values.fetch(field.name.to_s)
           stored = record&.persisted? && record.has_attribute?(field.column) ? record.read_attribute(field.column) : nil
           next if !stored.nil? && stored.to_s == value
-          result[field.name.to_s] = [ Fields::Association::UNAVAILABLE ] unless resolver.admissible?(field, value)
+          result[field.name.to_s] = [ Field.error_message(:unavailable_choice, Fields::Association::UNAVAILABLE) ] unless resolver.admissible?(field, value)
         end
         reject!("VALIDATION_FAILED", errors: errors) if errors.any?
       end
@@ -480,7 +480,7 @@ module RailsAiAdmin
         handler_context.check_deadline!
         if changes.is_a?(Operation::Outcome) && %w[VALIDATION_FAILED CONFLICT].include?(changes.code)
           names = changes.fields & definition.fields(access, record).map { |field| field.name.to_s }
-          reject!(changes.code, errors: names.any? ? names.to_h { |name| [ name, [ "is invalid" ] ] } : { "base" => [ "operation was rejected" ] })
+          reject!(changes.code, errors: names.any? ? names.to_h { |name| [ name, [ Field.error_message(:invalid, "is invalid") ] ] } : { "base" => [ Field.error_message(:operation_rejected, "operation was rejected") ] })
         end
         raise ConfigurationError, "Preflight must return a field-value hash without mutating its target" unless changes.is_a?(Hash) && !record.has_changes_to_save?
         readable = access.fields(:read, record, view: :show)

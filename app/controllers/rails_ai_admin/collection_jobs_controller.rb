@@ -20,14 +20,14 @@ module RailsAiAdmin
       @resource = RailsAiAdmin.registry.fetch(run.resource_key)
       resolve_list_navigation
       result = Collections::Runner.new.cancel(context: @context, job_ref: params[:job_ref])
-      return render plain: "The run is busy. Reload and try again.", status: :conflict if result.code == "CONFLICT"
+      return render plain: t("rails_ai_admin.collection_jobs.busy"), status: :conflict if result.code == "CONFLICT"
       if result.code == "OUTCOME_UNKNOWN"
         return redirect_to collection_job_path(job_ref: result.job_ref, **navigation_params), status: :see_other,
-          notice: "Cancellation outcome is unknown. Refresh this existing run after recovery before taking further action."
+          notice: t("rails_ai_admin.collection_jobs.cancel_unknown")
       end
       raise AccessDenied unless result.job_ref
       redirect_to collection_job_path(job_ref: result.job_ref, **navigation_params), status: :see_other,
-        notice: "Cancellation processed. Already committed records and their follow-up work are retained."
+        notice: t("rails_ai_admin.collection_jobs.cancelled")
     end
   end
 end

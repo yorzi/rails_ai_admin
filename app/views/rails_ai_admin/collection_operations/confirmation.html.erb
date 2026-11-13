@@ -1,16 +1,16 @@
-<% admin_title "Review collection changes", @resource.label %>
-<h1>Review collection changes</h1>
+<% admin_title t("rails_ai_admin.collection_operations.review_title"), @resource.label %>
+<h1><%= t("rails_ai_admin.collection_operations.review_title") %></h1>
 <p><%= @definition.description %></p>
-<p><%= pluralize(@proposal.targets.size, "fixed target") %>. Each target commits independently. Cancellation preserves committed changes.</p>
-<h2>Confirmed input</h2>
+<p><%= t("rails_ai_admin.collection_operations.targets_note", count: @proposal.targets.size) %></p>
+<h2><%= t("rails_ai_admin.collection_operations.confirmed_input") %></h2>
 <%# Labels and formatting match the member confirmation page (RAA-029). %>
 <% input_fields = @definition.handler_class.input.index_by { |field| field.name.to_s } %>
 <% record_fields = @resource.fields.index_by { |field| field.name.to_s } %>
 <dl class="raa-details"><% @proposal.values.each do |name, value| %><% field = input_fields[name] %><dt><%= field ? field.label : name.humanize %></dt><dd><%= field ? field.format(value, time_zone: @context.time_zone) : value %></dd><% end %></dl>
-<h2>Target previews</h2>
+<h2><%= t("rails_ai_admin.collection_operations.previews") %></h2>
 <% @proposal.targets.each do |target| %>
-  <section><h3><%= target.label %></h3><p>ID: <%= target.id %></p>
-    <% if target.changes.empty? %><p>No readable field differences were supplied. Domain checks still run during execution.</p><% else %>
+  <section><h3><%= target.label %></h3><p><%= t("rails_ai_admin.collection_operations.target_id", id: target.id) %></p>
+    <% if target.changes.empty? %><p><%= t("rails_ai_admin.collection_operations.no_differences") %></p><% else %>
       <dl class="raa-details"><% target.changes.each do |name, change| %><% field = record_fields[name] %><dt><%= field ? field.label : name.humanize %></dt><dd><%= field ? field.format(change["before"], time_zone: @context.time_zone) : change["before"] %> → <%= field ? field.format(change["after"], time_zone: @context.time_zone) : change["after"] %></dd><% end %></dl>
     <% end %>
   </section>
@@ -20,6 +20,6 @@
   <%= return_navigation_fields %>
   <%= hidden_field_tag :selection_ref, @proposal.intent.selection_id %>
   <%= hidden_field_tag :confirmed_input, @wire_input %>
-  <%= form.submit "Confirm and queue" %>
+  <%= form.submit t("rails_ai_admin.collection_operations.confirm") %>
 <% end %>
-<p><%= link_to "Edit inputs", collection_operation_form_path(resource: @resource.key, operation: @definition.key, selection_ref: @proposal.intent.selection_id, **navigation_params) %></p>
+<p><%= link_to t("rails_ai_admin.collection_operations.edit_input"), collection_operation_form_path(resource: @resource.key, operation: @definition.key, selection_ref: @proposal.intent.selection_id, **navigation_params) %></p>

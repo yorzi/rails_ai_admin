@@ -17,13 +17,13 @@ module RailsAiAdmin
     end
 
     def coerce(input, time_zone: "UTC")
-      return Coercion.new({}, { "base" => [ "must be an object" ] }) unless input.is_a?(Hash)
+      return Coercion.new({}, { "base" => [ Field.error_message(:not_object, "must be an object") ] }) unless input.is_a?(Hash)
       values, errors = {}, {}
       input = input.stringify_keys
-      errors["base"] = [ "contains undeclared fields" ] if (input.keys - @fields.keys).any?
+      errors["base"] = [ Field.error_message(:undeclared_fields, "contains undeclared fields") ] if (input.keys - @fields.keys).any?
       @fields.each do |name, field|
         if !input.key?(name)
-          errors[name] = [ "is required" ] if !@partial && field.options[:required]
+          errors[name] = [ Field.error_message(:required, "is required") ] if !@partial && field.options[:required]
           next
         end
         begin

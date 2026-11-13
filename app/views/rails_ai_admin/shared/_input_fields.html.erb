@@ -2,7 +2,7 @@
 <% prefix = form.field_id(:raa_layout) %>
 <div class="raa-form-layout" data-controller="raa-tabs" data-action="raa:reveal->raa-tabs#reveal">
   <% if plan.tabbed? %>
-    <nav class="raa-tab-links" aria-label="Form sections" data-raa-tabs-target="list">
+    <nav class="raa-tab-links" aria-label="<%= t("rails_ai_admin.resources.form.sections") %>" data-raa-tabs-target="list">
       <% plan.tabs.each_with_index do |tab, index| %><a href="#<%= prefix %>--panel-<%= index %>" id="<%= prefix %>--tab-<%= index %>" data-raa-tabs-target="tab" data-action="click->raa-tabs#choose keydown->raa-tabs#keydown"><%= tab.label %></a><% end %>
     </nav>
   <% end %>

@@ -1,3 +1,4 @@
-<h1>Interactive review</h1>
-<p>This review is saved. You can reload or return to it until it is confirmed or expires.</p>
+<% admin_title t("rails_ai_admin.surfaces.title") %>
+<h1><%= t("rails_ai_admin.surfaces.title") %></h1>
+<p><%= t("rails_ai_admin.surfaces.saved_note") %></p>
 <%= admin_surface(@surface, scope: @surface_scope, error: @surface_error) %>

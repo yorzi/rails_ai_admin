@@ -2,8 +2,8 @@
 <p><%= link_to list_return_label, list_return_path %></p>
 <div class="raa-heading"><h1><%= record_label(@resource, @record) %></h1>
 <div class="raa-actions">
-  <% if allowed_action?(@resource, :update, @record) %><%= link_to "Edit", edit_resource_path(resource: @resource.key, id: @record.id, **navigation_params), class: "raa-button" %><% end %>
-  <% if allowed_action?(@resource, :destroy, @record) %><%= link_to "Delete", confirm_destroy_resource_path(resource: @resource.key, id: @record.id, **navigation_params), class: "raa-danger" %><% end %>
+  <% if allowed_action?(@resource, :update, @record) %><%= link_to t("rails_ai_admin.resources.edit"), edit_resource_path(resource: @resource.key, id: @record.id, **navigation_params), class: "raa-button" %><% end %>
+  <% if allowed_action?(@resource, :destroy, @record) %><%= link_to t("rails_ai_admin.resources.delete"), confirm_destroy_resource_path(resource: @resource.key, id: @record.id, **navigation_params), class: "raa-danger" %><% end %>
   <% @operations.each do |operation| %><%= link_to operation.description, operation_form_path(resource: @resource.key, id: @record.id, operation: operation.key, **navigation_params), class: "raa-button" %><% end %>
 </div></div>
 <dl class="raa-details"><% @fields.each do |field| %><dt><%= field.label %></dt><dd><%= admin_field_value(field, @values[field.name.to_s], view: :show) %></dd><% end %></dl>

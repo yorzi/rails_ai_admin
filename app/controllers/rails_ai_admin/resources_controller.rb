@@ -9,7 +9,7 @@ module RailsAiAdmin
       raw = params.to_unsafe_h.slice(*Navigation::ListState::KEYS)
       @list_navigation = Navigation::ListState.new(@access, raw, strict: true)
       if return_state_discarded?
-        redirect_to list_return_path, status: :see_other, notice: "Some list settings are no longer available. The current list settings have been restored."
+        redirect_to list_return_path, status: :see_other, notice: t("rails_ai_admin.resources.index.settings_restored")
         return
       end
       # A native filter form submits every input; share only the canonical
@@ -21,7 +21,7 @@ module RailsAiAdmin
       @page = Queries::List.new(@context, @resource).call(search: navigation_state["q"], sort: navigation_state["sort"], direction: navigation_state.fetch("direction", "asc"), page: navigation_state.fetch("page", "1"), recover_empty_page: true, scope: navigation_state["scope"], filters: navigation_state["filter"])
       if @page.number != navigation_state.fetch("page", "1").to_i
         @list_navigation = Navigation::ListState.new(@access, navigation_state.merge("page" => @page.number.to_s))
-        redirect_to list_return_path, status: :see_other, notice: "That list page is now empty. Showing an available page."
+        redirect_to list_return_path, status: :see_other, notice: t("rails_ai_admin.resources.index.page_empty")
         return
       end
       @sortable_fields = @access.fields(:sort)
@@ -131,7 +131,7 @@ module RailsAiAdmin
         binding: { resource_key: @resource.key, operation: operation, target_id: params[:id] })
       if result.success?
         target = operation == :destroy ? list_return_path : resource_path(resource: @resource.key, id: result.record_id, **navigation_params)
-        redirect_to target, status: :see_other, notice: result.warning ? "Changes saved, but a host callback failed. Review operation #{intent_id} before continuing." : "Changes saved."
+        redirect_to target, status: :see_other, notice: result.warning ? t("rails_ai_admin.resources.saved_with_warning", operation: intent_id) : t("rails_ai_admin.resources.saved")
       elsif result.code == "NOT_FOUND"
         raise AccessDenied
       else
@@ -142,7 +142,7 @@ module RailsAiAdmin
         build_form_plan(operation, input) unless operation == :destroy
         names = operation == :destroy ? [] : @form_fields.map { |field| field.name.to_s }
         @errors = result.errors.slice("base", *names)
-        @errors["base"] ||= [ "Some inputs are no longer available" ] if (result.errors.keys - [ "base" ] - names).any?
+        @errors["base"] ||= [ t("rails_ai_admin.resources.form.inputs_unavailable") ] if (result.errors.keys - [ "base" ] - names).any?
         @failure_code = result.code
         # A restricted delete can succeed once the references are gone.
         @needs_reload = !%w[VALIDATION_FAILED RESTRICTED].include?(result.code)

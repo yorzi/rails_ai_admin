@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Framework I18n: every page heading, button, notice, status page, field
+  validation message, Chat message and script message reads
+  `config/locales/en.yml` (`rails_ai_admin.*`), and `<html lang>` follows
+  `I18n.locale`. A new Translations guide shows how to add a locale. The
+  English text is unchanged, except that the collection job backlog hint now
+  renders the queue name as code instead of escaped `<code>` text. Host
+  layout overrides keep working; their script messages stay English until
+  they add `data-raa-messages` to `<body>`.
 - Security regression sweep (RAA-0210): every state-changing engine route,
   including Surface and Chat routes, rejects a missing CSRF token without a
   side effect; unwritable, framework and tenant attributes are never mass

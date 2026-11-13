@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="<%= I18n.locale %>">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -14,8 +14,8 @@
   <%= stylesheet_link_tag "rails_ai_admin", "data-turbo-track": "reload" %>
   <%= javascript_include_tag "rails_ai_admin", type: "module", "data-turbo-track": "reload", defer: true, preload_links_header: false %>
 </head>
-<body class="raa">
-  <a class="raa-skip" href="#raa-main">Skip to content</a>
+<body class="raa" data-raa-messages="<%= t("rails_ai_admin.script").to_json %>">
+  <a class="raa-skip" href="#raa-main"><%= t("rails_ai_admin.layout.skip") %></a>
   <header class="raa-header"><%= link_to RailsAiAdmin.configuration.title, root_path %>
     <div class="raa-header-meta">
       <% if RailsAiAdmin.configuration.environment_label %><span class="raa-environment"><%= RailsAiAdmin.configuration.environment_label %></span><% end %>
@@ -23,16 +23,16 @@
     </div>
   </header>
   <div class="raa-shell">
-    <nav aria-label="Admin resources">
+    <nav aria-label="<%= t("rails_ai_admin.layout.resources_nav") %>">
       <div class="raa-nav-primary">
-        <%= link_to "Overview", root_path, aria: { current: (controller_path == "rails_ai_admin/dashboard" ? "page" : nil) } %>
-        <% if assistant_available? %><%= link_to "Assistant", assistant_path, aria: { current: (controller_path == "rails_ai_admin/assistant" ? "location" : nil) } %><% end %>
-        <% if collection_jobs_available? %><%= link_to "Collection jobs", collection_jobs_path, aria: { current: (controller_path == "rails_ai_admin/collection_jobs" ? "location" : nil) } %><% end %>
+        <%= link_to t("rails_ai_admin.layout.overview"), root_path, aria: { current: (controller_path == "rails_ai_admin/dashboard" ? "page" : nil) } %>
+        <% if assistant_available? %><%= link_to t("rails_ai_admin.layout.assistant"), assistant_path, aria: { current: (controller_path == "rails_ai_admin/assistant" ? "location" : nil) } %><% end %>
+        <% if collection_jobs_available? %><%= link_to t("rails_ai_admin.layout.collection_jobs"), collection_jobs_path, aria: { current: (controller_path == "rails_ai_admin/collection_jobs" ? "location" : nil) } %><% end %>
       </div>
       <%= render "rails_ai_admin/shared/navigation", groups: resource_navigation %>
     </nav>
     <main id="raa-main" tabindex="-1">
-      <% if return_state_discarded? %><p class="raa-notice" role="status">Some list settings are no longer available. Return links use the current permitted list.</p><% end %>
+      <% if return_state_discarded? %><p class="raa-notice" role="status"><%= t("rails_ai_admin.layout.return_state_discarded") %></p><% end %>
       <% flash.each do |_, message| %><p class="raa-notice" role="status"><%= message %></p><% end %>
       <%= yield %>
     </main>
