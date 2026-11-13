@@ -108,7 +108,7 @@
 .raa .raa-global-search { flex:1; max-width:28rem; margin:0 1rem; }
 .raa .raa-global-search input { width:100%; }
 .raa .raa-cards a > span { display:flex; flex-direction:column; }
-.raa .raa-card-count { color:var(--raa-muted); font-size:.9rem; font-weight:400; }
+.raa .raa-card-count { display:inline-block; color:var(--raa-muted); font-size:.9rem; font-weight:400; }
 @media (max-width:768px) { .raa .raa-header { flex-wrap:wrap; } .raa .raa-global-search { order:3; flex-basis:100%; max-width:none; margin:0; } }
 .raa .raa-environment { padding:.15rem .5rem; border:1px solid var(--raa-line); border-radius:.3rem; color:var(--raa-muted); font-size:.8rem; }
 .raa .raa-heading .raa-search { display:flex; gap:.5rem; align-items:center; }

@@ -65,7 +65,7 @@ Money remains unimplemented. `file` fields are covered in
 * `json` edits a `json` or `jsonb` column as indented JSON text in a textarea
   and shows it in a scrolling `<pre>` block. Input must parse, nest at most 32
   levels and stay within `max_length` characters (65,536 by default). It cannot
-  search, sort or filter.
+  search, sort or filter, and lists leave it out unless declared `index: true`.
 * `password` is write-only, for a `has_secure_password` writer such as
   `password :password`. No read grant can show it: it never appears on a list,
   show page, Chat result or form value, even when a policy's `:read` list names
@@ -80,7 +80,7 @@ Money remains unimplemented. `file` fields are covered in
   Show pages render the stored HTML through Rails' safe-list sanitizer; lists,
   CSV and Chat get plain text. Input is bounded by `max_length` (1 MB by
   default) and audit names the field when the content changes. It cannot
-  search, sort or filter.
+  search, sort or filter, and lists leave it out unless declared `index: true`.
 
 
 For physical fields, the runtime checks that a scalar projection or title names

@@ -25,7 +25,8 @@ class RichTextIntegrationTest < ActionDispatch::IntegrationTest
       assert editor
       hidden = css_select("input[type=hidden][name='record[body]']").first
       assert_equal hidden["id"], editor["input"]
-      assert_select "label[for='#{editor['id']}']", text: "Body"
+      assert_select "span.raa-label##{editor['id']}--label", text: "Body"
+      assert_equal "#{editor['id']}--label", editor["aria-labelledby"]
       assert_select "script[src*='trix']"
       assert_select "link[rel=stylesheet][href*='trix']"
       html = %(<div>Hello <strong>world</strong><script>alert(1)</script><img src=x onerror="alert(2)"></div>)

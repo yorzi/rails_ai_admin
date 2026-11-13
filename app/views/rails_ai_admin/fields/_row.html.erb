@@ -8,7 +8,12 @@
 <% required = entry.editable && admin_field_required?(field) %>
 <div class="raa-field">
   <% if entry.editable %>
+    <% if %i[references rich_text].include?(field.scalar_type) && !field.plugin? %>
+    <%# A checkbox group and a rich-text editor are not labelable elements; they name themselves through this text. %>
+    <span class="raa-label" id="<%= form.field_id(field.name) %>--label"><%= field.label %><% if required %> <span class="raa-required" aria-hidden="true">*</span><% end %></span>
+    <% else %>
     <%= form.label field.name do %><%= field.label %><% if required %> <span class="raa-required" aria-hidden="true">*</span><% end %><% end %>
+    <% end %>
     <% input_options = { required: required || nil, aria: { invalid: has_error, required: required || nil, describedby: descriptions.presence } } %>
     <%= render partial: field.form_partial || "rails_ai_admin/fields/input", locals: { field: field, form: form, value: entry.value, input_options: input_options } %>
   <% else %>

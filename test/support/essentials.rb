@@ -45,7 +45,7 @@ module EssentialFixtures
       email :contact, searchable: true
       url :website
       time :opens_at, sortable: true
-      json :settings
+      json :settings, index: true
       password :password
       references :tags
       datetime :updated_at, readonly: true

@@ -80,7 +80,7 @@ module RailsAiAdmin
           placeholder: t("rails_ai_admin.references.key_placeholder", target: target.label.singularize))
         parts << admin_reference_picker(target, key_input, "#{id}--add", field, nil)
       end
-      tag.div(safe_join(parts), id: id, class: "raa-references", role: "group", aria: { label: field.label, describedby: input_options.dig(:aria, :describedby), invalid: input_options.dig(:aria, :invalid) })
+      tag.div(safe_join(parts), id: id, class: "raa-references", role: "group", aria: { labelledby: "#{id}--label", describedby: input_options.dig(:aria, :describedby), invalid: input_options.dig(:aria, :invalid) })
     end
 
     # A file links to the admin's own download route, which checks the record
@@ -101,7 +101,7 @@ module RailsAiAdmin
     def admin_rich_text_input(form, field, value, input_options)
       id = form.field_id(field.name)
       editor = content_tag("trix-editor", "", id: id, input: "#{id}--value", class: "raa-rich-text-editor",
-        aria: input_options[:aria].merge(required: input_options[:required]), data: { controller: "raa-rich-text",
+        aria: input_options[:aria].merge(required: input_options[:required], labelledby: "#{id}--label"), data: { controller: "raa-rich-text",
         action: "trix-file-accept->raa-rich-text#refuse trix-change->raa-rich-text#change" })
       safe_join([ stylesheet_link_tag("trix"), javascript_include_tag("trix", defer: true),
         hidden_field_tag(form.field_name(field.name), value, id: "#{id}--value"), editor ])

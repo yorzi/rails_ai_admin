@@ -159,7 +159,6 @@ en:
       expires_html: Expires %{time}.
       caption: "%{label} — fixed selection"
       id: ID
-      version: Version
       fixed_note: >-
         Changes to a selected record require a fresh selection. Unselected and newly matching records
         are never added automatically.

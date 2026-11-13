@@ -30,7 +30,8 @@ class ReferencesIntegrationTest < ActionDispatch::IntegrationTest
     EssentialFixtures::Policy.hidden_tags = [ "Secret" ]
     with_essential_resources do
       get "/backoffice/articles/#{@article.id}/edit"
-      assert_select "div.raa-references[role=group][aria-label=Tags]"
+      group = css_select("div.raa-references[role=group]").first
+      assert_select "span.raa-label##{group['aria-labelledby']}", text: "Tags"
       assert_select "input[type=checkbox][name='record[tags][]'][value='#{@ruby.id}']:not([checked])"
       assert_select "input[type=checkbox][name='record[tags][]'][value='#{@secret.id}']", count: 0
       refute_includes response.body, "Secret"

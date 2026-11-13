@@ -75,7 +75,9 @@ module RailsAiAdmin
       defaults.merge!(resource: @name.to_s.pluralize.to_sym, foreign_key: "#{@name}_id") if @scalar_type == :belongs_to
       # Listing keys costs a query per row, so lists leave references out.
       defaults.merge!(resource: @name.to_sym, foreign_key: "#{@name.to_s.singularize}_ids", index: false) if @scalar_type == :references
-      defaults.merge!(max_length: 65_536) if @scalar_type == :json
+      # Documents and formatted text crowd a list; show pages carry them.
+      defaults.merge!(max_length: 65_536, index: false) if @scalar_type == :json
+      defaults.merge!(index: false) if @scalar_type == :rich_text
       defaults.merge!(index: false, show: false) if @scalar_type == :password
       defaults.merge!(max_size: MAX_FILE_SIZE) if @scalar_type == :file
       defaults.merge!(max_length: MAX_RICH_TEXT) if @scalar_type == :rich_text

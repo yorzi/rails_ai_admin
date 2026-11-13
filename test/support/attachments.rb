@@ -21,7 +21,7 @@ module AttachmentFixtures
       text :title, required: true, nullable: false
       file :cover, accept: %w[image/*], max_size: 1024 * 1024
       file :contract, accept: %w[application/pdf]
-      rich_text :body
+      rich_text :body, index: true
     end
   end
 

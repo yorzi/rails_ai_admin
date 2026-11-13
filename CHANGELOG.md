@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- `bin/demo --showcase` adds articles, tags and summaries to the demo host with
+  every everyday field type, uploads, rich text, history, CSV export and bulk
+  delete. `json` and `rich_text` fields stay off list pages unless declared
+  `index: true`. The selection page no longer shows raw record versions, and
+  rich-text and many-to-many inputs are named by their visible label instead of
+  a `<label for>` that pointed at a non-form element.
 - Search everything: a header search box (shown when the actor may search at
   least one menu resource) opens `<admin>/search`, which runs each resource's own
   list search and shows up to five records per resource through their show

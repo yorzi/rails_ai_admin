@@ -5,10 +5,10 @@
 <p><%= t("rails_ai_admin.selections.expires_html", time: tag.time(@selection.expires_at.in_time_zone(@context.time_zone).strftime("%Y-%m-%d %H:%M:%S %Z"), datetime: @selection.expires_at.iso8601)) %></p>
 <div class="raa-table-scroll" role="region" aria-label="<%= t("rails_ai_admin.selections.title") %>" tabindex="0">
 <table><caption><%= t("rails_ai_admin.selections.caption", label: @resource.label) %></caption>
-<thead><tr><th scope="col"><%= t("rails_ai_admin.collection_jobs.record") %></th><th scope="col"><%= t("rails_ai_admin.selections.id") %></th><th scope="col"><%= t("rails_ai_admin.selections.version") %></th></tr></thead>
+<thead><tr><th scope="col"><%= t("rails_ai_admin.collection_jobs.record") %></th><th scope="col"><%= t("rails_ai_admin.selections.id") %></th></tr></thead>
 <tbody><% @selection.targets.each do |target| %><tr>
   <td><%= link_to target.label, resource_path(resource: @resource.key, id: target.id, **navigation_params) %></td>
-  <td><%= target.id %></td><td><%= target.expected_version %></td>
+  <td><%= target.id %></td>
 </tr><% end %></tbody></table></div>
 <p><%= t("rails_ai_admin.selections.fixed_note") %></p>
 <% if @deletable %>
