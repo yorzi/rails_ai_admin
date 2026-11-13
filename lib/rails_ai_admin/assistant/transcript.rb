@@ -18,7 +18,9 @@ module RailsAiAdmin
         "search_records" => "Searched %<resource>s",
         "count_records" => "Counted records in %<resource>s",
         "get_record" => "Opened a record in %<resource>s",
-        "propose_operation" => "Prepared a review in %<resource>s"
+        "propose_operation" => "Prepared a review in %<resource>s",
+        "propose_change" => "Prepared a review in %<resource>s",
+        "record_history" => "Read a record's history in %<resource>s"
       }.freeze
       # The line for a call whose stored result is an error (RAA-018).
       FAILED_ACTIVITY = {
@@ -27,7 +29,9 @@ module RailsAiAdmin
         "search_records" => "Tried to search %<resource>s",
         "count_records" => "Tried to count records in %<resource>s",
         "get_record" => "Tried to open a record in %<resource>s",
-        "propose_operation" => "Tried to prepare a review in %<resource>s"
+        "propose_operation" => "Tried to prepare a review in %<resource>s",
+        "propose_change" => "Tried to prepare a review in %<resource>s",
+        "record_history" => "Tried to read a record's history in %<resource>s"
       }.freeze
       FAILURE_REASONS = {
         "NOT_FOUND" => "not available", "INVALID_QUERY" => "the request was not valid", "CONFLICT" => "the record changed",
@@ -105,7 +109,7 @@ module RailsAiAdmin
       def tool_entries(message)
         data = JSON.parse(message.content.to_s)
         return [] unless data.is_a?(Hash)
-        if data["surface"].is_a?(String) && message.ruby_llm_parent_tool_call&.name == "propose_operation"
+        if data["surface"].is_a?(String) && %w[propose_operation propose_change].include?(message.ruby_llm_parent_tool_call&.name)
           return [ entry(:surface, nil, message, surface_id: data["surface"]) ]
         end
         links = record_links(data["resource"], data["records"])

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Admin Chat: resources may declare `assistant_changes :create, :update,
+  :destroy`, and a new `propose_change` tool turns a model's suggestion into a
+  review showing before → after (creates included); only the person's
+  confirmation writes, as that person, with a version check and audit. A new
+  `record_history` tool reads audited changes behind `view_history?`. Record
+  and list pages offer "Ask the assistant", which starts a chat with a
+  server-checked `Context:` line. `describe_resource` lists allowed changes;
+  the prompt is version 3; the offline evaluation set has 23 questions.
 - Dashboard widgets: `dashboard { metric :drafts, scope: :drafts; trend
   :created_at, days: 30 }` adds counts over granted list tabs and daily trend
   charts (inline SVG with a data table) to the overview, through the list's

@@ -202,8 +202,26 @@ module RailsAiAdmin
           # Search and count apply no list tab unless one is named (RAA-007).
           "scopes" => access.named_scopes.map { |definition| { "name" => definition.name.to_s, "label" => definition.label, "default_in_ui" => definition.default? } }
         }
-        result["operations"] = operations(resource, access) if RailsAiAdmin.configuration.surfaces
+        if RailsAiAdmin.configuration.surfaces
+          result["operations"] = operations(resource, access)
+          result["changes"] = changes(resource, access)
+        end
         result
+      end
+
+      # Native changes this resource lets the assistant propose, with the
+      # fields the user may set on create or update (never passwords or files).
+      def changes(resource, access)
+        %w[create update destroy].filter_map do |action|
+          next unless resource.assistant_change?(action)
+          entry = { "action" => action }
+          unless action == "destroy"
+            fields = access.fields(:write, action == "create" ? access.relation.new : nil, operation: action.to_sym)
+              .reject { |field| ProposeChange::UNSUPPORTED.include?(field.scalar_type) }
+            entry["fields"] = fields.map { |field| field_entry(field).merge("required" => action == "create" && field.options[:required] == true) }
+          end
+          entry
+        end
       end
 
       def field_entry(field)
@@ -364,6 +382,88 @@ module RailsAiAdmin
       end
     end
 
-    TOOLS = [ ListResources, DescribeResource, SearchRecords, CountRecords, GetRecord ].freeze
+    # Prepares a native create, update or delete intent and presents its
+    # review. Nothing changes until the human confirms that review; the write
+    # then runs as the human, with a version check, through the shared Runner.
+    class ProposeChange < Tool
+      ACTIONS = %w[create update destroy].freeze
+      # Values a model cannot sensibly supply: secrets and uploads.
+      UNSUPPORTED = %i[password file files].freeze
+      description "Propose creating, updating or deleting one record. It does not change data: the user reviews and confirms or " \
+        "dismisses it in the conversation. For update, send only the fields to change. describe_resource lists the allowed changes."
+      parameters({ "type" => "object", "required" => %w[resource action], "additionalProperties" => false,
+        "properties" => {
+          "resource" => { "type" => "string" },
+          "action" => { "type" => "string", "enum" => ACTIONS },
+          "id" => { "type" => "string", "maxLength" => 100, "description" => "The record id; required for update and delete" },
+          "values" => { "type" => "object", "description" => "Field names and new values, typed as describe_resource reports" }
+        } })
+
+      def self.tool_name = "propose_change"
+
+      private
+
+      def perform(tool_call:, resource:, action:, id: nil, values: {})
+        raise ConfigurationError, "Surfaces are disabled" unless RailsAiAdmin.configuration.surfaces
+        raise ConfigurationError, "A persisted tool call is required" unless tool_call.respond_to?(:id) && tool_call.id.is_a?(String)
+        raise AccessDenied, "INVALID_QUERY" unless ACTIONS.include?(action) && values.is_a?(Hash) && (id.nil? || id.is_a?(String))
+        raise AccessDenied, "INVALID_QUERY" if action == "create" ? !id.nil? : id.nil?
+        raise AccessDenied, "INVALID_QUERY" if action == "destroy" ? values.any? : (action == "update" && values.empty?)
+        resource = @session.resource(resource)
+        raise AccessDenied unless resource.assistant_change?(action)
+        tool_views = Assistant.tool_views
+        replay = tool_views.assistant_surface(@session.context, @session.chat, tool_call.id)
+        return acknowledgment(replay) if replay
+        access = @session.access(resource)
+        record = action == "create" ? access.relation.new : access.find!(id, action: action.to_sym)
+        definition = RailsAiAdmin.operation_registry.fetch(resource, action)
+        by_name = resource.fields.index_by { |field| field.name.to_s }
+        raise AccessDenied, "INVALID_QUERY" if values.keys.any? { |name| UNSUPPORTED.include?(by_name[name.to_s]&.scalar_type) }
+        proposal = Operations::Runner.new.preflight(context: @session.context, resource: resource, operation: action,
+          target_id: action == "create" ? nil : record.id, expected_version: action == "create" ? nil : RecordVersion.of(record),
+          input: values.transform_keys(&:to_s), origin: :assistant)
+        if proposal.is_a?(Operations::Result)
+          return failure(proposal.code == "VALIDATION_FAILED" ? "VALIDATION_FAILED" : proposal.code == "CONFLICT" ? "CONFLICT" : "UNAVAILABLE",
+            "fields" => proposal.errors.to_h.transform_values { |messages| Array(messages).first(3) })
+        end
+        surface = tool_views.present(context: @session.context, resource: resource, definition: definition, record: record,
+          intent_ref: proposal.intent.id, input: tool_views.wire_input(proposal.values), chat: @session.chat, call_id: tool_call.id)
+        acknowledgment(surface)
+      end
+
+      def acknowledgment(surface)
+        { "status" => "awaiting_human_confirmation", "surface" => surface.id,
+          "message" => "A review is shown to the user. Nothing has changed yet; a later message reports the confirmed result." }
+      end
+    end
+
+    # A record's audited changes, behind the same view_history? grant as its
+    # History page. Field names follow the user's current grants.
+    class RecordHistory < Tool
+      LIMIT = 20
+      description "List the latest audited changes to one record: when, what kind, which fields and by whom. Values are never recorded."
+      parameters({ "type" => "object", "required" => %w[resource id], "additionalProperties" => false,
+        "properties" => { "resource" => { "type" => "string" }, "id" => { "type" => "string", "maxLength" => 100 } } })
+
+      def self.tool_name = "record_history"
+
+      private
+
+      def perform(tool_call:, resource:, id:)
+        resource = @session.resource(resource)
+        access = @session.access(resource)
+        raise AccessDenied unless id.is_a?(String) && id.match?(Field::REFERENCE)
+        record = access.find!(id)
+        page = Presentation::History.new(access, record).page
+        entries = page.entries.first(LIMIT).map do |entry|
+          { "at" => entry.at.in_time_zone(time_zone).iso8601, "change" => entry.operation, "saved" => entry.status == "succeeded",
+            "outcome" => entry.code, "fields" => entry.fields, "other_fields" => entry.hidden_fields,
+            "by" => entry.actor_ref == @session.context.actor_ref ? "the current user" : entry.actor_ref, "via" => entry.origin }
+        end
+        { "resource" => resource.key.to_s, "id" => record.id.to_s, "changes" => entries, "more" => page.entries.size > LIMIT || !page.older.nil? }
+      end
+    end
+
+    TOOLS = [ ListResources, DescribeResource, SearchRecords, CountRecords, GetRecord, RecordHistory ].freeze
   end
 end

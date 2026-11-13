@@ -117,6 +117,11 @@ call shows the same review instead of creating another. Keep provider settings
 in `RubyLLM.context`; the admin never changes your global RubyLLM
 configuration.
 
+Inside admin Chat, a resource that declares `assistant_changes :create, :update,
+:destroy` also lets the model propose native changes with `propose_change`; see
+[Admin Assistant](admin-assistant.html). Those reviews show before → after for
+each field and use the same Confirm and Dismiss actions.
+
 ## Confirm or Dismiss
 
 A Surface shows the operation's input and the proposed visible changes from its

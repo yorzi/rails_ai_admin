@@ -23,8 +23,8 @@ module RailsAiAdmin
 
       # Server-written summary of the committed outcome; no Surface input text.
       def content(review, outcome, decision = "confirmed")
-        subject = "#{review.resource.label.singularize} \"#{review.access.record_label(review.record)}\""
-        action = review.definition.description.to_s.truncate(120)
+        subject = "#{review.resource.label.singularize} \"#{Integrations::ToolViews.subject(review)}\""
+        action = review.definition.custom? ? review.definition.description.to_s.truncate(120) : "#{review.definition.key} #{review.resource.label.singularize.downcase_first}"
         verb = decision == "dismissed" ? "dismissed" : "confirmed"
         "Review result: the user #{verb} \"#{action}\" for #{subject}. #{outcome}"
       end

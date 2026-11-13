@@ -261,6 +261,12 @@ en:
         action.
       cancelled: Cancellation processed. Already committed records and their follow-up work are retained.
     surfaces:
+      native:
+        create: Create %{label}
+        update: Update %{label}
+        destroy: Delete %{label}
+      destroy_note: Confirming deletes this record. This cannot be undone.
+      hidden_value: (set; not shown to you)
       proposed_changes: Proposed visible changes
       dismiss: Dismiss
       dismissed: Dismissed. Nothing was changed.
@@ -400,6 +406,7 @@ en:
       review_note: Review this exact target and input. Nothing has been saved yet. Changed input requires
         a new review.
       target: 'Target: %{label}'
+      target_html: 'Target: %{label}'
       confirm: Confirm and execute
       executing: Executing…
       edit_input: Edit input
@@ -440,6 +447,11 @@ en:
       review: Review changes
       admitted: Run admitted. Each record is executed separately; queued work is not a completed change.
     assistant:
+      ask: Ask
+      ask_record: Ask the assistant about this record
+      ask_list: Ask the assistant about this list
+      ask_record_placeholder: For example, “Who changed this last?” or “Set the status to closed.”
+      ask_list_placeholder: For example, “How many of these were created this week?”
       intro: >-
         Ask about the records you can already see. The assistant reads through your current permissions
         and cannot change data; any change it suggests opens a review that you confirm yourself.

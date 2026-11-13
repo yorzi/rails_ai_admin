@@ -28,6 +28,9 @@ module ShowcasePolicy
     resource.key == :articles ? %i[popular recent] : super
   end
 
+  # With bin/demo --assistant, admin Chat may also read and propose changes here.
+  def assistant?(context:, resource:) = SHOWCASE.include?(resource.key) || super
+
   def view_history?(context:, resource:, record:) = context.actor.role == "admin"
   def view_audit_log?(context:, resource:) = context.actor.role == "admin"
   def export_records?(context:, resource:) = context.actor.role == "admin"

@@ -35,6 +35,7 @@ module AssistantEval
       scope :rewarded, -> { where(points: 10..) }, label: "Rewarded"
     end
     operation :review, handler: "ReviewContractOperation", surface: true, assistant: true
+    assistant_changes :update
   end
 
   class InvoiceAdmin < RailsAiAdmin::Resource
@@ -53,12 +54,13 @@ module AssistantEval
 
   class Policy < RailsAiAdmin::Authorization::Adapter
     GRANTS = {
-      eval_customers: { read: %i[id name points active], search: %i[name], sort: %i[name points], filter: %i[points active] },
+      eval_customers: { read: %i[id name points active], write: %i[name points], search: %i[name], sort: %i[name points], filter: %i[points active] },
       eval_invoices: { read: %i[id number customer], search: %i[number], sort: %i[number], filter: %i[customer] }
     }.freeze
 
     def scope(context:, resource:, relation:) = relation.where(account_id: context.tenant.id)
-    def allowed?(context:, action:, resource:, record: nil) = context.actor.id == 1 && %i[index show review].include?(action.to_sym)
+    def allowed?(context:, action:, resource:, record: nil) = context.actor.id == 1 && %i[index show review update].include?(action.to_sym)
+    def view_history?(context:, resource:, record:) = context.actor.id == 1
     def assistant?(context:, resource:) = context.actor.id == 1
     def named_scopes(context:, resource:) = resource.key == :eval_customers ? %i[active rewarded] : []
     def fields(context:, resource:, action:, record: nil) = GRANTS.fetch(resource.key, {}).fetch(action, [])

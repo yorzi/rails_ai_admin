@@ -1,0 +1,16 @@
+<%# "Ask the assistant" from a record or list page. The server names the page in a
+    Context line only after checking the assistant grant again. %>
+<details class="raa-ask">
+  <summary><%= record ? t("rails_ai_admin.assistant.ask_record") : t("rails_ai_admin.assistant.ask_list") %></summary>
+  <%= form_with url: assistant_conversations_path, method: :post, local: true, class: "raa-chat-composer" do |form| %>
+    <%= hidden_field_tag "about[resource]", resource.key, id: nil %>
+    <% if record %><%= hidden_field_tag "about[id]", record.id, id: nil %><% else %>
+      <% if navigation_state["q"] %><%= hidden_field_tag "about[q]", navigation_state["q"], id: nil %><% end %>
+      <% if navigation_state["scope"] %><%= hidden_field_tag "about[scope]", navigation_state["scope"], id: nil %><% end %>
+    <% end %>
+    <%= label_tag "raa-ask-content", t("rails_ai_admin.assistant.message") %>
+    <%= text_area_tag :content, nil, id: "raa-ask-content", rows: 2, maxlength: 3500, required: true,
+      placeholder: record ? t("rails_ai_admin.assistant.ask_record_placeholder") : t("rails_ai_admin.assistant.ask_list_placeholder") %>
+    <div class="raa-actions"><%= form.submit t("rails_ai_admin.assistant.ask"), name: nil %></div>
+  <% end %>
+</details>

@@ -17,7 +17,7 @@ module RailsAiAdmin
     prepend_before_action :secure_headers
     before_action :authenticate_admin
     after_action :notice_discarded_list_settings
-    helper_method :resource_navigation, :admin_csp_nonce, :list_page_path, :encoded_return_state, :navigation_state, :navigation_params, :list_return_path, :list_return_label, :return_state_discarded?, :return_navigation_fields, :list_state_fields, :visible_resources, :allowed_action?, :record_label, :collection_jobs_available?, :admin_associations, :assistant_available?, :searchable_resources, :audit_log_available?, :actor_labels
+    helper_method :resource_navigation, :admin_csp_nonce, :list_page_path, :encoded_return_state, :navigation_state, :navigation_params, :list_return_path, :list_return_label, :return_state_discarded?, :return_navigation_fields, :list_state_fields, :visible_resources, :allowed_action?, :record_label, :collection_jobs_available?, :admin_associations, :assistant_available?, :searchable_resources, :audit_log_available?, :actor_labels, :assistant_for?
 
     rescue_from AccessDenied, with: :deny_access
     rescue_from ConfigurationError do
@@ -183,6 +183,14 @@ module RailsAiAdmin
 
     def allowed_action?(resource, action, record = nil)
       Authorization::Access.new(@context, resource).authorize!(action, record)
+    rescue AccessDenied
+      false
+    end
+
+    # Whether this page may offer "Ask the assistant" for a resource.
+    def assistant_for?(resource)
+      return false unless assistant_available?
+      Authorization::Access.new(@context, resource).authorize_assistant!
     rescue AccessDenied
       false
     end

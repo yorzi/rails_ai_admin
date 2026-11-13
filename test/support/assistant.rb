@@ -12,8 +12,23 @@ class AssistantPolicy < OperationContractPolicy
   class_attribute :exposed, default: true
 
   def assistant?(context:, resource:)
-    !denied && exposed && resource.key == :contract_customers
+    !denied && exposed && %i[contract_customers changeable_customers].include?(resource.key)
   end
+
+  def view_history?(context:, resource:, record:) = !denied && context.actor.id == 1
+end
+
+# Native create, update and delete proposals (assistant_changes).
+class ChangeableCustomerAdmin < RailsAiAdmin::Resource
+  model "Customer"
+  key :changeable_customers
+  title :name
+  fields do
+    id :id
+    text :name
+    integer :points
+  end
+  assistant_changes :create, :update, :destroy
 end
 
 # Builds a provider context per admin Context. No global RubyLLM settings.

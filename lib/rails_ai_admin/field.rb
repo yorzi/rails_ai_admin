@@ -156,6 +156,7 @@ module RailsAiAdmin
       when :json then format_json(value)
       when :password then "—"
       when :rich_text then plain_text(value.to_s)
+      when :references then Array(value).map { |key| "##{key}" }.join(", ")
       when :file then value.respond_to?(:filename) ? "#{value.filename} (#{ActiveSupport::NumberHelper.number_to_human_size(value.byte_size)})" : value.to_s
       when :files then I18n.t(:files, scope: %i[rails_ai_admin fields], count: Array(value).size, default: "#{Array(value).size} files")
       else value.to_s

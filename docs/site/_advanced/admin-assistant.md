@@ -15,14 +15,19 @@ After reading this guide, you will know:
 * How to install and enable admin Chat without touching your product's RubyLLM setup.
 * Which grants expose resources to the model and which checks still apply.
 * How a proposed change reaches the database exactly once.
+* How to let it propose creates, updates and deletes, and ask about a page.
+* How it compares with other Rails admins' AI features.
 * How turns recover after a crash, and what still needs real-provider checks.
 
 ## Understand the Boundary
 
 The assistant answers questions about records the signed-in admin can already
-open, and it can suggest a change to a record. It cannot change data itself. A
-suggestion becomes the same review Surface that the native confirmation page
-uses, and only the person's own confirmation in that review runs the operation.
+open, reads their audited history, and can suggest a create, update, delete or
+declared business operation. It cannot change data itself. Every suggestion,
+including a create, becomes a review Surface, and only the person's own
+confirmation in that review runs it: as that person, with their current grants,
+a record-version check and an audit event, through the same Operation Runner as
+the native pages.
 
 Admin Chat is off by default. A conventional install loads no RubyLLM code,
 creates no assistant tables and never calls a provider.
@@ -143,14 +148,18 @@ not open. Another tenant's record and a missing record return the same
 | `search_records` | Up to 20 records through the shared list query, independent of the native page size. It searches every record the actor may see unless the model passes a granted `scope`; a resource's default list tab never applies silently. Accepts `sort` and `direction`. Every result reports `applied_scope`, `applied_sort` and how many records were `omitted` because their `show` check failed. When `has_more` is true, pass `next_offset` as `offset`, including after byte truncation. At 1,000 records, `limit_reached` asks for a narrower query |
 | `count_records` | The number of records matching the same query, filters and scope, capped like the index count (`capped: true` above it) |
 | `get_record` | One record's readable fields |
-| `propose_operation` | A review Surface for one member operation (only with `config.surfaces`) |
+| `record_history` | The latest 20 audited changes to one record: time, change, field labels under current grants, who and through what. Needs the `view_history?` grant; values are never returned because they are never recorded |
+| `propose_change` | A review Surface for a native create, update or delete, when the resource declares it with `assistant_changes` (only with `config.surfaces`) |
+| `propose_operation` | A review Surface for one declared member operation (only with `config.surfaces`) |
 
 Field values are typed JSON: null is `null`, booleans and integers keep their
 JSON types, decimals are exact strings padded to their scale, dates and times
 are ISO 8601, a select is `{value, label}` (filter with the value) and a
 reference is `{id, label, resource}`, with `resource: null` when the actor
 cannot open the target. A registered field type is sent as its formatted text,
-because its formatter may redact. The instructions carry `PROMPT_VERSION` 2.
+because its formatter may redact. Files are sent as name, type and size, rich
+text as plain text, and a `references` list as `{id, label, resource}` items.
+Passwords never reach a tool result. The instructions carry `PROMPT_VERSION` 3.
 
 Results are bounded JSON (16 KB). Errors carry only a fixed code such as
 `NOT_FOUND`, `INVALID_QUERY` or `CONFLICT`, never a stack trace or SQL.
@@ -174,6 +183,47 @@ Results are bounded JSON (16 KB). Errors carry only a fixed code such as
 A repeated confirmation, or a confirmation on the native page first, writes
 nothing twice and admits no second continuation. If the chat was archived in
 the meantime, the confirmation still succeeds; only the follow-up is skipped.
+
+## Let It Propose Creates, Updates and Deletes
+
+A resource opts in to native change proposals:
+
+```ruby
+class TicketAdmin < RailsAiAdmin::Resource
+  # ...
+  assistant_changes :create, :update   # add :destroy to allow delete proposals
+end
+```
+
+`describe_resource` then lists each allowed change with the fields the person may
+set (never passwords or files). When the model calls `propose_change`:
+
+1. The admin checks the resource's `assistant?` grant, the declaration, the
+   person's own `create`/`update`/`destroy` grant on the record and their field
+   write grants, then coerces the values exactly as a form would. An unknown,
+   unwritable or badly typed field is refused with the field names, and nothing
+   is saved but an unconfirmed intent that records the record's version.
+2. The conversation shows a review titled "Update ticket" (or Create, Delete)
+   with each changed field as before → after, labelled through current read
+   grants; references show their targets' labels. A delete review says it cannot
+   be undone and its button reads **Delete**.
+3. Confirming runs the write as the person. If the record changed after the
+   proposal, the review reports a conflict instead of overwriting. The chat then
+   hears the committed result, including a new record's id.
+
+Creates wait for confirmation too: nothing the model suggests reaches your data
+without a person's click.
+
+## Ask About a Page
+
+When admin Chat is available for a resource, its record and list pages show
+**Ask the assistant about this record** (or **this list**). The question starts a
+new conversation whose first message begins with a server-written line such as
+`Context: I am looking at Ticket 42 ("Printer offline") in the tickets resource.`
+The line is added only after the server checks the `assistant?` grant and the
+record's scope and show grant again; a list adds its search text and list tab.
+It is visible in the transcript, it is data for the model, and it grants nothing:
+the model still reads the record with its tools.
 
 ## Recover From Failures
 
@@ -229,6 +279,31 @@ match mode, like the index search box: a live model that searched for
 `describe_resource` now tells the model each field's mode. Some models also answer in Markdown,
 which the transcript shows as literal characters.
 
-Streaming, cost budgets beyond the message limit, page or selection context,
-aggregates other than counting, host-overridable instructions and chat retention
-are not available yet.
+Streaming replies, cost budgets beyond the message limit, selection context,
+proposals that change several records at once, undo, aggregates other than
+counting, an MCP server for outside agents, host-overridable instructions and
+chat retention are not available yet.
+
+## How It Compares
+
+As of November 2026, ActiveAdmin, Administrate, RailsAdmin and madmin ship no AI
+assistant; teams add one with a general library such as RubyLLM. Avo 4 sells an
+AI add-on with a larger toolset (bulk updates, imports, undo, streaming, an MCP
+server). What this engine does differently:
+
+| | Rails AI Admin | Typical approach |
+|---|---|---|
+| Price | Part of the MIT gem | Add-on or custom code |
+| Who writes | Only a person's click on a review, for every create, update, delete and operation | Often creates or "safe" actions apply at once |
+| Write path | The same audited Operation Runner as the forms: intent, version check, transaction, audit, receipt | Tool code calls the model API directly |
+| Concurrent edits | A stale proposal conflicts instead of overwriting | Usually last write wins |
+| Exposure | Default-deny `assistant?` per resource, then the person's own index, show and field grants on every call | Resource or action policies; field-level reads vary |
+| Secrets | Write-only passwords and unreadable fields never reach tool results; files are metadata only | Depends on each tool |
+| Provider credentials | Built per admin Context; your global RubyLLM settings are never read or changed | Global configuration |
+| Database | SQLite and PostgreSQL | Often PostgreSQL only |
+| Evidence | A 23-question evaluation set replayed offline in the test suite, with prompt-injection and cross-tenant cases | Rarely published |
+
+If you need streaming, bulk AI edits or an MCP server today, an add-on such as
+Avo's covers more ground; if you need every AI-suggested change to be a reviewed,
+audited, version-checked write under your existing policies, this engine is built
+for that.

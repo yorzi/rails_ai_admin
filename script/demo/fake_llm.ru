@@ -4,7 +4,10 @@
 # `bin/demo --assistant`. It never calls a real provider. Phrases in the last
 # user message choose a tool call:
 #   "list resources", "describe customers", "search customers for ada",
-#   "count customers", "get customers 3", "award 5 points to 3".
+#   "count customers", "get customers 3", "award 5 points to 3",
+#   "set articles 1 title to Hello", "create articles with title Draft",
+#   "delete articles 2", "history of articles 1"; a page's "Context:" line
+#   opens that record.
 # A tool result is answered with a short summary; anything else is echoed.
 require "json"
 
@@ -19,13 +22,18 @@ run lambda { |env|
   end
   message =
     if last["role"] == "tool" then { role: "assistant", content: "Here is what the admin returned: #{text[0, 600]}" }
+    elsif (match = text.match(/set (\w+) (\S+) (\w+) to (.+)/i)) then tool.("propose_change", { resource: match[1], action: "update", id: match[2], values: { match[3] => match[4].strip } })
+    elsif (match = text.match(/create (\w+) with (\w+) (.+)/i)) then tool.("propose_change", { resource: match[1], action: "create", values: { match[2] => match[3].strip } })
+    elsif (match = text.match(/delete (\w+) (\S+)/i)) then tool.("propose_change", { resource: match[1], action: "destroy", id: match[2] })
+    elsif (match = text.match(/history of (\w+) (\S+)/i)) then tool.("record_history", { resource: match[1], id: match[2] })
+    elsif (match = text.match(/Context: I am looking at .*? (\d+) \(.*\) in the (\w+) resource/)) then tool.("get_record", { resource: match[2], id: match[1] })
     elsif text =~ /list resources/i then tool.("list_resources", {})
     elsif text =~ /describe (\w+)/i then tool.("describe_resource", { resource: $1 })
     elsif text =~ /search (\w+) for (.+)/i then tool.("search_records", { resource: $1, query: $2.strip })
     elsif text =~ /count (\w+)/i then tool.("count_records", { resource: $1 })
     elsif text =~ /get (\w+) (\S+)/i then tool.("get_record", { resource: $1, id: $2 })
     elsif (match = text.match(/award (\d+) points to (\S+)/i)) then tool.("propose_operation", { resource: "customers", id: match[2], operation: "award_points", input: { amount: match[1].to_i } })
-    else { role: "assistant", content: "This is the offline demo provider. Try \"list resources\", \"search customers for ada\" or \"award 5 points to 1\"." }
+    else { role: "assistant", content: "This is the offline demo provider. Try \"search articles for upgrading\", \"set articles 1 title to Hello\", \"history of articles 1\" or \"award 5 points to 1\"." }
     end
   body = { id: "chatcmpl-demo", object: "chat.completion", created: Time.now.to_i, model: request["model"] || "gpt-4.1-mini",
     choices: [ { index: 0, message: message, finish_reason: message[:tool_calls] ? "tool_calls" : "stop" } ],

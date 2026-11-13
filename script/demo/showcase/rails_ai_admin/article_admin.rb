@@ -37,4 +37,6 @@ class ArticleAdmin < RailsAiAdmin::Resource
     trend :created_at, days: 30, label: "Articles written"
   end
   has_one :summary, resource: :summaries
+  # With bin/demo --assistant, admin Chat may propose these for review.
+  assistant_changes :create, :update, :destroy
 end

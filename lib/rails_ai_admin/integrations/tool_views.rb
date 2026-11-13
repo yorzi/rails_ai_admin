@@ -84,7 +84,13 @@ module RailsAiAdmin
         # chat and replays per persisted tool call.
         def present(context:, resource:, definition:, record:, intent_ref:, input:, chat: nil, call_id: nil, assistant_call: nil)
           ensure_registered!
-          raise AccessDenied unless resource.surface_operation?(definition.key) && definition.custom? && definition.scope == :member
+          if definition.custom?
+            raise AccessDenied unless resource.surface_operation?(definition.key) && definition.scope == :member
+          else
+            # A native create, update or delete is reviewed here only when the
+            # assistant proposed it and the resource allows that change.
+            raise AccessDenied unless chat && resource.assistant_change?(definition.key)
+          end
           raise AccessDenied if chat && assistant_call
           origin = chat || assistant_call ? "assistant" : "ui"
           raise AccessDenied if assistant_call && !resource.assistant_operation?(definition.key)
@@ -92,7 +98,7 @@ module RailsAiAdmin
           raise AccessDenied if chat && !(call_id.is_a?(String) && chat.current_for?(context) && chat.actor_ref == context.actor_ref && chat.tenant_ref == context.tenant_ref)
           run = OperationRun.find_by(id: intent_ref, actor_ref: context.actor_ref, tenant_ref: context.tenant_ref)
           unless run && run.id == intent_ref && run.resource_key == resource.key.to_s && run.operation == definition.key.to_s &&
-              run.target_id == record.id.to_s && run.status == "proposed" && run.origin == origin && run.parent_run_id.nil?
+              run.target_id == record.id&.to_s && run.status == "proposed" && run.origin == origin && run.parent_run_id.nil?
             raise AccessDenied
           end
           raise AccessDenied, "APPROVAL_EXPIRED" unless run.expires_at && run.expires_at > Time.current
@@ -144,9 +150,13 @@ module RailsAiAdmin
           return unless run && run.id == props["intent"] && run.parent_run_id.nil? && run.selection_id.nil?
           resource = RailsAiAdmin.registry.fetch(run.resource_key)
           definition = RailsAiAdmin.operation_registry.fetch(resource, run.operation)
-          return unless definition.custom? && definition.scope == :member && resource.surface_operation?(definition.key)
+          if definition.custom?
+            return unless definition.scope == :member && resource.surface_operation?(definition.key)
+          else
+            return unless run.origin == "assistant" && resource.assistant_change?(definition.key)
+          end
           access = Authorization::Access.new(context, resource)
-          Review.new(run, resource, definition, access, access.find!(run.target_id))
+          Review.new(run, resource, definition, access, review_record(access, run))
         rescue AccessDenied, ConfigurationError, ActiveRecord::RecordNotFound
           nil
         end
@@ -166,7 +176,27 @@ module RailsAiAdmin
           end
         end
 
+        # The record a review is about: a new one for a proposed create, the
+        # created one afterwards, and none once a delete succeeded.
+        def review_record(access, run)
+          case run.operation
+          when "create" then run.status == "succeeded" ? access.find!(run.record_id) : access.relation.new
+          when "destroy" then run.status == "succeeded" ? nil : access.find!(run.target_id)
+          else access.find!(run.target_id)
+          end
+        end
+
+        # How a review names its record in the conversation and on the card.
+        def subject(review)
+          singular = review.resource.label.singularize
+          return "#{singular} ##{review.run.target_id}" if review.record.nil?
+          return "a new #{singular.downcase_first}" unless review.record.persisted?
+          review.access.record_label(review.record)
+        end
+
         def receipt?(review)
+          # A native change's result is the record itself, behind its list grant.
+          return review.access.authorize!(:index) unless review.definition.custom?
           review.access.authorize_receipt!(review.definition.key, review.record)
         rescue AccessDenied
           false
@@ -182,7 +212,8 @@ module RailsAiAdmin
             human_confirmed: true, origin: :surface, binding: { resource_key: run.resource_key, operation: run.operation, target_id: run.target_id })
           if result.success?
             message = result.replayed ? "This operation was already completed. No second change was made." : "Operation completed."
-            continue_chat(context, request, review, result.replayed ? "It had already been applied; no second change was made." : "The change was applied.")
+            applied = run.operation == "create" ? "The record was created with id #{result.record_id}." : "The change was applied."
+            continue_chat(context, request, review, result.replayed ? "It had already been applied; no second change was made." : applied)
             ::RailsToolViews::Transition.new(state: { "outcome" => "succeeded", "message" => message }, agent: false)
           elsif TERMINAL.key?(result.code)
             continue_chat(context, request, review, "It was not applied (#{result.code}): #{TERMINAL.fetch(result.code)}")
@@ -213,6 +244,7 @@ module RailsAiAdmin
         # review cannot be confirmed or the preview is no longer valid.
         def proposed_changes(review, wire)
           return [] unless review.run.status == "proposed"
+          return native_changes(review, wire) unless review.definition.custom?
           context = review.access.context
           preview = Operations::Runner.new.preview(context: context, resource: review.resource, operation: review.definition.key,
             target_id: review.record.id, expected_version: review.run.expected_version, input: JSON.parse(wire), origin: :surface)
@@ -231,6 +263,8 @@ module RailsAiAdmin
         # grants; once committed, the recorded input through the operation's
         # declared contract (as receipt replay does), behind the receipt grant.
         def display_values(review, wire)
+          # Native changes show before and after instead (native_changes).
+          return [] unless review.definition.custom?
           values = JSON.parse(wire)
           fields = if review.run.status == "succeeded"
             review.definition.handler_class.input
@@ -252,6 +286,39 @@ module RailsAiAdmin
           end
         rescue JSON::ParserError
           []
+        end
+
+        # Before and after for a native create or update, through the actor's
+        # read grants; references show their labels. A field the actor may
+        # write but not read shows only that it will be set.
+        def native_changes(review, wire)
+          return [] if review.run.operation == "destroy"
+          context = review.access.context
+          values = input_values(context, review.resource, review.definition, review.record, wire)
+          persisted = review.record.persisted?
+          readable = review.access.fields(:read, persisted ? review.record : nil, view: :show).index_by { |field| field.name.to_s }
+          current = persisted ? review.access.project(review.record, view: :show) : {}
+          resolver = Fields::Association.new(context, review.resource)
+          fields = review.resource.fields.index_by { |field| field.name.to_s }
+          values.filter_map do |name, after|
+            field = fields[name]
+            next unless field
+            before = current[name]
+            next if persisted && before == after
+            show = ->(value) { readable.key?(name) ? native_text(field, value, resolver, context) : I18n.t("rails_ai_admin.surfaces.hidden_value") }
+            [ field, persisted ? show.call(before) : "—", show.call(after) ]
+          end
+        rescue AccessDenied, ConfigurationError, JSON::ParserError
+          []
+        end
+
+        def native_text(field, value, resolver, context)
+          return "—" if value.nil?
+          case field.scalar_type
+          when :belongs_to then resolver.reference(field, value.to_s).label.to_s
+          when :references then Array(value).map { |id| resolver.reference(field, id).label.to_s }.join(", ").presence || "—"
+          else field.format(value, time_zone: context.time_zone)
+          end
         end
 
         private
@@ -286,7 +353,7 @@ module RailsAiAdmin
 
         def input_values(context, resource, definition, record, wire)
           access = Authorization::Access.new(context, resource)
-          result = InputSchema.new(definition.fields(access, record)).coerce(JSON.parse(wire), time_zone: context.time_zone)
+          result = InputSchema.new(definition.fields(access, record), partial: definition.key == "update" && !definition.custom?).coerce(JSON.parse(wire), time_zone: context.time_zone)
           raise AccessDenied, "APPROVAL_INVALIDATED" unless result.valid?
           result.values
         end

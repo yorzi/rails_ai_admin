@@ -18,6 +18,7 @@
 <% if @importable %><%= link_to t("rails_ai_admin.imports.button"), new_resource_import_path(resource: @resource.key), class: "raa-button raa-secondary" %><% end %>
 <% if allowed_action?(@resource, :create) %><%= link_to t("rails_ai_admin.resources.new", label: @resource.label.singularize.downcase_first), new_resource_path(resource: @resource.key, **navigation_params), class: "raa-button" %><% end %>
 </div></div>
+<% if assistant_for?(@resource) %><%= render "rails_ai_admin/assistant/ask", resource: @resource, record: nil %><% end %>
 <% if @list_scopes.any? %>
   <nav class="raa-scopes" aria-label="<%= t("rails_ai_admin.resources.index.scopes", label: @resource.label) %>"><ul>
     <% @list_scopes.each do |definition| %>

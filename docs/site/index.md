@@ -35,6 +35,10 @@ features:
     details: CSV export and checked imports, bulk delete, record history and an audit log, each behind its own grant.
     link: /csv-export/
     link_text: Move data
+  - title: AI with a human in the loop
+    details: Chat reads through your grants; every AI-suggested create, update or delete is a reviewed, audited, version-checked write.
+    link: /admin-assistant/
+    link_text: Meet the assistant
   - title: Overview at a glance
     details: Counts, metrics and daily trend charts, plus one search box across every resource.
     link: /dashboard/

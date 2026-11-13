@@ -198,9 +198,12 @@ confirmation executes them. See the
 
 Hosts that load ruby_llm can run `bin/rails generate rails_ai_admin:assistant`
 and set `config.assistant = true`. The assistant reads records through each
-admin's current grants plus a default-deny `assistant?` grant. It cannot change
-data: a suggested change opens the same review Surface, and only the person's
-confirmation writes it, once. Turns run in jobs through a leased inbox that
+admin's current grants plus a default-deny `assistant?` grant, reads audited
+record history, and answers questions asked from a record or list page. It
+cannot change data: a suggested create, update, delete (for resources that
+declare `assistant_changes`) or business operation opens a review Surface with
+before → after values, and only the person's confirmation writes it, once, as
+that person, with a version check and an audit event. Creates are reviewed too. Turns run in jobs through a leased inbox that
 recovers after crashes without repeating messages. Provider settings come from
 your own adapter, never from global RubyLLM configuration. See the
 [Admin Assistant guide](docs/site/_advanced/admin-assistant.md).

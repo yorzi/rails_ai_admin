@@ -17,6 +17,7 @@ module RailsAiAdmin
         child.instance_variable_set(:@navigation, Navigation::Settings.new)
         child.instance_variable_set(:@has_many, {})
         child.instance_variable_set(:@dashboard, [])
+        child.instance_variable_set(:@assistant_changes, [])
       end
 
       def model(name = nil)
@@ -112,6 +113,17 @@ module RailsAiAdmin
       end
 
       def has_many_declarations = @has_many.values
+
+      # Native changes the admin assistant may propose. Each proposal is shown
+      # as a review the human confirms; it runs with the human's own grants.
+      def assistant_changes(*actions)
+        return @assistant_changes if actions.empty?
+        actions = actions.map { |action| action.to_s.to_sym }
+        raise ConfigurationError, "assistant_changes accepts :create, :update and :destroy" unless (actions - %i[create update destroy]).empty?
+        @assistant_changes = (@assistant_changes | actions).freeze
+      end
+
+      def assistant_change?(action) = @assistant_changes.include?(action.to_s.to_sym) && action_enabled?(action)
 
       def operation_declarations = @operations
       def surface_operation?(key) = @surface_operations.include?(key.to_sym)

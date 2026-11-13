@@ -26,8 +26,16 @@ module RailsAiAdmin
       @chats = Assistant::Chat.for_owner(@context).order(updated_at: :desc, id: :desc).limit(50).to_a
     end
 
+    # A new chat; from a record or list page it starts with the question and a
+    # server-written "Context:" line naming that page.
     def create
+      question = params[:content]
+      raise AccessDenied, "INVALID_QUERY" unless question.nil? || question.is_a?(String)
       chat = Assistant.create_chat!(@context)
+      if question.present?
+        content = [ page_context_line, question.strip ].compact.join("\n\n").first(Assistant::Coordinator::MAX_CONTENT)
+        Assistant::Coordinator.admit!(chat, kind: "message", content: content, admission_key: "message:#{SecureRandom.uuid}")
+      end
       redirect_to assistant_conversation_path(chat_ref: chat.ref), status: :see_other
     rescue ::RubyLLM::ModelNotFoundError, ::RubyLLM::ModelRegistryError
       admin_status(:unavailable)
@@ -91,6 +99,29 @@ module RailsAiAdmin
     end
 
     private
+
+    # Names the page only when the actor may show it to the assistant now. The
+    # line is data for the model and grants nothing; tools check again.
+    def page_context_line
+      about = params[:about]
+      return unless about.is_a?(ActionController::Parameters)
+      resource = RailsAiAdmin.registry.fetch(about[:resource].to_s)
+      access = Authorization::Access.new(@context, resource)
+      access.authorize_assistant!
+      id = about[:id]
+      if id.is_a?(String) && id.present?
+        raise AccessDenied unless access.canonical_id?(id)
+        record = access.find!(id)
+        "Context: I am looking at #{resource.label.singularize} #{record.id} (\"#{access.record_label(record).truncate(120)}\") in the #{resource.key} resource."
+      else
+        query = about[:q].is_a?(String) ? about[:q].strip.first(100) : nil
+        scope = about[:scope].is_a?(String) ? access.named_scopes.find { |definition| definition.name.to_s == about[:scope] } : nil
+        details = [ (query.present? ? "searching for \"#{query}\"" : nil), (scope ? "on the #{scope.label} tab (scope #{scope.name})" : nil) ].compact
+        "Context: I am looking at the #{resource.label} list (the #{resource.key} resource)#{details.any? ? ", #{details.join(', ')}" : ''}."
+      end
+    rescue AccessDenied, ConfigurationError, KeyError
+      nil
+    end
 
     def require_assistant
       raise AccessDenied unless RailsAiAdmin.configuration.assistant

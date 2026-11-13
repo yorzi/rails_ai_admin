@@ -135,7 +135,7 @@ puts <<~TEXT
               other@example.test (another tenant); password demo-password
 TEXT
 puts "  Import:   #{admin}/articles/imports/new with tmp/demo/articles-import.csv" if options[:showcase]
-puts "  Chat:     #{admin}/assistant; try \"search customers for ada\" or \"award 5 points to 1\"" if options[:assistant]
+puts "  Chat:     #{admin}/assistant; try \"set articles 1 title to Hello\", \"history of articles 1\" or \"award 5 points to 1\"" if options[:assistant]
 exit unless options[:serve]
 
 pids = []

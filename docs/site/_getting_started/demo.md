@@ -42,8 +42,11 @@ Options:
 
 * `--plain` leaves out the articles showcase and keeps the packaged customers and
   orders only.
-* `--assistant` adds admin Chat and a review Surface against an offline fake
-  provider, with no API key or network.
+* `--assistant` adds admin Chat against an offline fake provider, with no API
+  key or network. On an article page, **Ask the assistant about this record**
+  with `set articles 1 title to Hello`: a review shows the title before → after,
+  and only **Confirm and execute** saves it. `history of articles 1`,
+  `create articles with title Draft` and `delete articles 2` work the same way.
 * `--port 4000` changes the port; `--setup-only` prepares `tmp/demo` without
   serving it.
 
