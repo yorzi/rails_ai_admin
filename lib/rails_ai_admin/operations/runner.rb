@@ -250,13 +250,15 @@ module RailsAiAdmin
             if record.respond_to?(:attachment_changes)
               changed_fields |= resource.fields.select { |field| field.scalar_type == :file && values.key?(field.name.to_s) && record.attachment_changes.key?(field.column) }.map { |field| field.name.to_s }
             end
+            changed_files = apply_files(access, record, values)
+            changed_fields |= changed_files
             # Join rows change no owner column, so a changed list touches the
             # record: its version advances and a concurrent form conflicts.
             changed_lists = lists.map { |field| field.name.to_s }.reject { |name| before_lists.fetch(name) == values.fetch(name) }
             changed_fields |= changed_lists
             persisted = definition.handler_class.new.perform(nil, record, values)
             reject!("VALIDATION_FAILED", errors: { "base" => [ "could not be saved" ] }) unless persisted
-            record.touch if run.operation == "update" && changed_lists.any?
+            record.touch if run.operation == "update" && (changed_lists.any? || changed_files.any?)
           end
           unless run.operation == "destroy" || access.relation.where(resource.model_class.primary_key => record.id).exists?
             reject!("NOT_FOUND")
@@ -519,9 +521,36 @@ module RailsAiAdmin
         end
       end
 
+      # files changes are applied by apply_files, never assigned as a list.
       def column_attributes(resource, values)
         columns = resource.fields.to_h { |field| [ field.name.to_s, field.column ] }
-        values.transform_keys { |name| columns.fetch(name, name) }
+        lists = resource.fields.select { |field| field.scalar_type == :files }.map { |field| field.name.to_s }
+        values.except(*lists).transform_keys { |name| columns.fetch(name, name) }
+      end
+
+      # Removes the named attachments of this record and attaches the new
+      # blobs. Returns the names of files fields that changed.
+      def apply_files(access, record, values)
+        access.resource.fields.select { |field| field.scalar_type == :files && values.key?(field.name.to_s) }.filter_map do |field|
+          change = values.fetch(field.name.to_s) || { "add" => [], "remove" => [] }
+          attached = record.public_send(field.column)
+          stored = record.persisted? ? access.stored_attachments(record, field) : nil
+          removed = stored ? stored.where(id: change["remove"]).to_a : []
+          unless removed.size == change["remove"].size
+            reject!("VALIDATION_FAILED", errors: { field.name.to_s => [ Field.error_message(:unavailable_choice, Fields::Association::UNAVAILABLE) ] })
+          end
+          total = (stored ? stored.count : 0) - removed.size + change["add"].size
+          if total > field.options[:max_files]
+            reject!("VALIDATION_FAILED", errors: { field.name.to_s => [ Field.error_message(:too_many_files, "can hold at most %{count} files", count: field.options[:max_files]) ] })
+          end
+          # The attachment rows go with this transaction; their blobs are
+          # purged only after it commits, so a rollback loses no file.
+          blobs = removed.map(&:blob)
+          removed.each(&:delete)
+          ActiveRecord.after_all_transactions_commit { blobs.each { |blob| blob.purge_later unless blob.attachments.exists? } } if blobs.any?
+          attached.attach(*change["add"]) if change["add"].any?
+          field.name.to_s if removed.any? || change["add"].any?
+        end
       end
 
       def field_names_by_column(resource) = resource.fields.to_h { |field| [ field.column, field.name.to_s ] }

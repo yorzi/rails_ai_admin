@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- `files` fields edit `has_many_attached` attachments: remove ticked files and add
+  new uploads without replacing the list, with per-file `accept`/`max_size` and a
+  `max_files` bound (default 20). Removed blobs are purged after commit; the
+  record is touched and audited; show pages render a gallery whose downloads
+  name their attachment and are checked like single files.
 - `bin/demo --showcase` adds articles, tags and summaries to the demo host with
   every everyday field type, uploads, rich text, history, CSV export and bulk
   delete. `json` and `rich_text` fields stay off list pages unless declared

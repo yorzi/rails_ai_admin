@@ -10,18 +10,21 @@ module RailsAiAdmin
   # Declares one scalar input/output contract. All presentation and query flags
   # only narrow the permissions returned by the host policy.
   class Field
-    TYPES = %i[id text textarea integer decimal boolean date datetime enum select belongs_to time email url password json file rich_text references].freeze
+    TYPES = %i[id text textarea integer decimal boolean date datetime enum select belongs_to time email url password json file files rich_text references].freeze
     # Text-like scalars share text coercion, search and equality filters.
     TEXT_TYPES = %i[text textarea id email url].freeze
     # Never listed, searched, sorted or filtered: a password is write-only and
     # JSON has no stable text or ordering.
-    UNQUERYABLE_TYPES = %i[password json file rich_text references].freeze
+    UNQUERYABLE_TYPES = %i[password json file files rich_text references].freeze
     # Fields whose value names records of another resource.
     REFERENCE_TYPES = %i[belongs_to references].freeze
     # A references field holds at most this many keys.
     MAX_REFERENCES = 100
     # Registered types refine plain scalars only.
-    PLUGIN_EXCLUDED = %i[belongs_to password json file rich_text references].freeze
+    PLUGIN_EXCLUDED = %i[belongs_to password json file files rich_text references].freeze
+    # Upload fields and their default bound on attached files.
+    FILE_TYPES = %i[file files].freeze
+    MAX_FILES = 20
     # Rich text is stored HTML; its bound is larger than other text.
     MAX_RICH_TEXT = 1_048_576
     # Default upload bound for a file field: 10 MB.
@@ -30,7 +33,7 @@ module RailsAiAdmin
     TIME_OF_DAY = /\A([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d)(?:\.\d{1,6})?)?\z/
     # A practical address check (Rails' own URI::MailTo pattern), not delivery proof.
     EMAIL = URI::MailTo::EMAIL_REGEXP
-    OPTIONS = %i[readonly required nullable values max_length searchable sortable filterable create edit label choices index show hidden help_text tab panel resource foreign_key precision scale accept max_size].freeze
+    OPTIONS = %i[readonly required nullable values max_length searchable sortable filterable create edit label choices index show hidden help_text tab panel resource foreign_key precision scale accept max_size max_files].freeze
     # A belongs_to value is the target's opaque primary-key text, never a record.
     REFERENCE = /\A[A-Za-z0-9][A-Za-z0-9_-]{0,99}\z/
     NAME = /\A[a-z][a-z0-9_]*\z/
@@ -80,6 +83,8 @@ module RailsAiAdmin
       defaults.merge!(index: false) if @scalar_type == :rich_text
       defaults.merge!(index: false, show: false) if @scalar_type == :password
       defaults.merge!(max_size: MAX_FILE_SIZE) if @scalar_type == :file
+      # Attachments cost a query per row, so lists leave files out.
+      defaults.merge!(max_size: MAX_FILE_SIZE, max_files: MAX_FILES, index: false) if @scalar_type == :files
       defaults.merge!(max_length: MAX_RICH_TEXT) if @scalar_type == :rich_text
       @options = immutable_copy(defaults.merge(options))
       validate_options!
@@ -152,6 +157,7 @@ module RailsAiAdmin
       when :password then "—"
       when :rich_text then plain_text(value.to_s)
       when :file then value.respond_to?(:filename) ? "#{value.filename} (#{ActiveSupport::NumberHelper.number_to_human_size(value.byte_size)})" : value.to_s
+      when :files then I18n.t(:files, scope: %i[rails_ai_admin fields], count: Array(value).size, default: "#{Array(value).size} files")
       else value.to_s
       end
     end
@@ -243,6 +249,7 @@ module RailsAiAdmin
         raise ArgumentError, message(:not_time, "must be a time of day (HH:MM)") unless parts
         "#{parts[1]}:#{parts[2]}:#{parts[3] || '00'}"
       when :file then coerce_file(value)
+      when :files then coerce_files(value)
       when :references
         raise ArgumentError, message(:not_list, "must be a list of records") unless value.is_a?(Array) && value.size <= MAX_REFERENCES + 1
         keys = value.map { |item| item.is_a?(Integer) && item.positive? ? item.to_s : item }.reject { |item| item == "" }
@@ -346,6 +353,7 @@ module RailsAiAdmin
       when :boolean then { "type" => "boolean" }
       when :enum, :select then { "type" => "string", "enum" => choice_values }
       when :belongs_to then { "type" => "string", "pattern" => "^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$" }
+      when :files then { "type" => "object", "additionalProperties" => false, "properties" => { "add" => { "type" => "array", "items" => { "type" => "string" } }, "remove" => { "type" => "array", "items" => { "type" => "string" } } } }
       when :references then { "type" => "array", "maxItems" => MAX_REFERENCES, "items" => { "type" => "string", "pattern" => "^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$" } }
       when :time then { "type" => "string", "pattern" => "^([01][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9](\\.[0-9]{1,6})?)?$" }
       when :url then { "type" => "string", "pattern" => "^[Hh][Tt][Tt][Pp][Ss]?://", "maxLength" => options[:max_length] }
@@ -383,6 +391,20 @@ module RailsAiAdmin
 
     # An upload arrives as the signed id of a new, unattached Active Storage
     # blob. Its identified content type and size must fit the declaration.
+    # A files change: new uploads to add and attachment ids to remove. A list
+    # is never replaced as a whole, so concurrent additions are kept.
+    def coerce_files(value)
+      value = value.to_h { |key, item| [ key.to_s, item ] } if value.is_a?(Hash)
+      unless value.is_a?(Hash) && (value.keys - %w[add remove]).empty? && value.values.all? { |item| item.is_a?(Array) }
+        raise ArgumentError, message(:invalid, "is invalid")
+      end
+      add = Array(value["add"]).map { |item| coerce_file(item) }
+      remove = Array(value["remove"]).map { |item| item.is_a?(Integer) && item.positive? ? item.to_s : item }
+      raise ArgumentError, message(:unavailable_choice, "is not an available choice") unless remove.all? { |item| item.is_a?(String) && item.match?(REFERENCE) }
+      raise ArgumentError, message(:too_many_files, "can hold at most %{count} files", count: options[:max_files]) if add.size > options[:max_files] || remove.size > MAX_REFERENCES
+      { "add" => add.uniq.freeze, "remove" => remove.uniq.sort.freeze }.freeze
+    end
+
     def coerce_file(value)
       if value.is_a?(Fields::RejectedUpload)
         raise ArgumentError, message(:file_too_large, "is larger than %{size}", size: ActiveSupport::NumberHelper.number_to_human_size(options[:max_size]))
@@ -518,10 +540,15 @@ module RailsAiAdmin
       if scalar_type == :time && (options[:searchable] || options[:filterable])
         raise ConfigurationError, "time fields can sort but cannot search or filter"
       end
-      if scalar_type != :file && (options.key?(:accept) || options.key?(:max_size))
+      if !FILE_TYPES.include?(scalar_type) && (options.key?(:accept) || options.key?(:max_size))
         raise ConfigurationError, "accept and max_size are file options"
       end
-      if scalar_type == :file
+      raise ConfigurationError, "max_files is a files option" if scalar_type != :files && options.key?(:max_files)
+      if scalar_type == :files
+        raise ConfigurationError, "files max_files must be 1..100" unless options[:max_files].is_a?(Integer) && options[:max_files].between?(1, MAX_REFERENCES)
+        raise ConfigurationError, "files fields cannot be required" if options[:required]
+      end
+      if FILE_TYPES.include?(scalar_type)
         accept, size = options[:accept], options[:max_size]
         unless accept.nil? || accept.is_a?(Array) && accept.size.between?(1, 50) && accept.all? { |type| type.is_a?(String) && type.match?(CONTENT_TYPE) }
           raise ConfigurationError, "file accept must list content types such as image/png or image/*"

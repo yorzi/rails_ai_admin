@@ -60,6 +60,7 @@ en:
         file_type: is not an accepted file type
         not_list: must be a list of records
         too_many: can name at most %{count} records
+        too_many_files: can hold at most %{count} files
       'yes': 'Yes'
       'no': 'No'
       not_set: Not set
@@ -68,6 +69,10 @@ en:
       choose_record: Choose a record
       unavailable_value: Unavailable value — select a current option
       keep_password: Leave blank to keep the current password.
+      files:
+        zero: No files
+        one: 1 file
+        other: "%{count} files"
     resources:
       index:
         omitted_rows: Some records on this page are not available to you.
@@ -127,6 +132,8 @@ en:
       current: "Current file: %{file}"
       limit: "Up to %{size}."
       remove: Remove the current file
+      remove_named: Remove %{file}
+      list_limit: "Choose one or more files, up to %{size} each; at most %{count} in all."
     history:
       link: History
       title: History of %{record}

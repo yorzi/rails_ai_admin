@@ -175,9 +175,12 @@ module RailsAiAdmin
     def upload_files(operation, input)
       @uploaded_blobs = []
       record = operation == :create ? @access.relation.new : @access.find!(params[:id], action: operation)
-      files = @access.fields(:write, record, operation: operation).select { |field| field.scalar_type == :file }.index_by { |field| field.name.to_s }
+      writable = @access.fields(:write, record, operation: operation)
+      upload_lists(writable.select { |field| field.scalar_type == :files }, input)
+      files = writable.select { |field| field.scalar_type == :file }.index_by { |field| field.name.to_s }
       input.each_key do |name|
         value = input[name]
+        next if writable.any? { |field| field.scalar_type == :files && field.name.to_s == name }
         next unless files.key?(name) || value.is_a?(ActionDispatch::Http::UploadedFile)
         field = files[name] || raise(AccessDenied, "INVALID_QUERY")
         if value == ""
@@ -187,17 +190,45 @@ module RailsAiAdmin
         elsif value.size > field.options[:max_size]
           input[name] = Fields::RejectedUpload.new("too_large", field.options[:max_size])
         else
-          raise ConfigurationError, "file fields need Active Storage" unless defined?(::ActiveStorage::Blob)
-          blob = ::ActiveStorage::Blob.create_and_upload!(io: value, filename: value.original_filename.presence || "upload",
-            content_type: value.content_type, identify: true)
-          @uploaded_blobs << blob
-          input[name] = blob.signed_id
+          input[name] = store_upload(value)
         end
       end
       removals = params[:remove_files]
       return if removals.nil?
       raise AccessDenied, "INVALID_QUERY" unless removals.is_a?(Array) && removals.size <= files.size && removals.all? { |name| name.is_a?(String) && files.key?(name) }
       removals.each { |name| input[name] = nil unless input.key?(name) }
+    end
+
+    def store_upload(value)
+      raise ConfigurationError, "file fields need Active Storage" unless defined?(::ActiveStorage::Blob)
+      blob = ::ActiveStorage::Blob.create_and_upload!(io: value, filename: value.original_filename.presence || "upload",
+        content_type: value.content_type, identify: true)
+      @uploaded_blobs << blob
+      blob.signed_id
+    end
+
+    # files fields: record[photos][] carries new uploads and
+    # remove_attachments[photos][] the attachment ids to remove.
+    def upload_lists(fields, input)
+      removals = params[:remove_attachments]
+      removals = removals.to_unsafe_h if removals.is_a?(ActionController::Parameters)
+      raise AccessDenied, "INVALID_QUERY" unless removals.nil? || removals.is_a?(Hash)
+      removals ||= {}
+      raise AccessDenied, "INVALID_QUERY" unless (removals.keys - fields.map { |field| field.name.to_s }).empty?
+      fields.each do |field|
+        name = field.name.to_s
+        uploads = input.key?(name) ? input[name] : []
+        remove = removals.fetch(name, [])
+        raise AccessDenied, "INVALID_QUERY" unless uploads.is_a?(Array) && remove.is_a?(Array) && remove.all? { |id| id.is_a?(String) }
+        uploads = uploads.reject { |value| value == "" }
+        raise AccessDenied, "INVALID_QUERY" unless uploads.all? { |value| value.is_a?(ActionDispatch::Http::UploadedFile) }
+        added = uploads.map { |value| value.size > field.options[:max_size] ? Fields::RejectedUpload.new("too_large", field.options[:max_size]) : store_upload(value) }
+        if added.empty? && remove.empty?
+          input.delete(name)
+        else
+          input[name] = { "add" => added, "remove" => remove }
+        end
+      end
     end
 
     # A refused write keeps no new upload; the person chooses the file again.
@@ -223,7 +254,7 @@ module RailsAiAdmin
       @form_values = readable_values.slice(*names)
       if input.is_a?(Hash)
         # A refused file is chosen again; the form keeps showing the stored one.
-        files = @form_fields.select { |field| field.scalar_type == :file }.map { |field| field.name.to_s }
+        files = @form_fields.select { |field| Field::FILE_TYPES.include?(field.scalar_type) }.map { |field| field.name.to_s }
         @form_values.merge!(input.stringify_keys.slice(*(names - files)).reject { |_, value| value.is_a?(Hash) || value.is_a?(Array) })
       end
       readonly_fields = @access.fields(:read, @record, view: view).select { |field| readable_values.key?(field.name.to_s) && !names.include?(field.name.to_s) }

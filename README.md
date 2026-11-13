@@ -12,7 +12,7 @@ resources, synchronous member operations, fixed Selection previews, bounded
 asynchronous collection operations, opt-in admin review Surfaces and a durable
 outbox for one declared post-commit effect, and an opt-in admin Chat whose
 proposals become review Surfaces. Native-provider evidence, streaming and AI
-budgets, `has_many_attached`, nested and polymorphic association writes, imports,
+budgets, nested and polymorphic association writes,
 metrics dashboards and the broader job-center workflows remain future work. The
 [development plan](docs/development-plan.md) describes the target product, not the
 supported feature set.

@@ -11,11 +11,17 @@ module RailsAiAdmin
       access = Authorization::Access.new(@context, resource)
       raise AccessDenied unless access.canonical_id?(params[:id])
       record = access.find!(params[:id])
-      field = access.fields(:read, record).find { |candidate| candidate.scalar_type == :file && candidate.name.to_s == params[:field] }
+      field = access.fields(:read, record).find { |candidate| Field::FILE_TYPES.include?(candidate.scalar_type) && candidate.name.to_s == params[:field] }
       raise AccessDenied unless field
       attached = access.attachment(record, field)
-      raise AccessDenied unless attached.attached?
-      blob = attached.blob
+      blob = if field.scalar_type == :files
+        id = params[:attachment]
+        raise AccessDenied unless id.is_a?(String) && id.match?(Field::REFERENCE)
+        access.stored_attachments(record, field).find_by(id: id)&.blob
+      else
+        attached.attached? ? attached.blob : nil
+      end
+      raise AccessDenied unless blob
       inline = params[:disposition] == "inline" && Fields::INLINE_IMAGE_TYPES.include?(blob.content_type)
       # A served file is a document of its own: no script, no framing.
       response.headers["Content-Security-Policy"] = "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox"

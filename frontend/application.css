@@ -95,6 +95,7 @@
 .raa .raa-multiline { white-space:pre-wrap; }
 .raa .raa-file-preview { display:block; max-width:min(100%,20rem); max-height:14rem; margin:.25rem 0; border:1px solid var(--raa-line); border-radius:.4rem; background:var(--raa-panel); }
 .raa .raa-file-current,.raa .raa-file-remove { margin:.25rem 0; }
+.raa .raa-file-list { list-style:none; padding:0; margin:.25rem 0; display:flex; flex-wrap:wrap; gap:.75rem 1.5rem; }
 .raa .raa-rich-text { overflow-wrap:anywhere; }
 .raa .raa-rich-text > :first-child { margin-top:0; }
 .raa .raa-rich-text-editor { display:block; min-height:10rem; padding:.6rem .8rem; background:var(--raa-panel); border:1px solid var(--raa-line); border-radius:.4rem; }

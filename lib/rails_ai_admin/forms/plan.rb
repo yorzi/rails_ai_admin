@@ -58,7 +58,10 @@ module RailsAiAdmin
         when Fields::FileValue then value
         # A references field carries its target keys.
         when Array
-          if type == :references
+          if type == :files
+            raise ConfigurationError, "Form files must be file values" unless value.all? { |item| item.is_a?(Fields::FileValue) }
+            value.dup.freeze
+          elsif type == :references
             raise ConfigurationError, "Form references must be key text" unless value.all? { |item| item.is_a?(String) }
             value.map { |item| String.new(item).freeze }.freeze
           else
