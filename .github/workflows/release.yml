@@ -1,0 +1,47 @@
+name: Publish gem
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Push the verified gem to RubyGems
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rubygems-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/v0.1.0
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
+        with:
+          ruby-version: .ruby-version
+          bundler-cache: true
+      - name: Verify the tested release and build its gem
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = 8ef37f24fa76e49bbe90cfcf1e18ded65c6685d1
+          export SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)"
+          bundle exec rake build release:check
+          printf '%s  %s\n' 04aaa7b9270b9ef6ddce5141356c026f457459afdb85447fc4dfa7da1e443c53 pkg/rails_ai_admin-0.1.0.gem | sha256sum --check
+      - if: inputs.publish
+        uses: rubygems/configure-rubygems-credentials@dc5a8d8553e6ee01fc26761a49e99e733d17954a # v2.1.0
+      - name: Push 0.1.0 to RubyGems
+        if: inputs.publish
+        run: gem push pkg/rails_ai_admin-0.1.0.gem
