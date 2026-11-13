@@ -35,8 +35,29 @@ run lambda { |env|
     elsif (match = text.match(/award (\d+) points to (\S+)/i)) then tool.("propose_operation", { resource: "customers", id: match[2], operation: "award_points", input: { amount: match[1].to_i } })
     else { role: "assistant", content: "This is the offline demo provider. Try \"search articles for upgrading\", \"set articles 1 title to Hello\", \"history of articles 1\" or \"award 5 points to 1\"." }
     end
+  finish = message[:tool_calls] ? "tool_calls" : "stop"
+  usage = { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 }
+  if request["stream"]
+    # Server-sent events, a few characters at a time, so the admin's
+    # streaming view has something to show.
+    base = { id: "chatcmpl-demo", object: "chat.completion.chunk", created: Time.now.to_i, model: request["model"] || "gpt-4.1-mini" }
+    deltas = if message[:tool_calls]
+      [ { role: "assistant", tool_calls: message[:tool_calls].each_with_index.map { |call, index| call.merge(index: index) } } ]
+    else
+      message[:content].scan(/.{1,8}/m).map { |piece| { content: piece } }
+    end
+    events = deltas.map { |delta| base.merge(choices: [ { index: 0, delta: delta, finish_reason: nil } ]) }
+    events << base.merge(choices: [ { index: 0, delta: {}, finish_reason: finish } ]) << base.merge(choices: [], usage: usage)
+    body = Enumerator.new do |out|
+      events.each do |event|
+        out << "data: #{JSON.generate(event)}\n\n"
+        sleep 0.05
+      end
+      out << "data: [DONE]\n\n"
+    end
+    next [ 200, { "content-type" => "text/event-stream" }, body ]
+  end
   body = { id: "chatcmpl-demo", object: "chat.completion", created: Time.now.to_i, model: request["model"] || "gpt-4.1-mini",
-    choices: [ { index: 0, message: message, finish_reason: message[:tool_calls] ? "tool_calls" : "stop" } ],
-    usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 } }
+    choices: [ { index: 0, message: message, finish_reason: finish } ], usage: usage }
   [ 200, { "content-type" => "application/json" }, [ JSON.generate(body) ] ]
 }

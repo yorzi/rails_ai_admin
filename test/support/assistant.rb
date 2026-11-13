@@ -7,6 +7,7 @@ require "rails_ai_admin/integrations/tool_views"
 require_relative "../../app/jobs/rails_ai_admin/assistant_turn_job"
 require_relative "../../db/assistant_migrate/20261103000001_create_rails_ai_admin_assistant"
 require_relative "../../db/assistant_migrate/20261112000001_upgrade_rails_ai_admin_assistant_to_ruby_llm_2_2"
+require_relative "../../db/assistant_migrate/20261114000001_add_streaming_and_access_tokens_to_rails_ai_admin_assistant"
 
 class AssistantPolicy < OperationContractPolicy
   class_attribute :exposed, default: true
@@ -58,6 +59,23 @@ module LLMFixture
     end
 
     def reply(text) = @script << { content: text }
+
+    # Server-sent events as OpenAI streams them: text in small deltas, a tool
+    # call in one delta, then the finish reason and usage.
+    def stream(step)
+      base = { id: "chatcmpl-#{SecureRandom.hex(4)}", object: "chat.completion.chunk", created: Time.now.to_i, model: "gpt-4.1-mini" }
+      deltas = if step[:tool]
+        name, arguments, id = step[:tool]
+        [ { role: "assistant", tool_calls: [ { index: 0, id: id, type: "function", function: { name: name, arguments: arguments.to_json } } ] } ]
+      else
+        step[:content].scan(/.{1,6}/m).map { |piece| { content: piece } }
+      end
+      events = deltas.map { |delta| base.merge(choices: [ { index: 0, delta: delta, finish_reason: nil } ]) }
+      events << base.merge(choices: [ { index: 0, delta: {}, finish_reason: step[:tool] ? "tool_calls" : "stop" } ])
+      events << base.merge(choices: [], usage: { prompt_tokens: 12, completion_tokens: 4, total_tokens: 16 })
+      body = events.map { |event| "data: #{event.to_json}\n\n" }.join + "data: [DONE]\n\n"
+      { status: 200, headers: { "Content-Type" => "text/event-stream" }, body: body }
+    end
     def tool(name, arguments, id: "call_#{SecureRandom.hex(8)}") = (@script << { tool: [ name, arguments, id ] }) && id
     def failure(status) = @script << { status: status }
     def pending = @script.size
@@ -67,6 +85,7 @@ module LLMFixture
       step = @script.shift
       raise "LLMFixture script is empty" unless step
       return { status: step[:status], headers: { "Content-Type" => "application/json" }, body: { error: { message: "fixture failure" } }.to_json } if step[:status]
+      return stream(step) if JSON.parse(request.body)["stream"]
       message = if step[:tool]
         name, arguments, id = step[:tool]
         { role: "assistant", content: nil, tool_calls: [ { id: id, type: "function", function: { name: name, arguments: arguments.to_json } } ] }
@@ -95,6 +114,7 @@ module AssistantHelpers
     ActiveRecord::Migration.verbose = false
     CreateRailsAiAdminAssistant.new.migrate(:up) unless ActiveRecord::Base.connection.table_exists?(:rails_ai_admin_assistant_turns)
     UpgradeRailsAiAdminAssistantToRubyLlm22.new.migrate(:up)
+    AddStreamingAndAccessTokensToRailsAiAdminAssistant.new.migrate(:up)
     return if ActiveRecord::Base.connection.table_exists?(:product_messages)
     ActiveRecord::Schema.define do
       create_table :product_chats do |t|

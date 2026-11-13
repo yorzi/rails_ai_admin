@@ -236,9 +236,11 @@ class PollController extends Controller {
     this.element.addEventListener("turbo:submit-end", this.changed);
     this.schedule();
   }
-  schedule(delay = 2000, force = false) {
+  schedule(delay = null, force = false) {
     clearTimeout(this.timer);
     if (!force && !this.pending()) return;
+    // A reply that is streaming refreshes faster than a queued one.
+    if (delay === null) delay = this.element.querySelector("[data-raa-pending=streaming]") ? 700 : 2000;
     this.timer = setTimeout(() => {
       if (this.element.getAttribute("src")) this.element.reload();
       else this.element.setAttribute("src", this.urlValue);

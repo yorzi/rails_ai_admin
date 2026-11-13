@@ -26,6 +26,9 @@ module RailsAiAdmin
       RETRYABLE = [ ::RubyLLM::Error, ::Faraday::Error, ::Timeout::Error, ::Errno::ETIMEDOUT ].freeze
 
       Claim = ::Data.define(:turn_id, :chat_id, :owner, :generation)
+      # Streamed text is saved at most this often, and at most this long.
+      DRAFT_INTERVAL = 0.3
+      DRAFT_LIMIT = 16_000
       Fenced = Class.new(StandardError)
       StepLimit = Class.new(StandardError)
 
@@ -170,7 +173,12 @@ module RailsAiAdmin
               break if chat.complete?
               raise ConfigurationError, "Assistant tools must not wait for approval" if chat.waiting?
               raise StepLimit if (steps += 1) > MAX_STEPS
-              chat.step
+              stream = DraftStream.new(self, claim)
+              begin
+                chat.step { |chunk| stream << chunk.content }
+              ensure
+                stream.clear
+              end
             end
           end
         end
@@ -191,6 +199,34 @@ module RailsAiAdmin
       rescue StandardError => error
         Rails.error.report(error, handled: true, severity: :error, context: { turn_id: claim.turn_id }, source: "rails_ai_admin")
         retry_later(claim, "ASSISTANT_FAILED")
+      end
+
+      # Saves the reply text as it streams, so pages can show it before the
+      # message is complete. Only the lease holder writes; the persisted
+      # message replaces the draft when the step ends.
+      class DraftStream
+        def initialize(coordinator, claim)
+          @coordinator, @claim = coordinator, claim
+          @text = +""
+          @saved_at = nil
+        end
+
+        def <<(piece)
+          return self unless piece.is_a?(String) && !piece.empty? && @text.length < DRAFT_LIMIT
+          @text << piece
+          now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+          return self if @saved_at && now - @saved_at < DRAFT_INTERVAL
+          @saved_at = now
+          @coordinator.save_draft(@claim, @text.first(DRAFT_LIMIT))
+          self
+        end
+
+        def clear = @coordinator.save_draft(@claim, nil)
+      end
+
+      def save_draft(claim, text)
+        Turn.where(id: claim.turn_id, status: "running", lease_owner: claim.owner, generation: claim.generation)
+          .update_all(draft: text, updated_at: Time.current)
       end
 
       # Extends a live lease or stops the worker. Called before each provider
@@ -234,7 +270,7 @@ module RailsAiAdmin
       end
 
       def finish(claim, status, code = nil)
-        fenced_update(claim, status: status, error_code: code, completed_at: Time.current, lease_owner: nil, lease_expires_at: nil)
+        fenced_update(claim, status: status, error_code: code, completed_at: Time.current, lease_owner: nil, lease_expires_at: nil, draft: nil)
       end
 
       # Schedules the retry itself so a host without a recurring scan still

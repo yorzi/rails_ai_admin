@@ -105,6 +105,7 @@
 .raa .raa-references .raa-reference { flex-basis:100%; }
 .raa .raa-ask { margin:1.5rem 0; padding:.75rem 1rem; background:var(--raa-panel); border:1px solid var(--raa-line); border-radius:.6rem; }
 .raa .raa-ask summary { cursor:pointer; font-weight:600; color:var(--raa-brand); }
+.raa .raa-chat-streaming div::after { content:"▍"; margin-left:.1em; color:var(--raa-muted); }
 .raa .raa-json { margin:0; padding:.6rem .8rem; max-height:24rem; overflow:auto; white-space:pre; font:.85rem/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; background:var(--raa-bg); border:1px solid var(--raa-line); border-radius:.4rem; }
 .raa textarea.raa-json-input { font:.85rem/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
 .raa .raa-header-meta { display:flex; align-items:center; gap:1rem; }

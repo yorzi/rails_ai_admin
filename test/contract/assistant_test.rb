@@ -400,7 +400,7 @@ class AssistantContractTest < ActiveSupport::TestCase
       require "generators/rails_ai_admin/assistant/assistant_generator"
       capture_io { RailsAiAdmin::Generators::AssistantGenerator.new([], {}, destination_root: directory).invoke_all }
       migrations = Dir[File.join(directory, "db/migrate/*.rb")].map { |path| File.basename(path).sub(/\A\d+_/, "") }
-      assert_equal %w[create_rails_ai_admin_assistant.rb upgrade_rails_ai_admin_assistant_to_ruby_llm_2_2.rb], migrations.sort
+      assert_equal %w[add_streaming_and_access_tokens_to_rails_ai_admin_assistant.rb create_rails_ai_admin_assistant.rb upgrade_rails_ai_admin_assistant_to_ruby_llm_2_2.rb], migrations.sort
       adapter = File.read(File.join(directory, "app/rails_ai_admin/admin_assistant.rb"))
       assert_match(/def llm_context\(context:\)\n    nil\n/, adapter)
       refute_match(/RubyLLM\.configure/, adapter)

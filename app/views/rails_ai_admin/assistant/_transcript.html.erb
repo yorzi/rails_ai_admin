@@ -4,11 +4,11 @@
     <% @entries.each do |entry| %>
       <% case entry.kind %>
       <% when :user %>
-        <li class="raa-chat-message raa-chat-user"><span class="raa-chat-role"><%= t("rails_ai_admin.assistant.roles.user") %></span><%= simple_format(entry.text, {}, wrapper_tag: "div") %></li>
+        <li class="raa-chat-message raa-chat-user"><span class="raa-chat-role"><%= t("rails_ai_admin.assistant.roles.user") %></span><%= simple_format(h(entry.text), {}, wrapper_tag: "div") %></li>
       <% when :continuation %>
-        <li class="raa-chat-message raa-chat-event"><span class="raa-chat-role"><%= t("rails_ai_admin.assistant.roles.review") %></span><%= simple_format(entry.text, {}, wrapper_tag: "div") %></li>
+        <li class="raa-chat-message raa-chat-event"><span class="raa-chat-role"><%= t("rails_ai_admin.assistant.roles.review") %></span><%= simple_format(h(entry.text), {}, wrapper_tag: "div") %></li>
       <% when :assistant %>
-        <li class="raa-chat-message raa-chat-assistant"><span class="raa-chat-role"><%= t("rails_ai_admin.assistant.roles.assistant") %></span><%= simple_format(entry.text, {}, wrapper_tag: "div") %></li>
+        <li class="raa-chat-message raa-chat-assistant"><span class="raa-chat-role"><%= t("rails_ai_admin.assistant.roles.assistant") %></span><%= simple_format(h(entry.text), {}, wrapper_tag: "div") %></li>
       <% when :activity %>
         <li class="raa-chat-activity"><%= entry.text %></li>
       <% when :records %>
@@ -19,9 +19,12 @@
         <li class="raa-chat-surface"><%= admin_assistant_surface(entry.surface_id, scope: @surface_scope) if @surface_scope %></li>
       <% end %>
     <% end %>
+    <% if @current && @streaming_text %>
+      <li class="raa-chat-message raa-chat-assistant raa-chat-streaming" aria-busy="true"><span class="raa-chat-role"><%= t("rails_ai_admin.assistant.roles.assistant") %></span><%= simple_format(h(@streaming_text), {}, wrapper_tag: "div") %></li>
+    <% end %>
   </ol>
   <% if @pending %>
-    <p class="raa-chat-status" role="status" data-raa-pending><%= @retry_status || (@running ? t("rails_ai_admin.assistant.working") : t("rails_ai_admin.assistant.waiting")) %>
+    <p class="raa-chat-status" role="status" data-raa-pending="<%= @streaming_text ? "streaming" : "waiting" %>"><%= @retry_status || (@running ? t("rails_ai_admin.assistant.working") : t("rails_ai_admin.assistant.waiting")) %>
       <%= link_to t("rails_ai_admin.assistant.refresh"), assistant_conversation_path(chat_ref: @chat.ref), data: { turbo_frame: "_top" } %></p>
     <%= button_to t("rails_ai_admin.assistant.stop"), cancel_assistant_conversation_path(chat_ref: @chat.ref), method: :post, class: "raa-button", form: { data: { turbo_frame: "_top" } } %>
   <% elsif @failure %>

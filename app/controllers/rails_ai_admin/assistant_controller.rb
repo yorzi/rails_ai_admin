@@ -148,7 +148,10 @@ module RailsAiAdmin
       @entries = @current ? Assistant::Transcript.new(@context, @chat).entries : []
       last = @chat.turns.reorder(sequence: :desc).first
       @pending = @current && @chat.turns.where(status: Assistant::Turn::ACTIVE).exists?
-      @running = @pending && @chat.turns.where(status: "running").exists?
+      running = @pending ? @chat.turns.where(status: "running").reorder(:sequence).first : nil
+      @running = !running.nil?
+      # The reply being written, shown only under the chat's current authority.
+      @streaming_text = running&.draft.presence
       retrying = @pending && @chat.turns.where(status: "queued").where.not(error_code: nil).reorder(:sequence).first
       @retry_status = t("rails_ai_admin.assistant.retrying", attempt: retrying.attempts + 1, attempts: Assistant::Coordinator::MAX_ATTEMPTS) if retrying
       @failure = last if last&.status == "failed" || last&.status == "cancelled"
