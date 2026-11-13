@@ -64,6 +64,19 @@ class AssistantStreamingTest < ActionDispatch::IntegrationTest
     end
   end
 
+  def test_streaming_can_be_turned_off
+    with_assistant do
+      RailsAiAdmin.configuration.stub(:assistant_streaming, false) do
+        chat = new_chat
+        admit(chat, "Hi")
+        LLMFixture.reply("Plain answer.")
+        drain(chat)
+        refute LLMFixture.requests.first["stream"]
+        assert_equal "Plain answer.", chat.messages.where(role: "assistant").last.content
+      end
+    end
+  end
+
   def test_a_running_turn_shows_its_draft_and_polls_faster_and_a_fenced_worker_writes_nothing
     with_assistant do
       chat = new_chat

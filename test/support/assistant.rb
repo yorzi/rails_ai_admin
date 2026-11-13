@@ -138,6 +138,8 @@ module AssistantHelpers
   end
 
   def reset_assistant
+    require "rails_ai_admin/mcp"
+    RailsAiAdmin::Mcp::AccessToken.delete_all
     RailsAiAdmin::Assistant::Turn.delete_all
     RubyLLM::ActiveRecord::Usage.delete_all
     RubyLLM::ActiveRecord::ToolCall.delete_all
@@ -166,6 +168,7 @@ module AssistantHelpers
     config.assistant_model = "gpt-4.1-mini"
     config.assistant_provider = "openai"
     config.assistant_protocol = "chat_completions"
+    config.mcp = true
     config
   end
 

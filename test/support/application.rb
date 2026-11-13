@@ -19,6 +19,8 @@ RailsAiAdmin.configuration.assistant_adapter = "TestAssistant"
 RailsAiAdmin.configuration.assistant_model = "gpt-4.1-mini"
 RailsAiAdmin.configuration.assistant_provider = "openai"
 RailsAiAdmin.configuration.assistant_protocol = "chat_completions"
+# Draws the MCP routes; tests stub a full configuration per case.
+RailsAiAdmin.configuration.mcp = true
 require_relative "../dummy/config/application"
 Rails.application.initialize!
 ActiveRecord::Migration.verbose = false

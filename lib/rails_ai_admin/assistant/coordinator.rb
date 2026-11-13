@@ -175,7 +175,11 @@ module RailsAiAdmin
               raise StepLimit if (steps += 1) > MAX_STEPS
               stream = DraftStream.new(self, claim)
               begin
-                chat.step { |chunk| stream << chunk.content }
+                if RailsAiAdmin.configuration.assistant_streaming
+                  chat.step { |chunk| stream << chunk.content }
+                else
+                  chat.step
+                end
               ensure
                 stream.clear
               end

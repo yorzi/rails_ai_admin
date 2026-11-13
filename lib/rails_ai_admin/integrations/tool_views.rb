@@ -89,11 +89,11 @@ module RailsAiAdmin
           else
             # A native create, update or delete is reviewed here only when the
             # assistant proposed it and the resource allows that change.
-            raise AccessDenied unless chat && resource.assistant_change?(definition.key)
+            raise AccessDenied unless (chat || assistant_call) && resource.assistant_change?(definition.key)
           end
           raise AccessDenied if chat && assistant_call
           origin = chat || assistant_call ? "assistant" : "ui"
-          raise AccessDenied if assistant_call && !resource.assistant_operation?(definition.key)
+          raise AccessDenied if assistant_call && definition.custom? && !resource.assistant_operation?(definition.key)
           raise AccessDenied unless intent_ref.is_a?(String) && intent_ref.match?(/\A[0-9a-f-]{36}\z/)
           raise AccessDenied if chat && !(call_id.is_a?(String) && chat.current_for?(context) && chat.actor_ref == context.actor_ref && chat.tenant_ref == context.tenant_ref)
           run = OperationRun.find_by(id: intent_ref, actor_ref: context.actor_ref, tenant_ref: context.tenant_ref)

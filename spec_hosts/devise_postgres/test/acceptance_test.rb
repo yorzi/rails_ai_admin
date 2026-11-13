@@ -299,6 +299,15 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
     stub_request(:post, "https://api.openai.com/v1/chat/completions").to_return do |request|
       requests << JSON.parse(request.body)
       step = script.shift or raise "admin LLM script is empty"
+      if requests.last["stream"]
+        # Admin Chat streams: answer with server-sent events.
+        base = { id: "chatcmpl-host-b", object: "chat.completion.chunk", created: Time.now.to_i, model: "gpt-4.1-mini" }
+        delta = step[:tool] ? { role: "assistant", tool_calls: [ { index: 0, id: "call_#{SecureRandom.hex(6)}", type: "function", function: { name: step[:tool], arguments: step[:arguments].to_json } } ] } : { role: "assistant", content: step[:reply] }
+        events = [ base.merge(choices: [ { index: 0, delta: delta, finish_reason: nil } ]),
+          base.merge(choices: [ { index: 0, delta: {}, finish_reason: step[:tool] ? "tool_calls" : "stop" } ]),
+          base.merge(choices: [], usage: { prompt_tokens: 20, completion_tokens: 5, total_tokens: 25 }) ]
+        next { status: 200, headers: { "Content-Type" => "text/event-stream" }, body: events.map { |event| "data: #{event.to_json}\n\n" }.join + "data: [DONE]\n\n" }
+      end
       message = if step[:tool]
         { role: "assistant", content: nil, tool_calls: [ { id: "call_#{SecureRandom.hex(6)}", type: "function", function: { name: step[:tool], arguments: step[:arguments].to_json } } ] }
       else

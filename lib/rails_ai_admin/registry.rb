@@ -3,7 +3,7 @@
 module RailsAiAdmin
   # Maps stable slugs to explicit reloadable resources, never arbitrary constants.
   class Registry
-    RESERVED = %w[assistant audit dashboards exports imports jobs selections settings doctor assets search].freeze
+    RESERVED = %w[assistant audit dashboards exports imports jobs selections settings doctor assets search mcp].freeze
 
     def initialize(names)
       @entries = {}

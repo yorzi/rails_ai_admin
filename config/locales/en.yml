@@ -173,6 +173,31 @@ en:
       record: Record
       empty: No events match.
       only_actor: "Showing only changes by %{actor}."
+    mcp:
+      nav: MCP access
+      title: MCP access
+      intro: Connect an AI agent such as Claude Code or Cursor to this admin with a personal access token. The agent reads only what you may read on resources open to the assistant, and every change it proposes waits for you to confirm it here.
+      endpoint: "Server URL:"
+      name: Name
+      name_placeholder: For example, “Claude Code on my laptop”
+      lifetime: Expires after
+      days:
+        one: 1 day
+        other: "%{count} days"
+      create: Create token
+      created: Token “%{name}” created
+      copy_now: Copy it now. It is shown only once and cannot be recovered.
+      example: "For example, with Claude Code:"
+      caption: Your tokens
+      expires: Expires
+      last_used: Last used
+      status: Status
+      active: Active
+      revoke: Revoke
+      revoked: Token revoked.
+      revoked_mark: Revoked
+      expired: Expired
+      invalid: Give the token a name, choose an expiry, and keep at most 10 active tokens.
     history:
       link: History
       title: History of %{record}

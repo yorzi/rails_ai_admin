@@ -6,7 +6,10 @@ module RailsAiAdmin
   module Assistant
     # Tool state for one claimed turn: the freshly resolved Context, the chat
     # and a fence that stops a worker whose lease was reassigned.
-    Session = ::Data.define(:context, :chat, :fence) do
+    # conversation is the server-owned reference of a session without a chat
+    # (an MCP client); its proposals become reviews opened by URL.
+    Session = ::Data.define(:context, :chat, :fence, :conversation) do
+      def initialize(context:, chat:, fence:, conversation: nil) = super
       # Registered resources this actor may currently expose to the model.
       def resources
         RailsAiAdmin.registry.resources.select { |resource| exposed?(resource) }
@@ -65,6 +68,25 @@ module RailsAiAdmin
       private
 
       def failure(code, **extra) = { "error" => code, "message" => MESSAGES.fetch(code, MESSAGES["UNAVAILABLE"]), **extra }
+
+      # A chat shows the review in the conversation; a session without one
+      # (MCP) records it under its conversation reference for the person to
+      # open in the admin.
+      def present_review(tool_views, resource, definition, record, proposal, tool_call)
+        common = { context: @session.context, resource: resource, definition: definition, record: record,
+          intent_ref: proposal.intent.id, input: tool_views.wire_input(proposal.values) }
+        if @session.chat
+          tool_views.present(**common, chat: @session.chat, call_id: tool_call.id)
+        else
+          tool_views.present(**common, assistant_call: { conversation: @session.conversation, call_id: tool_call.id })
+        end
+      end
+
+      def acknowledgment(surface)
+        message = @session.chat ? "A review is shown to the user. Nothing has changed yet; a later message reports the confirmed result." :
+          "A review is waiting in the admin. Nothing has changed until the user opens review_url and confirms it."
+        { "status" => "awaiting_human_confirmation", "surface" => surface.id, "message" => message }
+      end
 
       def bounded(result)
         raise ConfigurationError, "Tool result must be a Hash" unless result.is_a?(Hash)
@@ -362,7 +384,7 @@ module RailsAiAdmin
         definition = RailsAiAdmin.operation_registry.fetch(resource, operation)
         raise AccessDenied unless definition.custom? && definition.scope == :member && resource.assistant_operation?(definition.key)
         tool_views = Assistant.tool_views
-        replay = tool_views.assistant_surface(@session.context, @session.chat, tool_call.id)
+        replay = @session.chat && tool_views.assistant_surface(@session.context, @session.chat, tool_call.id)
         return acknowledgment(replay) if replay
         record = @session.access(resource).find!(id, action: definition.key)
         proposal = Operations::Runner.new.preflight(context: @session.context, resource: resource, operation: definition.key,
@@ -371,14 +393,7 @@ module RailsAiAdmin
           return failure(proposal.code == "VALIDATION_FAILED" ? "VALIDATION_FAILED" : proposal.code == "CONFLICT" ? "CONFLICT" : "UNAVAILABLE",
             "fields" => proposal.errors.keys.map(&:to_s))
         end
-        surface = tool_views.present(context: @session.context, resource: resource, definition: definition, record: record,
-          intent_ref: proposal.intent.id, input: tool_views.wire_input(proposal.values), chat: @session.chat, call_id: tool_call.id)
-        acknowledgment(surface)
-      end
-
-      def acknowledgment(surface)
-        { "status" => "awaiting_human_confirmation", "surface" => surface.id,
-          "message" => "A review is shown to the user. Nothing has changed yet; a later message reports the confirmed result." }
+        acknowledgment(present_review(tool_views, resource, definition, record, proposal, tool_call))
       end
     end
 
@@ -412,7 +427,7 @@ module RailsAiAdmin
         resource = @session.resource(resource)
         raise AccessDenied unless resource.assistant_change?(action)
         tool_views = Assistant.tool_views
-        replay = tool_views.assistant_surface(@session.context, @session.chat, tool_call.id)
+        replay = @session.chat && tool_views.assistant_surface(@session.context, @session.chat, tool_call.id)
         return acknowledgment(replay) if replay
         access = @session.access(resource)
         record = action == "create" ? access.relation.new : access.find!(id, action: action.to_sym)
@@ -426,14 +441,7 @@ module RailsAiAdmin
           return failure(proposal.code == "VALIDATION_FAILED" ? "VALIDATION_FAILED" : proposal.code == "CONFLICT" ? "CONFLICT" : "UNAVAILABLE",
             "fields" => proposal.errors.to_h.transform_values { |messages| Array(messages).first(3) })
         end
-        surface = tool_views.present(context: @session.context, resource: resource, definition: definition, record: record,
-          intent_ref: proposal.intent.id, input: tool_views.wire_input(proposal.values), chat: @session.chat, call_id: tool_call.id)
-        acknowledgment(surface)
-      end
-
-      def acknowledgment(surface)
-        { "status" => "awaiting_human_confirmation", "surface" => surface.id,
-          "message" => "A review is shown to the user. Nothing has changed yet; a later message reports the confirmed result." }
+        acknowledgment(present_review(tool_views, resource, definition, record, proposal, tool_call))
       end
     end
 

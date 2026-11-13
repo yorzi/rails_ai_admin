@@ -59,6 +59,12 @@ class SecurityRegressionsTest < ActionDispatch::IntegrationTest
         path = sample_path(route)
         verb = route.verb[/POST|PATCH|PUT|DELETE/].downcase
         public_send(verb, path, params: { intent_ref: "x", record: { name: "Attack" }, target_ids: [ @customer.id ] })
+        if path.end_with?("/mcp")
+          # The MCP endpoint reads no cookie or session; without a bearer token
+          # it refuses even this signed-in browser session.
+          assert_includes [ 401, 405 ], response.status, "#{route.verb} #{path} must not accept the browser session"
+          next
+        end
         assert_response :unprocessable_content, "#{route.verb} #{path} must reject a missing token"
         refute_includes response.body, "Alice", "#{path} leaked a record in its CSRF failure"
       end

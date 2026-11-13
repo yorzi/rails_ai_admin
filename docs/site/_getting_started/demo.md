@@ -47,6 +47,8 @@ Options:
   with `set articles 1 title to Hello`: a review shows the title before → after,
   and only **Confirm and execute** saves it. `history of articles 1`,
   `create articles with title Draft` and `delete articles 2` work the same way.
+  Replies stream in a few characters at a time. **MCP access** in the menu
+  issues a token for connecting Claude Code or another MCP client to the demo.
 * `--port 4000` changes the port; `--setup-only` prepares `tmp/demo` without
   serving it.
 

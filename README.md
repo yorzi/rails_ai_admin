@@ -203,7 +203,10 @@ record history, and answers questions asked from a record or list page. It
 cannot change data: a suggested create, update, delete (for resources that
 declare `assistant_changes`) or business operation opens a review Surface with
 before → after values, and only the person's confirmation writes it, once, as
-that person, with a version check and an audit event. Creates are reviewed too. Turns run in jobs through a leased inbox that
+that person, with a version check and an audit event. Creates are reviewed too.
+Replies stream as they are written. With `config.mcp = true`, outside agents
+(Claude Code, Cursor) use the same tools through an MCP endpoint under personal
+access tokens, and their proposals wait for confirmation in the admin. Turns run in jobs through a leased inbox that
 recovers after crashes without repeating messages. Provider settings come from
 your own adapter, never from global RubyLLM configuration. See the
 [Admin Assistant guide](docs/site/_advanced/admin-assistant.md).

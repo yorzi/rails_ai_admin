@@ -83,6 +83,7 @@ if options[:assistant]
   edit("config/initializers/rails_ai_admin.rb", "  config.resources =", <<~RUBY.gsub(/^/, "  ") + "  config.resources =")
     config.surfaces = true
     config.assistant = true
+    config.mcp = true
     config.assistant_adapter = "AdminAssistant"
     config.assistant_model = "gpt-4.1-mini"
     config.assistant_provider = "openai"

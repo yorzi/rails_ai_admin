@@ -225,6 +225,23 @@ record's scope and show grant again; a list adds its search text and list tab.
 It is visible in the transcript, it is data for the model, and it grants nothing:
 the model still reads the record with its tools.
 
+## Streaming Replies
+
+Replies stream: the worker asks the provider to stream and saves the text written
+so far on the turn about three times a second, and the conversation refreshes
+faster while a reply is being written. The streamed text belongs to the worker
+that holds the turn's lease, is cleared when the finished message is saved, and
+is shown only while the chat is current for the person. Set
+`config.assistant_streaming = false` for a provider endpoint that cannot
+stream. Like every message, it
+renders as plain text: markup from a model never becomes a link or an image.
+
+## Connect Outside Agents
+
+[MCP Server]({% link _advanced/mcp-server.md %}) offers the same tools to agents
+such as Claude Code or Cursor under personal access tokens; their proposals wait
+for confirmation in the admin.
+
 ## Recover From Failures
 
 Sending a message saves it as a queued turn and returns at once; no provider
@@ -279,17 +296,17 @@ match mode, like the index search box: a live model that searched for
 `describe_resource` now tells the model each field's mode. Some models also answer in Markdown,
 which the transcript shows as literal characters.
 
-Streaming replies, cost budgets beyond the message limit, selection context,
-proposals that change several records at once, undo, aggregates other than
-counting, an MCP server for outside agents, host-overridable instructions and
-chat retention are not available yet.
+Cost budgets beyond the message limit, selection context, proposals that change
+several records at once, undo, aggregates other than counting, host-overridable
+instructions and chat retention are not available yet. Streaming is saved and
+polled, not pushed over WebSockets.
 
 ## How It Compares
 
 As of November 2026, ActiveAdmin, Administrate, RailsAdmin and madmin ship no AI
 assistant; teams add one with a general library such as RubyLLM. Avo 4 sells an
-AI add-on with a larger toolset (bulk updates, imports, undo, streaming, an MCP
-server). What this engine does differently:
+AI add-on with a larger toolset (bulk updates, imports and undo, besides
+streaming and an MCP server, which this engine has too). What this engine does differently:
 
 | | Rails AI Admin | Typical approach |
 |---|---|---|
@@ -301,9 +318,10 @@ server). What this engine does differently:
 | Secrets | Write-only passwords and unreadable fields never reach tool results; files are metadata only | Depends on each tool |
 | Provider credentials | Built per admin Context; your global RubyLLM settings are never read or changed | Global configuration |
 | Database | SQLite and PostgreSQL | Often PostgreSQL only |
+| Outside agents | An MCP server under revocable personal tokens, with the same grants and reviewed writes | Separate integration or none |
 | Evidence | A 23-question evaluation set replayed offline in the test suite, with prompt-injection and cross-tenant cases | Rarely published |
 
-If you need streaming, bulk AI edits or an MCP server today, an add-on such as
-Avo's covers more ground; if you need every AI-suggested change to be a reviewed,
+If you need bulk AI edits, AI imports or undo today, an add-on such as Avo's
+covers more ground; if you need every AI-suggested change to be a reviewed,
 audited, version-checked write under your existing policies, this engine is built
 for that.

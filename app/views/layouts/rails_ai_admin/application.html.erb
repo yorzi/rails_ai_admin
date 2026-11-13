@@ -33,6 +33,7 @@
       <div class="raa-nav-primary">
         <%= link_to t("rails_ai_admin.layout.overview"), root_path, aria: { current: (controller_path == "rails_ai_admin/dashboard" ? "page" : nil) } %>
         <% if assistant_available? %><%= link_to t("rails_ai_admin.layout.assistant"), assistant_path, aria: { current: (controller_path == "rails_ai_admin/assistant" ? "location" : nil) } %><% end %>
+        <% if RailsAiAdmin.configuration.mcp && assistant_available? %><%= link_to t("rails_ai_admin.mcp.nav"), mcp_tokens_path, aria: { current: (controller_path == "rails_ai_admin/mcp_tokens" ? "location" : nil) } %><% end %>
         <% if audit_log_available? %><%= link_to t("rails_ai_admin.layout.audit_log"), audit_log_path, aria: { current: (controller_path == "rails_ai_admin/audit" ? "location" : nil) } %><% end %>
         <% if collection_jobs_available? %><%= link_to t("rails_ai_admin.layout.collection_jobs"), collection_jobs_path, aria: { current: (controller_path == "rails_ai_admin/collection_jobs" ? "location" : nil) } %><% end %>
       </div>

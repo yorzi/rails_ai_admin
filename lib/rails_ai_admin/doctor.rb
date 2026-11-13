@@ -38,6 +38,16 @@ module RailsAiAdmin
       Check.new("surfaces", :error, error.message)
     end
 
+    # Reports whether the opt-in MCP endpoint can authenticate tokens.
+    def mcp_check
+      return Check.new("mcp", :closed, "The MCP endpoint is off.") unless @configuration.respond_to?(:mcp) && @configuration.mcp
+      require "rails_ai_admin/mcp"
+      return Check.new("mcp", :error, "Run rails_ai_admin:assistant and db:migrate; the access token table is missing.") unless Mcp::AccessToken.table_exists?
+      active = Mcp::AccessToken.active.count
+      Check.new("mcp", :review, "MCP clients use personal access tokens (#{active} active). Each request resolves the owner through resolve_job " \
+        "and applies the assistant? grant and the owner's current grants; proposals wait for confirmation in the admin. Serve it over HTTPS only.")
+    end
+
     # Reports whether opt-in admin Chat can run. It never calls the adapter or
     # a provider, so it cannot prove credentials, model access or grants.
     def assistant_check
@@ -71,6 +81,7 @@ module RailsAiAdmin
         autoload_check,
         rails_check,
         assistant_check,
+        mcp_check,
         Check.new("files", :unsupported, "Private attachment management is not implemented."),
         selection_check,
         Check.new("queue", @work_registry.definitions.empty? && collections.zero? ? :closed : :review,

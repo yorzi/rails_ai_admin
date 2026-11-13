@@ -20,6 +20,15 @@ RailsAiAdmin::Engine.routes.draw do
     post "assistant/conversations/:chat_ref/retry", to: "assistant#retry_turn", as: :retry_assistant_conversation
     post "assistant/conversations/:chat_ref/archive", to: "assistant#archive", as: :archive_assistant_conversation
   end
+  # Drawn only for hosts that opt in; MCP builds on the assistant setup.
+  if RailsAiAdmin.configuration.mcp
+    post "mcp", to: "mcp#handle", as: :mcp
+    get "mcp", to: "mcp#unsupported"
+    delete "mcp", to: "mcp#unsupported"
+    get "mcp/tokens", to: "mcp_tokens#index", as: :mcp_tokens
+    post "mcp/tokens", to: "mcp_tokens#create"
+    post "mcp/tokens/:id/revoke", to: "mcp_tokens#revoke", as: :revoke_mcp_token
+  end
   get "search", to: "search#index", as: :global_search
   get "audit", to: "audit#index", as: :audit_log
   get "jobs", to: "collection_jobs#index", as: :collection_jobs

@@ -1,0 +1,33 @@
+<% admin_title t("rails_ai_admin.mcp.title") %>
+<h1><%= t("rails_ai_admin.mcp.title") %></h1>
+<p><%= t("rails_ai_admin.mcp.intro") %></p>
+<p><%= t("rails_ai_admin.mcp.endpoint") %> <code><%= @endpoint %></code></p>
+<% if @token %>
+  <section class="raa-association raa-new-token" aria-labelledby="raa-new-token">
+    <h2 id="raa-new-token"><%= t("rails_ai_admin.mcp.created", name: @record.name) %></h2>
+    <p><strong><%= t("rails_ai_admin.mcp.copy_now") %></strong></p>
+    <p><code class="raa-token"><%= @token %></code></p>
+    <p><%= t("rails_ai_admin.mcp.example") %></p>
+    <pre class="raa-json">claude mcp add --transport http rails-admin <%= @endpoint %> --header "Authorization: Bearer <%= @token %>"</pre>
+  </section>
+<% end %>
+<% if @problem %><p class="raa-notice raa-danger" role="alert"><%= @problem %></p><% end %>
+<%= form_with url: mcp_tokens_path, method: :post, local: true, class: "raa-filters" do |form| %>
+  <div class="raa-filter"><%= label_tag "raa-token-name", t("rails_ai_admin.mcp.name") %>
+    <%= text_field_tag :name, nil, id: "raa-token-name", maxlength: 80, required: true, placeholder: t("rails_ai_admin.mcp.name_placeholder") %></div>
+  <div class="raa-filter"><%= label_tag "raa-token-lifetime", t("rails_ai_admin.mcp.lifetime") %>
+    <%= select_tag :lifetime, options_for_select([ [ t("rails_ai_admin.mcp.days", count: 30), "30" ], [ t("rails_ai_admin.mcp.days", count: 90), "90" ] ], "30"), id: "raa-token-lifetime" %></div>
+  <div class="raa-actions"><%= form.submit t("rails_ai_admin.mcp.create"), name: nil %></div>
+<% end %>
+<% if @tokens.any? %>
+  <div class="raa-table-scroll"><table>
+    <caption><%= t("rails_ai_admin.mcp.caption") %></caption>
+    <thead><tr><th scope="col"><%= t("rails_ai_admin.mcp.name") %></th><th scope="col"><%= t("rails_ai_admin.mcp.expires") %></th><th scope="col"><%= t("rails_ai_admin.mcp.last_used") %></th><th scope="col"><%= t("rails_ai_admin.mcp.status") %></th></tr></thead>
+    <tbody><% @tokens.each do |token| %><tr>
+      <td><%= token.name %></td>
+      <td><%= admin_history_time(token.expires_at) %></td>
+      <td><%= token.last_used_at ? admin_history_time(token.last_used_at) : "—" %></td>
+      <td><% if token.active? %><%= t("rails_ai_admin.mcp.active") %> <%= button_to t("rails_ai_admin.mcp.revoke"), revoke_mcp_token_path(id: token.id), method: :post, class: "raa-danger" %><% else %><%= token.revoked_at ? t("rails_ai_admin.mcp.revoked_mark") : t("rails_ai_admin.mcp.expired") %><% end %></td>
+    </tr><% end %></tbody>
+  </table></div>
+<% end %>

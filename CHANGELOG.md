@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- MCP server: with `config.mcp = true` (on top of the assistant setup),
+  `POST <admin>/mcp` serves the admin Chat tools to agents such as Claude Code or
+  Cursor over MCP's Streamable HTTP transport. People issue, list and revoke
+  personal access tokens on an MCP access page (shown once, stored as SHA-256,
+  bound to owner, tenant and security version and re-resolved through
+  `resolve_job` on every request). Proposals return a `review_url` the person
+  confirms in the admin. New assistant migration
+  `add_streaming_and_access_tokens_to_rails_ai_admin_assistant`; `mcp` is a
+  reserved resource key.
+- Streaming: admin Chat replies stream into the conversation as they are
+  written (saved on the turn under its lease and polled), and chat text is now
+  escaped before formatting so model markup never renders as links or images.
 - Admin Chat: resources may declare `assistant_changes :create, :update,
   :destroy`, and a new `propose_change` tool turns a model's suggestion into a
   review showing before → after (creates included); only the person's

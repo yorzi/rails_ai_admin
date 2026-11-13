@@ -32,6 +32,9 @@ module RailsAiAdmin
       # Messages one actor may send the assistant in any 24 hours; nil removes
       # the limit. Each message can cost several provider calls.
       :assistant_daily_message_limit,
+      # Stream replies into the transcript (true by default); turn off for a
+      # provider endpoint that cannot stream.
+      :assistant_streaming,
       # :model shows the host model's validation messages for writable fields;
       # :generic shows "is invalid" for each, for hosts whose messages may
       # carry values an editor should not see (RAA-011).
@@ -46,7 +49,9 @@ module RailsAiAdmin
       :export_limit,
       # Most data rows one CSV import may contain (1..5,000). Each row is its
       # own synchronous create.
-      :import_limit
+      :import_limit,
+      # Opt-in MCP server for outside agents; requires the assistant setup.
+      :mcp
 
     def initialize
       @authentication_path = nil
@@ -68,8 +73,10 @@ module RailsAiAdmin
       @assistant_provider = nil
       @assistant_protocol = nil
       @assistant_daily_message_limit = 100
+      @assistant_streaming = true
       @export_limit = 10_000
       @import_limit = 500
+      @mcp = false
     end
 
     # Validates and freezes the boot configuration without reading domain tables.
@@ -107,6 +114,9 @@ module RailsAiAdmin
         raise ConfigurationError, problem
       end
       validate_assistant!
+      raise ConfigurationError, "mcp must be boolean" unless [ true, false ].include?(mcp)
+      raise ConfigurationError, "assistant_streaming must be boolean" unless [ true, false ].include?(assistant_streaming)
+      raise ConfigurationError, "mcp requires config.assistant (its tables, ruby_llm and resolve_job)" if mcp && !assistant
       unless authentication_path.nil? || authentication_path.is_a?(String) && authentication_path.valid_encoding? && authentication_path.ascii_only? && authentication_path.match?(INTERNAL_PATH)
         raise ConfigurationError, "authentication_path must be a fixed internal path without query or fragment"
       end
