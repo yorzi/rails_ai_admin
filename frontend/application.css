@@ -18,7 +18,7 @@
 .raa .raa-actions { justify-content:flex-start; }
 .raa button,.raa input[type="submit"],.raa .raa-button { display:inline-block; border:1px solid var(--raa-brand); border-radius:.4rem; padding:.55rem 1rem; background:var(--raa-brand); color:white; font:inherit; font-weight:600; cursor:pointer; text-decoration:none; min-height:44px; }
 .raa input[type="submit"]:disabled { opacity:.55; cursor:not-allowed; }
-.raa input.raa-secondary { background:var(--raa-panel); color:var(--raa-brand); }
+.raa input.raa-secondary,.raa button.raa-secondary,.raa a.raa-button.raa-secondary { background:var(--raa-panel); color:var(--raa-brand); }
 .raa .raa-export { display:inline; }
 .raa .raa-danger { color:var(--raa-danger); }
 .raa input.raa-danger { color:white; background:var(--raa-danger); border-color:var(--raa-danger); }

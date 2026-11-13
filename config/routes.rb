@@ -30,6 +30,9 @@ RailsAiAdmin::Engine.routes.draw do
   post ":resource/operations/:operation/execute", to: "collection_operations#execute", as: :collection_operation_execute
   post ":resource/selections", to: "selections#create", as: :capture_selection
   post ":resource/exports", to: "exports#create", as: :resource_export
+  get ":resource/imports/new", to: "imports#new", as: :new_resource_import
+  get ":resource/imports/template", to: "imports#template", as: :resource_import_template
+  post ":resource/imports", to: "imports#create", as: :resource_imports
   get "selections/:selection_ref", to: "selections#show", as: :selection
   get "selections/:selection_ref/destroy", to: "selections#confirm_destroy", as: :confirm_destroy_selection
   post "selections/:selection_ref/destroy", to: "selections#destroy", as: :destroy_selection

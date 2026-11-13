@@ -91,6 +91,7 @@ end
 
 require_relative "rails_ai_admin/queries/list"
 require_relative "rails_ai_admin/presentation/csv_export"
+require_relative "rails_ai_admin/presentation/csv_import"
 require_relative "rails_ai_admin/operations/result"
 require_relative "rails_ai_admin/outbox/writer"
 require_relative "rails_ai_admin/operations/execution_context"

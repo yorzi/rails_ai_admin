@@ -43,7 +43,10 @@ module RailsAiAdmin
       :queue_name,
       # Most rows one CSV export may contain (1..100,000). A larger list asks
       # the person to narrow it first.
-      :export_limit
+      :export_limit,
+      # Most data rows one CSV import may contain (1..5,000). Each row is its
+      # own synchronous create.
+      :import_limit
 
     def initialize
       @authentication_path = nil
@@ -66,6 +69,7 @@ module RailsAiAdmin
       @assistant_protocol = nil
       @assistant_daily_message_limit = 100
       @export_limit = 10_000
+      @import_limit = 500
     end
 
     # Validates and freezes the boot configuration without reading domain tables.
@@ -88,6 +92,7 @@ module RailsAiAdmin
       environment_label&.freeze
       raise ConfigurationError, "validation_messages must be :model or :generic" unless %i[model generic].include?(validation_messages)
       raise ConfigurationError, "export_limit must be an Integer from 1 to 100000" unless export_limit.is_a?(Integer) && export_limit.between?(1, 100_000)
+      raise ConfigurationError, "import_limit must be an Integer from 1 to 5000" unless import_limit.is_a?(Integer) && import_limit.between?(1, 5_000)
       unless (queue_name.is_a?(String) || queue_name.is_a?(Symbol)) && queue_name.to_s.match?(/\A[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}\z/)
         raise ConfigurationError, "queue_name must be a short queue name"
       end

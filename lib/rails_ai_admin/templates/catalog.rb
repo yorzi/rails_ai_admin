@@ -16,8 +16,9 @@ module RailsAiAdmin
         "resource_navigation" => [ "rails_ai_admin/shared/_navigation.html.erb", [], %i[groups] ],
         "dashboard" => [ "rails_ai_admin/dashboard/index.html.erb", %i[context counts], [] ],
         "audit_log" => [ "rails_ai_admin/audit/index.html.erb", %i[context log filters page actor_labels], [] ],
+        "resource_import" => [ "rails_ai_admin/imports/new.html.erb", %i[context resource import report problem], [] ],
         "search" => [ "rails_ai_admin/search/index.html.erb", %i[context query sections], [] ],
-        "resource_index" => [ "rails_ai_admin/resources/index.html.erb", %i[context resource page columns rows searchable selectable exportable sortable_fields list_scopes current_scope filter_fields omitted_rows], [] ],
+        "resource_index" => [ "rails_ai_admin/resources/index.html.erb", %i[context resource page columns rows searchable selectable exportable importable sortable_fields list_scopes current_scope filter_fields omitted_rows], [] ],
         "resource_show" => [ "rails_ai_admin/resources/show.html.erb", %i[context resource record values fields operations association_panels], [] ],
         "resource_history" => [ "rails_ai_admin/resources/history.html.erb", %i[context resource record history actor_labels], [] ],
         "resource_associations" => [ "rails_ai_admin/resources/_associations.html.erb", [], %i[panels] ],
@@ -53,7 +54,7 @@ module RailsAiAdmin
         elsif key == "dashboard"
           3 # counts
         elsif key == "resource_index"
-          7 # exportable (CSV export)
+          8 # exportable, importable (CSV)
         elsif key == "resource_show"
           3
         elsif %w[resource_new resource_edit resource_form].include?(key)

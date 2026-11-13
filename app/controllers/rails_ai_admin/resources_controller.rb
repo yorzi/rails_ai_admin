@@ -52,6 +52,11 @@ module RailsAiAdmin
       rescue AccessDenied
         false
       end
+      @importable = begin
+        @access.authorize_import!
+      rescue AccessDenied
+        false
+      end
       @exportable = begin
         @access.authorize_export!
       rescue AccessDenied

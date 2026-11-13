@@ -159,6 +159,13 @@ module RailsAiAdmin
         true
       end
 
+      def authorize_import!
+        authorize!(:create, relation.new)
+        allowed = @adapter.respond_to?(:import_records?) && @adapter.import_records?(context: context, resource: resource) == true
+        raise AccessDenied unless allowed
+        true
+      end
+
       def authorize_audit_log!
         allowed = @adapter.respond_to?(:view_audit_log?) && @adapter.view_audit_log?(context: context, resource: resource) == true
         raise AccessDenied unless allowed

@@ -95,6 +95,9 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
       get "/staff/customers/#{@customer.id}/history"
       assert_response :success
       assert_select "[data-raa-override=resource_history]"
+      get "/staff/customers/imports/new"
+      assert_response :success
+      assert_select "[data-raa-override=resource_import]"
       get "/staff/audit"
       assert_response :success
       assert_select "[data-raa-override=audit_log]"

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- CSV import: with `import_records?` and the create grant, an Import CSV page
+  checks a file without writing, then creates one record per valid row through
+  the native create operation (own policy check, validations and audit), and
+  lists the rows it could not create. Columns match writable create fields by
+  label or name; exported files import back. `config.import_limit` (default
+  500) bounds a file.
 - Audit log: `<admin>/audit` lists the tenant's audit events across records for
   resources granting `view_audit_log?(context:, resource:)`, filterable by
   resource, change, outcome and actor, with field names under current grants.

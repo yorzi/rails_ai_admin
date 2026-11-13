@@ -111,6 +111,7 @@ module EssentialFixtures
     def view_history?(context:, resource:, record:) = history
     def view_audit_log?(context:, resource:) = history && resource.key == :articles
     def export_records?(context:, resource:) = export
+    def import_records?(context:, resource:) = export
 
     def scope(context:, resource:, relation:)
       scoped = relation.where(account_id: context.tenant.id)

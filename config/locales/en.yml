@@ -125,6 +125,34 @@ en:
       saved: Changes saved.
       saved_with_warning: Changes saved, but a host callback failed. Review operation %{operation} before
         continuing.
+    imports:
+      button: Import CSV
+      title: Import %{label}
+      intro: Each row becomes a new record through the ordinary create form rules. Check the file first; nothing is saved until you import.
+      columns: "Columns: %{fields}."
+      template: Download a template
+      file: CSV file
+      file_help: UTF-8 CSV with a header row, at most %{limit} rows and 2 MB.
+      check: Check file
+      import: Import
+      choose_file: Choose a CSV file.
+      too_large: The file is larger than 2 MB.
+      too_many: The file has more than %{limit} rows. Split it into smaller files.
+      empty: The file needs a header row and at least one data row.
+      no_columns: No column matches a field you can fill. Use the template's header row.
+      not_utf8: The file is not UTF-8 text.
+      unclosed_quote: A quoted cell is never closed.
+      check_title: Check results
+      result_title: Import results
+      ready:
+        one: "%{count} of %{total} rows can be imported."
+        other: "%{count} of %{total} rows can be imported."
+      created:
+        one: "Created %{count} of %{total} records."
+        other: "Created %{count} of %{total} records."
+      matched: "Matched columns: %{fields}."
+      ignored: "Ignored columns: %{columns}."
+      row: Row
     exports:
       button: Export CSV
       too_many: This list has more than %{limit} records. Narrow it with search or filters, then export again.
