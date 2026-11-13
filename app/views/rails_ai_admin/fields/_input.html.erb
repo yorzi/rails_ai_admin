@@ -7,5 +7,11 @@
 <% when :decimal %><%= form.text_field field.name, value: value.is_a?(BigDecimal) ? field.format_decimal(value) : value, inputmode: "decimal", **input_options %>
 <% when :date %><%= form.date_field field.name, value: value, **input_options %>
 <% when :datetime %><%= form.datetime_local_field field.name, value: admin_datetime_input_value(value), step: 1, **input_options %>
+<% when :time %><%= form.time_field field.name, value: admin_time_input_value(field, value), step: 1, **input_options %>
+<% when :email %><%= form.email_field field.name, value: value, maxlength: field.options[:max_length], autocomplete: "off", spellcheck: false, **input_options %>
+<% when :url %><%= form.url_field field.name, value: value, maxlength: field.options[:max_length], autocomplete: "off", spellcheck: false, **input_options %>
+<%# A password is never prefilled or echoed back, even after a failed save. %>
+<% when :password %><%= form.password_field field.name, value: nil, maxlength: field.options[:max_length], autocomplete: "new-password", **input_options %>
+<% when :json %><%= form.text_area field.name, value: admin_json_input_value(value), rows: 8, spellcheck: false, class: "raa-json-input", **input_options %>
 <% else %><%= form.text_field field.name, value: value, maxlength: field.options[:max_length], **input_options %>
 <% end %>

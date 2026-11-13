@@ -46,11 +46,11 @@ class FieldTypesTest < Minitest::Test
     reset_database
   end
 
-  def registry(types = { email: "FieldTypesTest::EmailType" })
+  def registry(types = { contact_email: "FieldTypesTest::EmailType" })
     RailsAiAdmin::Fields::Registry.new(types).validate!
   end
 
-  def email(**options) = registry.build(:name, type: :email, **options)
+  def email(**options) = registry.build(:name, type: :contact_email, **options)
 
   def test_one_contract_normalizes_validates_and_strips_html_safety
     field = email(nullable: false, max_length: 50)
@@ -102,7 +102,7 @@ class FieldTypesTest < Minitest::Test
   end
 
   def test_registration_is_explicit_and_cannot_replace_or_duplicate_builtins
-    [ { text: "FieldTypesTest::EmailType" }, { email: EmailType }, { email: "String" }, { email: "MissingType" }, { email: "FieldTypesTest::EmailType", "email" => "FieldTypesTest::EmailType" } ].each do |types|
+    [ { text: "FieldTypesTest::EmailType" }, { contact_email: EmailType }, { contact_email: "String" }, { contact_email: "MissingType" }, { contact_email: "FieldTypesTest::EmailType", "contact_email" => "FieldTypesTest::EmailType" } ].each do |types|
       assert_raises(RailsAiAdmin::ConfigurationError) { registry(types) }
     end
     assert_raises(RailsAiAdmin::ConfigurationError) { registry.build(:name, type: :unregistered) }

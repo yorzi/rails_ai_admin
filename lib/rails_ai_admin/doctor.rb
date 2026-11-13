@@ -222,7 +222,9 @@ module RailsAiAdmin
       invalid = physical_fields.reject do |field|
         column = columns[field.column]
         column && (SchemaSuggestions::TYPES.key?(column.type) || column.type == :uuid) && !SchemaSuggestions.array?(column) ||
-          (field.scalar_type == :id && field.name == :id && model.primary_key.is_a?(String) && columns.key?(model.primary_key))
+          (field.scalar_type == :id && field.name == :id && model.primary_key.is_a?(String) && columns.key?(model.primary_key)) ||
+          # has_secure_password defines password= over a digest column.
+          (field.scalar_type == :password && model.method_defined?("#{field.column}="))
       end
       result = [ Check.new("schema:#{resource.key}", invalid.empty? ? :ok : :error,
         "#{invalid.size} declared fields lack supported scalar columns. Check field names/types; computed fields use declared dependency graphs. No records were sampled.") ]
@@ -236,6 +238,9 @@ module RailsAiAdmin
         when :boolean then column.type != :boolean
         when :integer then column.type != :integer || model.defined_enums.key?(field.name.to_s)
         when :decimal then column.type != :decimal
+        when :time then column.type != :time
+        when :json then !%i[json jsonb].include?(column.type)
+        when :email, :url, :text, :textarea then !%i[string text].include?(column.type)
         else false
         end
       end

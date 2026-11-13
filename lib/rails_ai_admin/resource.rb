@@ -150,6 +150,7 @@ module RailsAiAdmin
         end
         raise ConfigurationError, "A resource must declare fields and a title" if fields.empty? || !title || !@fields.key?(title)
         raise ConfigurationError, "A resource cannot declare lock_version as a field" if @fields.key?(:lock_version)
+        raise ConfigurationError, "A password field cannot be the title" if @fields[title].scalar_type == :password
         Fields::DependencyGraph.validate!(fields)
         index.validate!(fields)
         # Fail at registration rather than on every menu render; explicit labels

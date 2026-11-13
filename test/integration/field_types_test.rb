@@ -45,7 +45,7 @@ class NativeFieldTypesTest < ActionDispatch::IntegrationTest
   end
 
   def email
-    RailsAiAdmin::Fields::Registry.new(email: "NativeFieldTypesTest::EmailType").build(:name, type: :email, nullable: false)
+    RailsAiAdmin::Fields::Registry.new(contact_email: "NativeFieldTypesTest::EmailType").build(:name, type: :contact_email, nullable: false)
   end
 
   def test_custom_form_display_and_normalized_write_use_shared_operation

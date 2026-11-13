@@ -20,6 +20,13 @@ module RailsAiAdmin
           text = tag.time(text, datetime: value.iso8601)
         elsif field.scalar_type == :textarea && view != :index
           text = tag.span(text, class: "raa-multiline")
+        elsif field.scalar_type == :email
+          text = mail_to(value.to_s, text)
+        elsif field.scalar_type == :url && field.web_address?(value.to_s)
+          # Only an absolute http(s) address becomes a link (never javascript:).
+          text = link_to(text, value.to_s, rel: "noopener noreferrer nofollow", target: "_blank")
+        elsif field.scalar_type == :json
+          text = view == :index ? text.squish.truncate(80) : tag.pre(text, class: "raa-json")
         end
       end
       partial = field.display_partial(view) || "rails_ai_admin/fields/#{view == :index ? 'index' : 'show'}"
@@ -75,8 +82,23 @@ module RailsAiAdmin
     end
 
     # The same rule as blank-input coercion: required or not nullable (RAA-023).
+    # An edit form's empty password box keeps the current password.
     def admin_field_required?(field)
+      return field.options[:required] == true && @operation != :update if field.scalar_type == :password
       field.options[:required] == true || field.options[:nullable] == false
+    end
+
+    def admin_time_input_value(field, value)
+      return value if value.nil? || value.is_a?(String) && !value.match?(Field::TIME_OF_DAY)
+      field.format_time_of_day(value)
+    end
+
+    # Submitted text comes back as typed; a stored value is indented.
+    def admin_json_input_value(value)
+      return value if value.nil? || value.is_a?(String)
+      JSON.pretty_generate(value)
+    rescue JSON::GeneratorError
+      nil
     end
 
     # datetime-local value in the context zone. Seconds are kept when set so

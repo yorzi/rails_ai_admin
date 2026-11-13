@@ -111,7 +111,7 @@ module RailsAiAdmin
       end
 
       def read_attribute(record, field)
-        raise AccessDenied if field.hidden?
+        raise AccessDenied if field.hidden? || field.scalar_type == :password
         raise ConfigurationError, "Computed fields do not invoke model methods" if field.virtual?
         name = field.column
         primary_key = record.class.primary_key
@@ -185,6 +185,8 @@ module RailsAiAdmin
         names = names.map(&:to_sym)
         selected = resource.fields.select do |field|
           !field.hidden? && names.include?(field.name) &&
+            # A password is write-only: no read grant can reveal it.
+            (action == :write || field.scalar_type != :password) &&
             (action != :write || field.name.to_s != resource.model_class.primary_key) &&
             (action != :write || field.writable?(operation || :update)) &&
             (action != :search || !field.virtual? && field.options[:searchable]) &&

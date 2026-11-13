@@ -240,6 +240,8 @@ module RailsAiAdmin
             record.assign_attributes(column_attributes(resource, unchanged_precision(resource, record, values))) if run.operation == "update"
             names = field_names_by_column(resource)
             changed_fields = record.changes.keys.map { |column| names.fetch(column, column) } & values.keys
+            # A password writer changes a digest column the resource never names.
+            changed_fields |= resource.fields.select { |field| field.scalar_type == :password && !values[field.name.to_s].nil? }.map { |field| field.name.to_s }
             persisted = definition.handler_class.new.perform(nil, record, values)
             reject!("VALIDATION_FAILED", errors: { "base" => [ "could not be saved" ] }) unless persisted
           end

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- New field types: `time` (time of day), `email` (mailto link), `url` (only
+  http/https addresses become links), `json` (indented editing and display on
+  json/jsonb columns) and write-only `password` for `has_secure_password`. No
+  read grant reveals a password; an empty box keeps the current one; audit
+  names the field; input digests store a keyed hash of it. Schema suggestions
+  offer `email`, `url`, `time` and `json` from column types and names.
+  **Breaking:** a registered field type named `email`, `url`, `time`, `json` or
+  `password` must be renamed, because those keys are now built in.
 - Models no longer need a `lock_version` column. Without one, `updated_at`
   carries the record version (whole microseconds), compared after a row-locked
   load inside the write transaction; forms, intents, selections, collection

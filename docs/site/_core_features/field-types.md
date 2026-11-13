@@ -61,8 +61,10 @@ end
 
 Use class-name strings so reload resolves the current host class. Registration
 keys must be unique stable lowercase names; they cannot replace built-in types.
-The class inherits `Fields::Type`, declares a built-in `scalar` and has a public
-zero-argument constructor. No generator is supplied for extension classes.
+The class inherits `Fields::Type`, declares a built-in `scalar` (any built-in
+except `belongs_to`, `password` and `json`) and has a public zero-argument
+constructor. Keys such as `email`, `url`, `time`, `json` and `password` are now
+built in, so a type registered under one of those names must be renamed. No generator is supplied for extension classes.
 
 You can inspect the same coercion contract without submitting a business write:
 

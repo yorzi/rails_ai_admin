@@ -27,7 +27,7 @@ module RailsAiAdmin
           editable = writable.key?(field.name)
           source = editable ? values : readonly_values
           value = source.key?(field.name.to_s) ? source[field.name.to_s] : source[field.name]
-          Entry.new(field, editable, scalar(value))
+          Entry.new(field, editable, scalar(value, json: field.scalar_type == :json))
         end.freeze
         raise ConfigurationError, "Form field bound exceeded" if @entries.size > MAX_FIELDS
         @tabbed = @entries.any? { |entry| entry.field.options[:tab] }
@@ -46,7 +46,7 @@ module RailsAiAdmin
 
       private
 
-      def scalar(value)
+      def scalar(value, json: false)
         copy = case value
         when nil, true, false, Integer then value
         when String then String.new(value).encode(Encoding::UTF_8, invalid: :replace, undef: :replace)
@@ -55,6 +55,14 @@ module RailsAiAdmin
           value
         when Time, ActiveSupport::TimeWithZone, DateTime then value.to_time.getutc
         when Date then Date.iso8601(value.iso8601)
+        # A JSON field edits its document as indented text.
+        when Hash, Array, Float
+          raise ConfigurationError, "Form values require supported scalars" unless json
+          begin
+            JSON.pretty_generate(value)
+          rescue JSON::GeneratorError
+            raise ConfigurationError, "Form JSON values must be finite", cause: nil
+          end
         else raise ConfigurationError, "Form values require supported scalars"
         end
         bytes = JSON.generate(InputSchema.canonical(copy)).bytesize

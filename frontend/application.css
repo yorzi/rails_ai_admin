@@ -91,6 +91,8 @@
 .raa .raa-chat-list { padding-left:1.25rem; }
 .raa .raa-code { color:var(--raa-muted); font-size:.8rem; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
 .raa .raa-multiline { white-space:pre-wrap; }
+.raa .raa-json { margin:0; padding:.6rem .8rem; max-height:24rem; overflow:auto; white-space:pre; font:.85rem/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; background:var(--raa-bg); border:1px solid var(--raa-line); border-radius:.4rem; }
+.raa textarea.raa-json-input { font:.85rem/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
 .raa .raa-header-meta { display:flex; align-items:center; gap:1rem; }
 .raa .raa-environment { padding:.15rem .5rem; border:1px solid var(--raa-line); border-radius:.3rem; color:var(--raa-muted); font-size:.8rem; }
 .raa .raa-heading .raa-search { display:flex; gap:.5rem; align-items:center; }

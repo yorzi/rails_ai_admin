@@ -46,5 +46,9 @@ class FormPlanTest < Minitest::Test
     fields = 9.times.map { |index| field("name_#{index}", tab: "Tab #{index}") }
     assert_raises(RailsAiAdmin::ConfigurationError) { RailsAiAdmin::Forms::Plan.new(fields: fields, values: {}) }
     assert_raises(RailsAiAdmin::ConfigurationError) { RailsAiAdmin::Forms::Plan.new(fields: [ field(:name) ], values: { "name" => { nested: "value" } }) }
+    # Only a json field carries a document, as indented text.
+    json = RailsAiAdmin::Field.new(:settings, type: :json)
+    plan = RailsAiAdmin::Forms::Plan.new(fields: [ json ], values: { "settings" => { "a" => [ 1 ] } })
+    assert_equal JSON.pretty_generate("a" => [ 1 ]), plan.entries.first.value
   end
 end

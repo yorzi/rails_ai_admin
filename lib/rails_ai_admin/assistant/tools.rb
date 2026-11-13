@@ -92,6 +92,8 @@ module RailsAiAdmin
         when :decimal then field.format_decimal(value)
         when :date then value.iso8601
         when :datetime then value.in_time_zone(time_zone).iso8601
+        when :time then field.format(value, time_zone: time_zone)
+        when :json then JSON.generate(value).truncate(2000)
         when :select then { "value" => value.to_s, "label" => field.format(value, time_zone: time_zone) }
         when :belongs_to
           reference = references.reference(field, value.to_s)

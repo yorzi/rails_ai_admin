@@ -93,8 +93,8 @@ class DeveloperToolsTest < Minitest::Test
   def test_schema_suggestions_omit_sensitive_encrypted_relationship_and_unsupported_columns
     report = RailsAiAdmin::SchemaSuggestions.new(SchemaSuggestionRecord).call
     assert report.available
-    assert_equal %w[name description price active starts_on state customer created_at updated_at], report.suggestions.map(&:name)
-    assert_equal 12, report.omitted, "the tenant reference account_id stays omitted"
+    assert_equal %w[name description price active starts_on state customer metadata created_at updated_at], report.suggestions.map(&:name)
+    assert_equal 11, report.omitted, "the tenant reference account_id stays omitted"
     # Only a declared non-polymorphic belongs_to suggests a reference; a bare
     # _id column, a database-only foreign key and a polymorphic pair do not.
     assert_equal "belongs_to :customer, foreign_key: \"owner_ref\"", report.suggestions.find { |entry| entry.name == "customer" }.declaration
@@ -127,7 +127,7 @@ class DeveloperToolsTest < Minitest::Test
       end
       source = File.read(File.join(directory, "app/rails_ai_admin/schema_suggestion_record_admin.rb"))
       assert_includes source, "# text :name, nullable: false, max_length: 80"
-      refute_match(/password_digest|api_token|secret_note|private_memo|customer_id|linked_ref|metadata|lock_version|attachable|text :type/, source)
+      refute_match(/password_digest|api_token|secret_note|private_memo|customer_id|linked_ref|lock_version|attachable|text :type/, source)
       # The declared reference column appears only as a commented suggestion.
       assert_equal [ %(    # belongs_to :customer, foreign_key: "owner_ref"\n) ], source.lines.grep(/owner_ref/)
       active = source.lines.reject { |line| line.lstrip.start_with?("#") }.join

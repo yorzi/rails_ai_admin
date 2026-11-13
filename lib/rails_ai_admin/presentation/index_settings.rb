@@ -12,7 +12,7 @@ module RailsAiAdmin
       COUNT_LIMIT = 10_000
       # Short machine-formatted values (IDs, numbers, ISO dates) stay on one line
       # in index cells; hyphens in dates are otherwise legal break points.
-      COMPACT_TYPES = %i[id integer decimal date datetime boolean].freeze
+      COMPACT_TYPES = %i[id integer decimal date datetime boolean time].freeze
 
       def initialize(columns: nil, default_sort: nil, default_direction: "asc", page_size: 25, count: :none)
         unless columns.nil? || columns.is_a?(Array) && columns.size.between?(1, MAX_COLUMNS) && columns.all? { |name| name.is_a?(Symbol) } && columns.uniq.size == columns.size

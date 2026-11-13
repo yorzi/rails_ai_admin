@@ -51,6 +51,10 @@ en:
         not_object: must be an object
         undeclared_fields: contains undeclared fields
         required: is required
+        not_email: must be an email address
+        not_url: must be an http or https address
+        not_time: must be a time of day (HH:MM)
+        not_json: must be valid JSON
       'yes': 'Yes'
       'no': 'No'
       not_set: Not set
@@ -58,6 +62,7 @@ en:
       none: None
       choose_record: Choose a record
       unavailable_value: Unavailable value — select a current option
+      keep_password: Leave blank to keep the current password.
     resources:
       index:
         omitted_rows: Some records on this page are not available to you.

@@ -14,6 +14,10 @@ module RailsAiAdmin
 
       def input(&block)
         Resource::FieldBuilder.new(@input_fields).instance_eval(&block) if block
+        # Operation inputs persist in collection payloads and Surface reviews.
+        if @input_fields.each_value.any? { |field| field.scalar_type == :password }
+          raise ConfigurationError, "Operation inputs cannot be passwords"
+        end
         @input_fields.values
       end
 
