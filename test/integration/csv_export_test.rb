@@ -33,9 +33,12 @@ class CsvExportIntegrationTest < ActionDispatch::IntegrationTest
       assert_includes response.headers["Cache-Control"], "no-store"
       assert_equal %("Id","Title","Views","Contact","Website","Opens at","Settings","Tags","Updated at"), rows.first
       assert_equal 4, rows.size
-      assert_includes rows[1], %("'=HYPERLINK(""http://evil"")","-3")
-      assert_includes rows[2], %("First","1","ada@example.com","","","{""a"":1}")
-      assert_includes rows[3], %("Quote ""me"", please","7")
+      # Title order depends on the database collation (punctuation may be
+      # ignored), so rows are matched by content.
+      data = rows.drop(1)
+      assert data.any? { |row| row.include?(%("'=HYPERLINK(""http://evil"")","-3")) }, "formula text is neutralized"
+      assert data.any? { |row| row.include?(%("First","1","ada@example.com","","","{""a"":1}")) }
+      assert data.any? { |row| row.include?(%("Quote ""me"", please","7")) }
       refute_includes response.body, "Other tenant"
       refute_includes response.body, @article.password_digest
       audit = RailsAiAdmin::AuditEvent.last
