@@ -100,6 +100,7 @@ module RailsAiAdmin
             { "id" => reference.id, "label" => reference.label.to_s.truncate(200), "resource" => reference.visible ? reference.resource_key.to_s : nil }
           end
         when :rich_text then field.format(value, time_zone: time_zone).truncate(2000)
+        when :files then Array(value).map { |file| { "filename" => file.filename.truncate(200), "content_type" => file.content_type, "byte_size" => file.byte_size } }
         when :file then { "filename" => value.filename.truncate(200), "content_type" => value.content_type, "byte_size" => value.byte_size }
         when :select then { "value" => value.to_s, "label" => field.format(value, time_zone: time_zone) }
         when :belongs_to

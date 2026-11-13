@@ -45,7 +45,7 @@ Declare columns that exist on your own host model; this example is a field-type
 reference, not an instruction to add business columns. No schema inference runs
 at boot. The current types are `id`, `text`, `textarea`, `integer`, `decimal`,
 `boolean`, `date`, `datetime`, `time`, `enum`, `select`, `email`, `url`, `json`,
-`password`, `file`, `rich_text` and `belongs_to`. Registered scalar
+`password`, `file`, `files`, `rich_text`, `references` and `belongs_to`. Registered scalar
 [Field Types]({% link _core_features/field-types.md %}) can refine coercion, validation
 and field presentation. [Computed Fields]({% link _core_features/computed-fields.md %})
 adds readonly virtual scalars over explicit currently authorized dependencies.

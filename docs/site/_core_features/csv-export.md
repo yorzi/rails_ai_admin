@@ -1,8 +1,8 @@
 ---
 layout: default
-title: CSV Export
+title: CSV Export and Import
 nav_order: 14
-description: Download the list you are looking at as a CSV file, through the same grants as the pages.
+description: Download the list you are looking at as CSV, and create records from a CSV file, through the same grants as the pages.
 ---
 
 # {{ page.title }}
@@ -15,6 +15,7 @@ After reading this guide, you will know:
 * How to show the Export CSV button.
 * Which rows, columns and values the file contains.
 * How exports are bounded and audited.
+* How to create records from a CSV file.
 
 ## Turn It On
 
@@ -66,3 +67,29 @@ it with search or filters. Records are read 500 at a time.
 Each export records an audit event with operation `export`, no record id, and
 the exported field names in `changed_fields`. The response is sent with
 `Cache-Control: no-store`.
+
+## Importing Records
+
+A separate default-deny grant, `import_records?(context:, resource:)` (Pundit:
+`import_records?`), together with the resource's ordinary `create` grant, adds an
+**Import CSV** button. The import page lists the columns it understands and offers
+a template with that header row.
+
+Columns are the fields the actor may write on create, matched by label or name,
+ignoring case. Unknown columns are reported and ignored. Text, numbers, dates,
+times, email, URL, select, enum, JSON, rich text and `belongs_to` keys can be
+imported; files, passwords and `references` lists cannot. Cells are read the way
+export writes them: `Yes`/`No` (or `true`/`false`, `1`/`0`) for booleans, labels
+or values for select fields, ISO dates and times. An empty cell leaves the field
+to its default. A file exported from the same list therefore imports back,
+except that `belongs_to` columns need the target's key rather than its label.
+
+**Check file** validates every row (types, required values, references the actor
+can see) and writes nothing. **Import** then creates one record per valid row
+through the native create operation: each row has its own policy check, model
+validations, transaction and audit event, so one bad row never stops the others.
+The results list every row that was not created and why.
+
+The file must be UTF-8 CSV (a byte order mark is fine) of at most 2 MB, with
+quoted cells per RFC 4180. `config.import_limit` bounds the data rows (default
+500, at most 5,000); import runs in the request, so keep files small.

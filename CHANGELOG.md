@@ -2,9 +2,32 @@
 
 ## Unreleased
 
-- `bin/demo --showcase` adds articles, tags and summaries to the demo host with
-  every everyday field type, uploads, rich text, history, CSV export and bulk
-  delete. `json` and `rich_text` fields stay off list pages unless declared
+- Dashboard widgets: `dashboard { metric :drafts, scope: :drafts; trend
+  :created_at, days: 30 }` adds counts over granted list tabs and daily trend
+  charts (inline SVG with a data table) to the overview, through the list's
+  policy relation and field read grants.
+- CSV import: with `import_records?` and the create grant, an Import CSV page
+  checks a file without writing, then creates one record per valid row through
+  the native create operation (own policy check, validations and audit), and
+  lists the rows it could not create. Columns match writable create fields by
+  label or name; exported files import back. `config.import_limit` (default
+  500) bounds a file.
+- Audit log: `<admin>/audit` lists the tenant's audit events across records for
+  resources granting `view_audit_log?(context:, resource:)`, filterable by
+  resource, change, outcome and actor, with field names under current grants.
+- Association panels offer "Add <child>" when the actor may create a child with a
+  writable reference back to the parent. New forms accept
+  `prefill[<belongs_to>]=<key>` for writable references to visible targets;
+  other prefills are ignored.
+- `files` fields edit `has_many_attached` attachments: remove ticked files and add
+  new uploads without replacing the list, with per-file `accept`/`max_size` and a
+  `max_files` bound (default 20). Removed blobs are purged after commit; the
+  record is touched and audited; show pages render a gallery whose downloads
+  name their attachment and are checked like single files.
+- `bin/demo` now adds articles, tags and summaries to the demo host by default
+  (`--plain` leaves them out): every field type, cover and gallery images, rich
+  text, tags, history, the audit log, CSV export and import (with a sample file),
+  bulk delete and overview metrics and trends for articles and orders. `json` and `rich_text` fields stay off list pages unless declared
   `index: true`. The selection page no longer shows raw record versions, and
   rich-text and many-to-many inputs are named by their visible label instead of
   a `<label for>` that pointed at a non-form element.

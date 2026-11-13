@@ -114,6 +114,7 @@ module RailsAiAdmin
         raise AccessDenied if field.hidden? || field.scalar_type == :password
         raise ConfigurationError, "Computed fields do not invoke model methods" if field.virtual?
         return read_file(record, field) if field.scalar_type == :file
+        return read_files(record, field) if field.scalar_type == :files
         return read_rich_text(record, field) if field.scalar_type == :rich_text
         return read_references(record, field) if field.scalar_type == :references
         name = field.column
@@ -158,6 +159,19 @@ module RailsAiAdmin
         true
       end
 
+      def authorize_import!
+        authorize!(:create, relation.new)
+        allowed = @adapter.respond_to?(:import_records?) && @adapter.import_records?(context: context, resource: resource) == true
+        raise AccessDenied unless allowed
+        true
+      end
+
+      def authorize_audit_log!
+        allowed = @adapter.respond_to?(:view_audit_log?) && @adapter.view_audit_log?(context: context, resource: resource) == true
+        raise AccessDenied unless allowed
+        true
+      end
+
       def authorize_history!(record)
         authorize!(:show, record)
         allowed = @adapter.respond_to?(:view_history?) && @adapter.view_history?(context: context, resource: resource, record: record) == true
@@ -184,10 +198,19 @@ module RailsAiAdmin
         raise AccessDenied unless allowed
         true
       end
-      # The attached blob's facts, or nil. The field must name a has_one_attached.
+      # The saved attachment rows of a files field, oldest first. Pending
+      # attachments of an unsaved change are not included.
+      def stored_attachments(record, field)
+        attachment(record, field)
+        ::ActiveStorage::Attachment.where(record_type: record.class.polymorphic_name, record_id: record.id, name: field.column).order(:id)
+      end
+
+      # The Active Storage proxy for a file (has_one_attached) or files
+      # (has_many_attached) field.
       def attachment(record, field)
+        macro = field.scalar_type == :files ? :has_many_attached : :has_one_attached
         reflection = record.class.respond_to?(:reflect_on_attachment) && record.class.reflect_on_attachment(field.column)
-        raise ConfigurationError, "file fields must name a has_one_attached attachment" unless reflection && reflection.macro == :has_one_attached
+        raise ConfigurationError, "#{field.scalar_type} fields must name a #{macro} attachment" unless reflection && reflection.macro == macro
         ActiveRecord::Base.while_preventing_writes { record.public_send(field.column) }
       end
 
@@ -212,6 +235,12 @@ module RailsAiAdmin
         end
         ids = ActiveRecord::Base.while_preventing_writes { record.public_send(field.column) }
         ids.map { |id| id.to_s.freeze }.uniq.sort.freeze
+      end
+
+      # At most 100 files, oldest first, each with its attachment id.
+      def read_files(record, field)
+        attachments = stored_attachments(record, field).includes(:blob).limit(Field::MAX_REFERENCES).to_a
+        attachments.map { |item| Fields::FileValue.from(item.blob, id: item.id) }.freeze
       end
 
       def read_file(record, field)

@@ -60,6 +60,7 @@ en:
         file_type: is not an accepted file type
         not_list: must be a list of records
         too_many: can name at most %{count} records
+        too_many_files: can hold at most %{count} files
       'yes': 'Yes'
       'no': 'No'
       not_set: Not set
@@ -68,6 +69,10 @@ en:
       choose_record: Choose a record
       unavailable_value: Unavailable value — select a current option
       keep_password: Leave blank to keep the current password.
+      files:
+        zero: No files
+        one: 1 file
+        other: "%{count} files"
     resources:
       index:
         omitted_rows: Some records on this page are not available to you.
@@ -120,6 +125,34 @@ en:
       saved: Changes saved.
       saved_with_warning: Changes saved, but a host callback failed. Review operation %{operation} before
         continuing.
+    imports:
+      button: Import CSV
+      title: Import %{label}
+      intro: Each row becomes a new record through the ordinary create form rules. Check the file first; nothing is saved until you import.
+      columns: "Columns: %{fields}."
+      template: Download a template
+      file: CSV file
+      file_help: UTF-8 CSV with a header row, at most %{limit} rows and 2 MB.
+      check: Check file
+      import: Import
+      choose_file: Choose a CSV file.
+      too_large: The file is larger than 2 MB.
+      too_many: The file has more than %{limit} rows. Split it into smaller files.
+      empty: The file needs a header row and at least one data row.
+      no_columns: No column matches a field you can fill. Use the template's header row.
+      not_utf8: The file is not UTF-8 text.
+      unclosed_quote: A quoted cell is never closed.
+      check_title: Check results
+      result_title: Import results
+      ready:
+        one: "%{count} of %{total} rows can be imported."
+        other: "%{count} of %{total} rows can be imported."
+      created:
+        one: "Created %{count} of %{total} records."
+        other: "Created %{count} of %{total} records."
+      matched: "Matched columns: %{fields}."
+      ignored: "Ignored columns: %{columns}."
+      row: Row
     exports:
       button: Export CSV
       too_many: This list has more than %{limit} records. Narrow it with search or filters, then export again.
@@ -127,6 +160,19 @@ en:
       current: "Current file: %{file}"
       limit: "Up to %{size}."
       remove: Remove the current file
+      remove_named: Remove %{file}
+      list_limit: "Choose one or more files, up to %{size} each; at most %{count} in all."
+    audit:
+      title: Audit log
+      intro: Changes and exports made through the admin, newest first, for the resources you may audit.
+      resource: Resource
+      change: Change
+      outcome: Outcome
+      any: Any
+      saved: Saved
+      record: Record
+      empty: No events match.
+      only_actor: "Showing only changes by %{actor}."
     history:
       link: History
       title: History of %{record}
@@ -147,6 +193,7 @@ en:
         create: Created
         update: Updated
         destroy: Deleted
+        export: Exported CSV
       origins:
         surface: From a review in Chat
         assistant: Proposed in Chat
@@ -253,6 +300,7 @@ en:
       overview: Overview
       assistant: Assistant
       collection_jobs: Collection jobs
+      audit_log: Audit log
       resources_nav: Admin resources
       return_state_discarded: Some list settings are no longer available. Return links use the current
         permitted list.
@@ -266,12 +314,21 @@ en:
         one: More than %{number} records
         other: More than %{number} records
       title: Overview
+      more_than: More than %{number}
+      trend_total:
+        one: "%{number} in the last %{days} days."
+        other: "%{number} in the last %{days} days."
+      trend_capped: Only the most recent 50,000 were counted.
+      show_data: Show the numbers
+      day: Day
+      records: Records
       intro: Select a resource to manage. Available resources follow your current permissions.
       empty: No resources are available for this session.
     associations:
       empty: No records.
       view_all: View all in %{label}
       first: Showing the first %{count}.
+      add: Add %{label}
     errors:
       title: Changes were not saved
       needs_reload: This form cannot be submitted again. Open a fresh form to review the latest record

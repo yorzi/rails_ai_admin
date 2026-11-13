@@ -12,7 +12,8 @@ description: Upload, replace, remove and download Active Storage attachments thr
 
 After reading this guide, you will know:
 
-* How to declare a `file` field for a `has_one_attached` attachment.
+* How to declare a `file` field for a `has_one_attached` attachment and a
+  `files` field for `has_many_attached`.
 * How uploads are checked and where the bytes are stored.
 * How downloads stay behind the record's grants.
 
@@ -44,7 +45,36 @@ Grant the field in `:read` to show it and in `:write` to upload, like any field.
 `accept` lists content types (`image/*` matches every image type); without it
 any type is accepted. `max_size` is in bytes and defaults to 10 MB. A `file`
 field cannot search, sort or filter, and operation inputs cannot be files.
-`has_many_attached` is not supported yet.
+
+## Several Files
+
+For `has_many_attached`, declare a `files` field:
+
+```ruby
+class Product < ApplicationRecord
+  has_many_attached :gallery
+end
+
+# in ProductAdmin's fields block
+files :gallery, accept: %w[image/*], max_size: 5.megabytes, max_files: 12
+```
+
+`accept` and `max_size` apply to each file; `max_files` (default 20, at most 100)
+bounds the attached total. The edit form lists the current files, each with its
+own "Remove" box, and a multiple file chooser that adds new ones. A save never
+replaces the list as a whole: it removes the ticked attachments of this record
+and attaches the new uploads, so files someone else added in the meantime are
+kept. Removed files are detached in the write transaction and their blobs are
+purged only after it commits. The record is touched, so its version advances and
+the audit names the field.
+
+Show pages render a gallery of links, with inline previews for raster images;
+each link names its attachment (`?attachment=<id>`) and is checked like a single
+file. Lists leave `files` out by default (`index: true` shows a count), CSV
+export lists the filenames, and Chat sees names, types and sizes.
+
+Through the Runner API, a `files` value is `{ "add" => [signed blob ids],
+"remove" => [attachment ids] }`. New blobs must be unattached, as for `file`.
 
 ## Uploading
 

@@ -9,6 +9,7 @@ module RailsAiAdmin
     def admin_field_value(field, value, view:, record_id: @record&.id)
       value = String.new(value) if value.is_a?(String)
       return admin_file_value(field, value, view: view, record_id: record_id) if field.scalar_type == :file && !field.plugin?
+      return admin_files_value(field, value, view: view, record_id: record_id) if field.scalar_type == :files
       return admin_references_value(field, value) if field.scalar_type == :references
       if field.scalar_type == :belongs_to
         reference = value.nil? ? nil : admin_associations.reference(field, value)
@@ -93,7 +94,7 @@ module RailsAiAdmin
       link = link_to(text, path)
       return link unless view != :index && value.image?
       safe_join([ tag.img(src: resource_file_path(resource: @resource.key, id: record_id, field: field.name, disposition: "inline"),
-        alt: value.filename, class: "raa-file-preview", loading: "lazy"), tag.br, link ])
+        alt: value.filename, class: "raa-file-preview", loading: "lazy"), link ])
     end
 
     # Trix, from the host's Action Text assets, edits a hidden input. The
@@ -105,6 +106,35 @@ module RailsAiAdmin
         action: "trix-file-accept->raa-rich-text#refuse trix-change->raa-rich-text#change" })
       safe_join([ stylesheet_link_tag("trix"), javascript_include_tag("trix", defer: true),
         hidden_field_tag(form.field_name(field.name), value, id: "#{id}--value"), editor ])
+    end
+
+    # Several files: a count in lists, a gallery of previews and links on
+    # show pages. Each link names its attachment.
+    def admin_files_value(field, value, view:, record_id:)
+      files = Array(value).grep(Fields::FileValue)
+      return field.format(files, time_zone: @context.time_zone) if view == :index || files.empty? || !(record_id && @resource)
+      items = files.map do |file|
+        path = resource_file_path(resource: @resource.key, id: record_id, field: field.name, attachment: file.id)
+        text = "#{file.filename} (#{number_to_human_size(file.byte_size)})"
+        preview = file.image? ? tag.img(src: resource_file_path(resource: @resource.key, id: record_id, field: field.name, attachment: file.id, disposition: "inline"), alt: file.filename, class: "raa-file-preview", loading: "lazy") : nil
+        tag.li(safe_join([ preview, link_to(text, path) ].compact))
+      end
+      tag.ul(safe_join(items), class: "raa-file-list")
+    end
+
+    # Current files with remove boxes, then a multiple file chooser.
+    def admin_files_input(form, field, value, input_options)
+      id = form.field_id(field.name)
+      current = Array(value).grep(Fields::FileValue)
+      boxes = current.map do |file|
+        box_id = "#{id}--remove-#{file.id}"
+        tag.li(safe_join([ check_box_tag("remove_attachments[#{field.name}][]", file.id, false, id: box_id), " ",
+          label_tag(box_id, t("rails_ai_admin.files.remove_named", file: file.filename)) ]), class: "raa-check")
+      end
+      options = input_options.merge(multiple: true, required: nil)
+      options[:accept] = field.options[:accept].join(",") if field.options[:accept]
+      safe_join([ (tag.ul(safe_join(boxes), class: "raa-file-list") if boxes.any?), form.file_field(field.name, **options),
+        tag.p(t("rails_ai_admin.files.list_limit", size: number_to_human_size(field.options[:max_size]), count: field.options[:max_files]), class: "raa-field-help") ].compact)
     end
 
     # Current file, a file chooser and (when the field may be empty) a remove box.

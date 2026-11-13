@@ -8,6 +8,7 @@ class Document < ActiveRecord::Base
   has_one_attached :cover
   has_one_attached :contract
   has_rich_text :body
+  has_many_attached :photos
   validates :title, presence: true
 end
 
@@ -22,16 +23,17 @@ module AttachmentFixtures
       file :cover, accept: %w[image/*], max_size: 1024 * 1024
       file :contract, accept: %w[application/pdf]
       rich_text :body, index: true
+      files :photos, accept: %w[image/*], max_files: 3
     end
   end
 
   class Policy < RailsAiAdmin::Authorization::Adapter
-    class_attribute :read, default: %i[id title cover contract body]
-    class_attribute :write, default: %i[title cover contract body]
+    class_attribute :read, default: %i[id title cover contract body photos]
+    class_attribute :write, default: %i[title cover contract body photos]
 
     def self.reset!
-      self.read = %i[id title cover contract body]
-      self.write = %i[title cover contract body]
+      self.read = %i[id title cover contract body photos]
+      self.write = %i[title cover contract body photos]
     end
 
     def scope(context:, resource:, relation:) = relation.where(account_id: context.tenant.id)

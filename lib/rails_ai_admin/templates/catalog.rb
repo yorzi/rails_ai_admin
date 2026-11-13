@@ -14,9 +14,11 @@ module RailsAiAdmin
         "status_page" => [ "rails_ai_admin/statuses/show.html.erb", %i[admin_status status_sign_in_path], [] ],
         "session_links" => [ "rails_ai_admin/shared/_session.html.erb", %i[context], [] ],
         "resource_navigation" => [ "rails_ai_admin/shared/_navigation.html.erb", [], %i[groups] ],
-        "dashboard" => [ "rails_ai_admin/dashboard/index.html.erb", %i[context counts], [] ],
+        "dashboard" => [ "rails_ai_admin/dashboard/index.html.erb", %i[context counts widgets], [] ],
+        "audit_log" => [ "rails_ai_admin/audit/index.html.erb", %i[context log filters page actor_labels], [] ],
+        "resource_import" => [ "rails_ai_admin/imports/new.html.erb", %i[context resource import report problem], [] ],
         "search" => [ "rails_ai_admin/search/index.html.erb", %i[context query sections], [] ],
-        "resource_index" => [ "rails_ai_admin/resources/index.html.erb", %i[context resource page columns rows searchable selectable exportable sortable_fields list_scopes current_scope filter_fields omitted_rows], [] ],
+        "resource_index" => [ "rails_ai_admin/resources/index.html.erb", %i[context resource page columns rows searchable selectable exportable importable sortable_fields list_scopes current_scope filter_fields omitted_rows], [] ],
         "resource_show" => [ "rails_ai_admin/resources/show.html.erb", %i[context resource record values fields operations association_panels], [] ],
         "resource_history" => [ "rails_ai_admin/resources/history.html.erb", %i[context resource record history actor_labels], [] ],
         "resource_associations" => [ "rails_ai_admin/resources/_associations.html.erb", [], %i[panels] ],
@@ -50,9 +52,9 @@ module RailsAiAdmin
         revision = if key == "layout"
           4 # page titles, environment label and the session_links slot (RAA-024)
         elsif key == "dashboard"
-          3 # counts
+          4 # counts, widgets
         elsif key == "resource_index"
-          7 # exportable (CSV export)
+          8 # exportable, importable (CSV)
         elsif key == "resource_show"
           3
         elsif %w[resource_new resource_edit resource_form].include?(key)

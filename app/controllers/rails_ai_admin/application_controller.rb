@@ -13,10 +13,11 @@ module RailsAiAdmin
     helper RailsAiAdmin::FiltersHelper
     helper RailsAiAdmin::ToolViewsHelper
     helper RailsAiAdmin::HistoryHelper
+    helper RailsAiAdmin::DashboardHelper
     prepend_before_action :secure_headers
     before_action :authenticate_admin
     after_action :notice_discarded_list_settings
-    helper_method :resource_navigation, :admin_csp_nonce, :list_page_path, :encoded_return_state, :navigation_state, :navigation_params, :list_return_path, :list_return_label, :return_state_discarded?, :return_navigation_fields, :list_state_fields, :visible_resources, :allowed_action?, :record_label, :collection_jobs_available?, :admin_associations, :assistant_available?, :searchable_resources
+    helper_method :resource_navigation, :admin_csp_nonce, :list_page_path, :encoded_return_state, :navigation_state, :navigation_params, :list_return_path, :list_return_label, :return_state_discarded?, :return_navigation_fields, :list_state_fields, :visible_resources, :allowed_action?, :record_label, :collection_jobs_available?, :admin_associations, :assistant_available?, :searchable_resources, :audit_log_available?, :actor_labels
 
     rescue_from AccessDenied, with: :deny_access
     rescue_from ConfigurationError do
@@ -184,6 +185,15 @@ module RailsAiAdmin
       Authorization::Access.new(@context, resource).authorize!(action, record)
     rescue AccessDenied
       false
+    end
+
+    def audit_log_available?
+      return @audit_log_available unless @audit_log_available.nil?
+      @audit_log_available = RailsAiAdmin.registry.resources.any? do |resource|
+        Authorization::Access.new(@context, resource).authorize_audit_log!
+      rescue AccessDenied
+        false
+      end
     end
 
     def collection_jobs_available?

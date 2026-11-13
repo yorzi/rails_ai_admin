@@ -15,7 +15,7 @@ module RailsAiAdmin
       def input(&block)
         Resource::FieldBuilder.new(@input_fields).instance_eval(&block) if block
         # Operation inputs persist in collection payloads and Surface reviews.
-        if @input_fields.each_value.any? { |field| %i[password file].include?(field.scalar_type) }
+        if @input_fields.each_value.any? { |field| %i[password file files].include?(field.scalar_type) }
           raise ConfigurationError, "Operation inputs cannot be passwords or files"
         end
         @input_fields.values

@@ -1,0 +1,4 @@
+Title,Views,Contact,Website,Opens at
+Imported: Release notes,12,releases@example.test,https://example.test/releases,10:00
+"Imported: Quotes, commas and ""escapes""",3,,https://example.test/csv,
+Imported: Bad views,many,,,

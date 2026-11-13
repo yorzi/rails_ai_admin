@@ -15,7 +15,9 @@ module RailsAiAdmin
       # list_params is the complete list state for that link: like the panel,
       # it shows every child, not the child's default list tab (RAA-006).
       # unscoped_list is true when the child has a granted default list tab.
-      Panel = Data.define(:name, :label, :resource_key, :rows, :more, :list_filter, :unscoped_list, :single) do
+      # new_prefill is the prefill for the child's new form when the actor may
+      # create a child with a writable reference back to this record.
+      Panel = Data.define(:name, :label, :resource_key, :rows, :more, :list_filter, :unscoped_list, :single, :new_prefill) do
         def list_params
           return unless list_filter
           unscoped_list ? { filter: list_filter, scope: Queries::NamedScope::NONE } : { filter: list_filter }
@@ -69,7 +71,16 @@ module RailsAiAdmin
           end
           filter = access.fields(:filter).include?(field) ? { field.name.to_s => { "eq" => record.id.to_s } }.freeze : nil
           Panel.new(definition.name, definition.caption, child.key, rows.freeze, records.size > definition.limit, filter,
-            access.named_scopes.any?(&:default?), definition.single)
+            access.named_scopes.any?(&:default?), definition.single, creatable(access, field, record))
+        rescue AccessDenied
+          nil
+        end
+
+        def creatable(access, field, record)
+          child = access.relation.new
+          access.authorize!(:create, child)
+          return unless access.fields(:write, child, operation: :create).include?(field)
+          { field.name.to_s => record.id.to_s }.freeze
         rescue AccessDenied
           nil
         end

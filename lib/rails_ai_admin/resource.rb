@@ -16,6 +16,7 @@ module RailsAiAdmin
         child.instance_variable_set(:@assistant_operations, [])
         child.instance_variable_set(:@navigation, Navigation::Settings.new)
         child.instance_variable_set(:@has_many, {})
+        child.instance_variable_set(:@dashboard, [])
       end
 
       def model(name = nil)
@@ -123,6 +124,19 @@ module RailsAiAdmin
         @fields.values
       end
 
+      # Overview widgets: metric counts over a list tab and daily trends over
+      # a date field. They read through the same grants as the list.
+      def dashboard(&block)
+        return @dashboard unless block
+        builder = Presentation::Dashboard::Builder.new
+        begin
+          builder.instance_eval(&block)
+        rescue NoMethodError => error
+          raise ConfigurationError, "Unknown dashboard option #{error.name}", cause: nil
+        end
+        @dashboard = builder.widgets.freeze
+      end
+
       # Static index table presentation: column order, default sort, page size
       # and count strategy. It is not part of operation or Selection identity.
       def index(&block)
@@ -162,6 +176,7 @@ module RailsAiAdmin
         raise ConfigurationError, "A password field cannot be the title" if @fields[title].scalar_type == :password
         Fields::DependencyGraph.validate!(fields)
         index.validate!(fields)
+        Presentation::Dashboard.validate!(self)
         # Fail at registration rather than on every menu render; explicit labels
         # were already bounded when declared.
         Navigation::Settings.caption(label) unless navigation.hidden || navigation.label

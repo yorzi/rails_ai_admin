@@ -18,7 +18,7 @@
 .raa .raa-actions { justify-content:flex-start; }
 .raa button,.raa input[type="submit"],.raa .raa-button { display:inline-block; border:1px solid var(--raa-brand); border-radius:.4rem; padding:.55rem 1rem; background:var(--raa-brand); color:white; font:inherit; font-weight:600; cursor:pointer; text-decoration:none; min-height:44px; }
 .raa input[type="submit"]:disabled { opacity:.55; cursor:not-allowed; }
-.raa input.raa-secondary { background:var(--raa-panel); color:var(--raa-brand); }
+.raa input.raa-secondary,.raa button.raa-secondary,.raa a.raa-button.raa-secondary { background:var(--raa-panel); color:var(--raa-brand); }
 .raa .raa-export { display:inline; }
 .raa .raa-danger { color:var(--raa-danger); }
 .raa input.raa-danger { color:white; background:var(--raa-danger); border-color:var(--raa-danger); }
@@ -95,6 +95,7 @@
 .raa .raa-multiline { white-space:pre-wrap; }
 .raa .raa-file-preview { display:block; max-width:min(100%,20rem); max-height:14rem; margin:.25rem 0; border:1px solid var(--raa-line); border-radius:.4rem; background:var(--raa-panel); }
 .raa .raa-file-current,.raa .raa-file-remove { margin:.25rem 0; }
+.raa .raa-file-list { list-style:none; padding:0; margin:.25rem 0; display:flex; flex-wrap:wrap; gap:.75rem 1.5rem; }
 .raa .raa-rich-text { overflow-wrap:anywhere; }
 .raa .raa-rich-text > :first-child { margin-top:0; }
 .raa .raa-rich-text-editor { display:block; min-height:10rem; padding:.6rem .8rem; background:var(--raa-panel); border:1px solid var(--raa-line); border-radius:.4rem; }
@@ -108,6 +109,18 @@
 .raa .raa-global-search { flex:1; max-width:28rem; margin:0 1rem; }
 .raa .raa-global-search input { width:100%; }
 .raa .raa-cards a > span { display:flex; flex-direction:column; }
+.raa .raa-dashboard-section { margin:2rem 0; padding:1.25rem 1.5rem; background:var(--raa-panel); border:1px solid var(--raa-line); border-radius:.6rem; }
+.raa .raa-dashboard-section h2 { margin-top:0; }
+.raa .raa-metrics { list-style:none; padding:0; display:flex; flex-wrap:wrap; gap:1rem; }
+.raa .raa-metrics a { display:flex; flex-direction:column; min-width:10rem; padding:.75rem 1rem; border:1px solid var(--raa-line); border-radius:.5rem; text-decoration:none; }
+.raa .raa-metric-value { font-size:1.6rem; font-weight:700; color:var(--raa-text); }
+.raa .raa-metric-label { color:var(--raa-muted); }
+.raa .raa-trend { margin:1.25rem 0 0; }
+.raa .raa-chart { display:block; width:100%; height:8rem; margin:.5rem 0 .25rem; }
+.raa .raa-bar { fill:var(--raa-brand); }
+.raa .raa-axis { stroke:var(--raa-line); stroke-width:1; }
+.raa .raa-trend-axis { display:flex; justify-content:space-between; color:var(--raa-muted); font-size:.85rem; }
+.raa .raa-trend details { margin-top:.5rem; }
 .raa .raa-card-count { display:inline-block; color:var(--raa-muted); font-size:.9rem; font-weight:400; }
 @media (max-width:768px) { .raa .raa-header { flex-wrap:wrap; } .raa .raa-global-search { order:3; flex-basis:100%; max-width:none; margin:0; } }
 .raa .raa-environment { padding:.15rem .5rem; border:1px solid var(--raa-line); border-radius:.3rem; color:var(--raa-muted); font-size:.8rem; }

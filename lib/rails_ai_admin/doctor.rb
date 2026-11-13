@@ -226,6 +226,7 @@ module RailsAiAdmin
           # has_secure_password defines password= over a digest column.
           (field.scalar_type == :password && model.method_defined?("#{field.column}=")) ||
           (field.scalar_type == :file && model.respond_to?(:reflect_on_attachment) && model.reflect_on_attachment(field.column)&.macro == :has_one_attached) ||
+          (field.scalar_type == :files && model.respond_to?(:reflect_on_attachment) && model.reflect_on_attachment(field.column)&.macro == :has_many_attached) ||
           (field.scalar_type == :rich_text && model.reflect_on_association("rich_text_#{field.column}").present?) ||
           (field.scalar_type == :references && model.reflect_on_association(field.name)&.collection?)
       end

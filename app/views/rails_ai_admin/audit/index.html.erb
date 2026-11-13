@@ -1,0 +1,40 @@
+<% admin_title t("rails_ai_admin.audit.title") %>
+<h1><%= t("rails_ai_admin.audit.title") %></h1>
+<p><%= t("rails_ai_admin.audit.intro") %></p>
+<%= form_with url: audit_log_path, method: :get, local: true, class: "raa-filters raa-audit-filters" do |form| %>
+  <div class="raa-filter"><%= label_tag "raa-audit-resource", t("rails_ai_admin.audit.resource") %>
+    <%= select_tag :resource, options_for_select(@log.resources.map { |resource| [ resource.label, resource.key.to_s ] }, @filters["resource"]), include_blank: t("rails_ai_admin.audit.any"), id: "raa-audit-resource" %></div>
+  <div class="raa-filter"><%= label_tag "raa-audit-operation", t("rails_ai_admin.audit.change") %>
+    <%= select_tag :operation, options_for_select(%w[create update destroy export].map { |key| [ t(key, scope: %i[rails_ai_admin history operations]), key ] }, @filters["operation"]), include_blank: t("rails_ai_admin.audit.any"), id: "raa-audit-operation" %></div>
+  <div class="raa-filter"><%= label_tag "raa-audit-status", t("rails_ai_admin.audit.outcome") %>
+    <%= select_tag :status, options_for_select([ [ t("rails_ai_admin.audit.saved"), "succeeded" ], [ t("rails_ai_admin.history.not_saved"), "rejected" ] ], @filters["status"]), include_blank: t("rails_ai_admin.audit.any"), id: "raa-audit-status" %></div>
+  <% if @filters["actor"] %><%= hidden_field_tag :actor, @filters["actor"], id: nil %><% end %>
+  <div class="raa-actions"><%= form.submit t("rails_ai_admin.resources.index.apply_filters"), name: nil %>
+  <% if @filters.except("before").any? %><%= link_to t("rails_ai_admin.resources.index.clear_filters"), audit_log_path %><% end %></div>
+<% end %>
+<% if @filters["actor"] %><p class="raa-notice" role="status"><%= t("rails_ai_admin.audit.only_actor", actor: @actor_labels.fetch(@filters["actor"])) %></p><% end %>
+<% if @page.entries.empty? %>
+  <p><%= t("rails_ai_admin.audit.empty") %></p>
+<% else %>
+  <div class="raa-table-scroll"><table class="raa-history">
+    <caption><%= t("rails_ai_admin.history.caption") %></caption>
+    <thead><tr>
+      <th scope="col"><%= t("rails_ai_admin.history.when") %></th>
+      <th scope="col"><%= t("rails_ai_admin.audit.record") %></th>
+      <th scope="col"><%= t("rails_ai_admin.history.change") %></th>
+      <th scope="col"><%= t("rails_ai_admin.history.fields") %></th>
+      <th scope="col"><%= t("rails_ai_admin.history.by") %></th>
+    </tr></thead>
+    <tbody>
+      <% @page.entries.each do |entry| %><tr>
+        <td class="raa-cell-compact"><%= admin_history_time(entry.at) %></td>
+        <td><% if entry.record_id.nil? %><%= entry.resource.label %><% else %><% text = "#{entry.resource.label.singularize} ##{entry.record_id}" %><% if entry.operation == "destroy" && entry.status == "succeeded" %><%= text %><% else %><%= link_to text, resource_path(resource: entry.resource.key, id: entry.record_id) %><% end %><% end %></td>
+        <td><%= admin_history_change(entry.resource, entry) %></td>
+        <td><%= admin_history_fields(entry) %></td>
+        <td><%= link_to @actor_labels.fetch(entry.actor_ref), audit_log_path(@filters.except("before").merge("actor" => entry.actor_ref)) %><% if entry.actor_ref == @context.actor_ref %> <span class="raa-muted"><%= t("rails_ai_admin.history.you") %></span><% end %>
+          <% unless entry.origin == "ui" %><br><span class="raa-muted"><%= t(entry.origin, scope: %i[rails_ai_admin history origins], default: entry.origin.to_s.humanize) %></span><% end %></td>
+      </tr><% end %>
+    </tbody>
+  </table></div>
+  <% if @page.older %><p><%= link_to t("rails_ai_admin.history.older"), audit_log_path(@filters.merge("before" => @page.older)) %></p><% end %>
+<% end %>

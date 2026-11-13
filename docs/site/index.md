@@ -6,14 +6,14 @@ permalink: /
 hero:
   name: Rails AI Admin
   text: Explicit Rails administration
-  tagline: Unreleased development of conventional admin pages with a shared operation boundary.
+  tagline: A self-hosted Rails admin with everyday features, default-deny policies and one audited write path.
   actions:
     - theme: brand
       text: Get started
       link: /quickstart/
     - theme: alt
-      text: Development status
-      link: /development-status/
+      text: Try the demo
+      link: /demo/
 features:
   - title: Explicit exposure
     details: Register reviewed resources and fields rather than publishing reflected models.
@@ -27,6 +27,18 @@ features:
     details: Commit conventional domain changes, human confirmation, receipts and audit together.
     link: /operations/
     link_text: Understand operations
+  - title: Everyday fields
+    details: Text to JSON, uploads and galleries, rich text, many-to-many lists and write-only passwords.
+    link: /resources-and-fields/
+    link_text: See field types
+  - title: Data in and out
+    details: CSV export and checked imports, bulk delete, record history and an audit log, each behind its own grant.
+    link: /csv-export/
+    link_text: Move data
+  - title: Overview at a glance
+    details: Counts, metrics and daily trend charts, plus one search box across every resource.
+    link: /dashboard/
+    link_text: Build a dashboard
 ---
 
 ## Build Locally
@@ -60,8 +72,14 @@ end
 ```
 
 The declaration narrows exposure; it grants no permission. The host owns the model,
-its tenant scope and every action/field decision. Generic writes require standard
-optimistic locking and a shared database connection pool.
+its tenant scope and every action/field decision. Writes detect concurrent edits
+through `lock_version` or `updated_at` and share the domain's connection pool.
+
+## See It Running
+
+`bin/demo` serves a seeded admin on `127.0.0.1` with every feature turned on:
+uploads, rich text, imports, history, charts and search. See
+[Try the Demo]({% link _getting_started/demo.md %}).
 
 ## Extend Scalar Fields
 

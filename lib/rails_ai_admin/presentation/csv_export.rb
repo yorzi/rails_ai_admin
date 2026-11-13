@@ -65,6 +65,7 @@ module RailsAiAdmin
           when :decimal then field.format_decimal(value)
           when :json then JSON.generate(value)
           when :file then value.filename
+          when :files then Array(value).map(&:filename).join("; ")
           when :references
             references.prime(field, Array(value))
             Array(value).map { |id| references.reference(field, id).label.to_s }.join("; ")

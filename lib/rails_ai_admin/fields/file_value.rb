@@ -11,9 +11,10 @@ module RailsAiAdmin
 
     # The readable facts about one attached file. Pages link to it through the
     # admin's own download route, never through a public blob URL.
-    FileValue = Data.define(:filename, :content_type, :byte_size, :checksum) do
-      def self.from(blob)
-        new(blob.filename.to_s.freeze, blob.content_type.to_s.freeze, blob.byte_size, blob.checksum.to_s.freeze)
+    # id is the attachment id of one of several files (has_many_attached).
+    FileValue = Data.define(:filename, :content_type, :byte_size, :checksum, :id) do
+      def self.from(blob, id: nil)
+        new(blob.filename.to_s.freeze, blob.content_type.to_s.freeze, blob.byte_size, blob.checksum.to_s.freeze, id&.to_s&.freeze)
       end
 
       def image? = INLINE_IMAGE_TYPES.include?(content_type)

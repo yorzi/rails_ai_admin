@@ -6,6 +6,7 @@
   <% else %>
   <ul><% panel.rows.each do |row| %><li><% if row.linked %><%= link_to row.label, resource_path(resource: panel.resource_key, id: row.id) %><% else %><%= row.label %><% end %></li><% end %></ul>
   <% end %>
+  <% if panel.new_prefill && (!panel.single || panel.rows.empty?) %><p><%= link_to t("rails_ai_admin.associations.add", label: panel.single ? panel.label.downcase_first : panel.label.singularize.downcase_first), new_resource_path(resource: panel.resource_key, prefill: panel.new_prefill) %></p><% end %>
   <% unless panel.single %><% if panel.list_filter %><p><%= link_to t("rails_ai_admin.associations.view_all", label: panel.label), resources_path(resource: panel.resource_key, **panel.list_params) %></p><% elsif panel.more %><p><%= t("rails_ai_admin.associations.first", count: panel.rows.size) %></p><% end %><% end %>
 </section>
 <% end %>

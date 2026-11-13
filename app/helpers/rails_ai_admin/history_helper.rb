@@ -16,7 +16,7 @@ module RailsAiAdmin
     # "Updated", "Created", "Deleted" or a custom operation's description,
     # plus the outcome when the change was not saved.
     def admin_history_change(resource, entry)
-      name = if %w[create update destroy].include?(entry.operation)
+      name = if %w[create update destroy export].include?(entry.operation)
         t(entry.operation, scope: %i[rails_ai_admin history operations])
       else
         RailsAiAdmin.operation_registry.custom(resource).find { |definition| definition.key.to_s == entry.operation }&.description ||

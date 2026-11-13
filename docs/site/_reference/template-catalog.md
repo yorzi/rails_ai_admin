@@ -27,14 +27,14 @@ compatibility statuses and upgrade review. Field-type-specific partials take
 precedence over global field defaults. No Surface wrapper is cataloged. Non-HTML plain status responses and host exceptions_app handling remain
 outside this ERB template catalog.
 
-The current catalog contains 30 entries. resource_index uses contract revision 6;
-resource_new/resource_edit/resource_form use revision 5 (they render `@intent_ref`,
-a signed form reference, instead of `@intent`); layout uses revision 4;
-resource_destroy, resource_errors and resource_show use revision 3; dashboard,
-other navigation-aware templates, input_fields and field_form use revision 2;
-remaining entries, including the new `session_links`
-(`rails_ai_admin/shared/_session.html.erb`, empty by default, for the signed-in
-user and sign-out links), use revision 1. Source bytes and context revision
+The current catalog contains 36 entries; the table below is generated from
+`RailsAiAdmin::Templates::Catalog::ENTRIES` and lists each revision.
+resource_index is at revision 8 (it adds `exportable` and `importable`) and
+dashboard at revision 4 (`counts` and `widgets`). New pages for record history,
+the audit log, search, CSV import and bulk delete start at revision 1 or, when
+they carry list navigation, revision 2. `session_links`
+(`rails_ai_admin/shared/_session.html.erb`, empty by default) holds the
+signed-in user and sign-out links. Source bytes and context revision
 can change independently; always inspect the installed version when upgrading.
 
 resource_errors form/fields locals and input_fields plan are optional.
@@ -74,20 +74,25 @@ legacy visible_resources still includes hidden-menu resources. See
 
 | Key | Revision | Destination | Assigns | Locals |
 | --- | --- | --- | --- | --- |
-| `layout` | 3 | `layouts/rails_ai_admin/application.html.erb` | `context`, `admin_csp_nonce`, `list_navigation` | None |
+| `layout` | 4 | `layouts/rails_ai_admin/application.html.erb` | `context`, `admin_csp_nonce`, `list_navigation` | None |
 | `status_layout` | 1 | `layouts/rails_ai_admin/status.html.erb` | `admin_status` | None |
 | `status_page` | 1 | `rails_ai_admin/statuses/show.html.erb` | `admin_status`, `status_sign_in_path` | None |
+| `session_links` | 1 | `rails_ai_admin/shared/_session.html.erb` | `context` | None |
 | `resource_navigation` | 1 | `rails_ai_admin/shared/_navigation.html.erb` | None | `groups` |
-| `dashboard` | 2 | `rails_ai_admin/dashboard/index.html.erb` | `context` | None |
-| `resource_index` | 5 | `rails_ai_admin/resources/index.html.erb` | `context`, `resource`, `page`, `columns`, `rows`, `searchable`, `selectable`, `sortable_fields`, `list_scopes`, `current_scope`, `filter_fields`, `list_navigation` | None |
+| `dashboard` | 4 | `rails_ai_admin/dashboard/index.html.erb` | `context`, `counts`, `widgets` | None |
+| `audit_log` | 1 | `rails_ai_admin/audit/index.html.erb` | `context`, `log`, `filters`, `page`, `actor_labels` | None |
+| `resource_import` | 1 | `rails_ai_admin/imports/new.html.erb` | `context`, `resource`, `import`, `report`, `problem` | None |
+| `search` | 1 | `rails_ai_admin/search/index.html.erb` | `context`, `query`, `sections` | None |
+| `resource_index` | 8 | `rails_ai_admin/resources/index.html.erb` | `context`, `resource`, `page`, `columns`, `rows`, `searchable`, `selectable`, `exportable`, `importable`, `sortable_fields`, `list_scopes`, `current_scope`, `filter_fields`, `omitted_rows`, `list_navigation` | None |
 | `resource_show` | 3 | `rails_ai_admin/resources/show.html.erb` | `context`, `resource`, `record`, `values`, `fields`, `operations`, `association_panels`, `list_navigation` | None |
+| `resource_history` | 2 | `rails_ai_admin/resources/history.html.erb` | `context`, `resource`, `record`, `history`, `actor_labels`, `list_navigation` | None |
 | `resource_associations` | 1 | `rails_ai_admin/resources/_associations.html.erb` | None | `panels` |
-| `resource_new` | 4 | `rails_ai_admin/resources/new.html.erb` | `context`, `resource`, `record`, `operation`, `intent`, `form_fields`, `form_values`, `form_plan`, `errors`, `failure_code`, `needs_reload`, `list_navigation` | None |
-| `resource_edit` | 4 | `rails_ai_admin/resources/edit.html.erb` | `context`, `resource`, `record`, `operation`, `intent`, `form_fields`, `form_values`, `form_plan`, `errors`, `failure_code`, `needs_reload`, `list_navigation` | None |
-| `resource_form` | 4 | `rails_ai_admin/resources/form.html.erb` | `context`, `resource`, `record`, `operation`, `intent`, `form_fields`, `form_values`, `form_plan`, `errors`, `failure_code`, `needs_reload`, `list_navigation` | None |
-| `resource_destroy` | 2 | `rails_ai_admin/resources/confirm_destroy.html.erb` | `context`, `resource`, `record`, `intent`, `errors`, `failure_code`, `needs_reload`, `list_navigation` | None |
+| `resource_new` | 5 | `rails_ai_admin/resources/new.html.erb` | `context`, `resource`, `record`, `operation`, `intent_ref`, `form_fields`, `form_values`, `form_plan`, `errors`, `failure_code`, `needs_reload`, `list_navigation` | None |
+| `resource_edit` | 5 | `rails_ai_admin/resources/edit.html.erb` | `context`, `resource`, `record`, `operation`, `intent_ref`, `form_fields`, `form_values`, `form_plan`, `errors`, `failure_code`, `needs_reload`, `list_navigation` | None |
+| `resource_form` | 5 | `rails_ai_admin/resources/form.html.erb` | `context`, `resource`, `record`, `operation`, `intent_ref`, `form_fields`, `form_values`, `form_plan`, `errors`, `failure_code`, `needs_reload`, `list_navigation` | None |
+| `resource_destroy` | 3 | `rails_ai_admin/resources/confirm_destroy.html.erb` | `context`, `resource`, `record`, `intent_ref`, `errors`, `failure_code`, `needs_reload`, `list_navigation` | None |
 | `form_recovery` | 1 | `rails_ai_admin/resources/_recovery.html.erb` | None | None |
-| `resource_errors` | 2 | `rails_ai_admin/resources/_errors.html.erb` | `errors`, `failure_code`, `needs_reload` | `form`, `fields` |
+| `resource_errors` | 3 | `rails_ai_admin/resources/_errors.html.erb` | `errors`, `failure_code`, `needs_reload` | `form`, `fields` |
 | `field_index` | 1 | `rails_ai_admin/fields/_index.html.erb` | None | `field`, `value`, `text` |
 | `field_show` | 1 | `rails_ai_admin/fields/_show.html.erb` | None | `field`, `value`, `text` |
 | `field_reference` | 1 | `rails_ai_admin/fields/_reference.html.erb` | None | `field`, `value`, `reference` |
@@ -102,4 +107,6 @@ legacy visible_resources still includes hidden-menu resources. See
 | `collection_failure` | 2 | `rails_ai_admin/collection_operations/failure.html.erb` | `context`, `resource`, `failure_code`, `uncertain_job_ref`, `list_navigation` | None |
 | `job_index` | 1 | `rails_ai_admin/collection_jobs/index.html.erb` | `context`, `jobs` | None |
 | `job_show` | 2 | `rails_ai_admin/collection_jobs/show.html.erb` | `context`, `resource`, `job`, `list_navigation` | None |
-| `selection` | 2 | `rails_ai_admin/selections/show.html.erb` | `context`, `resource`, `selection`, `operations`, `list_navigation` | None |
+| `selection` | 2 | `rails_ai_admin/selections/show.html.erb` | `context`, `resource`, `selection`, `operations`, `deletable`, `list_navigation` | None |
+| `selection_destroy` | 2 | `rails_ai_admin/selections/confirm_destroy.html.erb` | `context`, `resource`, `selection`, `deletable`, `skipped`, `list_navigation` | None |
+| `selection_destroy_result` | 2 | `rails_ai_admin/selections/destroyed.html.erb` | `context`, `resource`, `selection`, `deleted`, `skipped`, `failed`, `list_navigation` | None |

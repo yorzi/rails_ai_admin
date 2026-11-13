@@ -1,0 +1,34 @@
+<p><%= link_to @resource.label, resources_path(resource: @resource.key) %></p>
+<% admin_title t("rails_ai_admin.imports.title", label: @resource.label), @resource.label %>
+<h1><%= t("rails_ai_admin.imports.title", label: @resource.label) %></h1>
+<p><%= t("rails_ai_admin.imports.intro") %></p>
+<p><%= t("rails_ai_admin.imports.columns", fields: @import.fields.map(&:label).join(", ")) %>
+  <%= link_to t("rails_ai_admin.imports.template"), resource_import_template_path(resource: @resource.key) %></p>
+<% if @problem %><p class="raa-notice raa-danger" role="alert"><%= @problem %></p><% end %>
+<% if @report %>
+  <section class="raa-association" aria-labelledby="raa-import-report">
+    <h2 id="raa-import-report"><%= @report.checked ? t("rails_ai_admin.imports.check_title") : t("rails_ai_admin.imports.result_title") %></h2>
+    <p role="status"><%= @report.checked ? t("rails_ai_admin.imports.ready", count: @report.valid, total: @report.rows.size) : t("rails_ai_admin.imports.created", count: @report.created, total: @report.rows.size) %></p>
+    <p><%= t("rails_ai_admin.imports.matched", fields: @report.columns.join(", ")) %><% if @report.ignored.any? %> <%= t("rails_ai_admin.imports.ignored", columns: @report.ignored.join(", ")) %><% end %></p>
+    <% if @report.failed.any? %>
+      <div class="raa-table-scroll"><table>
+        <thead><tr><th scope="col"><%= t("rails_ai_admin.imports.row") %></th><th scope="col"><%= t("rails_ai_admin.selections.destroy.reason") %></th></tr></thead>
+        <tbody><% @report.failed.first(100).each do |row| %><tr>
+          <td><%= row.number %></td>
+          <td><%= admin_outcome(row.code) %><% if row.errors.any? %><br><%= row.errors.map { |name, messages| "#{@import.fields.find { |field| field.name.to_s == name }&.label || name.humanize} #{Array(messages).join(', ')}" }.join("; ") %><% end %></td>
+        </tr><% end %></tbody>
+      </table></div>
+    <% end %>
+  </section>
+<% end %>
+<%= form_with url: resource_imports_path(resource: @resource.key), method: :post, local: true, multipart: true, data: { turbo: false } do |form| %>
+  <div class="raa-field">
+    <%= label_tag "raa-import-file", t("rails_ai_admin.imports.file") %>
+    <%= file_field_tag :file, id: "raa-import-file", accept: ".csv,text/csv", required: true, aria: { describedby: "raa-import-file--help" } %>
+    <p class="raa-field-help" id="raa-import-file--help"><%= t("rails_ai_admin.imports.file_help", limit: RailsAiAdmin.configuration.import_limit) %></p>
+  </div>
+  <div class="raa-actions">
+    <%= button_tag t("rails_ai_admin.imports.check"), name: "mode", value: "check", type: "submit", class: "raa-secondary" %>
+    <%= button_tag t("rails_ai_admin.imports.import"), name: "mode", value: "import", type: "submit" %>
+  </div>
+<% end %>
