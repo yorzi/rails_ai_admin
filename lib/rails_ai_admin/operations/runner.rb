@@ -237,6 +237,8 @@ module RailsAiAdmin
             changed_fields = resource.fields.select { |field| before[field.column] != record.attributes_before_type_cast[field.column] }.map { |field| field.name.to_s }
             WorkItem.where(operation_run_id: run.id).update_all(expected_version: RecordVersion.of(record))
           else
+            lists = resource.fields.select { |field| field.scalar_type == :references && values.key?(field.name.to_s) }
+            before_lists = lists.to_h { |field| [ field.name.to_s, stored_references(record, field) ] }
             record.assign_attributes(column_attributes(resource, unchanged_precision(resource, record, values))) if run.operation == "update"
             names = field_names_by_column(resource)
             changed_fields = record.changes.keys.map { |column| names.fetch(column, column) } & values.keys
@@ -248,8 +250,13 @@ module RailsAiAdmin
             if record.respond_to?(:attachment_changes)
               changed_fields |= resource.fields.select { |field| field.scalar_type == :file && values.key?(field.name.to_s) && record.attachment_changes.key?(field.column) }.map { |field| field.name.to_s }
             end
+            # Join rows change no owner column, so a changed list touches the
+            # record: its version advances and a concurrent form conflicts.
+            changed_lists = lists.map { |field| field.name.to_s }.reject { |name| before_lists.fetch(name) == values.fetch(name) }
+            changed_fields |= changed_lists
             persisted = definition.handler_class.new.perform(nil, record, values)
             reject!("VALIDATION_FAILED", errors: { "base" => [ "could not be saved" ] }) unless persisted
+            record.touch if run.operation == "update" && changed_lists.any?
           end
           unless run.operation == "destroy" || access.relation.where(resource.model_class.primary_key => record.id).exists?
             reject!("NOT_FOUND")
@@ -315,7 +322,9 @@ module RailsAiAdmin
         when ExecutionContext::DeadlineExceeded
           audit_failure(context, run, "TIMEOUT", origin) unless admission
           Result.new(code: "TIMEOUT")
-        when ActiveRecord::StaleObjectError, ActiveRecord::RecordNotUnique, ActiveRecord::Deadlocked, ActiveRecord::LockWaitTimeout
+        when ActiveRecord::StaleObjectError, ActiveRecord::RecordNotUnique, ActiveRecord::Deadlocked, ActiveRecord::LockWaitTimeout,
+          # A references target deleted after its check fails the id writer.
+          ActiveRecord::RecordNotFound
           Result.new(code: "CONFLICT")
         when ActiveRecord::StatementInvalid
           if defined?(SQLite3::BusyException) && error.cause.is_a?(SQLite3::BusyException)
@@ -447,18 +456,49 @@ module RailsAiAdmin
         result = InputSchema.new(fields, partial: definition.key == "update" && !definition.custom?).coerce(input, time_zone: access.context.time_zone)
         reject!(replay ? "IDEMPOTENCY_CONFLICT" : "VALIDATION_FAILED", errors: replay ? {} : result.errors) unless result.valid?
         check_references!(access, record, fields, result.values) unless replay
-        result.values
+        retain_hidden_references(access, record, fields, result.values)
+      end
+
+      def stored_references(record, field)
+        return [] unless record&.persisted?
+        record.public_send(field.column).map(&:to_s).uniq.sort
+      end
+
+      # A list keeps the stored targets this actor cannot see: a person can
+      # neither remove nor learn about records hidden by the target's policy.
+      def retain_hidden_references(access, record, fields, values)
+        lists = fields.select { |field| field.scalar_type == :references && values.key?(field.name.to_s) }
+        return values if lists.empty?
+        resolver = Fields::Association.new(access.context, access.resource)
+        merged = values.dup
+        lists.each do |field|
+          stored = stored_references(record, field)
+          if stored.size > Field::MAX_REFERENCES
+            reject!("VALIDATION_FAILED", errors: { field.name.to_s => [ Field.error_message(:too_many, "can name at most %{count} records", count: Field::MAX_REFERENCES) ] })
+          end
+          resolver.prime(field, stored)
+          hidden = stored.reject { |id| resolver.admissible?(field, id) }
+          merged[field.name.to_s] = (values.fetch(field.name.to_s) | hidden).sort.freeze
+        end
+        merged.freeze
       end
 
       # A changed reference must name a target this actor can currently see in
       # the target resource. Keeping the stored key is not a new attachment, so
       # an edit never forces clearing a reference the actor cannot see.
       def check_references!(access, record, fields, values)
-        references = fields.select { |field| field.scalar_type == :belongs_to && !values[field.name.to_s].nil? }
+        references = fields.select { |field| Field::REFERENCE_TYPES.include?(field.scalar_type) && !values[field.name.to_s].nil? }
         return if references.empty?
         resolver = Fields::Association.new(access.context, access.resource)
         errors = references.each_with_object({}) do |field, result|
           value = values.fetch(field.name.to_s)
+          if field.scalar_type == :references
+            # Only newly added targets need to be visible now.
+            added = value - stored_references(record, field)
+            resolver.prime(field, added)
+            result[field.name.to_s] = [ Field.error_message(:unavailable_choice, Fields::Association::UNAVAILABLE) ] unless added.all? { |id| resolver.admissible?(field, id) }
+            next
+          end
           stored = record&.persisted? && record.has_attribute?(field.column) ? record.read_attribute(field.column) : nil
           next if !stored.nil? && stored.to_s == value
           result[field.name.to_s] = [ Field.error_message(:unavailable_choice, Fields::Association::UNAVAILABLE) ] unless resolver.admissible?(field, value)

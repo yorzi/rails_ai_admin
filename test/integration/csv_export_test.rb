@@ -31,7 +31,7 @@ class CsvExportIntegrationTest < ActionDispatch::IntegrationTest
       assert_equal "text/csv; charset=utf-8", response.media_type + "; charset=" + response.charset
       assert_match(/attachment; filename="articles-\d{8}-\d{4}\.csv"/, response.headers["Content-Disposition"])
       assert_includes response.headers["Cache-Control"], "no-store"
-      assert_equal %("Id","Title","Views","Contact","Website","Opens at","Settings","Updated at"), rows.first
+      assert_equal %("Id","Title","Views","Contact","Website","Opens at","Settings","Tags","Updated at"), rows.first
       assert_equal 4, rows.size
       assert_includes rows[1], %("'=HYPERLINK(""http://evil"")","-3")
       assert_includes rows[2], %("First","1","ada@example.com","","","{""a"":1}")

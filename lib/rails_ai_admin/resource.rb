@@ -101,6 +101,15 @@ module RailsAiAdmin
         @has_many[definition.name] = definition
       end
 
+      # A readonly panel for the one child record that points back here (a
+      # model has_one). The same grants as has_many apply.
+      def has_one(name, resource: name.to_s.pluralize, via: nil, label: nil)
+        definition = Presentation::AssociationPanel::Definition.build(name, resource: resource, via: via, label: label, limit: 1, single: true)
+        raise ConfigurationError, "Duplicate association panel #{definition.name}" if @has_many.key?(definition.name)
+        raise ConfigurationError, "A resource declares at most #{Presentation::AssociationPanel::MAX_PANELS} association panels" if @has_many.size >= Presentation::AssociationPanel::MAX_PANELS
+        @has_many[definition.name] = definition
+      end
+
       def has_many_declarations = @has_many.values
 
       def operation_declarations = @operations

@@ -2,7 +2,7 @@
 layout: default
 title: Associations
 nav_order: 12
-description: Show, choose and filter belongs_to references, and list a record's children, through each target resource's own grants.
+description: Show, choose and filter belongs_to references, edit many-to-many lists, and show a record's children, through each target resource's own grants.
 ---
 
 # {{ page.title }}
@@ -15,7 +15,8 @@ After reading this guide, you will know:
 * How to declare a `belongs_to` field and what it stores.
 * How references are labelled, linked and loaded without per-row queries.
 * Which targets a form offers and a write accepts.
-* How to list a parent's children with `has_many`.
+* How to list a parent's children with `has_many` and `has_one`.
+* How to edit a many-to-many list with `references`.
 * What is not supported yet.
 
 ## Declare a Reference
@@ -152,6 +153,64 @@ The panel reads children only through the child resource:
 The panel adds no write path. Creating, attaching or detaching children happens
 in the child resource's own forms and operations.
 
+## A Single Child with has_one
+
+For a model `has_one`, declare a panel the same way; it shows the one child or
+"No records.":
+
+```ruby
+class UserAdmin < RailsAiAdmin::Resource
+  # ...
+  has_one :profile, resource: :profiles, via: :user
+end
+```
+
+`resource` defaults to the pluralized name and `via` to the parent model's
+name, as for `has_many`. The same grants apply: the child resource's index
+grant, a readable `belongs_to` back to the parent, and the child's own show
+grant for the link.
+
+## Many-to-Many Lists with references
+
+A `references` field edits a `has_many` (including `:through`) or
+`has_and_belongs_to_many` association through the model's `<singular>_ids`
+writer:
+
+```ruby
+class Article < ApplicationRecord
+  has_many :taggings
+  has_many :tags, through: :taggings
+end
+
+class ArticleAdmin < RailsAiAdmin::Resource
+  # ...
+  fields do
+    references :tags                      # resource: :tags, foreign_key: "tag_ids"
+  end
+end
+```
+
+`resource` names the target resource (default: the field name) and
+`foreign_key` the ids writer (default: `<singular>_ids`). The target must be
+registered. Grant the field in `:read` and `:write` like any field.
+
+* The value is the sorted list of target keys, at most 100. Show pages label
+  each through the target's own relation and show grant, linking only the ones
+  the actor may open; others read "Tag #5". Lists leave the field out by
+  default (`index: false`), because reading keys costs a query per row; CSV
+  export preloads them.
+* Forms show a checkbox per visible target when there are at most 100. With
+  more, the current targets stay as checkboxes and a key input with the search
+  picker adds one more per save.
+* A write may add only targets the actor can currently see in the target
+  resource. Stored targets the actor cannot see are always kept, so a person can
+  neither remove nor learn about records the target policy hides.
+* Join rows change no column of the owner, so a changed list touches the record:
+  its version advances, a concurrent form conflicts, and the audit names the
+  field. An unchanged list writes nothing.
+* A `references` field cannot search, sort or filter, and operation inputs
+  cannot be lists.
+
 ## Templates
 
 Two catalogued partials are overridable with `rails_ai_admin:override`:
@@ -170,6 +229,6 @@ target grants.
 
 * Association search, sort and label columns (LIST-019): `belongs_to` fields
   cannot be `searchable` or `sortable`.
-* Polymorphic, `has_one`, `has_many :through` and many-to-many writes.
+* Polymorphic associations, and editing a `has_one` child from its parent.
 * Nested child forms, attach/detach/reparent policies and the dependent-destroy
   preview required by CRUD-021.

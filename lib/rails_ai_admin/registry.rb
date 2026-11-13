@@ -21,8 +21,8 @@ module RailsAiAdmin
       # is checked on first use and by doctor.
       @entries.each_value do |resource|
         resource.fields.each do |field|
-          next unless field.scalar_type == :belongs_to && !@entries.key?(field.options[:resource].to_s)
-          raise ConfigurationError, "#{resource.name} belongs_to #{field.name} names unregistered resource #{field.options[:resource]}"
+          next unless Field::REFERENCE_TYPES.include?(field.scalar_type) && !@entries.key?(field.options[:resource].to_s)
+          raise ConfigurationError, "#{resource.name} #{field.scalar_type} #{field.name} names unregistered resource #{field.options[:resource]}"
         end
         resource.has_many_declarations.each do |panel|
           child = @entries[panel.resource.to_s]

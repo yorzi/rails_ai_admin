@@ -94,6 +94,11 @@ module RailsAiAdmin
         when :datetime then value.in_time_zone(time_zone).iso8601
         when :time then field.format(value, time_zone: time_zone)
         when :json then JSON.generate(value).truncate(2000)
+        when :references
+          Array(value).first(50).map do |id|
+            reference = references.reference(field, id)
+            { "id" => reference.id, "label" => reference.label.to_s.truncate(200), "resource" => reference.visible ? reference.resource_key.to_s : nil }
+          end
         when :rich_text then field.format(value, time_zone: time_zone).truncate(2000)
         when :file then { "filename" => value.filename.truncate(200), "content_type" => value.content_type, "byte_size" => value.byte_size }
         when :select then { "value" => value.to_s, "label" => field.format(value, time_zone: time_zone) }

@@ -1,9 +1,11 @@
 <% panels.each do |panel| %>
 <section class="raa-association" aria-labelledby="raa-association-<%= panel.name %>">
   <h2 id="raa-association-<%= panel.name %>"><%= panel.label %></h2>
-  <% if panel.rows.empty? %><p><%= t("rails_ai_admin.associations.empty") %></p><% else %>
+  <% if panel.rows.empty? %><p><%= t("rails_ai_admin.associations.empty") %></p>
+  <% elsif panel.single %><% row = panel.rows.first %><p><% if row.linked %><%= link_to row.label, resource_path(resource: panel.resource_key, id: row.id) %><% else %><%= row.label %><% end %></p>
+  <% else %>
   <ul><% panel.rows.each do |row| %><li><% if row.linked %><%= link_to row.label, resource_path(resource: panel.resource_key, id: row.id) %><% else %><%= row.label %><% end %></li><% end %></ul>
   <% end %>
-  <% if panel.list_filter %><p><%= link_to t("rails_ai_admin.associations.view_all", label: panel.label), resources_path(resource: panel.resource_key, **panel.list_params) %></p><% elsif panel.more %><p><%= t("rails_ai_admin.associations.first", count: panel.rows.size) %></p><% end %>
+  <% unless panel.single %><% if panel.list_filter %><p><%= link_to t("rails_ai_admin.associations.view_all", label: panel.label), resources_path(resource: panel.resource_key, **panel.list_params) %></p><% elsif panel.more %><p><%= t("rails_ai_admin.associations.first", count: panel.rows.size) %></p><% end %><% end %>
 </section>
 <% end %>

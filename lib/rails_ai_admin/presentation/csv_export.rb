@@ -26,6 +26,9 @@ module RailsAiAdmin
         fields = @access.fields(:read, nil, view: :show)
         references = Fields::Association.new(@context, @resource)
         lines = [ line(fields.map(&:label)) ]
+        # One query per list field and batch instead of one per row.
+        lists = fields.select { |field| field.scalar_type == :references }.map(&:name)
+        relation = relation.preload(*lists) if lists.any?
         rows = 0
         offset = 0
         loop do
@@ -62,6 +65,9 @@ module RailsAiAdmin
           when :decimal then field.format_decimal(value)
           when :json then JSON.generate(value)
           when :file then value.filename
+          when :references
+            references.prime(field, Array(value))
+            Array(value).map { |id| references.reference(field, id).label.to_s }.join("; ")
           when :belongs_to then references.reference(field, value.to_s).label.to_s
           else field.format(value, time_zone: @context.time_zone)
           end

@@ -9,6 +9,7 @@ module RailsAiAdmin
     def admin_field_value(field, value, view:, record_id: @record&.id)
       value = String.new(value) if value.is_a?(String)
       return admin_file_value(field, value, view: view, record_id: record_id) if field.scalar_type == :file && !field.plugin?
+      return admin_references_value(field, value) if field.scalar_type == :references
       if field.scalar_type == :belongs_to
         reference = value.nil? ? nil : admin_associations.reference(field, value)
         return render(partial: "rails_ai_admin/fields/reference", locals: { field: field, value: value, reference: reference })
@@ -37,6 +38,49 @@ module RailsAiAdmin
       end
       partial = field.display_partial(view) || "rails_ai_admin/fields/#{view == :index ? 'index' : 'show'}"
       render(partial: partial, locals: { field: field, value: value, text: text })
+    end
+
+    # Labels through each target's own grants; unavailable targets stay keys.
+    REFERENCES_SHOWN = 50
+    def admin_references_value(field, value)
+      ids = Array(value)
+      return "—" if ids.empty?
+      admin_associations.prime(field, ids.first(REFERENCES_SHOWN))
+      items = ids.first(REFERENCES_SHOWN).map do |id|
+        reference = admin_associations.reference(field, id)
+        reference.visible ? link_to(reference.label, resource_path(resource: reference.resource_key, id: reference.id)) : reference.label
+      end
+      items << t("rails_ai_admin.references.more", count: ids.size - REFERENCES_SHOWN) if ids.size > REFERENCES_SHOWN
+      safe_join(items, ", ")
+    end
+
+    # Checkboxes for the visible targets (up to 100). With more targets, the
+    # current ones stay as checkboxes and one key input, with the search
+    # picker, adds another. The empty hidden value lets "none" be submitted.
+    def admin_references_input(form, field, value, input_options)
+      selected = Array(value)
+      id = form.field_id(field.name)
+      name = "#{form.field_name(field.name)}[]"
+      choices = admin_associations.choices(field)
+      admin_associations.prime(field, selected)
+      options = if choices.complete
+        choices.options
+      else
+        selected.filter_map { |key| (reference = admin_associations.reference(field, key)).visible ? [ reference.label, key ] : nil }
+      end
+      boxes = options.map do |label, key|
+        box_id = "#{id}--#{key}"
+        tag.div(safe_join([ check_box_tag(name, key, selected.include?(key), id: box_id), " ", label_tag(box_id, label) ]), class: "raa-check")
+      end
+      parts = [ hidden_field_tag(name, "", id: nil), *boxes ]
+      parts << tag.p(t("rails_ai_admin.fields.none"), class: "raa-field-help") if options.empty? && choices.complete
+      unless choices.complete
+        target = Fields::Association.target(field)
+        key_input = text_field_tag(name, "", id: "#{id}--add", maxlength: 100, autocomplete: "off", spellcheck: false,
+          placeholder: t("rails_ai_admin.references.key_placeholder", target: target.label.singularize))
+        parts << admin_reference_picker(target, key_input, "#{id}--add", field, nil)
+      end
+      tag.div(safe_join(parts), id: id, class: "raa-references", role: "group", aria: { label: field.label, describedby: input_options.dig(:aria, :describedby), invalid: input_options.dig(:aria, :invalid) })
     end
 
     # A file links to the admin's own download route, which checks the record

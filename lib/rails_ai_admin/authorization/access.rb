@@ -115,6 +115,7 @@ module RailsAiAdmin
         raise ConfigurationError, "Computed fields do not invoke model methods" if field.virtual?
         return read_file(record, field) if field.scalar_type == :file
         return read_rich_text(record, field) if field.scalar_type == :rich_text
+        return read_references(record, field) if field.scalar_type == :references
         name = field.column
         primary_key = record.class.primary_key
         id_alias = name == "id" && primary_key.is_a?(String) && record.has_attribute?(primary_key)
@@ -200,6 +201,17 @@ module RailsAiAdmin
         content = ActiveRecord::Base.while_preventing_writes { record.public_send(field.column)&.body }
         html = content&.to_html.to_s
         html.match?(Field::BLANK) ? nil : String.new(html)
+      end
+
+      # The associated keys as sorted text. Targets the actor cannot see stay
+      # keys; pages label them through the target's own grants.
+      def read_references(record, field)
+        reflection = record.class.reflect_on_association(field.name)
+        unless reflection&.collection? && record.respond_to?(field.column)
+          raise ConfigurationError, "references fields must name a has_many or has_and_belongs_to_many association"
+        end
+        ids = ActiveRecord::Base.while_preventing_writes { record.public_send(field.column) }
+        ids.map { |id| id.to_s.freeze }.uniq.sort.freeze
       end
 
       def read_file(record, field)

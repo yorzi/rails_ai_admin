@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Associations: `has_one :profile` shows a record's single child as a panel,
+  with the same grants as `has_many` panels. A `references :tags` field edits a
+  `has_many`/`:through`/HABTM list through `tag_ids=`: checkboxes for up to 100
+  visible targets (a search picker beyond), only currently visible targets may be
+  added, hidden stored targets are always kept, a changed list touches the record
+  so its version advances and the audit names the field, and CSV, Chat and show
+  pages label targets through their own grants.
 - Rich text: a `rich_text` field edits a `has_rich_text` attribute with Trix from
   the host's Action Text assets (loaded only on forms that need it; file
   attachments refused). Show pages sanitize the stored HTML; lists, CSV and

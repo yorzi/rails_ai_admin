@@ -10,14 +10,18 @@ module RailsAiAdmin
   # Declares one scalar input/output contract. All presentation and query flags
   # only narrow the permissions returned by the host policy.
   class Field
-    TYPES = %i[id text textarea integer decimal boolean date datetime enum select belongs_to time email url password json file rich_text].freeze
+    TYPES = %i[id text textarea integer decimal boolean date datetime enum select belongs_to time email url password json file rich_text references].freeze
     # Text-like scalars share text coercion, search and equality filters.
     TEXT_TYPES = %i[text textarea id email url].freeze
     # Never listed, searched, sorted or filtered: a password is write-only and
     # JSON has no stable text or ordering.
-    UNQUERYABLE_TYPES = %i[password json file rich_text].freeze
+    UNQUERYABLE_TYPES = %i[password json file rich_text references].freeze
+    # Fields whose value names records of another resource.
+    REFERENCE_TYPES = %i[belongs_to references].freeze
+    # A references field holds at most this many keys.
+    MAX_REFERENCES = 100
     # Registered types refine plain scalars only.
-    PLUGIN_EXCLUDED = %i[belongs_to password json file rich_text].freeze
+    PLUGIN_EXCLUDED = %i[belongs_to password json file rich_text references].freeze
     # Rich text is stored HTML; its bound is larger than other text.
     MAX_RICH_TEXT = 1_048_576
     # Default upload bound for a file field: 10 MB.
@@ -69,6 +73,8 @@ module RailsAiAdmin
       defaults = { readonly: @scalar_type == :id, nullable: true, required: false, max_length: 2000, create: true, edit: true, index: true, show: true, hidden: false }
       defaults.merge!(readonly: true, create: false, edit: false, searchable: false, sortable: false) if virtual?
       defaults.merge!(resource: @name.to_s.pluralize.to_sym, foreign_key: "#{@name}_id") if @scalar_type == :belongs_to
+      # Listing keys costs a query per row, so lists leave references out.
+      defaults.merge!(resource: @name.to_sym, foreign_key: "#{@name.to_s.singularize}_ids", index: false) if @scalar_type == :references
       defaults.merge!(max_length: 65_536) if @scalar_type == :json
       defaults.merge!(index: false, show: false) if @scalar_type == :password
       defaults.merge!(max_size: MAX_FILE_SIZE) if @scalar_type == :file
@@ -77,7 +83,7 @@ module RailsAiAdmin
       validate_options!
       validate_association_options!
       validate_query_options!
-      @column = (@scalar_type == :belongs_to ? @options[:foreign_key] : @name.to_s).dup.freeze
+      @column = (REFERENCE_TYPES.include?(@scalar_type) ? @options[:foreign_key] : @name.to_s).dup.freeze
       @filter_operators = resolve_filter_operators
       @descriptor = Descriptor.new(@name, @type, @scalar_type, @options, immutable_copy(scalar_json_schema))
       if @plugin
@@ -235,6 +241,16 @@ module RailsAiAdmin
         raise ArgumentError, message(:not_time, "must be a time of day (HH:MM)") unless parts
         "#{parts[1]}:#{parts[2]}:#{parts[3] || '00'}"
       when :file then coerce_file(value)
+      when :references
+        raise ArgumentError, message(:not_list, "must be a list of records") unless value.is_a?(Array) && value.size <= MAX_REFERENCES + 1
+        keys = value.map { |item| item.is_a?(Integer) && item.positive? ? item.to_s : item }.reject { |item| item == "" }
+        unless keys.all? { |item| item.is_a?(String) && item.valid_encoding? && item.match?(REFERENCE) }
+          raise ArgumentError, message(:unavailable_choice, "is not an available choice")
+        end
+        keys = keys.uniq.sort
+        raise ArgumentError, message(:too_many, "can name at most %{count} records", count: MAX_REFERENCES) if keys.size > MAX_REFERENCES
+        raise ArgumentError, message(:blank, "cannot be blank") if strict && keys.empty? && options[:required]
+        keys.map { |key| String.new(key).freeze }.freeze
       when :json
         value = parse_json(value) if value.is_a?(String)
         raise ArgumentError, message(:not_json, "must be valid JSON") unless json_value?(value)
@@ -328,6 +344,7 @@ module RailsAiAdmin
       when :boolean then { "type" => "boolean" }
       when :enum, :select then { "type" => "string", "enum" => choice_values }
       when :belongs_to then { "type" => "string", "pattern" => "^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$" }
+      when :references then { "type" => "array", "maxItems" => MAX_REFERENCES, "items" => { "type" => "string", "pattern" => "^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$" } }
       when :time then { "type" => "string", "pattern" => "^([01][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9](\\.[0-9]{1,6})?)?$" }
       when :url then { "type" => "string", "pattern" => "^[Hh][Tt][Tt][Pp][Ss]?://", "maxLength" => options[:max_length] }
       when :json then { "type" => %w[object array string number boolean] }
@@ -515,8 +532,8 @@ module RailsAiAdmin
     end
 
     def validate_association_options!
-      if scalar_type != :belongs_to
-        raise ConfigurationError, "resource and foreign_key are belongs_to options" if options.key?(:resource) || options.key?(:foreign_key)
+      if !REFERENCE_TYPES.include?(scalar_type)
+        raise ConfigurationError, "resource and foreign_key are belongs_to and references options" if options.key?(:resource) || options.key?(:foreign_key)
         return
       end
       resource, foreign_key = options[:resource], options[:foreign_key]

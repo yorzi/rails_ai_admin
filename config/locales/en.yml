@@ -58,6 +58,8 @@ en:
         file_unavailable: is not an available upload
         file_too_large: is larger than %{size}
         file_type: is not an accepted file type
+        not_list: must be a list of records
+        too_many: can name at most %{count} records
       'yes': 'Yes'
       'no': 'No'
       not_set: Not set
@@ -229,6 +231,9 @@ en:
       unavailable: This review is unavailable.
       no_longer_available: This review is no longer available.
     references:
+      more:
+        one: and 1 more
+        other: and %{count} more
       key_placeholder: "%{target} ID"
       current: 'Currently: %{label}'
       find: Search %{target}

@@ -226,7 +226,8 @@ module RailsAiAdmin
           # has_secure_password defines password= over a digest column.
           (field.scalar_type == :password && model.method_defined?("#{field.column}=")) ||
           (field.scalar_type == :file && model.respond_to?(:reflect_on_attachment) && model.reflect_on_attachment(field.column)&.macro == :has_one_attached) ||
-          (field.scalar_type == :rich_text && model.reflect_on_association("rich_text_#{field.column}").present?)
+          (field.scalar_type == :rich_text && model.reflect_on_association("rich_text_#{field.column}").present?) ||
+          (field.scalar_type == :references && model.reflect_on_association(field.name)&.collection?)
       end
       result = [ Check.new("schema:#{resource.key}", invalid.empty? ? :ok : :error,
         "#{invalid.size} declared fields lack supported scalar columns. Check field names/types; computed fields use declared dependency graphs. No records were sampled.") ]
@@ -271,7 +272,7 @@ module RailsAiAdmin
           "Search uses case-insensitive LIKE on SQLite and ILIKE on PostgreSQL over #{modes}. A plain B-tree index cannot serve ILIKE or contains search; " \
           "on PostgreSQL use a pg_trgm GIN index, or lower(column) text_pattern_ops for prefix search. SQLite folds ASCII case only, so non-ASCII case differs by database.")
       end
-      references = resource.fields.select { |field| field.scalar_type == :belongs_to }
+      references = resource.fields.select { |field| Field::REFERENCE_TYPES.include?(field.scalar_type) }
       if references.any?
         failures = references.filter_map do |field|
           Fields::Association.validate!(resource, field, registry: @registry)

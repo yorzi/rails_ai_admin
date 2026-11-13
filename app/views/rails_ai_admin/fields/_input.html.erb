@@ -12,6 +12,7 @@
 <% when :url %><%= form.url_field field.name, value: value, maxlength: field.options[:max_length], autocomplete: "off", spellcheck: false, **input_options %>
 <%# A password is never prefilled or echoed back, even after a failed save. %>
 <% when :password %><%= form.password_field field.name, value: nil, maxlength: field.options[:max_length], autocomplete: "new-password", **input_options %>
+<% when :references %><%= admin_references_input(form, field, value, input_options) %>
 <% when :rich_text %><%= admin_rich_text_input(form, field, value, input_options) %>
 <% when :file %><%= admin_file_input(form, field, value, input_options) %>
 <% when :json %><%= form.text_area field.name, value: admin_json_input_value(value), rows: 8, spellcheck: false, class: "raa-json-input", **input_options %>
