@@ -33,14 +33,33 @@ module RailsAiAdmin
       value = value.nil? ? nil : String.new(value.to_s)
       choices = admin_associations.choices(field)
       unless choices.complete
-        return form.text_field(field.name, value: value, maxlength: 100, autocomplete: "off", spellcheck: false,
-          placeholder: "#{Fields::Association.target(field).label.singularize} ID", **input_options)
+        target = Fields::Association.target(field)
+        key_input = form.text_field(field.name, value: value, maxlength: 100, autocomplete: "off", spellcheck: false,
+          placeholder: t("rails_ai_admin.references.key_placeholder", target: target.label.singularize), **input_options)
+        return admin_reference_picker(target, key_input, form.field_id(field.name), field, value)
       end
       options = choices.options.map(&:dup)
       if value.present? && options.none? { |_, key| key == value }
         options.unshift([ "#{admin_associations.reference(field, value).label} (not available)", value ])
       end
       form.select(field.name, options, { selected: value, include_blank: field.options[:nullable] ? "None" : "Choose a record" }, input_options)
+    end
+
+    # The typed key input, plus a search box when the actor can list the
+    # target (the search endpoint applies the same grants again).
+    def admin_reference_picker(target, key_input, key_id, field, value)
+      return key_input unless allowed_action?(target, :index)
+      current = value.present? ? admin_associations.reference(field, value) : nil
+      render(partial: "rails_ai_admin/fields/reference_picker",
+        locals: { target: target, key_input: key_input, key_id: key_id, current: current&.visible ? current : nil })
+    end
+
+    # Untranslated templates for the picker script; it fills %{count} and %{label}.
+    def admin_reference_messages
+      results = t("rails_ai_admin.references.results")
+      { searching: t("rails_ai_admin.references.searching"), none: t("rails_ai_admin.references.none"),
+        failed: t("rails_ai_admin.references.failed"), one: results[:one], other: results[:other],
+        chosen: t("rails_ai_admin.references.chosen") }
     end
 
     # Says how the box matches, so "Love" not finding "Ada Lovelace" under

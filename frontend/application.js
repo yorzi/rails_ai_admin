@@ -263,7 +263,82 @@ class SelectionController extends Controller {
   }
   disconnect() { document.removeEventListener("change", this.update); }
 }
+// Fills a typed reference key from the target resource's search. Results are
+// written with textContent only; the key input stays the submitted value.
+class ReferencePickerController extends Controller {
+  static targets = ["panel", "query", "status", "results", "current"];
+  static values = { url: String, key: String, messages: Object };
+  connect() {
+    this.key = document.getElementById(this.keyValue);
+    if (!this.key) return;
+    this.panelTarget.hidden = false;
+    this.sequence = 0;
+  }
+  disconnect() { clearTimeout(this.timer); this.abort?.abort(); }
+  keydown(event) {
+    // Enter in the search box must never submit the surrounding form.
+    if (event.key === "Enter") {
+      event.preventDefault();
+      this.resultsTarget.querySelector("button")?.focus();
+    } else if (event.key === "Escape") { this.clear(); }
+  }
+  search(event) {
+    event.stopPropagation();
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => this.fetch(this.queryTarget.value.trim()), 250);
+  }
+  async fetch(term) {
+    this.abort?.abort();
+    if (term === "") { this.clear(); return; }
+    const sequence = ++this.sequence;
+    this.abort = new AbortController();
+    this.statusTarget.textContent = this.messagesValue.searching;
+    try {
+      const url = new URL(this.urlValue, location.href);
+      url.searchParams.set("q", term);
+      const response = await fetch(url, { headers: { Accept: "application/json" }, credentials: "same-origin", signal: this.abort.signal });
+      if (!response.ok || url.origin !== location.origin) throw new Error("search failed");
+      const body = await response.json();
+      if (sequence === this.sequence) this.render(Array.isArray(body.results) ? body.results : []);
+    } catch (error) {
+      if (error.name !== "AbortError" && sequence === this.sequence) {
+        this.resultsTarget.replaceChildren();
+        this.statusTarget.textContent = this.messagesValue.failed;
+      }
+    }
+  }
+  render(results) {
+    const items = results.filter((result) => typeof result.id === "string" && typeof result.label === "string").map((result) => {
+      const item = document.createElement("li");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = result.label;
+      button.addEventListener("click", () => this.choose(result));
+      item.append(button);
+      return item;
+    });
+    this.resultsTarget.replaceChildren(...items);
+    const template = items.length === 0 ? this.messagesValue.none : (items.length === 1 ? this.messagesValue.one : this.messagesValue.other);
+    this.statusTarget.textContent = template.replace("%{count}", String(items.length));
+  }
+  choose(result) {
+    this.key.value = result.id;
+    this.key.dispatchEvent(new Event("input", { bubbles: true }));
+    this.key.dispatchEvent(new Event("change", { bubbles: true }));
+    this.currentTarget.textContent = this.messagesValue.chosen.replace("%{label}", result.label);
+    this.currentTarget.hidden = false;
+    this.clear();
+    this.key.focus();
+  }
+  clear() {
+    clearTimeout(this.timer);
+    this.queryTarget.value = "";
+    this.resultsTarget.replaceChildren();
+    this.statusTarget.textContent = "";
+  }
+}
 application.register("raa-selection", SelectionController);
+application.register("raa-reference-picker", ReferencePickerController);
 // Review Surfaces carry data-controller="rails-tool-views" for saving and
 // failure status text (RAA-019); the factory is rails_tool_views' own.
 application.register("rails-tool-views", railsToolViewsController(Controller));

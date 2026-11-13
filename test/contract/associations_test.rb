@@ -122,6 +122,34 @@ class AssociationsContractTest < Minitest::Test
     end
   end
 
+  def test_picker_search_returns_only_what_the_target_index_would_show
+    aaron = Customer.create!(account_id: 1, name: "Aaron")
+    Customer.create!(account_id: 2, name: "Aaron other tenant")
+    with_association_resources do |registry|
+      customers = registry.fetch(:customers)
+      assert_equal [ [ "Aaron", aaron.id.to_s ] ], Association.search(context, customers, "aron")
+      assert_equal [ "Alice" ], Association.search(context, customers, @customer.id.to_s).map(&:first)
+      assert_empty Association.search(context, customers, @other.id.to_s), "another tenant's key is not a match"
+      assert_empty Association.search(context, customers, "  ")
+      assert_raises(RailsAiAdmin::AccessDenied) { Association.search(context, customers, "x" * 201) }
+
+      AssociationFixtures::Policy.hidden_customers = [ "Aaron" ]
+      assert_empty Association.search(context, customers, "aron")
+
+      AssociationFixtures::Policy.hidden_customers = []
+      AssociationFixtures::Policy.deny_customer_show = true
+      assert_empty Association.search(context, customers, "a"), "records without a show grant are left out"
+
+      AssociationFixtures::Policy.deny_customer_show = false
+      AssociationFixtures::Policy.customer_search = []
+      assert_equal [ "Aaron" ], Association.search(context, customers, aaron.id.to_s).map(&:first), "an unsearchable target still matches its key"
+      assert_empty Association.search(context, customers, "Aaron")
+
+      AssociationFixtures::Policy.deny_customer_index = true
+      assert_raises(RailsAiAdmin::AccessDenied) { Association.search(context, customers, "Aaron") }
+    end
+  end
+
   def test_choices_are_bounded_current_and_ordered_by_a_granted_title
     Customer.create!(account_id: 1, name: "Aaron")
     with_association_resources do |registry|

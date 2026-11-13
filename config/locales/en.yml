@@ -57,3 +57,14 @@ en:
       proposed_changes: Proposed visible changes
       dismiss: Dismiss
       dismissed: Dismissed. Nothing was changed.
+    references:
+      key_placeholder: "%{target} ID"
+      current: "Currently: %{label}"
+      find: Search %{target}
+      searching: Searching…
+      none: No matching records.
+      failed: Search is not available. Type the ID instead.
+      results:
+        one: "%{count} match. Choose one below."
+        other: "%{count} matches. Choose one below."
+      chosen: "Chosen: %{label}"

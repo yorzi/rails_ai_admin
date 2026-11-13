@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Reference inputs past 100 targets keep the typed key input and add a search
+  box that fills it. `GET <admin>/<target>/references/search?q=` returns at
+  most 20 `{id, label}` results through the target's own policy relation,
+  search grants and per-record show grant, plus an exact key match; filters
+  use the same picker (RAA-030).
 - Dependencies are on their latest releases: minitest 6.1.0, prism 2.1.0,
   Bundler 4.0.24, jekyll-vitepress-theme 1.12.0, Host B esbuild 0.28.2, and
   CI on ruby/setup-ruby v1.338.0 and Node 26. Ruby 4.0.9 and Rails 8.1.4.1

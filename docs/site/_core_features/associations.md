@@ -73,9 +73,15 @@ target and should avoid their own per-record queries.
 
 New and edit forms render a select of up to 100 targets the actor can currently
 list and see, ordered by the target title when its sort is granted and then by
-primary key. If the actor cannot list the target resource, or more than 100
-targets exist, the form shows a plain text input for the target's key instead.
-Association search is planned (see below).
+primary key. Past 100 targets the form shows a text input for the target's key
+with a search box under it. The search box asks
+`GET /admin/customers/references/search?q=…`, which answers with exactly what
+the target's own list would show this actor for that text: its policy
+relation, its granted search fields and a show grant per record, at most 20
+results, plus an exact match on a typed key. Choosing a result fills the key.
+The search box has no name and is never submitted; without JavaScript, or for
+a target with no granted search fields, the key input still works alone. If the
+actor cannot list the target resource, the form shows only the key input.
 
 Every write rechecks the submitted key in the shared Runner, inside the same
 transaction as the domain write:
@@ -101,8 +107,8 @@ policy is not implemented.
 ## Filtering by Reference
 
 `filterable: true` offers `eq` only, behind the usual independent `:filter`
-grant. The filter form renders the same bounded picker, or a key input past 100
-targets. The value narrows the already-authorized list; it never widens it.
+grant. The filter form renders the same bounded picker, or past 100 targets the
+same key input and search box. The value narrows the already-authorized list; it never widens it.
 
 ```text
 /admin/orders?filter[customer][eq]=42
@@ -164,7 +170,6 @@ target grants.
 
 * Association search, sort and label columns (LIST-019): `belongs_to` fields
   cannot be `searchable` or `sortable`.
-* A searchable picker endpoint for more than 100 targets.
 * Polymorphic, `has_one`, `has_many :through` and many-to-many writes.
 * Nested child forms, attach/detach/reparent policies and the dependent-destroy
   preview required by CRUD-021.

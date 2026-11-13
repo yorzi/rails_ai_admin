@@ -101,6 +101,37 @@ module RailsAiAdmin
         Choices.new(options.freeze, records.size <= MAX_CHOICES)
       end
 
+      # Picker search over a target resource, for forms and filters whose
+      # choices are incomplete. Results are exactly what the target's own index
+      # would show this actor for the same term: its policy relation, its
+      # granted search fields, and a show grant per record. A term shaped like
+      # the target's primary key also matches that record. Returns [label, key]
+      # pairs, at most limit.
+      SEARCH_LIMIT = 20
+      def self.search(context, target, term, limit: SEARCH_LIMIT)
+        raise ConfigurationError, "Invalid picker limit" unless limit.is_a?(Integer) && limit.between?(1, SEARCH_LIMIT)
+        access = Authorization::Access.new(context, target)
+        access.authorize!(:index)
+        term = term.strip if term.is_a?(String) && term.valid_encoding?
+        return [] if term.blank?
+        model = target.model_class
+        exact = access.canonical_id?(term) ? access.relation.where(model.primary_key => term).limit(1).to_a : []
+        matches = if access.fields(:search).any?
+          Queries::List.new(context, target).call(search: term, scope: Queries::NamedScope::NONE, page_size: limit).records
+        else
+          # Unsearchable targets still accept an exact key; the term itself
+          # is validated the same way the list validates search text.
+          raise AccessDenied, "INVALID_QUERY" unless Queries::List::FILTER_VALUE.call(term)
+          []
+        end
+        (exact + matches).uniq(&:id).first(limit).filter_map do |record|
+          access.authorize!(:show, record)
+          [ access.record_label(record).freeze, record.id.to_s.freeze ]
+        rescue AccessDenied
+          nil
+        end
+      end
+
       private
 
       def cache_key(field) = field.options.fetch(:resource).to_s

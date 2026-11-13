@@ -28,7 +28,7 @@ hosts, not by external users.
 | Basic CRUD, fields and validation | Local | Three domains in packaged hosts (ADRs 0009–0015) |
 | Index, search, sort, pagination | Local | ADR 0014, 0019 |
 | Typed filters and named scopes | Local | ADR 0017, 0018 |
-| Associations | Partial | `belongs_to` and readonly `has_many` panels (ADR 0021). Open: picker search endpoint, association columns, has_one/through, attach/detach policies |
+| Associations | Partial | `belongs_to` and readonly `has_many` panels (ADR 0021). Picker search past 100 targets. Open: association columns, has_one/through, attach/detach policies |
 | Navigation and basic permissions | Local | ADR 0002, 0016 |
 | Operable Surface | Local | Admin review Surfaces (ADR 0020) |
 | AI disabled path | Local | Host A runs with no AI tables, keys or routes |

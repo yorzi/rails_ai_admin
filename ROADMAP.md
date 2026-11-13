@@ -107,9 +107,10 @@ this file records current scope without rewriting its historical review claims.
   now, keeps an unchanged one and maps a foreign-key race to CONFLICT. Both test
   databases, packaged Host A (`Order belongs_to :customer`, `Customer has_many
   :orders`, all 29 overrides rendered) and an unchanged Host B verify it; no
-  Chrome/accessibility check yet (ADR 0021). Association search/sort, a picker
-  endpoint, has_one/through/many-to-many and CRUD-021 attach/detach policies
-  remain open.
+  Chrome/accessibility check yet (ADR 0021). Past 100 targets a search box
+  fills the typed key from the target's own search grants (2026-11-13).
+  Association search/sort, has_one/through/many-to-many and CRUD-021
+  attach/detach policies remain open.
 - Opt-in admin Chat on RubyLLM 2.1.1 (first slice of RAA-0251 and SPIKE-03's
   offline part; ADR 0022). Engine-owned chat/message/turn tables, a per-request
   host `RubyLLM.context`, a default-deny `assistant?` grant and grant-filtered
@@ -180,7 +181,7 @@ AI-010 page/selection context, streaming (AI-003) and chat retention. Close the
 remaining Phase 2 evidence in parallel: RAA-0210 (validation, CSRF, mass assignment, XSS and N+1
 regressions across list and Surface routes), I18n of framework strings, a
 screen-reader pass, and the RAA-0203/0208 extension matrix. Then start Phase 3
-continuing associations (RAA-0301): a searchable picker endpoint, association
+continuing associations (RAA-0301): association
 columns (LIST-019), has_one/has_many :through and CRUD-021 attach/detach policies.
 The resource DSL, three-domain CRUD, status/controller extension, recovery, list
 navigation and belongs_to/has_many reads now have local evidence; this does not
