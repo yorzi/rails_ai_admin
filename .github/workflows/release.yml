@@ -3,6 +3,18 @@ name: Publish gem
 on:
   workflow_dispatch:
     inputs:
+      tag:
+        description: Release tag already merged into main
+        required: true
+        type: string
+      commit:
+        description: Full tested release commit SHA
+        required: true
+        type: string
+      sha256:
+        description: Expected gem SHA-256
+        required: true
+        type: string
       publish:
         description: Push the verified gem to RubyGems
         type: boolean
@@ -26,7 +38,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: refs/tags/v0.1.0
+          ref: ${{ inputs.tag }}
           fetch-depth: 0
           persist-credentials: false
       - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
@@ -35,17 +47,24 @@ jobs:
           bundler-cache: true
       - name: Verify the tested release and build its gem
         shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_COMMIT: ${{ inputs.commit }}
+          RELEASE_SHA256: ${{ inputs.sha256 }}
         run: |
-          test "$(git rev-parse HEAD)" = 8ef37f24fa76e49bbe90cfcf1e18ded65c6685d1
+          test "$(git rev-parse HEAD)" = "$RELEASE_COMMIT"
+          git merge-base --is-ancestor HEAD origin/main
+          test "$RELEASE_TAG" = "v$(ruby -r ./lib/rails_ai_admin/version -e 'print RailsAiAdmin::VERSION')"
           export SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)"
           bundle exec rake build release:check
-          printf '%s  %s\n' 04aaa7b9270b9ef6ddce5141356c026f457459afdb85447fc4dfa7da1e443c53 pkg/rails_ai_admin-0.1.0.gem | sha256sum --check
-      - name: Push 0.1.0 to RubyGems
+          printf '%s  %s\n' "$RELEASE_SHA256" "pkg/rails_ai_admin-${RELEASE_TAG#v}.gem" | sha256sum --check
+      - name: Push the release to RubyGems
         if: inputs.publish
         # The first push requires an explicit RubyGems owner. The official
         # credentials action does not yet pass this input to the exchange API.
         run: |
           ruby <<'RUBY'
+          require_relative "./lib/rails_ai_admin/version"
           require "json"
           require "net/http"
           require "rubygems/gem_runner"
@@ -68,5 +87,5 @@ jobs:
           abort "Invalid RubyGems key response" unless key.is_a?(String) && key.match?(/\A[a-zA-Z0-9_]+\z/)
           puts "::add-mask::#{key}"
           ENV["GEM_HOST_API_KEY"] = key
-          Gem::GemRunner.new.run(["push", "pkg/rails_ai_admin-0.1.0.gem"])
+          Gem::GemRunner.new.run(["push", "pkg/rails_ai_admin-#{RailsAiAdmin::VERSION}.gem"])
           RUBY

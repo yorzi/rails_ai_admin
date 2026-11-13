@@ -1,14 +1,13 @@
 - title: Guides
-  url: /getting-started/
+  url: /quickstart/
   collections:
     - getting_started
     - core_features
-    - advanced
+- title: AI Chat
+  url: /admin-assistant/
+- title: Demo
+  url: /demo/
 - title: Reference
   url: /api-reference/
   collections:
     - reference
-- title: Status
-  url: /development-status/
-- title: What's New
-  url: /whats-new-in-0-1/

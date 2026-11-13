@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1 (2026-11-13)
+
+- Clarify the documentation homepage and introductory guide.
+- Add direct navigation to AI Chat, the demo, and GitHub.
+- Use Inter for guide text and IBM Plex Mono for code examples.
+
 ## 0.1.0 (2026-11-13)
 
 First Public Preview. Requires Ruby 3.3 or newer, Rails 8.0.5.2 or newer

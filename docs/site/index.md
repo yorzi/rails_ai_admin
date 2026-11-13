@@ -15,34 +15,19 @@ hero:
       text: Try the demo
       link: /demo/
 features:
-  - title: Explicit exposure
-    details: Register reviewed resources and fields rather than publishing reflected models.
+  - title: An admin for your Rails app
+    details: Manage records with forms, associations, search, dashboards, CSV import and export, and an audit trail.
     link: /resources-and-fields/
-    link_text: Declare resources
-  - title: Host authority
-    details: Resolve fresh sessions, complete tenant scopes and independent field permissions.
+    link_text: Configure resources
+  - title: Your users and permissions
+    details: Connect your existing authentication and policies. Control which records, fields, and actions each administrator can access.
     link: /configuration/
-    link_text: Connect policies
-  - title: Atomic evidence
-    details: Commit conventional domain changes, human confirmation, receipts and audit together.
-    link: /operations/
-    link_text: Understand operations
-  - title: Everyday fields
-    details: Text to JSON, uploads and galleries, rich text, many-to-many lists and write-only passwords.
-    link: /resources-and-fields/
-    link_text: See field types
-  - title: Data in and out
-    details: CSV export and checked imports, bulk delete, record history and an audit log, each behind its own grant.
-    link: /csv-export/
-    link_text: Move data
-  - title: AI with a human in the loop
-    details: Chat reads through your grants; every AI-suggested create, update or delete is a reviewed, audited, version-checked write.
+    link_text: Connect your app
+  - title: AI with human approval
+    details: Ask questions about authorized records. Review proposed changes in chat before confirming them.
     link: /admin-assistant/
-    link_text: Meet the assistant
-  - title: Overview at a glance
-    details: Counts, metrics and daily trend charts, plus one search box across every resource.
-    link: /dashboard/
-    link_text: Build a dashboard
+    link_text: Set up the assistant
+
 ---
 
 ## Install Rails AI Admin
@@ -98,55 +83,15 @@ MCP against an offline fake model. Open `http://127.0.0.1:3917/login` and click
 **Sign in as Admin**. See
 [Try the Demo]({% link _getting_started/demo.md %}).
 
-## Extend Scalar Fields
+## Choose Your Next Step
 
-[Field Types]({% link _core_features/field-types.md %}) shows class-name
-registration, pure normalization/validation and field partials. The
-[extension contract]({% link _reference/extension-contracts.md %}) records the
-exact scalar/schema and rendering boundaries.
-[Computed Fields]({% link _core_features/computed-fields.md %}) derives readonly
-values from declared, recursively authorized scalar dependencies. Physical fields
-keep their actual-attribute guard; neither extension grants additional authority.
+* [Configure resources and fields]({% link _core_features/resources-and-fields.md %}) to build forms and record lists.
+* [Set up the assistant]({% link _advanced/admin-assistant.md %}) to connect RubyLLM and your model provider.
+* [Add review cards]({% link _advanced/review-surfaces.md %}) to confirm changes inside chat with rails_tool_views.
+* [Connect an MCP client]({% link _advanced/mcp-server.md %}) to use the same permission-checked tools from an external agent.
+* [Verify your host integration]({% link _advanced/host-verification.md %}) before enabling access for your team.
 
-## Customize Cataloged Templates
+## Version {{ site.version }}
 
-[Template Overrides]({% link _advanced/template-overrides.md %}) copies one
-allowlisted page, layout or partial into the host without replacing existing
-files. The [catalog]({% link _reference/template-catalog.md %}) specifies its
-assigns/locals contract; doctor reports source/context drift for upgrade review.
-Host edits still own their permission, escaping and confirmation behavior.
-
-## Recover an Open Generic Form
-
-[Form Session Recovery]({% link _advanced/form-recovery.md %}) can retain the
-current create/update DOM after marked authentication/CSRF failure. Fresh sign-in,
-manual Resume and explicit Save are required; refreshing or closing the page
-loses this memory-only preservation.
-
-## Return to a Current List
-
-[List Navigation]({% link _core_features/list-navigation.md %}) carries bounded
-search/sort/page hints through native record and operation flows, with fresh query
-grants and bounded empty-page recovery. Return hints never choose an external
-URL or grant record/list authority.
-
-## Build a Host-Owned Admin Page
-
-[Custom Controllers and Status Pages]({% link _advanced/custom-controllers.md %})
-connects ordinary host Rails controllers/partials to fresh admin Context, explicit
-scoped access and the shared Runner. Fixed status pages preserve HTTP/denial
-boundaries without rendering normal resource navigation.
-
-## Group Authorized Resources
-
-[Resource Navigation]({% link _core_features/resource-navigation.md %}) supplies
-static groups, plain labels, fixed icons and ordering for sidebar/Overview entries.
-A hidden menu remains subject to the same direct route permissions; cosmetic
-settings confer no record or operation authority.
-
-## Current Scope
-
-The Public Preview covers native CRUD, bounded collection jobs, audited
-operations and optional Chat, review Surfaces and MCP. Its
-[release notes]({% link _getting_started/whats-new-in-0-1.md %}) list the supported
-workflows and limits.
+This release is a Public Preview. Read [what is available]({% link _getting_started/whats-new-in-0-1.md %})
+and the [current limitations]({% link _reference/development-status.md %}) before adopting it.

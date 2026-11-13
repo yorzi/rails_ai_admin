@@ -2,7 +2,7 @@
 layout: default
 title: How Rails AI Admin Works
 nav_order: 4
-description: Understand the current ownership boundary from request to committed receipt.
+description: Learn how resources, host policies, and reviewed operations connect your Rails app to the admin.
 ---
 
 # {{ page.title }}
@@ -14,7 +14,7 @@ After reading this guide, you will know:
 
 * Which responsibilities stay in the host.
 * How resources, policies and operations cooperate.
-* Which target features remain unimplemented.
+* How to add AI assistance and background operations.
 
 ## Keep Authority in the Host
 
@@ -42,42 +42,28 @@ connection pool. Matching database addresses alone is insufficient. A framework
 savepoint can isolate an operation within a caller's transaction; a result inside
 an outer transaction is not committed until that outer transaction commits.
 
-## Separate Target APIs from Implemented APIs
+## Add AI to Your Admin
 
-The current development slice supplies scalar conventional CRUD, custom and
-optional explicitly mapped Pundit policies, bounded index queries, server-issued
-form intents, typed synchronous member operations, independent operation-input
-and receipt grants, durable post-commit Work intent, execution/audit records,
-install/resource generators and initial
-host verification helpers. Schema field suggestions remain comments in an
-unregistered readonly resource. Doctor and field-grant snapshots inspect
-configuration/permissions; they do not prove authentication or AI-visible data.
-An independent packaged Devise/Pundit/PostgreSQL host
-exercises a different authentication, model, policy and asset configuration from
-the native-session SQLite host. These are author-controlled synthetic consumers,
-not independent users or production adoption.
+Enable the optional assistant to search and read records through the current
+administrator's permissions. RubyLLM connects to the provider configured by your
+host. Review Surfaces use rails_tool_views to display proposed changes and collect
+human confirmation. The same policies apply when tools are accessed through MCP.
 
-It does not implement the full development plan. `has_one` and nested editing,
-association search, CSV export, private files, larger batch workflows, dashboards
-with metrics, saved views, global actions, custom CRUD overrides and broader
-asynchronous business workflows remain later milestones. `belongs_to` references
-and readonly `has_many` panels, opt-in admin Chat and opt-in review Surfaces are
-available. Work delivers a committed fact after the domain
-transaction; it is not a parallel asynchronous business-operation path.
+Start with [Admin Assistant]({% link _advanced/admin-assistant.md %}) for provider
+setup and [Review Surfaces]({% link _advanced/review-surfaces.md %}) for confirmation.
 
-RubyLLM and `rails_tool_views` are optional. The gem does not depend on them: add
-`ruby_llm` (>= 2.2.0, < 3) to turn on admin Chat and `rails_tool_views` (~> 1.0.2)
-to turn on review Surfaces, and boot rejects a version outside those ranges.
-Ordinary mode loads neither, installs no AI tables, configures no provider and
-needs no model key.
+## Run Work After a Change
 
-Outbox delivery has its own fresh context/permission, record-version policy,
-deadline, lease and receipt. It requires recurring host scans and real downstream
-idempotency; a database row or an after-commit hook is not exactly-once proof.
+Use [Durable Outbox]({% link _advanced/durable-outbox.md %}) for declared effects
+after a committed change, such as delivery to another service. Your host supplies
+recovery scheduling and downstream idempotency.
 
-The current collection path supports one fixed selection of at most 100 targets,
-one parent approval and independently committed leased items, with native review,
-job results and cancellation. It does not complete the broader batch roadmap.
+Use [Collection Operations]({% link _core_features/collection-operations.md %})
+to apply an approved operation to a fixed selection of up to 100 records. Each
+item commits independently. The job page reports results and supports cancellation.
+
+Consult [Development Status]({% link _reference/development-status.md %}) for
+supported workflows and remaining limitations.
 
 ## Next Steps
 

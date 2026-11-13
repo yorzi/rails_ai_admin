@@ -1,7 +1,7 @@
 PATH
   remote: ..
   specs:
-    rails_ai_admin (0.1.0)
+    rails_ai_admin (0.1.1)
       base64 (~> 0.3)
       json (>= 2.13)
       json_schemer (~> 2.5)
@@ -525,7 +525,7 @@ CHECKSUMS
   rails (8.0.5.2) sha256=84bf06f0b96ebf625f4d120caa9c660f8fd09b3146acc1542679713b2cdda90a
   rails-dom-testing (2.3.0) sha256=8acc7953a7b911ca44588bf08737bc16719f431a1cc3091a292bca7317925c1d
   rails-html-sanitizer (1.7.2) sha256=a21ef45b7a6639fc8e2282473c547514cb86ae271616162a946bf89148fa2424
-  rails_ai_admin (0.1.0)
+  rails_ai_admin (0.1.1)
   rails_tool_views (1.0.2) sha256=3d169601f62005fff6e510b604e377585edc308b31c92a4df6cc21b3a0789d50
   railties (8.0.5.2) sha256=4b43a2c134a1b9887dd9ef659c71f61e8376d18a8fc52a09471979666b919fa6
   rainbow (3.1.1) sha256=039491aa3a89f42efa1d6dec2fc4e62ede96eb6acd95e52f1ad581182b79bc6a
