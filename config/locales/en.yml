@@ -1,4 +1,5 @@
-# English source strings. Strings move here as they are edited (RELEASING.md, I18n gate).
+# English source strings for every framework page, helper and controller message.
+# Add a locale by copying this file; missing keys fall back as Rails I18n configures.
 en:
   rails_ai_admin:
     outcomes:
@@ -11,8 +12,7 @@ en:
       invalid_query: The list settings are not available.
       approval_required: This change needs your explicit confirmation.
       approval_expired: This form expired before it was submitted.
-      approval_invalidated: Your access or the operation changed after this form was
-        opened.
+      approval_invalidated: Your access or the operation changed after this form was opened.
       idempotency_conflict: This form was already submitted with different values.
       authorization_revoked: Your access changed before the work ran.
       selection_invalidated: The selection no longer matches the records.
@@ -35,6 +35,39 @@ en:
           one: must have at most %{count} decimal place
           other: must have at most %{count} decimal places
         invalid_datetime: is not a valid date and time
+        unavailable_choice: is not an available choice
+        not_text: must be text
+        too_long: is too long
+        invalid: is invalid
+        not_allowed: is not an allowed value
+        not_integer: must be an integer
+        out_of_range: is out of range
+        not_decimal: must be a decimal
+        not_finite: must be finite
+        not_boolean: must be a boolean
+        not_date: must be an ISO date
+        not_timestamp: must be an ISO timestamp
+        operation_rejected: operation was rejected
+        not_object: must be an object
+        undeclared_fields: contains undeclared fields
+        required: is required
+        not_email: must be an email address
+        not_url: must be an http or https address
+        not_time: must be a time of day (HH:MM)
+        not_json: must be valid JSON
+        file_unavailable: is not an available upload
+        file_too_large: is larger than %{size}
+        file_type: is not an accepted file type
+        not_list: must be a list of records
+        too_many: can name at most %{count} records
+      'yes': 'Yes'
+      'no': 'No'
+      not_set: Not set
+      choose_value: Choose a value
+      none: None
+      choose_record: Choose a record
+      unavailable_value: Unavailable value — select a current option
+      keep_password: Leave blank to keep the current password.
     resources:
       index:
         omitted_rows: Some records on this page are not available to you.
@@ -43,17 +76,374 @@ en:
         active_filters:
           one: "%{count} active"
           other: "%{count} active"
-        selection_help: Tick records below, then capture their current versions (up
-          to 100). This does not change anything.
+        selection_help: Tick records below, then capture their current versions (up to 100). This does
+          not change anything.
+        search_label: Search %{label}
+        search: Search
+        scopes: "%{label} scopes"
+        apply_filters: Apply filters
+        clear_filters: Clear filters
+        reset: Reset list
+        count:
+          one: "%{number} matching record"
+          other: "%{number} matching records"
+        count_capped: More than %{number} matching records
+        capture_selection: Capture selection
+        records_region: Resource records
+        caption: "%{label}, page %{page}"
+        select: Select
+        select_all: Select all records on this page
+        actions: Actions
+        select_row: Select %{label}
+        view_row: View %{label}
+        empty: No records match this query.
+        pagination: Pagination
+        previous: Previous
+        next: Next
+        page_limit: Narrow your search to view more records within the page limit.
+        settings_restored: Some list settings are no longer available. The current list settings have
+          been restored.
+        page_empty: That list page is now empty. Showing an available page.
       form:
         required_note_html: Fields marked %{marker} are required.
+        asterisk: with an asterisk
+        sections: Form sections
+        inputs_unavailable: Some inputs are no longer available
+      edit: Edit
+      delete: Delete
+      new: New %{label}
+      edit_title: Edit %{label}
+      destroy:
+        title: Delete %{label}
+        question_html: Delete %{label}? This runs the model's destroy callbacks and cannot be undone here.
+        confirm: Confirm deletion
+      saved: Changes saved.
+      saved_with_warning: Changes saved, but a host callback failed. Review operation %{operation} before
+        continuing.
+    exports:
+      button: Export CSV
+      too_many: This list has more than %{limit} records. Narrow it with search or filters, then export again.
+    files:
+      current: "Current file: %{file}"
+      limit: "Up to %{size}."
+      remove: Remove the current file
+    history:
+      link: History
+      title: History of %{record}
+      back: Back to %{record}
+      caption: Changes made through the admin, newest first.
+      empty: No changes have been recorded for this record yet.
+      when: When
+      change: Change
+      fields: Fields
+      by: By
+      you: (you)
+      older: Show older changes
+      not_saved: Not saved
+      other_fields:
+        one: 1 other field
+        other: "%{count} other fields"
+      operations:
+        create: Created
+        update: Updated
+        destroy: Deleted
+      origins:
+        surface: From a review in Chat
+        assistant: Proposed in Chat
     selections:
       empty: Select at least one record.
+      title: Selected records
+      targets_note:
+        one: "%{count} fixed target. This selection does not approve or execute an operation."
+        other: "%{count} fixed targets. This selection does not approve or execute an operation."
+      expires_html: Expires %{time}.
+      caption: "%{label} — fixed selection"
+      id: ID
+      fixed_note: >-
+        Changes to a selected record require a fresh selection. Unselected and newly matching records
+        are never added automatically.
+      destroy:
+        link:
+          one: Delete the selected record
+          other: Delete the %{count} selected records
+        title: Delete selected records
+        question:
+          one: Delete this record? This cannot be undone.
+          other: Delete these %{count} records? This cannot be undone.
+        skipped:
+          one: 1 selected record cannot be deleted by you and will be kept.
+          other: "%{count} selected records cannot be deleted by you and will be kept."
+        each_note: Each record is deleted on its own and recorded in the audit; a record that cannot be deleted does not stop the others.
+        submit:
+          one: Delete 1 record
+          other: Delete %{count} records
+        deleting: Deleting…
+        done:
+          one: Deleted 1 record.
+          other: Deleted %{count} records.
+        result_title: Delete results
+        deleted:
+          one: Deleted 1 record.
+          other: Deleted %{count} records.
+        not_deleted: These records were not deleted
+        reason: Reason
     collection_jobs:
       waiting: Waiting for a worker. The oldest item has been queued for %{age}.
-      waiting_hint: If this does not change, ask the host maintainer to check that
-        a job worker processes the %{queue} queue or that the collection scan is scheduled.
+      waiting_hint_html: >-
+        If this does not change, ask the host maintainer to check that a job worker processes the %{queue}
+        queue or that the collection scan is scheduled.
+      intro: Your latest accessible runs in the current tenant.
+      empty: No accessible collection runs.
+      status_html: 'Status: %{status}'
+      refresh: Refresh status
+      warning: The committed run has a host callback warning. Ask the host maintainer to review it.
+      cancel: Cancel remaining items
+      committed_note: >-
+        Each succeeded item is committed. Follow-up delivery is tracked separately and can remain pending
+        after business success.
+      items: Current visible item results
+      record: Record
+      business_status: Business status
+      reason: Reason
+      follow_up: Follow-up work
+      callback_warning: "(callback warning)"
+      hidden: Some items are not currently visible under your permissions.
+      busy: The run is busy. Reload and try again.
+      cancel_unknown: >-
+        Cancellation outcome is unknown. Refresh this existing run after recovery before taking further
+        action.
+      cancelled: Cancellation processed. Already committed records and their follow-up work are retained.
     surfaces:
       proposed_changes: Proposed visible changes
       dismiss: Dismiss
       dismissed: Dismissed. Nothing was changed.
+      title: Interactive review
+      saved_note: This review is saved. You can reload or return to it until it is confirmed or expires.
+      completed_html: Completed. Recorded as operation %{run}.
+      assistant_note: >-
+        An assistant proposed this. Nothing has been saved yet; only your confirmation applies this exact
+        target and input, once.
+      native_note: >-
+        Nothing has been saved yet. Confirming applies this exact target and input once, whether you confirm
+        here or on the original page.
+      expired: This review can no longer be confirmed. Start a new review from the record.
+      unavailable: This review is unavailable.
+      no_longer_available: This review is no longer available.
+    references:
+      more:
+        one: and 1 more
+        other: and %{count} more
+      key_placeholder: "%{target} ID"
+      current: 'Currently: %{label}'
+      find: Search %{target}
+      searching: Searching…
+      none: No matching records.
+      failed: Search is not available. Type the ID instead.
+      results:
+        one: "%{count} match. Choose one below."
+        other: "%{count} matches. Choose one below."
+      chosen: 'Chosen: %{label}'
+      not_available: "%{label} (not available)"
+    actions:
+      cancel: Cancel
+      save: Save
+      saving: Saving…
+    layout:
+      skip: Skip to content
+      overview: Overview
+      assistant: Assistant
+      collection_jobs: Collection jobs
+      resources_nav: Admin resources
+      return_state_discarded: Some list settings are no longer available. Return links use the current
+        permitted list.
+      administration: Administration
+      settings_unavailable: Some list settings are no longer available.
+    dashboard:
+      count:
+        one: 1 record
+        other: "%{number} records"
+      count_capped:
+        one: More than %{number} records
+        other: More than %{number} records
+      title: Overview
+      intro: Select a resource to manage. Available resources follow your current permissions.
+      empty: No resources are available for this session.
+    associations:
+      empty: No records.
+      view_all: View all in %{label}
+      first: Showing the first %{count}.
+    errors:
+      title: Changes were not saved
+      needs_reload: This form cannot be submitted again. Open a fresh form to review the latest record
+        and permissions.
+    recovery:
+      notice: Your session needs attention. This tab is keeping your unsaved input in memory.
+      sign_in: Sign in in another tab
+      sign_in_elsewhere: Sign in through the host application in another tab, then return here.
+      resume: Resume after signing in
+    statuses:
+      sign_in: Sign in
+      authentication_required:
+        title: Authentication required
+        message: Sign in through the host application to continue.
+      forbidden:
+        title: Access unavailable
+        message: Your current permissions do not allow this page.
+      not_found:
+        title: Not found
+        message: This page or record is not available under your current access.
+      conflict:
+        title: The request has changed
+        message: Review the current records and permissions before preparing a fresh request.
+      invalid_query:
+        title: Invalid query
+        message: Open a fresh list and use the available search, sort and page settings.
+      invalid_request:
+        title: Invalid request
+        message: Your session or request could not be verified. Sign in and review a fresh form before
+          submitting.
+      unavailable:
+        title: Administration unavailable
+        message: Administration is not configured safely. Contact the host maintainer.
+      error:
+        title: The request needs review
+        message: >-
+          Check current records or existing operation results before retrying. A prior write may have
+          completed.
+    search:
+      title: Search
+      label: Search all records
+      placeholder: Search everything
+      none: Nothing matches “%{query}” in the records you can search.
+      view_all: View all matches in %{label}
+      open_list: Open in %{label}
+      prefix: Starts with…
+      contains: Contains…
+      exact: Exact match…
+      any: Search…
+    filters:
+      from: "%{label} from"
+      to: "%{label} to"
+      equals: "%{label} equals"
+      any: Any
+    states:
+      count: "%{state}: %{count}"
+      queued: Queued
+      running: Running
+      pending: Pending
+      succeeded: Succeeded
+      failed: Failed
+      cancelled: Cancelled
+      proposed: Proposed
+      admitted: Admitted
+      unknown: Unknown
+      reconciliation_required: Reconciliation required
+    operations:
+      confirm_title: Confirm %{description}
+      review_note: Review this exact target and input. Nothing has been saved yet. Changed input requires
+        a new review.
+      target: 'Target: %{label}'
+      confirm: Confirm and execute
+      executing: Executing…
+      edit_input: Edit input
+      surface_offer: Prefer to finish later? Save this exact review as an interactive view you can reload
+        and confirm.
+      surface_continue: Continue in an interactive review
+      failure_title: Operation needs a new review
+      failure_note: Nothing was changed. Check the current record and your permissions, then start a new
+        review.
+      review_record: Review current record
+      review: Review operation
+      preparing: Preparing review…
+      completed: Operation completed.
+      completed_with_work: Operation completed. Follow-up work is pending or separately tracked.
+    collection_operations:
+      review_title: Review collection changes
+      targets_note:
+        one: "%{count} fixed target. Each target commits independently. Cancellation preserves committed
+          changes."
+        other: "%{count} fixed targets. Each target commits independently. Cancellation preserves committed
+          changes."
+      confirmed_input: Confirmed input
+      previews: Target previews
+      target_id: 'ID: %{id}'
+      no_differences: No readable field differences were supplied. Domain checks still run during execution.
+      confirm: Confirm and queue
+      edit_input: Edit inputs
+      failure_title: Collection operation needs review
+      uncertain: The admission outcome is unknown. Check the existing run and retry the same intent after
+        recovery.
+      check_run: Check existing run
+      failure_note: Nothing was queued. Check the current selection and your permissions, then start a
+        new review.
+      return: Return to resource
+      form_note:
+        one: "%{count} fixed target. Review before queueing changes."
+        other: "%{count} fixed targets. Review before queueing changes."
+      review: Review changes
+      admitted: Run admitted. Each record is executed separately; queued work is not a completed change.
+    assistant:
+      intro: >-
+        Ask about the records you can already see. The assistant reads through your current permissions
+        and cannot change data; any change it suggests opens a review that you confirm yourself.
+      new: New conversation
+      none: No conversations yet.
+      from: Conversation from %{time}
+      archived_mark: archived
+      closed_mark: closed
+      all: All conversations
+      conversation: Conversation
+      title: Assistant conversation
+      archived_note: This conversation is archived.
+      closed_note: This conversation is closed because your access changed. Start a new conversation.
+      message: Message
+      send: Send
+      archive: Archive conversation
+      archived: Conversation archived.
+      empty: Ask a question about your records to start.
+      roles:
+        user: You
+        review: Review
+        assistant: Assistant
+        records: Records
+      working: The assistant is working…
+      waiting: Waiting for the assistant…
+      refresh: Refresh
+      stop: Stop
+      try_again: Try again
+      retrying: Retrying (%{attempt} of %{attempts})…
+      invalid_message: Write a message of up to %{count} characters.
+      rate_limited:
+        one: >-
+          You have sent %{count} message to the assistant in the last 24 hours, which is this administration's
+          limit. Your message was not sent; try again later.
+        other: >-
+          You have sent %{count} messages to the assistant in the last 24 hours, which is this administration's
+          limit. Your message was not sent; try again later.
+      failures:
+        ai_unavailable: The assistant is not available right now. The rest of the administration works
+          as usual.
+        ai_rejected: The AI provider rejected this request. Try a shorter or different message.
+        provider_unavailable: The AI provider did not respond. Your message is saved; try again.
+        assistant_failed: The assistant could not finish. Your message is saved; try again.
+        attempts_exhausted: The assistant stopped after several attempts. Your message is saved; try again.
+        step_limit: The assistant stopped before finishing this request. Try a narrower question.
+        authorization_revoked: Your access changed, so this request was not answered.
+        not_allowed: No resources are available to the assistant for your account.
+        cancelled: Stopped.
+    script:
+      leave_form: Leave this form? Unsaved changes will be lost.
+      session_attention: >-
+        Your session needs attention. Sign in in another tab, then resume here. Unsaved input stays only
+        in this open tab.
+      restored_partial: >-
+        Session restored. Some fields are no longer editable; their input was not restored. Review the
+        form, then save explicitly.
+      restored: >-
+        Session restored. Your input is ready for review. Nothing has been saved; submit explicitly when
+        ready.
+      return_changed: Some list settings changed; return links use the current permitted list.
+      recovery_failed: >-
+        Recovery was not completed. Sign in as the original user and tenant, then try again. Changed records,
+        permissions, schema, time zone, expired recovery windows or completed requests require a fresh
+        form. This tab still holds your input; nothing was submitted again.

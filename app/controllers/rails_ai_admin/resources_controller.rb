@@ -9,7 +9,7 @@ module RailsAiAdmin
       raw = params.to_unsafe_h.slice(*Navigation::ListState::KEYS)
       @list_navigation = Navigation::ListState.new(@access, raw, strict: true)
       if return_state_discarded?
-        redirect_to list_return_path, status: :see_other, notice: "Some list settings are no longer available. The current list settings have been restored."
+        redirect_to list_return_path, status: :see_other, notice: t("rails_ai_admin.resources.index.settings_restored")
         return
       end
       # A native filter form submits every input; share only the canonical
@@ -21,7 +21,7 @@ module RailsAiAdmin
       @page = Queries::List.new(@context, @resource).call(search: navigation_state["q"], sort: navigation_state["sort"], direction: navigation_state.fetch("direction", "asc"), page: navigation_state.fetch("page", "1"), recover_empty_page: true, scope: navigation_state["scope"], filters: navigation_state["filter"])
       if @page.number != navigation_state.fetch("page", "1").to_i
         @list_navigation = Navigation::ListState.new(@access, navigation_state.merge("page" => @page.number.to_s))
-        redirect_to list_return_path, status: :see_other, notice: "That list page is now empty. Showing an available page."
+        redirect_to list_return_path, status: :see_other, notice: t("rails_ai_admin.resources.index.page_empty")
         return
       end
       @sortable_fields = @access.fields(:sort)
@@ -52,6 +52,11 @@ module RailsAiAdmin
       rescue AccessDenied
         false
       end
+      @exportable = begin
+        @access.authorize_export!
+      rescue AccessDenied
+        false
+      end
     end
 
     def show
@@ -66,6 +71,15 @@ module RailsAiAdmin
       rescue AccessDenied
         false
       end
+    end
+
+    # Who changed this record, when and which fields, newest first.
+    def history
+      @record = @access.find!(params[:id])
+      before = params[:before]
+      raise AccessDenied, "INVALID_QUERY" unless before.nil? || before.is_a?(String)
+      @history = Presentation::History.new(@access, @record).page(before: before)
+      @actor_labels = actor_labels(@history.entries.map(&:actor_ref).uniq)
     end
 
     def new
@@ -118,7 +132,7 @@ module RailsAiAdmin
       # GET stays read-only: the form carries a signed reference that becomes
       # an intent on submit (RAA-005, ADR 0025).
       @intent_ref = runner.issue_form_intent(context: @context, resource: @resource, operation: operation,
-        target_id: operation == :create ? nil : @record.id, expected_version: operation == :create ? nil : @record.lock_version).ref
+        target_id: operation == :create ? nil : @record.id, expected_version: operation == :create ? nil : RecordVersion.of(@record)).ref
       render operation == :destroy ? :confirm_destroy : operation == :create ? :new : :edit
     end
 
@@ -126,12 +140,14 @@ module RailsAiAdmin
       input = operation == :destroy ? {} : submitted_input
       @intent_ref = params[:intent_ref]
       intent_id = runner.materialize_form_intent(context: @context, reference: @intent_ref)
+      upload_files(operation, input) unless operation == :destroy
       result = runner.execute(context: @context, intent_ref: intent_id, input: input,
         human_confirmed: true, origin: :ui,
         binding: { resource_key: @resource.key, operation: operation, target_id: params[:id] })
+      discard_uploads unless result.success?
       if result.success?
         target = operation == :destroy ? list_return_path : resource_path(resource: @resource.key, id: result.record_id, **navigation_params)
-        redirect_to target, status: :see_other, notice: result.warning ? "Changes saved, but a host callback failed. Review operation #{intent_id} before continuing." : "Changes saved."
+        redirect_to target, status: :see_other, notice: result.warning ? t("rails_ai_admin.resources.saved_with_warning", operation: intent_id) : t("rails_ai_admin.resources.saved")
       elsif result.code == "NOT_FOUND"
         raise AccessDenied
       else
@@ -142,7 +158,7 @@ module RailsAiAdmin
         build_form_plan(operation, input) unless operation == :destroy
         names = operation == :destroy ? [] : @form_fields.map { |field| field.name.to_s }
         @errors = result.errors.slice("base", *names)
-        @errors["base"] ||= [ "Some inputs are no longer available" ] if (result.errors.keys - [ "base" ] - names).any?
+        @errors["base"] ||= [ t("rails_ai_admin.resources.form.inputs_unavailable") ] if (result.errors.keys - [ "base" ] - names).any?
         @failure_code = result.code
         # A restricted delete can succeed once the references are gone.
         @needs_reload = !%w[VALIDATION_FAILED RESTRICTED].include?(result.code)
@@ -151,6 +167,42 @@ module RailsAiAdmin
       end
     rescue ActiveRecord::RecordNotFound
       raise AccessDenied
+    end
+
+    # A chosen file becomes a new blob before the write, and only for a file
+    # field the actor may write now. Pages never pass blob ids: a text value in
+    # a file slot is refused. remove_files[] clears a file that is not required.
+    def upload_files(operation, input)
+      @uploaded_blobs = []
+      record = operation == :create ? @access.relation.new : @access.find!(params[:id], action: operation)
+      files = @access.fields(:write, record, operation: operation).select { |field| field.scalar_type == :file }.index_by { |field| field.name.to_s }
+      input.each_key do |name|
+        value = input[name]
+        next unless files.key?(name) || value.is_a?(ActionDispatch::Http::UploadedFile)
+        field = files[name] || raise(AccessDenied, "INVALID_QUERY")
+        if value == ""
+          input.delete(name)
+        elsif !value.is_a?(ActionDispatch::Http::UploadedFile)
+          raise AccessDenied, "INVALID_QUERY"
+        elsif value.size > field.options[:max_size]
+          input[name] = Fields::RejectedUpload.new("too_large", field.options[:max_size])
+        else
+          raise ConfigurationError, "file fields need Active Storage" unless defined?(::ActiveStorage::Blob)
+          blob = ::ActiveStorage::Blob.create_and_upload!(io: value, filename: value.original_filename.presence || "upload",
+            content_type: value.content_type, identify: true)
+          @uploaded_blobs << blob
+          input[name] = blob.signed_id
+        end
+      end
+      removals = params[:remove_files]
+      return if removals.nil?
+      raise AccessDenied, "INVALID_QUERY" unless removals.is_a?(Array) && removals.size <= files.size && removals.all? { |name| name.is_a?(String) && files.key?(name) }
+      removals.each { |name| input[name] = nil unless input.key?(name) }
+    end
+
+    # A refused write keeps no new upload; the person chooses the file again.
+    def discard_uploads
+      Array(@uploaded_blobs).each { |blob| blob.purge_later unless blob.attachments.exists? }
     end
 
     def submitted_input
@@ -170,7 +222,9 @@ module RailsAiAdmin
       names = @form_fields.map { |field| field.name.to_s }
       @form_values = readable_values.slice(*names)
       if input.is_a?(Hash)
-        @form_values.merge!(input.stringify_keys.slice(*names).reject { |_, value| value.is_a?(Hash) || value.is_a?(Array) })
+        # A refused file is chosen again; the form keeps showing the stored one.
+        files = @form_fields.select { |field| field.scalar_type == :file }.map { |field| field.name.to_s }
+        @form_values.merge!(input.stringify_keys.slice(*(names - files)).reject { |_, value| value.is_a?(Hash) || value.is_a?(Array) })
       end
       readonly_fields = @access.fields(:read, @record, view: view).select { |field| readable_values.key?(field.name.to_s) && !names.include?(field.name.to_s) }
       readonly_values = readable_values.slice(*readonly_fields.map { |field| field.name.to_s })

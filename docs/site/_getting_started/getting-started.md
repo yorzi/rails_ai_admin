@@ -162,12 +162,11 @@ end
 ```
 
 This example expects `Customer` columns `account_id`, `name`, `points`, `active`
-and `lock_version`. Your policy supplies tenant scoping. For an existing table,
-add optimistic locking with a reviewed migration before enabling generic writes:
-
-```ruby
-add_column :customers, :lock_version, :integer, null: false, default: 0
-```
+and the usual `created_at`/`updated_at` timestamps. Your policy supplies tenant
+scoping. Every write checks that the record has not changed since the form was
+opened: through `lock_version` when the model uses Rails optimistic locking,
+otherwise through `updated_at`. A table with neither needs one of them before
+generic writes are enabled.
 
 Keep the resource `readonly` if callbacks send mail, call remote services or cause
 other effects that cannot roll back with the database. Run doctor and host tests

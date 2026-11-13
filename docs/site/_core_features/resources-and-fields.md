@@ -44,11 +44,44 @@ end
 Declare columns that exist on your own host model; this example is a field-type
 reference, not an instruction to add business columns. No schema inference runs
 at boot. The current types are `id`, `text`, `textarea`, `integer`, `decimal`,
-`boolean`, `date`, `datetime`, `enum` and `select`. Registered scalar
+`boolean`, `date`, `datetime`, `time`, `enum`, `select`, `email`, `url`, `json`,
+`password`, `file`, `rich_text` and `belongs_to`. Registered scalar
 [Field Types]({% link _core_features/field-types.md %}) can refine coercion, validation
 and field presentation. [Computed Fields]({% link _core_features/computed-fields.md %})
 adds readonly virtual scalars over explicit currently authorized dependencies.
-Money, associations and files remain unimplemented.
+Money remains unimplemented. `file` fields are covered in
+[File Uploads]({% link _core_features/file-uploads.md %}).
+
+### Everyday Types
+
+* `time` is a time of day on a `time` column. Forms use a native time control;
+  input is `HH:MM` or `HH:MM:SS` and pages show `14:30`. It can sort, but not
+  search or filter.
+* `email` is text that must look like an address (`ada@example.com`). Pages show
+  it as a `mailto:` link.
+* `url` is text that must be an absolute `http` or `https` address. Pages link
+  it in a new tab with `rel="noopener noreferrer nofollow"`; a stored value that
+  is not http(s), such as `javascript:…`, is shown as text and never linked.
+* `json` edits a `json` or `jsonb` column as indented JSON text in a textarea
+  and shows it in a scrolling `<pre>` block. Input must parse, nest at most 32
+  levels and stay within `max_length` characters (65,536 by default). It cannot
+  search, sort or filter, and lists leave it out unless declared `index: true`.
+* `password` is write-only, for a `has_secure_password` writer such as
+  `password :password`. No read grant can show it: it never appears on a list,
+  show page, Chat result or form value, even when a policy's `:read` list names
+  it. An empty password box on an edit form keeps the current password; a
+  password cannot be cleared. Audit records name the field when it changes,
+  and the stored input digest holds only a keyed hash (derived from
+  `secret_key_base`) of the new value. Your model's own validations, such as a
+  minimum length, still apply. Operation inputs cannot be passwords.
+* `rich_text` edits a `has_rich_text` attribute with Trix, loaded from your
+  application's Action Text assets (`trix.js` and `trix.css`) only on forms that
+  have one. The editor accepts formatted text but refuses file attachments.
+  Show pages render the stored HTML through Rails' safe-list sanitizer; lists,
+  CSV and Chat get plain text. Input is bounded by `max_length` (1 MB by
+  default) and audit names the field when the content changes. It cannot
+  search, sort or filter, and lists leave it out unless declared `index: true`.
+
 
 For physical fields, the runtime checks that a scalar projection or title names
 a model attribute
@@ -63,8 +96,10 @@ The policy name is optional for a custom adapter that supplies its own decisions
 
 A resource must declare a string `model`, a unique stable `key`, fields and a
 `title` naming a declared field. Keys reserve `assistant`, `audit`, `dashboards`,
-`exports`, `imports`, `jobs`, `selections`, `settings`, `doctor` and `assets`.
-`lock_version` is execution metadata and cannot be a resource field.
+`exports`, `imports`, `jobs`, `selections`, `settings`, `doctor`, `assets` and `search`.
+`lock_version` is execution metadata and cannot be a resource field. On a model
+without `lock_version`, `updated_at` carries the record version, so it may be a
+readonly field but never a writable one.
 
 Use [Resource Navigation]({% link _core_features/resource-navigation.md %}) to
 group/label/icon/order sidebar and Overview entries. `navigation false` hides only

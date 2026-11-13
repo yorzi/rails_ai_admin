@@ -142,14 +142,10 @@ sign in, and open `/admin/users`. You should see:
 
 ## 6. Allow Editing (Optional)
 
-Admin forms use optimistic locking, so add `lock_version` first:
-
-```sh
-bin/rails generate migration AddLockVersionToUsers lock_version:integer
-```
-
-Give it `null: false, default: 0`, run `bin/rails db:migrate`, remove `readonly`
-from `UserAdmin`, then grant the action and the field in the policy:
+Admin forms detect edits that happened while a form was open through the
+record's `updated_at` (or `lock_version`, if the model has one), so the default
+`users` table needs no migration. Remove `readonly` from `UserAdmin`, then grant
+the action and the field in the policy:
 
 ```ruby
 resource.key == :users && %i[index show update].include?(action)

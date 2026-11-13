@@ -28,7 +28,7 @@ when "prepare"
     header, *lines = path.read.lines
     body = lines.join
     body = if %w[layout status_layout].include?(entry.key)
-      body.sub('<body class="raa">', %(<body class="raa" data-raa-override="#{entry.key}">))
+      body.sub('<body class="raa"', %(<body class="raa" data-raa-override="#{entry.key}"))
     else
       %(<span data-raa-override="#{entry.key}"></span>\n#{body})
     end

@@ -16,7 +16,7 @@ module RailsAiAdmin
       surface = ::RailsToolViews.restore(surface_id, scope: scope)
       admin_surface(surface, scope: scope)
     rescue ::RailsToolViews::Error
-      tag.p("This review is no longer available.", class: "raa-chat-activity")
+      tag.p(t("rails_ai_admin.surfaces.no_longer_available"), class: "raa-chat-activity")
     end
 
     # Like rails_tool_views_action_form, but posts to the admin endpoint so the

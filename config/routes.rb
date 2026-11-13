@@ -20,6 +20,7 @@ RailsAiAdmin::Engine.routes.draw do
     post "assistant/conversations/:chat_ref/retry", to: "assistant#retry_turn", as: :retry_assistant_conversation
     post "assistant/conversations/:chat_ref/archive", to: "assistant#archive", as: :archive_assistant_conversation
   end
+  get "search", to: "search#index", as: :global_search
   get "jobs", to: "collection_jobs#index", as: :collection_jobs
   get "jobs/:job_ref", to: "collection_jobs#show", as: :collection_job
   post "jobs/:job_ref/cancel", to: "collection_jobs#cancel", as: :cancel_collection_job
@@ -27,14 +28,20 @@ RailsAiAdmin::Engine.routes.draw do
   post ":resource/operations/:operation/preflight", to: "collection_operations#preflight", as: :collection_operation_preflight
   post ":resource/operations/:operation/execute", to: "collection_operations#execute", as: :collection_operation_execute
   post ":resource/selections", to: "selections#create", as: :capture_selection
+  post ":resource/exports", to: "exports#create", as: :resource_export
   get "selections/:selection_ref", to: "selections#show", as: :selection
+  get "selections/:selection_ref/destroy", to: "selections#confirm_destroy", as: :confirm_destroy_selection
+  post "selections/:selection_ref/destroy", to: "selections#destroy", as: :destroy_selection
   get ":resource/:id/operations/:operation", to: "operations#new", as: :operation_form
   post ":resource/:id/operations/:operation/preflight", to: "operations#preflight", as: :operation_preflight
   post ":resource/:id/operations/:operation/execute", to: "operations#execute", as: :operation_execute
   get ":resource/forms/recover", to: "resources#recover_form", as: :recover_resource_form
+  get ":resource/references/search", to: "references#search", as: :reference_search
   get ":resource/new", to: "resources#new", as: :new_resource
   get ":resource/:id/edit", to: "resources#edit", as: :edit_resource
   get ":resource/:id/confirm_destroy", to: "resources#confirm_destroy", as: :confirm_destroy_resource
+  get ":resource/:id/history", to: "resources#history", as: :resource_history
+  get ":resource/:id/files/:field", to: "files#show", as: :resource_file
   get ":resource", to: "resources#index", as: :resources
   post ":resource", to: "resources#create"
   get ":resource/:id", to: "resources#show", as: :resource

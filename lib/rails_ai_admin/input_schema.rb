@@ -2,6 +2,8 @@
 
 require "json"
 require "digest"
+require "openssl"
+require "securerandom"
 
 module RailsAiAdmin
   # Compiles explicitly declared fields into typed inputs and canonical digests.
@@ -17,13 +19,15 @@ module RailsAiAdmin
     end
 
     def coerce(input, time_zone: "UTC")
-      return Coercion.new({}, { "base" => [ "must be an object" ] }) unless input.is_a?(Hash)
+      return Coercion.new({}, { "base" => [ Field.error_message(:not_object, "must be an object") ] }) unless input.is_a?(Hash)
       values, errors = {}, {}
       input = input.stringify_keys
-      errors["base"] = [ "contains undeclared fields" ] if (input.keys - @fields.keys).any?
+      errors["base"] = [ Field.error_message(:undeclared_fields, "contains undeclared fields") ] if (input.keys - @fields.keys).any?
       @fields.each do |name, field|
-        if !input.key?(name)
-          errors[name] = [ "is required" ] if !@partial && field.options[:required]
+        # An empty password box means "keep the current password".
+        input_value = input[name]
+        if !input.key?(name) || field.scalar_type == :password && input_value.is_a?(String) && input_value.match?(Field::BLANK)
+          errors[name] = [ Field.error_message(:required, "is required") ] if !@partial && field.options[:required]
           next
         end
         begin
@@ -45,6 +49,17 @@ module RailsAiAdmin
       Digest::SHA256.hexdigest(JSON.generate(canonical(input)))
     end
 
+    # Keyed so a stored digest is not an unsalted hash of a password. Hosts
+    # derive it from secret_key_base; without an application (plain library
+    # tests) it is random per process.
+    def self.secret_key
+      @secret_key ||= if defined?(Rails) && Rails.respond_to?(:application) && Rails.application&.respond_to?(:key_generator) && Rails.application.secret_key_base.present?
+        Rails.application.key_generator.generate_key("rails_ai_admin/input_digest", 32)
+      else
+        SecureRandom.bytes(32)
+      end
+    end
+
     def self.canonical(value)
       case value
       when Hash then value.stringify_keys.sort.to_h.transform_values { |entry| canonical(entry) }
@@ -52,6 +67,8 @@ module RailsAiAdmin
       when BigDecimal then { "$decimal" => value.to_s("F") }
       when Time, ActiveSupport::TimeWithZone then { "$time" => value.utc.iso8601(6) }
       when Date then { "$date" => value.iso8601 }
+      when Fields::FileValue, Fields::RejectedUpload then value.to_h.transform_keys(&:to_s)
+      when Field::Secret then { "$secret" => OpenSSL::HMAC.hexdigest("SHA256", secret_key, value) }
       else value
       end
     end

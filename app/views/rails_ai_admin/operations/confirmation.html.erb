@@ -1,22 +1,23 @@
 <div id="<%= @flow_id %>">
-<% admin_title "Confirm #{@definition.description}", @resource.label %>
-<h1>Confirm <%= @definition.description %></h1>
-<p>Review this exact target and input. Nothing has been saved yet. Changed input requires a new review.</p>
-<p>Target: <%= @resource.label %> #<%= @record.id %></p>
+<% heading = t("rails_ai_admin.operations.confirm_title", description: @definition.description) %>
+<% admin_title heading, @resource.label %>
+<h1><%= heading %></h1>
+<p><%= t("rails_ai_admin.operations.review_note") %></p>
+<p><%= t("rails_ai_admin.operations.target", label: "#{@resource.label} ##{@record.id}") %></p>
 <dl class="raa-details">
   <% @form_fields.each do |field| %><dt><%= field.label %></dt><dd><%= field.format(@form_values[field.name.to_s], time_zone: @context.time_zone) %></dd><% end %>
 </dl>
 <% if @proposal.changes.any? %>
-  <h2>Proposed visible changes</h2>
+  <h2><%= t("rails_ai_admin.surfaces.proposed_changes") %></h2>
   <dl class="raa-details"><% @proposal.changes.each do |name, change| %><% field = @resource.fields.find { |entry| entry.name.to_s == name } %><dt><%= field.label %></dt><dd><%= field.format(change["before"], time_zone: @context.time_zone) %> → <%= field.format(change["after"], time_zone: @context.time_zone) %></dd><% end %></dl>
 <% end %>
 <%= form_with url: operation_execute_path(resource: @resource.key, id: @record.id, operation: @definition.key), method: :post, local: true do |form| %>
   <%= return_navigation_fields %>
   <%= hidden_field_tag :intent_ref, @proposal.intent.id %>
   <%= hidden_field_tag :confirmed_input, @wire_input %>
-  <div class="raa-actions"><%= form.submit "Confirm and execute", data: { turbo_submits_with: "Executing…" } %>
-  <%= link_to "Edit input", operation_form_path(resource: @resource.key, id: @record.id, operation: @definition.key, **navigation_params) %>
-  <%= link_to "Cancel", resource_path(resource: @resource.key, id: @record.id, **navigation_params) %></div>
+  <div class="raa-actions"><%= form.submit t("rails_ai_admin.operations.confirm"), data: { turbo_submits_with: t("rails_ai_admin.operations.executing") } %>
+  <%= link_to t("rails_ai_admin.operations.edit_input"), operation_form_path(resource: @resource.key, id: @record.id, operation: @definition.key, **navigation_params) %>
+  <%= link_to t("rails_ai_admin.actions.cancel"), resource_path(resource: @resource.key, id: @record.id, **navigation_params) %></div>
 <% end %>
 <% if admin_surface_review_available?(@resource, @definition) %>
   <%# A separate form keeps its own action-bound (per-form) CSRF token. %>
@@ -24,8 +25,8 @@
     <%= return_navigation_fields %>
     <%= hidden_field_tag :intent_ref, @proposal.intent.id, id: nil %>
     <%= hidden_field_tag :confirmed_input, @wire_input, id: nil %>
-    <p>Prefer to finish later? Save this exact review as an interactive view you can reload and confirm.</p>
-    <%= form.submit "Continue in an interactive review", name: nil %>
+    <p><%= t("rails_ai_admin.operations.surface_offer") %></p>
+    <%= form.submit t("rails_ai_admin.operations.surface_continue"), name: nil %>
   <% end %>
 <% end %>
 </div>

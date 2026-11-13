@@ -20,6 +20,20 @@ Existing development intents from before this change can return
 `APPROVAL_INVALIDATED`. Reopen their forms and review current permissions; do not
 recreate or edit persisted receipts to force execution.
 
+## Changes From the Public Preview Preparation (2026-11-13)
+
+* Engine templates now read their text from `config/locales/en.yml`. The
+  English output is unchanged, so template contracts keep their revisions, but
+  doctor reports source drift for every overridden template. Review each one;
+  copying the new `t("rails_ai_admin.…")` calls into an override makes it
+  translatable. A `layout` override should add
+  `data-raa-messages="<%= t("rails_ai_admin.script").to_json %>"` to `<body>`
+  so the form-recovery and unsaved-changes messages follow the locale.
+* Reference inputs past 100 targets render the new
+  `rails_ai_admin/fields/_reference_picker` partial around the key input. An
+  overridden `field_form` that calls `admin_reference_input` gets it
+  automatically.
+
 ## Changes From the 2026-11-10 Audit Work
 
 * Native form pages no longer create an `OperationRun`; `intent_ref` is a signed

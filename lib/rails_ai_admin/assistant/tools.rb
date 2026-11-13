@@ -92,6 +92,15 @@ module RailsAiAdmin
         when :decimal then field.format_decimal(value)
         when :date then value.iso8601
         when :datetime then value.in_time_zone(time_zone).iso8601
+        when :time then field.format(value, time_zone: time_zone)
+        when :json then JSON.generate(value).truncate(2000)
+        when :references
+          Array(value).first(50).map do |id|
+            reference = references.reference(field, id)
+            { "id" => reference.id, "label" => reference.label.to_s.truncate(200), "resource" => reference.visible ? reference.resource_key.to_s : nil }
+          end
+        when :rich_text then field.format(value, time_zone: time_zone).truncate(2000)
+        when :file then { "filename" => value.filename.truncate(200), "content_type" => value.content_type, "byte_size" => value.byte_size }
         when :select then { "value" => value.to_s, "label" => field.format(value, time_zone: time_zone) }
         when :belongs_to
           reference = references.reference(field, value.to_s)
@@ -338,7 +347,7 @@ module RailsAiAdmin
         return acknowledgment(replay) if replay
         record = @session.access(resource).find!(id, action: definition.key)
         proposal = Operations::Runner.new.preflight(context: @session.context, resource: resource, operation: definition.key,
-          target_id: record.id, expected_version: record.lock_version, input: input, origin: :assistant)
+          target_id: record.id, expected_version: RecordVersion.of(record), input: input, origin: :assistant)
         if proposal.is_a?(Operations::Result)
           return failure(proposal.code == "VALIDATION_FAILED" ? "VALIDATION_FAILED" : proposal.code == "CONFLICT" ? "CONFLICT" : "UNAVAILABLE",
             "fields" => proposal.errors.keys.map(&:to_s))

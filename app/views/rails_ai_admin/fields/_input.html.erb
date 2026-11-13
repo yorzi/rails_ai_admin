@@ -1,11 +1,20 @@
 <%# A select without a blank option always has a value, so HTML `required` is invalid there; aria-required still marks it. %>
 <% case field.scalar_type; when :textarea %><%= form.text_area field.name, value: value, maxlength: field.options[:max_length], rows: 5, **input_options %>
-<% when :boolean %><%= form.select field.name, [["Yes", "true"], ["No", "false"]], { selected: value.to_s, include_blank: field.options[:nullable] ? "Not set" : false }, field.options[:nullable] ? input_options : input_options.except(:required) %>
-<% when :enum, :select %><%= form.select field.name, admin_field_choices(field, value), { selected: value, include_blank: field.options[:nullable] ? "Not set" : "Choose a value" }, input_options %>
+<% when :boolean %><%= form.select field.name, [[t("rails_ai_admin.fields.yes"), "true"], [t("rails_ai_admin.fields.no"), "false"]], { selected: value.to_s, include_blank: field.options[:nullable] ? t("rails_ai_admin.fields.not_set") : false }, field.options[:nullable] ? input_options : input_options.except(:required) %>
+<% when :enum, :select %><%= form.select field.name, admin_field_choices(field, value), { selected: value, include_blank: field.options[:nullable] ? t("rails_ai_admin.fields.not_set") : t("rails_ai_admin.fields.choose_value") }, input_options %>
 <% when :belongs_to %><%= admin_reference_input(form, field, value, input_options) %>
 <% when :integer %><%= form.number_field field.name, value: value, step: 1, **input_options %>
 <% when :decimal %><%= form.text_field field.name, value: value.is_a?(BigDecimal) ? field.format_decimal(value) : value, inputmode: "decimal", **input_options %>
 <% when :date %><%= form.date_field field.name, value: value, **input_options %>
 <% when :datetime %><%= form.datetime_local_field field.name, value: admin_datetime_input_value(value), step: 1, **input_options %>
+<% when :time %><% time_value = admin_time_input_value(field, value) %><%= form.time_field field.name, value: time_value, step: time_value.to_s.length > 5 ? 1 : 60, **input_options %>
+<% when :email %><%= form.email_field field.name, value: value, maxlength: field.options[:max_length], autocomplete: "off", spellcheck: false, **input_options %>
+<% when :url %><%= form.url_field field.name, value: value, maxlength: field.options[:max_length], autocomplete: "off", spellcheck: false, **input_options %>
+<%# A password is never prefilled or echoed back, even after a failed save. %>
+<% when :password %><%= form.password_field field.name, value: nil, maxlength: field.options[:max_length], autocomplete: "new-password", **input_options %>
+<% when :references %><%= admin_references_input(form, field, value, input_options) %>
+<% when :rich_text %><%= admin_rich_text_input(form, field, value, input_options) %>
+<% when :file %><%= admin_file_input(form, field, value, input_options) %>
+<% when :json %><%= form.text_area field.name, value: admin_json_input_value(value), rows: 8, spellcheck: false, class: "raa-json-input", **input_options %>
 <% else %><%= form.text_field field.name, value: value, maxlength: field.options[:max_length], **input_options %>
 <% end %>

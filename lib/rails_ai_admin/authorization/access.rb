@@ -111,8 +111,11 @@ module RailsAiAdmin
       end
 
       def read_attribute(record, field)
-        raise AccessDenied if field.hidden?
+        raise AccessDenied if field.hidden? || field.scalar_type == :password
         raise ConfigurationError, "Computed fields do not invoke model methods" if field.virtual?
+        return read_file(record, field) if field.scalar_type == :file
+        return read_rich_text(record, field) if field.scalar_type == :rich_text
+        return read_references(record, field) if field.scalar_type == :references
         name = field.column
         primary_key = record.class.primary_key
         id_alias = name == "id" && primary_key.is_a?(String) && record.has_attribute?(primary_key)
@@ -148,6 +151,20 @@ module RailsAiAdmin
         definition.handler_class.input.select { |field| names.include?(field.name) }
       end
 
+      def authorize_export!
+        authorize!(:index)
+        allowed = @adapter.respond_to?(:export_records?) && @adapter.export_records?(context: context, resource: resource) == true
+        raise AccessDenied unless allowed
+        true
+      end
+
+      def authorize_history!(record)
+        authorize!(:show, record)
+        allowed = @adapter.respond_to?(:view_history?) && @adapter.view_history?(context: context, resource: resource, record: record) == true
+        raise AccessDenied unless allowed
+        true
+      end
+
       def authorize_delivery!(operation, work_kind, record)
         allowed = @adapter.respond_to?(:deliver_work?) && @adapter.deliver_work?(context: context, resource: resource,
           operation: operation.to_sym, work_kind: work_kind, record: record) == true
@@ -167,7 +184,40 @@ module RailsAiAdmin
         raise AccessDenied unless allowed
         true
       end
+      # The attached blob's facts, or nil. The field must name a has_one_attached.
+      def attachment(record, field)
+        reflection = record.class.respond_to?(:reflect_on_attachment) && record.class.reflect_on_attachment(field.column)
+        raise ConfigurationError, "file fields must name a has_one_attached attachment" unless reflection && reflection.macro == :has_one_attached
+        ActiveRecord::Base.while_preventing_writes { record.public_send(field.column) }
+      end
+
       private
+
+      # The stored Action Text HTML, or nil. Pages sanitize it when they show it.
+      def read_rich_text(record, field)
+        unless record.class.reflect_on_association("rich_text_#{field.column}")
+          raise ConfigurationError, "rich_text fields must name a has_rich_text attribute"
+        end
+        content = ActiveRecord::Base.while_preventing_writes { record.public_send(field.column)&.body }
+        html = content&.to_html.to_s
+        html.match?(Field::BLANK) ? nil : String.new(html)
+      end
+
+      # The associated keys as sorted text. Targets the actor cannot see stay
+      # keys; pages label them through the target's own grants.
+      def read_references(record, field)
+        reflection = record.class.reflect_on_association(field.name)
+        unless reflection&.collection? && record.respond_to?(field.column)
+          raise ConfigurationError, "references fields must name a has_many or has_and_belongs_to_many association"
+        end
+        ids = ActiveRecord::Base.while_preventing_writes { record.public_send(field.column) }
+        ids.map { |id| id.to_s.freeze }.uniq.sort.freeze
+      end
+
+      def read_file(record, field)
+        attached = attachment(record, field)
+        attached.attached? ? Fields::FileValue.from(attached.blob) : nil
+      end
 
       def write_view(operation, view)
         expected = operation.to_sym == :create ? :create : :edit if operation
@@ -185,6 +235,8 @@ module RailsAiAdmin
         names = names.map(&:to_sym)
         selected = resource.fields.select do |field|
           !field.hidden? && names.include?(field.name) &&
+            # A password is write-only: no read grant can reveal it.
+            (action == :write || field.scalar_type != :password) &&
             (action != :write || field.name.to_s != resource.model_class.primary_key) &&
             (action != :write || field.writable?(operation || :update)) &&
             (action != :search || !field.virtual? && field.options[:searchable]) &&

@@ -107,9 +107,10 @@ this file records current scope without rewriting its historical review claims.
   now, keeps an unchanged one and maps a foreign-key race to CONFLICT. Both test
   databases, packaged Host A (`Order belongs_to :customer`, `Customer has_many
   :orders`, all 29 overrides rendered) and an unchanged Host B verify it; no
-  Chrome/accessibility check yet (ADR 0021). Association search/sort, a picker
-  endpoint, has_one/through/many-to-many and CRUD-021 attach/detach policies
-  remain open.
+  Chrome/accessibility check yet (ADR 0021). Past 100 targets a search box
+  fills the typed key from the target's own search grants (2026-11-13).
+  Association search/sort, has_one/through/many-to-many and CRUD-021
+  attach/detach policies remain open.
 - Opt-in admin Chat on RubyLLM 2.1.1 (first slice of RAA-0251 and SPIKE-03's
   offline part; ADR 0022). Engine-owned chat/message/turn tables, a per-request
   host `RubyLLM.context`, a default-deny `assistant?` grant and grant-filtered
@@ -177,10 +178,10 @@ release steps. RAA-0509 still needs the native OpenAI and Anthropic APIs.
 
 Then extend admin Chat where the plan requires it: AI-012 budget reservation,
 AI-010 page/selection context, streaming (AI-003) and chat retention. Close the
-remaining Phase 2 evidence in parallel: RAA-0210 (validation, CSRF, mass assignment, XSS and N+1
-regressions across list and Surface routes), I18n of framework strings, a
+remaining Phase 2 evidence in parallel (RAA-0210 security regressions are covered
+as of 2026-11-13, and framework strings read config/locales): a
 screen-reader pass, and the RAA-0203/0208 extension matrix. Then start Phase 3
-continuing associations (RAA-0301): a searchable picker endpoint, association
+continuing associations (RAA-0301): association
 columns (LIST-019), has_one/has_many :through and CRUD-021 attach/detach policies.
 The resource DSL, three-domain CRUD, status/controller extension, recovery, list
 navigation and belongs_to/has_many reads now have local evidence; this does not
@@ -217,8 +218,12 @@ Continue the shared execution contracts while the full Phase 1 evidence remains 
   custom-operation recovery stay open.
 - Early proof follow-up: extend the existing Chat/Surface/continuation fault
   coverage and native-provider evidence; the initial offline flow is implemented.
-- Phases 3–4: associations, batch/selection, CSV, private files, audit explorer,
-  dashboards and the complete conventional P0 baseline.
+- Phases 3–4: done locally on 2026-11-13 for everyday needs: many-to-many
+  `references`, `has_one` panels, bulk delete over a selection, CSV export,
+  Active Storage `file` and Action Text `rich_text` fields, record history,
+  cross-resource search and overview counts. Still open: `has_many_attached`,
+  nested and polymorphic writes, imports, a cross-record audit explorer and
+  metrics dashboards.
 - Phases 5–7: expand the existing persistent Chat, shared-runtime Surface and
   continuation implementation with quotas, streaming, context, retention and
   the complete revocation/failure/evaluation matrix.

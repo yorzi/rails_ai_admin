@@ -21,7 +21,7 @@ module RailsAiAdmin
 
       class << self
         def target(field, registry: RailsAiAdmin.registry)
-          raise ConfigurationError, "Expected a belongs_to field" unless field.is_a?(Field) && field.scalar_type == :belongs_to
+          raise ConfigurationError, "Expected a belongs_to or references field" unless field.is_a?(Field) && Field::REFERENCE_TYPES.include?(field.scalar_type)
           key = field.options.fetch(:resource).to_s
           registry.resources.find { |resource| resource.key.to_s == key } ||
             raise(ConfigurationError, "belongs_to #{field.name} names an unregistered resource")
@@ -32,6 +32,7 @@ module RailsAiAdmin
         # resource's single primary key. Nothing here queries domain rows.
         def validate!(resource, field, registry: RailsAiAdmin.registry)
           target = target(field, registry: registry)
+          return validate_collection!(resource, field, target) if field.scalar_type == :references
           target_model = target.model_class
           reflection = resource.model_class.reflect_on_association(field.name)
           valid = reflection && reflection.macro == :belongs_to && !reflection.polymorphic? &&
@@ -43,6 +44,23 @@ module RailsAiAdmin
           target
         rescue NameError, ArgumentError
           raise ConfigurationError, "belongs_to #{field.name} could not resolve its model association", cause: nil
+        end
+
+        # A references field must match a non-polymorphic has_many (including
+        # through) or has_and_belongs_to_many to the target model, whose
+        # <singular>_ids writer is the declared foreign_key.
+        def validate_collection!(resource, field, target)
+          target_model = target.model_class
+          reflection = resource.model_class.reflect_on_association(field.name)
+          valid = reflection && %i[has_many has_and_belongs_to_many].include?(reflection.macro) && !reflection.polymorphic? &&
+            reflection.klass == target_model && target_model.primary_key.is_a?(String) &&
+            "#{reflection.name.to_s.singularize}_ids" == field.column && resource.model_class.method_defined?("#{field.column}=")
+          unless valid
+            raise ConfigurationError, "references #{field.name} must match a has_many or has_and_belongs_to_many association to the #{target.key} model with #{field.column}"
+          end
+          target
+        rescue NameError, ArgumentError
+          raise ConfigurationError, "references #{field.name} could not resolve its model association", cause: nil
         end
       end
 
@@ -99,6 +117,37 @@ module RailsAiAdmin
           [ reference.label, reference.id ] if reference.visible
         end
         Choices.new(options.freeze, records.size <= MAX_CHOICES)
+      end
+
+      # Picker search over a target resource, for forms and filters whose
+      # choices are incomplete. Results are exactly what the target's own index
+      # would show this actor for the same term: its policy relation, its
+      # granted search fields, and a show grant per record. A term shaped like
+      # the target's primary key also matches that record. Returns [label, key]
+      # pairs, at most limit.
+      SEARCH_LIMIT = 20
+      def self.search(context, target, term, limit: SEARCH_LIMIT)
+        raise ConfigurationError, "Invalid picker limit" unless limit.is_a?(Integer) && limit.between?(1, SEARCH_LIMIT)
+        access = Authorization::Access.new(context, target)
+        access.authorize!(:index)
+        term = term.strip if term.is_a?(String) && term.valid_encoding?
+        return [] if term.blank?
+        model = target.model_class
+        exact = access.canonical_id?(term) ? access.relation.where(model.primary_key => term).limit(1).to_a : []
+        matches = if access.fields(:search).any?
+          Queries::List.new(context, target).call(search: term, scope: Queries::NamedScope::NONE, page_size: limit).records
+        else
+          # Unsearchable targets still accept an exact key; the term itself
+          # is validated the same way the list validates search text.
+          raise AccessDenied, "INVALID_QUERY" unless Queries::List::FILTER_VALUE.call(term)
+          []
+        end
+        (exact + matches).uniq(&:id).first(limit).filter_map do |record|
+          access.authorize!(:show, record)
+          [ access.record_label(record).freeze, record.id.to_s.freeze ]
+        rescue AccessDenied
+          nil
+        end
       end
 
       private

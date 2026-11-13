@@ -104,7 +104,7 @@ module RailsAiAdmin
           access = Authorization::Access.new(context, resource)
           record = load_record(access, run, definition)
           access.authorize!(run.operation, record)
-          if run.operation == "update" && run.expected_version != record.lock_version
+          if run.operation == "update" && run.expected_version != RecordVersion.of(record)
             raise AccessDenied, "CONFLICT"
           end
           raise AccessDenied unless run.operation != "create" || run.target_id.nil? && run.expected_version.nil?
@@ -127,7 +127,7 @@ module RailsAiAdmin
           record = operation == "create" ? access.relation.new : access.find!(target_id, action: operation)
           access.authorize!(operation, record)
           version = operation == "create" ? nil : parse_version(expected_version)
-          raise AccessDenied, "CONFLICT" if version && version != record.lock_version
+          raise AccessDenied, "CONFLICT" if version && version != RecordVersion.of(record)
           raise ConfigurationError, "Create must not have a target" if operation == "create" && target_id
           raise ConfigurationError, "Custom operations require input-bound preflight" if definition.custom? && input.nil?
           values = input.nil? ? nil : coerce!(access, record, definition, input)
@@ -210,7 +210,7 @@ module RailsAiAdmin
           end
           reject!("CONFLICT") unless run.status == "proposed"
           reject!("APPROVAL_REQUIRED") unless admission || human_confirmed == true
-          if run.operation != "create" && record.lock_version != run.expected_version
+          if run.operation != "create" && RecordVersion.of(record) != run.expected_version
             reject!("CONFLICT")
           end
           # A write claim, not a process mutex, serializes SQLite writers too.
@@ -225,23 +225,38 @@ module RailsAiAdmin
             raise ConfigurationError, "Unknown operation outcome" unless %w[OK VALIDATION_FAILED CONFLICT].include?(outcome.code)
             if outcome.code != "OK"
               names = outcome.fields & definition.fields(access, record).map { |field| field.name.to_s }
-              reject!(outcome.code, errors: names.any? ? names.to_h { |name| [ name, [ "is invalid" ] ] } : { "base" => [ "operation was rejected" ] })
+              reject!(outcome.code, errors: names.any? ? names.to_h { |name| [ name, [ Field.error_message(:invalid, "is invalid") ] ] } : { "base" => [ Field.error_message(:operation_rejected, "operation was rejected") ] })
             end
             unless record.persisted? && !record.destroyed? && !record.has_changes_to_save? && outcome.record_id == run.target_id
               reject!("VALIDATION_FAILED", errors: { "base" => [ "operation did not persist its target" ] })
             end
             record.reload
-            if before != record.attributes_before_type_cast && record.lock_version <= run.expected_version
-              raise ConfigurationError, "Custom writes must advance the target lock_version"
+            if before != record.attributes_before_type_cast && RecordVersion.of(record) == run.expected_version
+              raise ConfigurationError, "Custom writes must advance the target lock_version or updated_at"
             end
             changed_fields = resource.fields.select { |field| before[field.column] != record.attributes_before_type_cast[field.column] }.map { |field| field.name.to_s }
-            WorkItem.where(operation_run_id: run.id).update_all(expected_version: record.lock_version)
+            WorkItem.where(operation_run_id: run.id).update_all(expected_version: RecordVersion.of(record))
           else
+            lists = resource.fields.select { |field| field.scalar_type == :references && values.key?(field.name.to_s) }
+            before_lists = lists.to_h { |field| [ field.name.to_s, stored_references(record, field) ] }
             record.assign_attributes(column_attributes(resource, unchanged_precision(resource, record, values))) if run.operation == "update"
             names = field_names_by_column(resource)
             changed_fields = record.changes.keys.map { |column| names.fetch(column, column) } & values.keys
+            # A password writer changes a digest column the resource never names.
+            changed_fields |= resource.fields.select { |field| field.scalar_type == :password && !values[field.name.to_s].nil? }.map { |field| field.name.to_s }
+            # Action Text keeps the content in its own record.
+            changed_fields |= resource.fields.select { |field| field.scalar_type == :rich_text && values.key?(field.name.to_s) && record.public_send(field.column)&.changed? }.map { |field| field.name.to_s }
+            # Active Storage keeps attachment changes outside the attributes.
+            if record.respond_to?(:attachment_changes)
+              changed_fields |= resource.fields.select { |field| field.scalar_type == :file && values.key?(field.name.to_s) && record.attachment_changes.key?(field.column) }.map { |field| field.name.to_s }
+            end
+            # Join rows change no owner column, so a changed list touches the
+            # record: its version advances and a concurrent form conflicts.
+            changed_lists = lists.map { |field| field.name.to_s }.reject { |name| before_lists.fetch(name) == values.fetch(name) }
+            changed_fields |= changed_lists
             persisted = definition.handler_class.new.perform(nil, record, values)
             reject!("VALIDATION_FAILED", errors: { "base" => [ "could not be saved" ] }) unless persisted
+            record.touch if run.operation == "update" && changed_lists.any?
           end
           unless run.operation == "destroy" || access.relation.where(resource.model_class.primary_key => record.id).exists?
             reject!("NOT_FOUND")
@@ -278,7 +293,7 @@ module RailsAiAdmin
           names = definition&.custom? || !access ? {} : field_names_by_column(access.resource)
           errors = validation_errors(error.record.errors, names, allowed)
           audit_failure(context, run, "VALIDATION_FAILED", origin) unless admission
-          Result.new(code: "VALIDATION_FAILED", errors: errors.presence || { "base" => [ "is invalid" ] })
+          Result.new(code: "VALIDATION_FAILED", errors: errors.presence || { "base" => [ Field.error_message(:invalid, "is invalid") ] })
         when ActiveRecord::RecordNotDestroyed
           if run&.operation == "destroy" && !definition&.custom?
             # dependent: :restrict_with_error (or a before_destroy abort) says
@@ -307,7 +322,9 @@ module RailsAiAdmin
         when ExecutionContext::DeadlineExceeded
           audit_failure(context, run, "TIMEOUT", origin) unless admission
           Result.new(code: "TIMEOUT")
-        when ActiveRecord::StaleObjectError, ActiveRecord::RecordNotUnique, ActiveRecord::Deadlocked, ActiveRecord::LockWaitTimeout
+        when ActiveRecord::StaleObjectError, ActiveRecord::RecordNotUnique, ActiveRecord::Deadlocked, ActiveRecord::LockWaitTimeout,
+          # A references target deleted after its check fails the id writer.
+          ActiveRecord::RecordNotFound
           Result.new(code: "CONFLICT")
         when ActiveRecord::StatementInvalid
           if defined?(SQLite3::BusyException) && error.cause.is_a?(SQLite3::BusyException)
@@ -349,7 +366,7 @@ module RailsAiAdmin
           next if attribute == :base
           name = names.fetch(attribute.to_s, attribute.to_s)
           next unless allowed.include?(name)
-          result[name] = generic ? [ "is invalid" ] : bounded_messages(model_errors.messages_for(attribute))
+          result[name] = generic ? [ Field.error_message(:invalid, "is invalid") ] : bounded_messages(model_errors.messages_for(attribute))
         end
         base = generic ? [] : bounded_messages(model_errors.messages_for(:base), fallback: false)
         errors["base"] = base if base.any?
@@ -359,7 +376,7 @@ module RailsAiAdmin
       def bounded_messages(messages, fallback: true)
         kept = Array(messages).select { |message| message.is_a?(String) && message.valid_encoding? }
           .map { |message| message.gsub(/[[:cntrl:]]/, " ").squish.truncate(200) }.reject(&:empty?).uniq.first(3)
-        kept.empty? && fallback ? [ "is invalid" ] : kept
+        kept.empty? && fallback ? [ Field.error_message(:invalid, "is invalid") ] : kept
       end
 
       RESTRICTED_MESSAGE = "This record is still referenced by other records and cannot be deleted."
@@ -395,8 +412,12 @@ module RailsAiAdmin
         unless model.connection_pool.equal?(OperationRun.connection_pool) && model.connection_pool.equal?(AuditEvent.connection_pool) && model.connection_pool.equal?(WorkItem.connection_pool) && model.connection_pool.equal?(BatchItem.connection_pool)
           raise ConfigurationError, "Domain, intent and audit must use the same connection pool"
         end
-        unless model.locking_enabled? && model.locking_column == "lock_version" && !model.composite_primary_key?
-          raise ConfigurationError, "Generic writes require lock_version and a single primary key"
+        unless RecordVersion.supported?(model)
+          raise ConfigurationError, "Writes require lock_version or an updated_at timestamp, and a single primary key"
+        end
+        version_column = RecordVersion.column(model)
+        if resource.fields.any? { |field| field.column == version_column && (field.writable?(:create) || field.writable?(:update)) }
+          raise ConfigurationError, "#{version_column} carries the record version and cannot be a writable field"
         end
         unless %w[SQLite PostgreSQL].include?(model.connection.adapter_name)
           raise ConfigurationError, "Only SQLite and PostgreSQL are supported for writes"
@@ -435,21 +456,52 @@ module RailsAiAdmin
         result = InputSchema.new(fields, partial: definition.key == "update" && !definition.custom?).coerce(input, time_zone: access.context.time_zone)
         reject!(replay ? "IDEMPOTENCY_CONFLICT" : "VALIDATION_FAILED", errors: replay ? {} : result.errors) unless result.valid?
         check_references!(access, record, fields, result.values) unless replay
-        result.values
+        retain_hidden_references(access, record, fields, result.values)
+      end
+
+      def stored_references(record, field)
+        return [] unless record&.persisted?
+        record.public_send(field.column).map(&:to_s).uniq.sort
+      end
+
+      # A list keeps the stored targets this actor cannot see: a person can
+      # neither remove nor learn about records hidden by the target's policy.
+      def retain_hidden_references(access, record, fields, values)
+        lists = fields.select { |field| field.scalar_type == :references && values.key?(field.name.to_s) }
+        return values if lists.empty?
+        resolver = Fields::Association.new(access.context, access.resource)
+        merged = values.dup
+        lists.each do |field|
+          stored = stored_references(record, field)
+          if stored.size > Field::MAX_REFERENCES
+            reject!("VALIDATION_FAILED", errors: { field.name.to_s => [ Field.error_message(:too_many, "can name at most %{count} records", count: Field::MAX_REFERENCES) ] })
+          end
+          resolver.prime(field, stored)
+          hidden = stored.reject { |id| resolver.admissible?(field, id) }
+          merged[field.name.to_s] = (values.fetch(field.name.to_s) | hidden).sort.freeze
+        end
+        merged.freeze
       end
 
       # A changed reference must name a target this actor can currently see in
       # the target resource. Keeping the stored key is not a new attachment, so
       # an edit never forces clearing a reference the actor cannot see.
       def check_references!(access, record, fields, values)
-        references = fields.select { |field| field.scalar_type == :belongs_to && !values[field.name.to_s].nil? }
+        references = fields.select { |field| Field::REFERENCE_TYPES.include?(field.scalar_type) && !values[field.name.to_s].nil? }
         return if references.empty?
         resolver = Fields::Association.new(access.context, access.resource)
         errors = references.each_with_object({}) do |field, result|
           value = values.fetch(field.name.to_s)
+          if field.scalar_type == :references
+            # Only newly added targets need to be visible now.
+            added = value - stored_references(record, field)
+            resolver.prime(field, added)
+            result[field.name.to_s] = [ Field.error_message(:unavailable_choice, Fields::Association::UNAVAILABLE) ] unless added.all? { |id| resolver.admissible?(field, id) }
+            next
+          end
           stored = record&.persisted? && record.has_attribute?(field.column) ? record.read_attribute(field.column) : nil
           next if !stored.nil? && stored.to_s == value
-          result[field.name.to_s] = [ Fields::Association::UNAVAILABLE ] unless resolver.admissible?(field, value)
+          result[field.name.to_s] = [ Field.error_message(:unavailable_choice, Fields::Association::UNAVAILABLE) ] unless resolver.admissible?(field, value)
         end
         reject!("VALIDATION_FAILED", errors: errors) if errors.any?
       end
@@ -480,7 +532,7 @@ module RailsAiAdmin
         handler_context.check_deadline!
         if changes.is_a?(Operation::Outcome) && %w[VALIDATION_FAILED CONFLICT].include?(changes.code)
           names = changes.fields & definition.fields(access, record).map { |field| field.name.to_s }
-          reject!(changes.code, errors: names.any? ? names.to_h { |name| [ name, [ "is invalid" ] ] } : { "base" => [ "operation was rejected" ] })
+          reject!(changes.code, errors: names.any? ? names.to_h { |name| [ name, [ Field.error_message(:invalid, "is invalid") ] ] } : { "base" => [ Field.error_message(:operation_rejected, "operation was rejected") ] })
         end
         raise ConfigurationError, "Preflight must return a field-value hash without mutating its target" unless changes.is_a?(Hash) && !record.has_changes_to_save?
         readable = access.fields(:read, record, view: :show)
@@ -545,7 +597,7 @@ module RailsAiAdmin
         return if run.parent_run_id || run.selection_id
         AuditEvent.create!(actor_ref: context.actor_ref, tenant_ref: context.tenant_ref,
           resource_key: run.resource_key, operation: run.operation, status: "rejected", code: code,
-          correlation_ref: run.id, origin: origin.to_s, changed_fields: [], created_at: Time.current)
+          record_id: run.target_id, correlation_ref: run.id, origin: origin.to_s, changed_fields: [], created_at: Time.current)
       end
     end
   end

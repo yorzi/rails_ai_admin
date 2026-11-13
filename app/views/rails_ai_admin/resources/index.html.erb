@@ -4,29 +4,35 @@
 <div class="raa-actions">
 <% if @searchable %>
   <%= form_with url: resources_path(resource: @resource.key), method: :get, local: true, class: "raa-search", role: "search" do |form| %>
-    <%= form.label :q, "Search #{@resource.label.downcase_first}", class: "raa-visually-hidden" %><%= form.search_field :q, value: navigation_state["q"], maxlength: 200, placeholder: admin_search_placeholder(@access.fields(:search)) %>
+    <%= form.label :q, t("rails_ai_admin.resources.index.search_label", label: @resource.label.downcase_first), class: "raa-visually-hidden" %><%= form.search_field :q, value: navigation_state["q"], maxlength: 200, placeholder: admin_search_placeholder(@access.fields(:search)) %>
     <%= list_state_fields("sort", "direction", "scope", "filter") %>
-    <%= form.submit "Search" %>
+    <%= form.submit t("rails_ai_admin.resources.index.search") %>
   <% end %>
 <% end %>
-<% if allowed_action?(@resource, :create) %><%= link_to "New #{@resource.label.singularize.downcase_first}", new_resource_path(resource: @resource.key, **navigation_params), class: "raa-button" %><% end %>
+<% if @exportable %>
+  <%= form_with url: resource_export_path(resource: @resource.key), method: :post, local: true, class: "raa-export", data: { turbo: false } do |form| %>
+    <%= list_state_fields("q", "sort", "direction", "scope", "filter") %>
+    <%= form.submit t("rails_ai_admin.exports.button"), class: "raa-secondary", name: nil %>
+  <% end %>
+<% end %>
+<% if allowed_action?(@resource, :create) %><%= link_to t("rails_ai_admin.resources.new", label: @resource.label.singularize.downcase_first), new_resource_path(resource: @resource.key, **navigation_params), class: "raa-button" %><% end %>
 </div></div>
 <% if @list_scopes.any? %>
-  <nav class="raa-scopes" aria-label="<%= @resource.label %> scopes"><ul>
+  <nav class="raa-scopes" aria-label="<%= t("rails_ai_admin.resources.index.scopes", label: @resource.label) %>"><ul>
     <% @list_scopes.each do |definition| %>
       <% state = navigation_state.except("page", "scope") %>
       <% state = state.merge("scope" => definition.name.to_s) unless definition.default? %>
       <li><%= link_to definition.label, resources_path(resource: @resource.key, **state.symbolize_keys), aria: { current: @current_scope == definition.name.to_s ? "true" : nil } %></li>
     <% end %>
   </ul></nav>
-  <% if navigation_state["scope"] == RailsAiAdmin::Queries::NamedScope::NONE %><p class="raa-notice" role="status"><%= t("rails_ai_admin.resources.index.no_list_tab", default: "Showing every record you can access, without a list tab.") %></p><% end %>
+  <% if navigation_state["scope"] == RailsAiAdmin::Queries::NamedScope::NONE %><p class="raa-notice" role="status"><%= t("rails_ai_admin.resources.index.no_list_tab") %></p><% end %>
 <% end %>
 <% if @filter_fields.any? %>
   <% active_filters = navigation_state["filter"].to_h.values.sum(&:size) %>
   <details class="raa-filter-panel"<% if active_filters.positive? %> open<% end %>>
-  <summary><%= t("rails_ai_admin.resources.index.filters", default: "Filters") %><% if active_filters.positive? %> (<%= t("rails_ai_admin.resources.index.active_filters", count: active_filters, default: "%{count} active") %>)<% end %></summary>
+  <summary><%= t("rails_ai_admin.resources.index.filters") %><% if active_filters.positive? %> (<%= t("rails_ai_admin.resources.index.active_filters", count: active_filters) %>)<% end %></summary>
   <%= form_with url: resources_path(resource: @resource.key), method: :get, local: true, class: "raa-filters" do |form| %>
-    <fieldset><legend>Filters</legend>
+    <fieldset><legend><%= t("rails_ai_admin.resources.index.filters") %></legend>
       <% @filter_fields.each do |field| %><% field.filter_operators.each do |operator| %>
         <% id = "raa-filter-#{field.name}-#{operator}" %>
         <div class="raa-filter"><label for="<%= id %>"><%= admin_filter_label(field, operator) %></label>
@@ -34,24 +40,24 @@
       <% end %><% end %>
     </fieldset>
     <%= list_state_fields("q", "sort", "direction", "scope") %>
-    <div class="raa-actions"><%= form.submit "Apply filters", name: nil %>
-    <% if navigation_state["filter"] %><%= link_to "Clear filters", resources_path(resource: @resource.key, **navigation_state.except("filter", "page").symbolize_keys) %><% end %></div>
+    <div class="raa-actions"><%= form.submit t("rails_ai_admin.resources.index.apply_filters"), name: nil %>
+    <% if navigation_state["filter"] %><%= link_to t("rails_ai_admin.resources.index.clear_filters"), resources_path(resource: @resource.key, **navigation_state.except("filter", "page").symbolize_keys) %><% end %></div>
   <% end %>
   </details>
 <% end %>
-<% if navigation_state.any? %><p><%= link_to "Reset list", resources_path(resource: @resource.key) %></p><% end %>
-<% if @omitted_rows %><p class="raa-notice" role="status"><%= t("rails_ai_admin.resources.index.omitted_rows", default: "Some records on this page are not available to you.") %></p><% end %>
-<% if @page.count %><p class="raa-count"><%= @page.count_capped ? "More than #{number_with_delimiter(@page.count)} matching records" : "#{number_with_delimiter(@page.count)} matching #{@page.count == 1 ? 'record' : 'records'}" %></p><% end %>
+<% if navigation_state.any? %><p><%= link_to t("rails_ai_admin.resources.index.reset"), resources_path(resource: @resource.key) %></p><% end %>
+<% if @omitted_rows %><p class="raa-notice" role="status"><%= t("rails_ai_admin.resources.index.omitted_rows") %></p><% end %>
+<% if @page.count %><p class="raa-count"><%= @page.count_capped ? t("rails_ai_admin.resources.index.count_capped", count: @page.count, number: number_with_delimiter(@page.count)) : t("rails_ai_admin.resources.index.count", count: @page.count, number: number_with_delimiter(@page.count)) %></p><% end %>
 <% if @selectable %>
   <%= form_with url: capture_selection_path(resource: @resource.key), method: :post, local: true, id: "raa-selection", class: "raa-selection-bar", data: { turbo: false, controller: "raa-selection" } do |form| %>
     <%= return_navigation_fields %>
-    <%= form.submit "Capture selection", data: { raa_selection_target: "submit" } %>
-    <p class="raa-field-help"><%= t("rails_ai_admin.resources.index.selection_help", default: "Tick records below, then capture their current versions (up to 100). This does not change anything.") %></p>
+    <%= form.submit t("rails_ai_admin.resources.index.capture_selection"), data: { raa_selection_target: "submit" } %>
+    <p class="raa-field-help"><%= t("rails_ai_admin.resources.index.selection_help") %></p>
   <% end %>
 <% end %>
-<div class="raa-table-scroll" role="region" aria-label="Resource records" tabindex="0">
-<table><caption><%= @resource.label %>, page <%= @page.number %></caption>
-<thead><tr><% if @selectable %><th scope="col"><span class="raa-visually-hidden">Select</span><input type="checkbox" hidden data-raa-select-all aria-label="Select all records on this page"></th><% end %><% @columns.each do |field| %>
+<div class="raa-table-scroll" role="region" aria-label="<%= t("rails_ai_admin.resources.index.records_region") %>" tabindex="0">
+<table><caption><%= t("rails_ai_admin.resources.index.caption", label: @resource.label, page: @page.number) %></caption>
+<thead><tr><% if @selectable %><th scope="col"><span class="raa-visually-hidden"><%= t("rails_ai_admin.resources.index.select") %></span><input type="checkbox" hidden data-raa-select-all aria-label="<%= t("rails_ai_admin.resources.index.select_all") %>"></th><% end %><% @columns.each do |field| %>
   <% sorted = @page.sort == field.name.to_s %>
   <% direction = @page.direction %>
   <th scope="col"<% if @sortable_fields.include?(field) %> aria-sort="<%= sorted ? (direction == "asc" ? "ascending" : "descending") : "none" %>"<% end %>>
@@ -60,17 +66,17 @@
       <%= link_to field.label, resources_path(resource: @resource.key, **state.symbolize_keys) %>
     <% else %><%= field.label %><% end %>
   </th>
-<% end %><th scope="col">Actions</th></tr></thead>
+<% end %><th scope="col"><%= t("rails_ai_admin.resources.index.actions") %></th></tr></thead>
 <tbody><% @rows.each_with_index do |row, index| %><tr>
-  <% if @selectable %><td><%= check_box_tag "target_ids[]", row[:id], false, id: "raa-target-#{index}", form: "raa-selection", aria: { label: "Select #{row[:label].to_s.truncate(120)}" } %></td><% end %>
-  <% @columns.each do |field| %><td<% if RailsAiAdmin::Presentation::IndexSettings::COMPACT_TYPES.include?(field.scalar_type) %> class="raa-cell-compact"<% end %>><%= admin_field_value(field, row[:values][field.name.to_s], view: :index) if row[:values].key?(field.name.to_s) %></td><% end %>
-  <td class="raa-row-actions"><%= link_to "View #{row[:label]}", resource_path(resource: @resource.key, id: row[:id], **navigation_params) %>
-    <% if row[:editable] %><%= link_to "Edit", edit_resource_path(resource: @resource.key, id: row[:id], **navigation_params), aria: { label: "Edit #{row[:label]}" } %><% end %></td>
+  <% if @selectable %><td><%= check_box_tag "target_ids[]", row[:id], false, id: "raa-target-#{index}", form: "raa-selection", aria: { label: t("rails_ai_admin.resources.index.select_row", label: row[:label].to_s.truncate(120)) } %></td><% end %>
+  <% @columns.each do |field| %><td<% if RailsAiAdmin::Presentation::IndexSettings::COMPACT_TYPES.include?(field.scalar_type) %> class="raa-cell-compact"<% end %>><%= admin_field_value(field, row[:values][field.name.to_s], view: :index, record_id: row[:id]) if row[:values].key?(field.name.to_s) %></td><% end %>
+  <td class="raa-row-actions"><%= link_to t("rails_ai_admin.resources.index.view_row", label: row[:label]), resource_path(resource: @resource.key, id: row[:id], **navigation_params) %>
+    <% if row[:editable] %><%= link_to t("rails_ai_admin.resources.edit"), edit_resource_path(resource: @resource.key, id: row[:id], **navigation_params), aria: { label: t("rails_ai_admin.resources.edit_title", label: row[:label]) } %><% end %></td>
 </tr><% end %></tbody></table></div>
-<% if @rows.empty? && !@omitted_rows %><p>No records match this query.</p><% end %>
-<nav class="raa-pagination" aria-label="Pagination">
-  <% if @page.number > 1 %><%= link_to "Previous", list_page_path(@page.number - 1) %><% end %>
-  <% if @page.has_next && @page.number < 1000 %><%= link_to "Next", list_page_path(@page.number + 1) %><% end %>
+<% if @rows.empty? && !@omitted_rows %><p><%= t("rails_ai_admin.resources.index.empty") %></p><% end %>
+<nav class="raa-pagination" aria-label="<%= t("rails_ai_admin.resources.index.pagination") %>">
+  <% if @page.number > 1 %><%= link_to t("rails_ai_admin.resources.index.previous"), list_page_path(@page.number - 1) %><% end %>
+  <% if @page.has_next && @page.number < 1000 %><%= link_to t("rails_ai_admin.resources.index.next"), list_page_path(@page.number + 1) %><% end %>
 </nav>
 
-<% if @page.has_next && @page.number == 1000 %><p>Narrow your search to view more records within the page limit.</p><% end %>
+<% if @page.has_next && @page.number == 1000 %><p><%= t("rails_ai_admin.resources.index.page_limit") %></p><% end %>

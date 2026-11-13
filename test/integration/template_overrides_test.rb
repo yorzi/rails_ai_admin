@@ -25,7 +25,7 @@ class NativeTemplateOverridesTest < ActionDispatch::IntegrationTest
         header, *lines = path.read.lines
         body = lines.join
         marker = if key == "layout"
-          body.sub('<body class="raa">', '<body class="raa" data-host-override="layout">')
+          body.sub('<body class="raa"', '<body class="raa" data-host-override="layout"')
         elsif key.start_with?("field_")
           %(<span data-host-field="<%= field.name %>" data-host-override="#{key}">#{body}</span>)
         else
@@ -93,7 +93,7 @@ class NativeTemplateOverridesTest < ActionDispatch::IntegrationTest
       RailsAiAdmin::ApplicationController.allow_forgery_protection = true
       get "/backoffice/customers/#{@customer.id}/edit"
       assert_response :success
-      assert_select "form", count: 1
+      assert_select "form[method=post]", count: 1, message: "one write form; the header search is a GET form"
       assert_select "input[name=intent_ref]", count: 1
       assert_select "input[name=authenticity_token]", count: 1
       assert_select "form[data-controller~='raa-dirty-form']"

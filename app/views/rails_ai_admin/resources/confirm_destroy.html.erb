@@ -1,10 +1,11 @@
-<% admin_title "Delete #{record_label(@resource, @record)}", @resource.label %>
-<h1>Delete <%= record_label(@resource, @record) %></h1>
+<% heading = t("rails_ai_admin.resources.destroy.title", label: record_label(@resource, @record)) %>
+<% admin_title heading, @resource.label %>
+<h1><%= heading %></h1>
 <%= render "errors" %>
-<p>Delete <strong><%= record_label(@resource, @record) %></strong>? This runs the model's destroy callbacks and cannot be undone here.</p>
+<p><%= t("rails_ai_admin.resources.destroy.question_html", label: tag.strong(record_label(@resource, @record))) %></p>
 <%= form_with url: resource_path(resource: @resource.key, id: @record.id), method: :delete, local: true do |form| %>
   <%= return_navigation_fields %>
   <%= hidden_field_tag :intent_ref, @intent_ref %>
-  <%= form.submit "Confirm deletion", class: "raa-danger", disabled: @needs_reload %>
-  <%= link_to "Cancel", resource_path(resource: @resource.key, id: @record.id, **navigation_params) %>
+  <%= form.submit t("rails_ai_admin.resources.destroy.confirm"), class: "raa-danger", disabled: @needs_reload %>
+  <%= link_to t("rails_ai_admin.actions.cancel"), resource_path(resource: @resource.key, id: @record.id, **navigation_params) %>
 <% end %>

@@ -26,7 +26,7 @@ module RailsAiAdmin
       result = Collections::Runner.new.admit(context: @context, intent_ref: params[:intent_ref], input: input,
         human_confirmed: true, binding: { resource_key: @resource.key, operation: @definition.key, selection_id: params[:selection_ref] })
       if result.accepted?
-        redirect_to collection_job_path(job_ref: result.job_ref, **navigation_params), status: :see_other, notice: "Run admitted. Each record is executed separately; queued work is not a completed change."
+        redirect_to collection_job_path(job_ref: result.job_ref, **navigation_params), status: :see_other, notice: t("rails_ai_admin.collection_operations.admitted")
       else
         render_rejection(result, input)
       end

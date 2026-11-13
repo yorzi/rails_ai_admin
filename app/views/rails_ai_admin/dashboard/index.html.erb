@@ -1,10 +1,10 @@
-<h1>Overview</h1>
-<p>Select a resource to manage. Available resources follow your current permissions.</p>
+<h1><%= t("rails_ai_admin.dashboard.title") %></h1>
+<p><%= t("rails_ai_admin.dashboard.intro") %></p>
 <ul class="raa-cards">
   <% resource_navigation.each do |group| %>
     <% group.entries.each do |entry| %>
-      <li><%= link_to resources_path(resource: entry.key) do %><%= navigation_icon(entry.icon) %><%= entry.label %><% end %></li>
+      <li><%= link_to resources_path(resource: entry.key) do %><%= navigation_icon(entry.icon) %><span><%= entry.label %><% if (count = @counts[entry.key]) %><span class="raa-card-count"><%= t(count.capped ? "rails_ai_admin.dashboard.count_capped" : "rails_ai_admin.dashboard.count", count: count.count, number: number_with_delimiter(count.count)) %></span><% end %></span><% end %></li>
     <% end %>
   <% end %>
 </ul>
-<% if resource_navigation.empty? %><p>No resources are available for this session.</p><% end %>
+<% if resource_navigation.empty? %><p><%= t("rails_ai_admin.dashboard.empty") %></p><% end %>

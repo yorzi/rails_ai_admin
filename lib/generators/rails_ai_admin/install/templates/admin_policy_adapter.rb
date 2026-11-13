@@ -6,8 +6,8 @@ class AdminPolicyAdapter < RailsAiAdmin::Authorization::Adapter
   # Working example to pair with the AdminContext example: every signed-in
   # admin may list, search and read users. Uncomment it after review; each
   # grant is a decision about your data. Editing also needs :update in
-  # allowed?, a :write field list, a lock_version column and a resource
-  # without `readonly`.
+  # allowed?, a :write field list, an updated_at (or lock_version) column
+  # and a resource without `readonly`.
   #
   # def scope(context:, resource:, relation:)
   #   resource.key == :users ? relation.all : relation.none

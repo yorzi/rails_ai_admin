@@ -11,7 +11,10 @@ module RailsAiAdmin
     end
     Report = Data.define(:suggestions, :omitted, :available)
     TYPES = { string: :text, text: :textarea, integer: :integer, decimal: :decimal,
-      boolean: :boolean, date: :date, datetime: :datetime, timestamp: :datetime }.freeze
+      boolean: :boolean, date: :date, datetime: :datetime, timestamp: :datetime, time: :time,
+      json: :json, jsonb: :json }.freeze
+    EMAIL_NAME = /(?:\A|_)email(?:_address)?\z/
+    URL_NAME = /(?:\A|_)(?:url|website|homepage)\z/
     # Heuristics are a conservative starting point, never a sensitivity proof.
     SENSITIVE = /password|token|secret|credential|ciphertext|encrypted|(?:\A|_)(?:api_key|private_key|access_key|signing_key|otp|ssn|salt|session|digest|role|roles|permission|permissions|security_version|admin|superuser)(?:_|\z)|_digest\z/i
     IDENTIFIER = /\A[a-z][a-z0-9_]*\z/
@@ -62,12 +65,14 @@ module RailsAiAdmin
           omitted += 1
           next
         end
+        type = :email if type == :text && name.match?(EMAIL_NAME)
+        type = :url if type == :text && name.match?(URL_NAME)
         if enum
           type = :enum
           options[:values] = enum.keys
         end
         options[:nullable] = false unless column.null
-        options[:max_length] = column.limit if %i[text textarea].include?(type) && column.limit.is_a?(Integer) && column.limit.positive?
+        options[:max_length] = column.limit if %i[text textarea email url].include?(type) && column.limit.is_a?(Integer) && column.limit.positive?
         # Explicit limits keep the declaration reviewable; coercion would
         # otherwise read the same values from the column on first use.
         if type == :decimal && column.precision.is_a?(Integer) && column.precision.between?(1, 1000)

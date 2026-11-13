@@ -101,6 +101,15 @@ module RailsAiAdmin
         @has_many[definition.name] = definition
       end
 
+      # A readonly panel for the one child record that points back here (a
+      # model has_one). The same grants as has_many apply.
+      def has_one(name, resource: name.to_s.pluralize, via: nil, label: nil)
+        definition = Presentation::AssociationPanel::Definition.build(name, resource: resource, via: via, label: label, limit: 1, single: true)
+        raise ConfigurationError, "Duplicate association panel #{definition.name}" if @has_many.key?(definition.name)
+        raise ConfigurationError, "A resource declares at most #{Presentation::AssociationPanel::MAX_PANELS} association panels" if @has_many.size >= Presentation::AssociationPanel::MAX_PANELS
+        @has_many[definition.name] = definition
+      end
+
       def has_many_declarations = @has_many.values
 
       def operation_declarations = @operations
@@ -150,6 +159,7 @@ module RailsAiAdmin
         end
         raise ConfigurationError, "A resource must declare fields and a title" if fields.empty? || !title || !@fields.key?(title)
         raise ConfigurationError, "A resource cannot declare lock_version as a field" if @fields.key?(:lock_version)
+        raise ConfigurationError, "A password field cannot be the title" if @fields[title].scalar_type == :password
         Fields::DependencyGraph.validate!(fields)
         index.validate!(fields)
         # Fail at registration rather than on every menu render; explicit labels

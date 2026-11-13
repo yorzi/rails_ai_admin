@@ -94,11 +94,11 @@ module RailsAiAdmin
           end
           model = resource.model_class
           same_pool = model.connection_pool.equal?(OperationRun.connection_pool) && model.connection_pool.equal?(AuditEvent.connection_pool) && model.connection_pool.equal?(WorkItem.connection_pool)
-          locking = model.locking_enabled? && model.locking_column == "lock_version" ? true : false
+          version = RecordVersion.strategy(model)
           writable = !resource.readonly?
-          status = writable && (!same_pool || !locking || model.composite_primary_key?) ? :error : :ok
+          status = writable && (!same_pool || version.nil? || model.composite_primary_key?) ? :error : :ok
           status = :error if writable && !%w[SQLite PostgreSQL].include?(model.connection.adapter_name)
-          message = "same_pool=#{same_pool}; lock_version=#{locking}; readonly=#{resource.readonly?}. Host callbacks must be database-only. " \
+          message = "same_pool=#{same_pool}; version=#{version || "missing"}; readonly=#{resource.readonly?}. Host callbacks must be database-only. " \
             "List pages omit in-scope records that deny show; check scope/show agreement with TestKit.assert_scope_matches_show."
           result << Check.new("resource:#{resource.key}", status, message)
           result.concat(schema_checks(resource, model))
@@ -171,7 +171,7 @@ module RailsAiAdmin
     def selection_check
       installed = [ Selection, SelectionItem, BatchItem ].all?(&:table_exists?)
       Check.new("selections", installed ? :review : :error,
-        "Fixed selection tables installed=#{installed}; at most 100 targets with lock_version in one pool. Separate select_records? grant, current scope/show/fields and expiry apply. Selection alone is not approval; collection admission/leases require current host policies and persistent queue scans.")
+        "Fixed selection tables installed=#{installed}; at most 100 targets with lock_version or updated_at in one pool. Separate select_records? grant, current scope/show/fields and expiry apply. Selection alone is not approval; collection admission/leases require current host policies and persistent queue scans.")
     rescue ActiveRecord::ActiveRecordError
       Check.new("selections", :error, "Cannot inspect selection tables. Check database connectivity and pending engine migrations.")
     end
@@ -222,7 +222,12 @@ module RailsAiAdmin
       invalid = physical_fields.reject do |field|
         column = columns[field.column]
         column && (SchemaSuggestions::TYPES.key?(column.type) || column.type == :uuid) && !SchemaSuggestions.array?(column) ||
-          (field.scalar_type == :id && field.name == :id && model.primary_key.is_a?(String) && columns.key?(model.primary_key))
+          (field.scalar_type == :id && field.name == :id && model.primary_key.is_a?(String) && columns.key?(model.primary_key)) ||
+          # has_secure_password defines password= over a digest column.
+          (field.scalar_type == :password && model.method_defined?("#{field.column}=")) ||
+          (field.scalar_type == :file && model.respond_to?(:reflect_on_attachment) && model.reflect_on_attachment(field.column)&.macro == :has_one_attached) ||
+          (field.scalar_type == :rich_text && model.reflect_on_association("rich_text_#{field.column}").present?) ||
+          (field.scalar_type == :references && model.reflect_on_association(field.name)&.collection?)
       end
       result = [ Check.new("schema:#{resource.key}", invalid.empty? ? :ok : :error,
         "#{invalid.size} declared fields lack supported scalar columns. Check field names/types; computed fields use declared dependency graphs. No records were sampled.") ]
@@ -236,6 +241,9 @@ module RailsAiAdmin
         when :boolean then column.type != :boolean
         when :integer then column.type != :integer || model.defined_enums.key?(field.name.to_s)
         when :decimal then column.type != :decimal
+        when :time then column.type != :time
+        when :json then !%i[json jsonb].include?(column.type)
+        when :email, :url, :text, :textarea then !%i[string text].include?(column.type)
         else false
         end
       end
@@ -264,7 +272,7 @@ module RailsAiAdmin
           "Search uses case-insensitive LIKE on SQLite and ILIKE on PostgreSQL over #{modes}. A plain B-tree index cannot serve ILIKE or contains search; " \
           "on PostgreSQL use a pg_trgm GIN index, or lower(column) text_pattern_ops for prefix search. SQLite folds ASCII case only, so non-ASCII case differs by database.")
       end
-      references = resource.fields.select { |field| field.scalar_type == :belongs_to }
+      references = resource.fields.select { |field| Field::REFERENCE_TYPES.include?(field.scalar_type) }
       if references.any?
         failures = references.filter_map do |field|
           Fields::Association.validate!(resource, field, registry: @registry)

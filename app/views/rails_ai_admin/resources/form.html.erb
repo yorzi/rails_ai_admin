@@ -1,16 +1,16 @@
 <p><%= link_to list_return_label, list_return_path %></p>
-<% heading = @operation == :create ? "New #{@resource.label.singularize.downcase_first}" : "Edit #{record_label(@resource, @record)}" %>
+<% heading = @operation == :create ? t("rails_ai_admin.resources.new", label: @resource.label.singularize.downcase_first) : t("rails_ai_admin.resources.edit_title", label: record_label(@resource, @record)) %>
 <% admin_title heading, @resource.label %>
 <h1><%= heading %></h1>
 <% target = @operation == :create ? resources_path(resource: @resource.key) : resource_path(resource: @resource.key, id: @record.id) %>
-<%= form_with url: target, method: (@operation == :create ? :post : :patch), local: true, scope: :record, namespace: "raa_#{@resource.key}_#{@record.id || 'new'}", data: { controller: "raa-dirty-form raa-form-recovery", raa_form_recovery_url_value: recover_resource_form_path(resource: @resource.key), raa_form_recovery_intent_value: @intent_ref, raa_form_recovery_time_zone_value: @context.time_zone, raa_form_recovery_return_state_value: encoded_return_state, raa_form_recovery_return_discarded_value: return_state_discarded?, raa_form_recovery_fields_value: @form_fields.map { |field| field.name.to_s }, action: "raa:form-paused->raa-dirty-form#pause input->raa-dirty-form#change submit->raa-dirty-form#submit turbo:submit-end->raa-dirty-form#finish turbo:before-fetch-response->raa-form-recovery#inspectResponse turbo:submit-end->raa-form-recovery#finished" } do |form| %>
+<%= form_with url: target, method: (@operation == :create ? :post : :patch), local: true, scope: :record, multipart: @form_fields.any? { |field| field.scalar_type == :file }, namespace: "raa_#{@resource.key}_#{@record.id || 'new'}", data: { controller: "raa-dirty-form raa-form-recovery", raa_form_recovery_url_value: recover_resource_form_path(resource: @resource.key), raa_form_recovery_intent_value: @intent_ref, raa_form_recovery_time_zone_value: @context.time_zone, raa_form_recovery_return_state_value: encoded_return_state, raa_form_recovery_return_discarded_value: return_state_discarded?, raa_form_recovery_fields_value: @form_fields.map { |field| field.name.to_s }, action: "raa:form-paused->raa-dirty-form#pause input->raa-dirty-form#change submit->raa-dirty-form#submit turbo:submit-end->raa-dirty-form#finish turbo:before-fetch-response->raa-form-recovery#inspectResponse turbo:submit-end->raa-form-recovery#finished" } do |form| %>
   <%= render "rails_ai_admin/resources/recovery" %>
   <%= return_navigation_fields %>
   <%= hidden_field_tag :intent_ref, @intent_ref %>
   <%= render "errors", form: form, fields: @form_fields %>
-  <% if @form_fields.any? { |field| admin_field_required?(field) } %><p class="raa-field-help"><%= t("rails_ai_admin.resources.form.required_note_html", marker: safe_join([ tag.span("*", aria: { hidden: true }), tag.span("with an asterisk", class: "raa-visually-hidden") ]), default: "Fields marked %{marker} are required.") %></p><% end %>
+  <% if @form_fields.any? { |field| admin_field_required?(field) } %><p class="raa-field-help"><%= t("rails_ai_admin.resources.form.required_note_html", marker: safe_join([ tag.span("*", aria: { hidden: true }), tag.span(t("rails_ai_admin.resources.form.asterisk"), class: "raa-visually-hidden") ])) %></p><% end %>
   <%= render "rails_ai_admin/shared/input_fields", form: form, fields: @form_fields, values: @form_values, errors: @errors, plan: @form_plan %>
-  <div class="raa-actions"><%= form.submit "Save", disabled: @needs_reload, data: { turbo_submits_with: "Saving…" } %>
+  <div class="raa-actions"><%= form.submit t("rails_ai_admin.actions.save"), disabled: @needs_reload, data: { turbo_submits_with: t("rails_ai_admin.actions.saving") } %>
   <%# Cancel returns where the person came from: the record when editing (RAA-024). %>
-  <%= link_to "Cancel", @operation == :create ? list_return_path : resource_path(resource: @resource.key, id: @record.id, **navigation_params) %></div>
+  <%= link_to t("rails_ai_admin.actions.cancel"), @operation == :create ? list_return_path : resource_path(resource: @resource.key, id: @record.id, **navigation_params) %></div>
 <% end %>

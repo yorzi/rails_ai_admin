@@ -112,6 +112,11 @@ class CollectionOperationsRequestsTest < ActionDispatch::IntegrationTest
       get "/backoffice/jobs/#{accepted.job_ref}"
       assert_response :success
       assert_includes response.body, "Alice"
+      # A backlog older than five minutes names the queue as code, not escaped text.
+      RailsAiAdmin::BatchItem.where(parent_run_id: accepted.job_ref).update_all(created_at: 10.minutes.ago)
+      get "/backoffice/jobs/#{accepted.job_ref}"
+      assert_select ".raa-notice code", text: RailsAiAdmin.configuration.queue_name
+      refute_includes response.body, "&lt;code&gt;"
       @customer.update!(account_id: 2)
       get "/backoffice/jobs/#{accepted.job_ref}"
       assert_response :success

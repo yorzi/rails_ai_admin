@@ -88,7 +88,7 @@ class DailyUseTest < ActionDispatch::IntegrationTest
   end
 
   def test_raa_011_a_field_type_can_explain_a_rejection
-    field = RailsAiAdmin::Fields::Registry.new(email: "DailyUseTest::EmailType").build(:email, type: :email)
+    field = RailsAiAdmin::Fields::Registry.new(contact_email: "DailyUseTest::EmailType").build(:email, type: :contact_email)
     error = assert_raises(ArgumentError) { field.coerce("not-an-address") }
     assert_equal "must contain an @ sign", error.message
     assert_equal "a@b", field.coerce("a@b")

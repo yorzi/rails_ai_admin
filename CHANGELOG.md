@@ -2,6 +2,90 @@
 
 ## Unreleased
 
+- `bin/demo --showcase` adds articles, tags and summaries to the demo host with
+  every everyday field type, uploads, rich text, history, CSV export and bulk
+  delete. `json` and `rich_text` fields stay off list pages unless declared
+  `index: true`. The selection page no longer shows raw record versions, and
+  rich-text and many-to-many inputs are named by their visible label instead of
+  a `<label for>` that pointed at a non-form element.
+- Search everything: a header search box (shown when the actor may search at
+  least one menu resource) opens `<admin>/search`, which runs each resource's own
+  list search and shows up to five records per resource through their show
+  grants. **Breaking:** `search` is now a reserved resource key.
+- The overview shows record counts for resources whose list opts into exact
+  counts, with the list's bound. Dark mode already follows the system setting.
+- Associations: `has_one :profile` shows a record's single child as a panel,
+  with the same grants as `has_many` panels. A `references :tags` field edits a
+  `has_many`/`:through`/HABTM list through `tag_ids=`: checkboxes for up to 100
+  visible targets (a search picker beyond), only currently visible targets may be
+  added, hidden stored targets are always kept, a changed list touches the record
+  so its version advances and the audit names the field, and CSV, Chat and show
+  pages label targets through their own grants.
+- Rich text: a `rich_text` field edits a `has_rich_text` attribute with Trix from
+  the host's Action Text assets (loaded only on forms that need it; file
+  attachments refused). Show pages sanitize the stored HTML; lists, CSV and
+  Chat use plain text; audit names the field when the content changes.
+- File uploads: a `file` field for a `has_one_attached` attachment, with
+  `accept:` content types and `max_size:` (default 10 MB). Uploads become new
+  blobs only for fields the actor may write; the Runner accepts only new,
+  unattached blobs that fit; refused writes purge them; a remove box clears an
+  optional file; audit names the field. Downloads go through
+  `<admin>/<resource>/<id>/files/<field>` with the record's scope, show grant
+  and field read grant, streamed with a sandboxed CSP; only raster images show
+  inline. Form recovery skips chosen files instead of failing.
+- Bulk delete: a fixed selection offers "Delete the N selected records" when the
+  resource allows `destroy` and the actor may delete at least one of them. After
+  a review page, each record is deleted on its own through the native destroy
+  operation (own policy check, version, transaction and audit); records that
+  cannot be deleted are kept and listed with the reason. A changed selection
+  deletes nothing. `Selections::Builder#revalidate` now yields current records
+  to a block.
+- CSV export: a default-deny `export_records?(context:, resource:)` grant (Pundit:
+  `export_records?`) adds an Export CSV button that POSTs the current search,
+  list tab, filters and sort to `<admin>/<resource>/exports`. Rows and columns
+  follow the index, show and read grants; references export their labels;
+  formula-like text is neutralized; `config.export_limit` (default 10,000)
+  bounds a file, and each export is audited.
+- Record History: with a new default-deny `view_history?(context:, resource:,
+  record:)` grant (Pundit: `view_history?`), a record's page links to
+  `<admin>/<resource>/<id>/history`, its audit trail newest first (50 per
+  page): time, change, changed fields named only when currently readable or
+  writable, actor and origin. Rejected writes now record their target, so a
+  lost edit appears as "Not saved". A context adapter may answer
+  `actor_labels(context:, actor_refs:)` to show names. New engine migration
+  `add_record_index_to_rails_ai_admin_audit_events`.
+- New field types: `time` (time of day), `email` (mailto link), `url` (only
+  http/https addresses become links), `json` (indented editing and display on
+  json/jsonb columns) and write-only `password` for `has_secure_password`. No
+  read grant reveals a password; an empty box keeps the current one; audit
+  names the field; input digests store a keyed hash of it. Schema suggestions
+  offer `email`, `url`, `time` and `json` from column types and names.
+  **Breaking:** a registered field type named `email`, `url`, `time`, `json` or
+  `password` must be renamed, because those keys are now built in.
+- Models no longer need a `lock_version` column. Without one, `updated_at`
+  carries the record version (whole microseconds), compared after a row-locked
+  load inside the write transaction; forms, intents, selections, collection
+  items and Work delivery all use it. `updated_at` then cannot be a writable
+  field, and doctor reports `version=lock_version`, `version=updated_at` or
+  `version=missing` instead of `lock_version=true/false`.
+- Framework I18n: every page heading, button, notice, status page, field
+  validation message, Chat message and script message reads
+  `config/locales/en.yml` (`rails_ai_admin.*`), and `<html lang>` follows
+  `I18n.locale`. A new Translations guide shows how to add a locale. The
+  English text is unchanged, except that the collection job backlog hint now
+  renders the queue name as code instead of escaped `<code>` text. Host
+  layout overrides keep working; their script messages stay English until
+  they add `data-raa-messages` to `<body>`.
+- Security regression sweep (RAA-0210): every state-changing engine route,
+  including Surface and Chat routes, rejects a missing CSRF token without a
+  side effect; unwritable, framework and tenant attributes are never mass
+  assigned; record text and request values are escaped on every page; list
+  and selection pages keep a constant query count as rows grow.
+- Reference inputs past 100 targets keep the typed key input and add a search
+  box that fills it. `GET <admin>/<target>/references/search?q=` returns at
+  most 20 `{id, label}` results through the target's own policy relation,
+  search grants and per-record show grant, plus an exact key match; filters
+  use the same picker (RAA-030).
 - Dependencies are on their latest releases: minitest 6.1.0, prism 2.1.0,
   Bundler 4.0.24, jekyll-vitepress-theme 1.12.0, Host B esbuild 0.28.2, and
   CI on ruby/setup-ruby v1.338.0 and Node 26. Ruby 4.0.9 and Rails 8.1.4.1

@@ -53,11 +53,10 @@ module RailsAiAdmin
       @admission_key = params[:admission_key].is_a?(String) && params[:admission_key].match?(Assistant::Coordinator::ADMISSION_KEY) ? params[:admission_key] : "message:#{SecureRandom.uuid}"
       @draft = params[:content].is_a?(String) ? params[:content].first(Assistant::Coordinator::MAX_CONTENT + 1) : ""
       if error.code == "RATE_LIMITED"
-        @message_error = "You have sent #{RailsAiAdmin.configuration.assistant_daily_message_limit} messages to the assistant in the last 24 hours, " \
-          "which is this administration's limit. Your message was not sent; try again later."
+        @message_error = t("rails_ai_admin.assistant.rate_limited", count: RailsAiAdmin.configuration.assistant_daily_message_limit)
         return render :show, status: :too_many_requests
       end
-      @message_error = "Write a message of up to #{Assistant::Coordinator::MAX_CONTENT} characters."
+      @message_error = t("rails_ai_admin.assistant.invalid_message", count: Assistant::Coordinator::MAX_CONTENT)
       render :show, status: :unprocessable_content
     end
 
@@ -88,7 +87,7 @@ module RailsAiAdmin
 
     def archive
       @chat.update!(status: "archived")
-      redirect_to assistant_path, status: :see_other, notice: "Conversation archived."
+      redirect_to assistant_path, status: :see_other, notice: t("rails_ai_admin.assistant.archived")
     end
 
     private
@@ -120,9 +119,10 @@ module RailsAiAdmin
       @pending = @current && @chat.turns.where(status: Assistant::Turn::ACTIVE).exists?
       @running = @pending && @chat.turns.where(status: "running").exists?
       retrying = @pending && @chat.turns.where(status: "queued").where.not(error_code: nil).reorder(:sequence).first
-      @retry_status = "Retrying (#{retrying.attempts + 1} of #{Assistant::Coordinator::MAX_ATTEMPTS})…" if retrying
+      @retry_status = t("rails_ai_admin.assistant.retrying", attempt: retrying.attempts + 1, attempts: Assistant::Coordinator::MAX_ATTEMPTS) if retrying
       @failure = last if last&.status == "failed" || last&.status == "cancelled"
-      @failure_message = @failure && FAILURES.fetch(@failure.error_code.to_s, FAILURES["ASSISTANT_FAILED"])
+      code = @failure && (FAILURES.key?(@failure.error_code.to_s) ? @failure.error_code.to_s : "ASSISTANT_FAILED")
+      @failure_message = code && t(code.downcase, scope: %i[rails_ai_admin assistant failures], default: FAILURES.fetch(code))
       @retryable = @current && @failure&.status == "failed" && RETRYABLE.include?(@failure.error_code)
       @surface_scope = Integrations::ToolViews.scope_for(@context) if RailsAiAdmin.configuration.surfaces
     end

@@ -3,21 +3,24 @@
 A self-hosted Rails admin engine with explicitly registered resources and one
 policy-checked, audited execution boundary for conventional CRUD.
 
-**Unreleased development.** Current code supplies scalar conventional CRUD,
-`belongs_to` references with readonly `has_many` panels, registered scalar field
-types and partials, synchronous member operations, fixed Selection previews,
-bounded asynchronous collection operations, opt-in admin review Surfaces and a
-durable outbox for one declared post-commit effect, and an opt-in admin Chat
-whose proposals become review Surfaces. Native-provider evidence, streaming and AI
-budgets, association search and broader association writes, CSV, private files,
-metrics dashboards and the broader batch/job-center workflows remain future work. The
+**Unreleased development.** Current code supplies conventional CRUD with everyday
+field types (text, numbers, dates, times, email, URL, JSON, write-only passwords,
+Active Storage files and Action Text rich text), `belongs_to` references,
+many-to-many `references` lists, readonly `has_many`/`has_one` panels, registered
+field types and partials, CSV export, record history, bulk delete, a search across
+resources, synchronous member operations, fixed Selection previews, bounded
+asynchronous collection operations, opt-in admin review Surfaces and a durable
+outbox for one declared post-commit effect, and an opt-in admin Chat whose
+proposals become review Surfaces. Native-provider evidence, streaming and AI
+budgets, `has_many_attached`, nested and polymorphic association writes, imports,
+metrics dashboards and the broader job-center workflows remain future work. The
 [development plan](docs/development-plan.md) describes the target product, not the
 supported feature set.
 
 The engine supports custom policy adapters and an optional Pundit adapter with
 explicit policy mappings per resource. The host owns authentication, tenants,
-policies and domain data. Missing context or policy grants deny access. Generic writes require standard `lock_version`
-optimistic locking and the same Active Record connection pool for domain records,
+policies and domain data. Missing context or policy grants deny access. Generic writes require a record version
+(`lock_version`, or else `updated_at`) and the same Active Record connection pool for domain records,
 operation receipts, audit and Work items. Resources with irreversible callback
 effects should remain readonly until their host boundary is redesigned and tested.
 
@@ -203,6 +206,11 @@ your own adapter, never from global RubyLLM configuration. See the
 [Admin Assistant guide](docs/site/_advanced/admin-assistant.md).
 
 ## Fixed Selection Previews
+
+A default-deny `export_records?` grant adds an Export CSV button for the current list
+(same rows, columns and values as the pages; audited and bounded by `export_limit`).
+A default-deny `view_history?` grant adds a record History page listing its audited
+changes (fields named only when currently readable or writable).
 
 A separate default-deny `select_records?` grant enables native index checkboxes
 and a no-JavaScript preview of up to 100 explicit targets. `Selections::Builder`

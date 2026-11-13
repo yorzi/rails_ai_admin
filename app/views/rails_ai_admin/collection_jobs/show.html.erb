@@ -1,24 +1,24 @@
-<% admin_title @job.description, "Collection jobs" %>
-<p><%= link_to "Collection jobs", collection_jobs_path %> · <%= link_to list_return_label, list_return_path %></p>
+<% admin_title @job.description, t("rails_ai_admin.layout.collection_jobs") %>
+<p><%= link_to t("rails_ai_admin.layout.collection_jobs"), collection_jobs_path %> · <%= link_to list_return_label, list_return_path %></p>
 <h1><%= @job.description %></h1>
-<p>Status: <strong><%= @job.status.humanize %></strong></p>
+<p><%= t("rails_ai_admin.collection_jobs.status_html", status: tag.strong(admin_state_name(@job.status))) %></p>
 <% if @job.waiting_since %>
-  <p class="raa-notice" role="status"><%= t("rails_ai_admin.collection_jobs.waiting", age: distance_of_time_in_words(@job.waiting_since, Time.current), default: "Waiting for a worker. The oldest item has been queued for %{age}.") %>
-  <% if @job.waiting_since < 5.minutes.ago %><%= t("rails_ai_admin.collection_jobs.waiting_hint", queue: tag.code(RailsAiAdmin.configuration.queue_name), default: "If this does not change, ask the host maintainer to check that a job worker processes the %{queue} queue or that the collection scan is scheduled.") %><% end %></p>
+  <p class="raa-notice" role="status"><%= t("rails_ai_admin.collection_jobs.waiting", age: distance_of_time_in_words(@job.waiting_since, Time.current)) %>
+  <% if @job.waiting_since < 5.minutes.ago %><%= t("rails_ai_admin.collection_jobs.waiting_hint_html", queue: tag.code(RailsAiAdmin.configuration.queue_name)) %><% end %></p>
 <% end %>
-<p><%= @job.counts.map { |status, count| "#{status.humanize}: #{count}" }.join(" · ") %></p>
-<p><%= link_to "Refresh status", collection_job_path(job_ref: @job.job_ref, **navigation_params) %></p>
-<% if @job.warning %><p class="raa-errors" role="alert">The committed run has a host callback warning. Ask the host maintainer to review it.</p><% end %>
+<p><%= admin_state_counts(@job.counts) %></p>
+<p><%= link_to t("rails_ai_admin.collection_jobs.refresh"), collection_job_path(job_ref: @job.job_ref, **navigation_params) %></p>
+<% if @job.warning %><p class="raa-errors" role="alert"><%= t("rails_ai_admin.collection_jobs.warning") %></p><% end %>
 <% if @job.can_cancel %>
-  <%= button_to "Cancel remaining items", cancel_collection_job_path(job_ref: @job.job_ref), method: :post, params: navigation_params, data: { turbo: false } %>
+  <%= button_to t("rails_ai_admin.collection_jobs.cancel"), cancel_collection_job_path(job_ref: @job.job_ref), method: :post, params: navigation_params, data: { turbo: false } %>
 <% end %>
-<p>Each succeeded item is committed. Follow-up delivery is tracked separately and can remain pending after business success.</p>
-<div class="raa-table-scroll" role="region" aria-label="Current visible item results" tabindex="0"><table>
-<caption>Current visible item results</caption>
-<thead><tr><th scope="col">Record</th><th scope="col">Business status</th><th scope="col">Reason</th><th scope="col">Follow-up work</th></tr></thead>
+<p><%= t("rails_ai_admin.collection_jobs.committed_note") %></p>
+<div class="raa-table-scroll" role="region" aria-label="<%= t("rails_ai_admin.collection_jobs.items") %>" tabindex="0"><table>
+<caption><%= t("rails_ai_admin.collection_jobs.items") %></caption>
+<thead><tr><th scope="col"><%= t("rails_ai_admin.collection_jobs.record") %></th><th scope="col"><%= t("rails_ai_admin.collection_jobs.business_status") %></th><th scope="col"><%= t("rails_ai_admin.collection_jobs.reason") %></th><th scope="col"><%= t("rails_ai_admin.collection_jobs.follow_up") %></th></tr></thead>
 <tbody><% @job.entries.each do |entry| %><tr>
 <td><%= link_to entry.label, resource_path(resource: @resource.key, id: entry.record_id, **navigation_params) %></td>
-<td><%= entry.status.humanize %><% if entry.warning %> (callback warning)<% end %></td><td><%= admin_outcome(entry.code) if entry.code && entry.code != "OK" %></td>
-<td><%= entry.work_statuses.map { |status, count| "#{status.humanize}: #{count}" }.join(" · ") %></td>
+<td><%= admin_state_name(entry.status) %><% if entry.warning %> <%= t("rails_ai_admin.collection_jobs.callback_warning") %><% end %></td><td><%= admin_outcome(entry.code) if entry.code && entry.code != "OK" %></td>
+<td><%= admin_state_counts(entry.work_statuses) %></td>
 </tr><% end %></tbody></table></div>
-<% if @job.hidden_count > 0 %><p>Some items are not currently visible under your permissions.</p><% end %>
+<% if @job.hidden_count > 0 %><p><%= t("rails_ai_admin.collection_jobs.hidden") %></p><% end %>

@@ -15,22 +15,22 @@ module RailsAiAdmin
       # list_params is the complete list state for that link: like the panel,
       # it shows every child, not the child's default list tab (RAA-006).
       # unscoped_list is true when the child has a granted default list tab.
-      Panel = Data.define(:name, :label, :resource_key, :rows, :more, :list_filter, :unscoped_list) do
+      Panel = Data.define(:name, :label, :resource_key, :rows, :more, :list_filter, :unscoped_list, :single) do
         def list_params
           return unless list_filter
           unscoped_list ? { filter: list_filter, scope: Queries::NamedScope::NONE } : { filter: list_filter }
         end
       end
 
-      Definition = Data.define(:name, :resource, :explicit_via, :label, :limit) do
-        def self.build(name, resource:, via:, label:, limit:)
+      Definition = Data.define(:name, :resource, :explicit_via, :label, :limit, :single) do
+        def self.build(name, resource:, via:, label:, limit:, single: false)
           names = [ name, resource ] + (via.nil? ? [] : [ via ])
           unless names.all? { |value| (value.is_a?(Symbol) || value.is_a?(String)) && value.to_s.match?(NAME) && value.to_s.length <= 100 } &&
               (label.nil? || label.is_a?(String) && label.valid_encoding? && label.length.between?(1, 80)) &&
               limit.is_a?(Integer) && limit.between?(1, MAX_LIMIT)
             raise ConfigurationError, "has_many needs stable names, an optional short plain label and a limit of 1..#{MAX_LIMIT}"
           end
-          new(name.to_sym, resource.to_sym, via&.to_sym, label&.dup&.freeze, limit)
+          new(name.to_sym, resource.to_sym, via&.to_sym, label&.dup&.freeze, single ? 1 : limit, single)
         end
 
         # Defaults to the parent model's underscored name, as Rails does.
@@ -69,7 +69,7 @@ module RailsAiAdmin
           end
           filter = access.fields(:filter).include?(field) ? { field.name.to_s => { "eq" => record.id.to_s } }.freeze : nil
           Panel.new(definition.name, definition.caption, child.key, rows.freeze, records.size > definition.limit, filter,
-            access.named_scopes.any?(&:default?))
+            access.named_scopes.any?(&:default?), definition.single)
         rescue AccessDenied
           nil
         end

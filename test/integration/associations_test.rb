@@ -125,6 +125,53 @@ class AssociationsIntegrationTest < ActionDispatch::IntegrationTest
     end
   end
 
+  def test_large_targets_get_a_search_picker_over_the_typed_key
+    101.times { |index| Customer.create!(account_id: 1, name: "Bulk #{index}") }
+    with_association_resources do
+      get "/backoffice/invoices/new"
+      assert_response :success
+      assert_select "select[name='record[customer]']", count: 0
+      picker = css_select("[data-controller='raa-reference-picker']").first
+      assert_equal "/backoffice/customers/references/search", picker["data-raa-reference-picker-url-value"]
+      key_id = picker["data-raa-reference-picker-key-value"]
+      assert_select "input##{key_id}[type=text][name='record[customer]']"
+      assert_select "[data-raa-reference-picker-target=panel][hidden] input[type=search]:not([name])"
+      assert_select "label[for='#{key_id}--search']", text: "Search Customers"
+
+      get "/backoffice/customers/references/search", params: { q: "Bob" }, headers: { "Accept" => "application/json" }
+      assert_response :success
+      assert_equal [ { "id" => @bob.id.to_s, "label" => "Bob <b>bold</b>" } ], response.parsed_body["results"]
+      assert_includes response.headers["Cache-Control"], "no-store"
+
+      get "/backoffice/invoices", params: { filter: { customer: { eq: @bob.id.to_s } } }
+      assert_response :success
+      assert_select "input#raa-filter-customer-eq[name='filter[customer][eq]'][value='#{@bob.id}']"
+      assert_select ".raa-reference-current", text: "Currently: Bob <b>bold</b>"
+    end
+  end
+
+  def test_picker_search_follows_target_grants
+    with_association_resources do
+      get "/backoffice/customers/references/search", params: { q: "Other" }, headers: { "Accept" => "application/json" }
+      assert_response :success
+      assert_empty response.parsed_body["results"]
+
+      get "/backoffice/customers/references/search", params: { q: { nested: "x" } }, headers: { "Accept" => "application/json" }
+      assert_response :unprocessable_content
+
+      get "/backoffice/nope/references/search", params: { q: "a" }, headers: { "Accept" => "application/json" }
+      assert_response :not_found
+
+      AssociationFixtures::Policy.deny_customer_index = true
+      get "/backoffice/customers/references/search", params: { q: "Alice" }, headers: { "Accept" => "application/json" }
+      assert_response :not_found
+      refute_includes response.body, "Alice"
+
+      get "/backoffice/invoices/new"
+      assert_select "[data-controller='raa-reference-picker']", count: 0, message: "no search box without a target list grant"
+    end
+  end
+
   def test_reference_filters_render_current_choices
     Invoice.create!(account_id: 1, number: "INV-A", customer: @customer)
     Invoice.create!(account_id: 1, number: "INV-B", customer: @bob)

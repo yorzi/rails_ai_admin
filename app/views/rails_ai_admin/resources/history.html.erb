@@ -1,0 +1,27 @@
+<% label = record_label(@resource, @record) %>
+<% admin_title t("rails_ai_admin.history.title", record: label), @resource.label %>
+<p><%= link_to t("rails_ai_admin.history.back", record: label), resource_path(resource: @resource.key, id: @record.id, **navigation_params) %></p>
+<h1><%= t("rails_ai_admin.history.title", record: label) %></h1>
+<% if @history.entries.empty? %>
+  <p><%= t("rails_ai_admin.history.empty") %></p>
+<% else %>
+  <div class="raa-table-scroll"><table class="raa-history">
+    <caption><%= t("rails_ai_admin.history.caption") %></caption>
+    <thead><tr>
+      <th scope="col"><%= t("rails_ai_admin.history.when") %></th>
+      <th scope="col"><%= t("rails_ai_admin.history.change") %></th>
+      <th scope="col"><%= t("rails_ai_admin.history.fields") %></th>
+      <th scope="col"><%= t("rails_ai_admin.history.by") %></th>
+    </tr></thead>
+    <tbody>
+      <% @history.entries.each do |entry| %><tr>
+        <td class="raa-cell-compact"><%= admin_history_time(entry.at) %></td>
+        <td><%= admin_history_change(@resource, entry) %></td>
+        <td><%= admin_history_fields(entry) %></td>
+        <td><%= @actor_labels.fetch(entry.actor_ref) %><% if entry.actor_ref == @context.actor_ref %> <span class="raa-muted"><%= t("rails_ai_admin.history.you") %></span><% end %>
+          <% unless entry.origin == "ui" %><br><span class="raa-muted"><%= t(entry.origin, scope: %i[rails_ai_admin history origins], default: entry.origin.to_s.humanize) %></span><% end %></td>
+      </tr><% end %>
+    </tbody>
+  </table></div>
+  <% if @history.older %><p><%= link_to t("rails_ai_admin.history.older"), resource_history_path(resource: @resource.key, id: @record.id, before: @history.older, **navigation_params) %></p><% end %>
+<% end %>

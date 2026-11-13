@@ -51,7 +51,7 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
       assert_select "[data-raa-override=input_fields]"
       get "/staff/customers/#{@customer.id}/edit"
       assert_select "[data-raa-override=resource_edit]"
-      assert_select "form", count: 1
+      assert_select "form[method=post]", count: 1, message: "one write form; the header search is a GET form"
       assert_select "input[name=intent_ref]", count: 1
       assert_select "input[name=authenticity_token]", count: 1
       token = css_select("input[name=authenticity_token]").first["value"]
@@ -92,6 +92,26 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
       assert_response :conflict
       assert_select "[data-raa-override=collection_failure]"
       assert_equal 2, @customer.reload.points
+      get "/staff/customers/#{@customer.id}/history"
+      assert_response :success
+      assert_select "[data-raa-override=resource_history]"
+      get "/staff/search", params: { q: "Packaged" }
+      assert_response :success
+      assert_select "[data-raa-override=search]"
+
+      draft = Order.create!(account: @account, number: "DEL-1", total: 1, state: "draft")
+      kept = Order.create!(account: @account, number: "DEL-2", total: 1, state: "approved")
+      get "/staff/orders"
+      post "/staff/orders/selections", params: { authenticity_token: css_select("form#raa-selection input[name=authenticity_token]").first["value"], target_ids: [ draft.id, kept.id ] }
+      destroy_path = "#{URI(response.location).path}/destroy"
+      get destroy_path
+      assert_response :success
+      assert_select "[data-raa-override=selection_destroy]"
+      post destroy_path, params: { authenticity_token: css_select("input[name=authenticity_token]").first["value"], manifest_digest: css_select("input[name=manifest_digest]").first["value"] }
+      assert_response :success
+      assert_select "[data-raa-override=selection_destroy_result]"
+      refute Order.exists?(draft.id)
+      assert Order.exists?(kept.id), "an approved order is kept by the host policy"
       get "/staff/jobs"
       assert_response :success
       assert_select "[data-raa-override=job_index]"

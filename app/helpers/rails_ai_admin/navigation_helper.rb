@@ -17,6 +17,18 @@ module RailsAiAdmin
       safe_join([ Presentation::Outcomes.sentence(code), " ", tag.span("(#{code})", class: "raa-code") ])
     end
 
+    # A stored run, item or work status ("succeeded") as display text.
+    def admin_state_name(status)
+      status = status.to_s
+      return status.humanize unless status.match?(/\A[a-z][a-z_]{0,63}\z/)
+      t(status, scope: %i[rails_ai_admin states], default: status.humanize)
+    end
+
+    # { "succeeded" => 2, "failed" => 1 } as "Succeeded: 2 · Failed: 1".
+    def admin_state_counts(counts)
+      counts.map { |status, count| t("rails_ai_admin.states.count", state: admin_state_name(status), count: count) }.join(" · ")
+    end
+
     # "Edit ORD-0001 · Orders · Administration".
     def admin_page_title
       [ *Array(@raa_title_parts), RailsAiAdmin.configuration.title ].join(" · ")

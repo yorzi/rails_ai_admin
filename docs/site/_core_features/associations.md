@@ -2,7 +2,7 @@
 layout: default
 title: Associations
 nav_order: 12
-description: Show, choose and filter belongs_to references, and list a record's children, through each target resource's own grants.
+description: Show, choose and filter belongs_to references, edit many-to-many lists, and show a record's children, through each target resource's own grants.
 ---
 
 # {{ page.title }}
@@ -15,7 +15,8 @@ After reading this guide, you will know:
 * How to declare a `belongs_to` field and what it stores.
 * How references are labelled, linked and loaded without per-row queries.
 * Which targets a form offers and a write accepts.
-* How to list a parent's children with `has_many`.
+* How to list a parent's children with `has_many` and `has_one`.
+* How to edit a many-to-many list with `references`.
 * What is not supported yet.
 
 ## Declare a Reference
@@ -73,9 +74,15 @@ target and should avoid their own per-record queries.
 
 New and edit forms render a select of up to 100 targets the actor can currently
 list and see, ordered by the target title when its sort is granted and then by
-primary key. If the actor cannot list the target resource, or more than 100
-targets exist, the form shows a plain text input for the target's key instead.
-Association search is planned (see below).
+primary key. Past 100 targets the form shows a text input for the target's key
+with a search box under it. The search box asks
+`GET /admin/customers/references/search?q=…`, which answers with exactly what
+the target's own list would show this actor for that text: its policy
+relation, its granted search fields and a show grant per record, at most 20
+results, plus an exact match on a typed key. Choosing a result fills the key.
+The search box has no name and is never submitted; without JavaScript, or for
+a target with no granted search fields, the key input still works alone. If the
+actor cannot list the target resource, the form shows only the key input.
 
 Every write rechecks the submitted key in the shared Runner, inside the same
 transaction as the domain write:
@@ -101,8 +108,8 @@ policy is not implemented.
 ## Filtering by Reference
 
 `filterable: true` offers `eq` only, behind the usual independent `:filter`
-grant. The filter form renders the same bounded picker, or a key input past 100
-targets. The value narrows the already-authorized list; it never widens it.
+grant. The filter form renders the same bounded picker, or past 100 targets the
+same key input and search box. The value narrows the already-authorized list; it never widens it.
 
 ```text
 /admin/orders?filter[customer][eq]=42
@@ -146,6 +153,64 @@ The panel reads children only through the child resource:
 The panel adds no write path. Creating, attaching or detaching children happens
 in the child resource's own forms and operations.
 
+## A Single Child with has_one
+
+For a model `has_one`, declare a panel the same way; it shows the one child or
+"No records.":
+
+```ruby
+class UserAdmin < RailsAiAdmin::Resource
+  # ...
+  has_one :profile, resource: :profiles, via: :user
+end
+```
+
+`resource` defaults to the pluralized name and `via` to the parent model's
+name, as for `has_many`. The same grants apply: the child resource's index
+grant, a readable `belongs_to` back to the parent, and the child's own show
+grant for the link.
+
+## Many-to-Many Lists with references
+
+A `references` field edits a `has_many` (including `:through`) or
+`has_and_belongs_to_many` association through the model's `<singular>_ids`
+writer:
+
+```ruby
+class Article < ApplicationRecord
+  has_many :taggings
+  has_many :tags, through: :taggings
+end
+
+class ArticleAdmin < RailsAiAdmin::Resource
+  # ...
+  fields do
+    references :tags                      # resource: :tags, foreign_key: "tag_ids"
+  end
+end
+```
+
+`resource` names the target resource (default: the field name) and
+`foreign_key` the ids writer (default: `<singular>_ids`). The target must be
+registered. Grant the field in `:read` and `:write` like any field.
+
+* The value is the sorted list of target keys, at most 100. Show pages label
+  each through the target's own relation and show grant, linking only the ones
+  the actor may open; others read "Tag #5". Lists leave the field out by
+  default (`index: false`), because reading keys costs a query per row; CSV
+  export preloads them.
+* Forms show a checkbox per visible target when there are at most 100. With
+  more, the current targets stay as checkboxes and a key input with the search
+  picker adds one more per save.
+* A write may add only targets the actor can currently see in the target
+  resource. Stored targets the actor cannot see are always kept, so a person can
+  neither remove nor learn about records the target policy hides.
+* Join rows change no column of the owner, so a changed list touches the record:
+  its version advances, a concurrent form conflicts, and the audit names the
+  field. An unchanged list writes nothing.
+* A `references` field cannot search, sort or filter, and operation inputs
+  cannot be lists.
+
 ## Templates
 
 Two catalogued partials are overridable with `rails_ai_admin:override`:
@@ -164,7 +229,6 @@ target grants.
 
 * Association search, sort and label columns (LIST-019): `belongs_to` fields
   cannot be `searchable` or `sortable`.
-* A searchable picker endpoint for more than 100 targets.
-* Polymorphic, `has_one`, `has_many :through` and many-to-many writes.
+* Polymorphic associations, and editing a `has_one` child from its parent.
 * Nested child forms, attach/detach/reparent policies and the dependent-destroy
   preview required by CRUD-021.

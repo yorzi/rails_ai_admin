@@ -126,6 +126,24 @@ module RailsAiAdmin
         policy_error!(resource, error)
       end
 
+      def export_records?(context:, resource:)
+        klass = policy_class(resource)
+        return false unless klass
+        policy = klass.new(context, resource.model_class)
+        policy.respond_to?(:export_records?) && policy.export_records? == true
+      rescue StandardError => error
+        policy_error!(resource, error)
+      end
+
+      def view_history?(context:, resource:, record:)
+        klass = policy_class(resource)
+        return false unless klass
+        policy = klass.new(context, record)
+        policy.respond_to?(:view_history?) && policy.view_history? == true
+      rescue StandardError => error
+        policy_error!(resource, error)
+      end
+
       def assistant?(context:, resource:)
         klass = policy_class(resource)
         return false unless klass

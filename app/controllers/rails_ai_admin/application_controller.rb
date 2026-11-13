@@ -12,10 +12,11 @@ module RailsAiAdmin
     helper RailsAiAdmin::NavigationHelper
     helper RailsAiAdmin::FiltersHelper
     helper RailsAiAdmin::ToolViewsHelper
+    helper RailsAiAdmin::HistoryHelper
     prepend_before_action :secure_headers
     before_action :authenticate_admin
     after_action :notice_discarded_list_settings
-    helper_method :resource_navigation, :admin_csp_nonce, :list_page_path, :encoded_return_state, :navigation_state, :navigation_params, :list_return_path, :list_return_label, :return_state_discarded?, :return_navigation_fields, :list_state_fields, :visible_resources, :allowed_action?, :record_label, :collection_jobs_available?, :admin_associations, :assistant_available?
+    helper_method :resource_navigation, :admin_csp_nonce, :list_page_path, :encoded_return_state, :navigation_state, :navigation_params, :list_return_path, :list_return_label, :return_state_discarded?, :return_navigation_fields, :list_state_fields, :visible_resources, :allowed_action?, :record_label, :collection_jobs_available?, :admin_associations, :assistant_available?, :searchable_resources
 
     rescue_from AccessDenied, with: :deny_access
     rescue_from ConfigurationError do
@@ -135,7 +136,7 @@ module RailsAiAdmin
       resources_path(resource: @resource.key, **state.symbolize_keys)
     end
 
-    def list_return_label = @list_navigation&.index_allowed? ? @resource.label : "Administration"
+    def list_return_label = @list_navigation&.index_allowed? ? @resource.label : t("rails_ai_admin.layout.administration")
 
     def return_navigation_fields
       helpers.safe_join(Navigation::ListState.form_pairs(navigation_state, "return_to").map { |name, value| helpers.hidden_field_tag(name, value, id: nil) })
@@ -148,7 +149,7 @@ module RailsAiAdmin
 
     def notice_discarded_list_settings
       return unless response.redirect? && return_state_discarded?
-      message = "Some list settings are no longer available."
+      message = t("rails_ai_admin.layout.settings_unavailable")
       flash[:notice] = [ flash[:notice], message ].compact.join(" ") unless flash[:notice].to_s.include?(message)
     end
 
@@ -161,6 +162,19 @@ module RailsAiAdmin
     def visible_resources
       RailsAiAdmin.registry.resources.select do |resource|
         Authorization::Access.new(@context, resource).authorize!(:index)
+      rescue AccessDenied
+        false
+      end
+    end
+
+    # Resources in the menu that this actor may list and search, for the
+    # header search box. Request-local; no grant survives the request.
+    def searchable_resources
+      @searchable_resources ||= RailsAiAdmin.registry.resources.select do |resource|
+        next false if resource.navigation.hidden
+        access = Authorization::Access.new(@context, resource)
+        access.authorize!(:index)
+        access.fields(:search).any?
       rescue AccessDenied
         false
       end
@@ -195,6 +209,25 @@ module RailsAiAdmin
     # resource policy; nothing is shared across requests or actors.
     def admin_associations
       @admin_associations ||= Fields::Association.new(@context, @resource)
+    end
+
+    # Display names for stored actor references. The context adapter may
+    # answer actor_labels(context:, actor_refs:) with a Hash; otherwise a
+    # reference reads as "User #42".
+    def actor_labels(refs)
+      adapter = RailsAiAdmin.configuration.context_adapter&.constantize&.new
+      given = adapter.respond_to?(:actor_labels) ? adapter.actor_labels(context: @context, actor_refs: refs) : {}
+      given = {} unless given.is_a?(Hash)
+      refs.to_h do |ref|
+        label = given[ref]
+        label = nil unless label.is_a?(String) && label.valid_encoding? && label.length.between?(1, 200)
+        [ ref, label || default_actor_label(ref) ]
+      end
+    end
+
+    def default_actor_label(ref)
+      _, _, kind, id = ref.to_s.split(":", 4)
+      kind && id ? "#{kind.demodulize.titleize} ##{id}" : ref.to_s
     end
 
     def record_label(resource, record, values: nil, view: :show)

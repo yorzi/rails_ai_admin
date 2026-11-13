@@ -1,0 +1,14 @@
+<%# Progressive enhancement for a typed reference key. Without JavaScript the
+    key input works alone; with it, a search box fills the key from the target
+    resource's own search. The search box has no name, so it is never submitted. %>
+<div class="raa-reference" data-controller="raa-reference-picker" data-raa-reference-picker-url-value="<%= reference_search_path(resource: target.key) %>" data-raa-reference-picker-key-value="<%= key_id %>" data-raa-reference-picker-messages-value="<%= admin_reference_messages.to_json %>">
+  <%= key_input %>
+  <% if current %><p class="raa-reference-current" data-raa-reference-picker-target="current"><%= t("rails_ai_admin.references.current", label: current.label) %></p>
+  <% else %><p class="raa-reference-current" data-raa-reference-picker-target="current" hidden></p><% end %>
+  <div class="raa-reference-search" data-raa-reference-picker-target="panel" hidden>
+    <label for="<%= key_id %>--search"><%= t("rails_ai_admin.references.find", target: target.label) %></label>
+    <input type="search" id="<%= key_id %>--search" autocomplete="off" spellcheck="false" maxlength="200" aria-controls="<%= key_id %>--results" aria-describedby="<%= key_id %>--status" data-raa-reference-picker-target="query" data-action="input->raa-reference-picker#search keydown->raa-reference-picker#keydown">
+    <p class="raa-reference-status" id="<%= key_id %>--status" role="status" data-raa-reference-picker-target="status"></p>
+    <ul class="raa-reference-results" id="<%= key_id %>--results" data-raa-reference-picker-target="results"></ul>
+  </div>
+</div>

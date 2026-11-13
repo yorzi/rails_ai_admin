@@ -9,7 +9,7 @@ module AssociationFixtures
     title :name
     fields do
       id :id
-      text :name, sortable: true
+      text :name, sortable: true, searchable: :contains
     end
     has_many :invoices, limit: 2
   end
@@ -30,6 +30,7 @@ module AssociationFixtures
     class_attribute :deny_customer_show, default: false
     class_attribute :deny_customer_index, default: false
     class_attribute :customer_sort, default: %i[name]
+    class_attribute :customer_search, default: %i[name]
     class_attribute :invoice_read, default: %i[id number customer]
     class_attribute :invoice_filters, default: %i[customer]
 
@@ -38,6 +39,7 @@ module AssociationFixtures
       self.deny_customer_show = false
       self.deny_customer_index = false
       self.customer_sort = %i[name]
+      self.customer_search = %i[name]
       self.invoice_read = %i[id number customer]
       self.invoice_filters = %i[customer]
     end
@@ -59,6 +61,7 @@ module AssociationFixtures
       if resource.key == :customers
         return %i[id name] if action == :read
         return customer_sort if action == :sort
+        return customer_search if action == :search
         return []
       end
       case action

@@ -27,7 +27,7 @@ module RailsAiAdmin
           editable = writable.key?(field.name)
           source = editable ? values : readonly_values
           value = source.key?(field.name.to_s) ? source[field.name.to_s] : source[field.name]
-          Entry.new(field, editable, scalar(value))
+          Entry.new(field, editable, scalar(value, type: field.scalar_type))
         end.freeze
         raise ConfigurationError, "Form field bound exceeded" if @entries.size > MAX_FIELDS
         @tabbed = @entries.any? { |entry| entry.field.options[:tab] }
@@ -46,7 +46,7 @@ module RailsAiAdmin
 
       private
 
-      def scalar(value)
+      def scalar(value, type: nil)
         copy = case value
         when nil, true, false, Integer then value
         when String then String.new(value).encode(Encoding::UTF_8, invalid: :replace, undef: :replace)
@@ -55,12 +55,32 @@ module RailsAiAdmin
           value
         when Time, ActiveSupport::TimeWithZone, DateTime then value.to_time.getutc
         when Date then Date.iso8601(value.iso8601)
+        when Fields::FileValue then value
+        # A references field carries its target keys.
+        when Array
+          if type == :references
+            raise ConfigurationError, "Form references must be key text" unless value.all? { |item| item.is_a?(String) }
+            value.map { |item| String.new(item).freeze }.freeze
+          else
+            raise ConfigurationError, "Form values require supported scalars" unless type == :json
+            json_text(value)
+          end
+        # A JSON field edits its document as indented text.
+        when Hash, Float
+          raise ConfigurationError, "Form values require supported scalars" unless type == :json
+          json_text(value)
         else raise ConfigurationError, "Form values require supported scalars"
         end
         bytes = JSON.generate(InputSchema.canonical(copy)).bytesize
         @bytes += bytes
         raise ConfigurationError, "Form value bound exceeded" if bytes > MAX_VALUE_BYTES || @bytes > MAX_BYTES
         copy.freeze
+      end
+
+      def json_text(value)
+        JSON.pretty_generate(value)
+      rescue JSON::GeneratorError
+        raise ConfigurationError, "Form JSON values must be finite", cause: nil
       end
     end
   end

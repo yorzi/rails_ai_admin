@@ -92,7 +92,8 @@ end
 This example expects the support host's `SupportTicket` and a registered
 `"tickets.triaged"` Work handler from [Durable Outbox]({% link _advanced/durable-outbox.md %}).
 The handler persists its original member target. Actual persisted attribute
-changes must advance its `lock_version`; bypassing that increment rolls back
+changes must advance its version (`lock_version`, or `updated_at` when the model
+has no `lock_version`); bypassing that, for example with `update_columns`, rolls back
 with `ConfigurationError`. Return `success(record)`,
 `invalid(:note)` or `conflict`; returning an arbitrary object or switching/destroying
 the target is not supported.
@@ -249,7 +250,11 @@ fingerprint is not a substitute for current action and field authorization.
 
 ## Require a Shared Connection and Record Version
 
-Writes require one primary key and standard `lock_version` optimistic locking.
+Writes require one primary key and a record version: standard `lock_version`
+optimistic locking when the model has it, otherwise an `updated_at` timestamp
+(Rails' default precision of microseconds). With `updated_at`, the Runner loads
+the target with a row lock and compares the timestamp inside the write
+transaction, so the version column itself can never be a writable field.
 Host domain models, `OperationRun`, `AuditEvent` and `WorkItem` must share the same
 connection pool. Cross-pool writes, shards, composite keys and MySQL writes are
 unsupported. A database-level rollback also rolls back the successful receipt and

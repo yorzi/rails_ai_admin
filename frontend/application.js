@@ -2,6 +2,16 @@ import * as Turbo from "@hotwired/turbo";
 import { Application, Controller } from "@hotwired/stimulus";
 import railsToolViewsController from "./vendor/rails_tool_views_controller.js";
 
+// Translated page text comes from the layout's data-raa-messages (en.yml
+// rails_ai_admin.script). A host layout without it keeps the English text.
+const FALLBACK_MESSAGES = {"leave_form": "Leave this form? Unsaved changes will be lost.", "session_attention": "Your session needs attention. Sign in in another tab, then resume here. Unsaved input stays only in this open tab.", "restored_partial": "Session restored. Some fields are no longer editable; their input was not restored. Review the form, then save explicitly.", "restored": "Session restored. Your input is ready for review. Nothing has been saved; submit explicitly when ready.", "return_changed": "Some list settings changed; return links use the current permitted list.", "recovery_failed": "Recovery was not completed. Sign in as the original user and tenant, then try again. Changed records, permissions, schema, time zone, expired recovery windows or completed requests require a fresh form. This tab still holds your input; nothing was submitted again."};
+function message(key) {
+  try {
+    const translated = JSON.parse(document.body?.dataset.raaMessages || "{}")[key];
+    if (typeof translated === "string" && translated !== "") return translated;
+  } catch { /* fall back to English */ }
+  return FALLBACK_MESSAGES[key];
+}
 const application = Application.start();
 class DirtyFormController extends Controller {
   static values = { restored: Boolean };
@@ -11,7 +21,7 @@ class DirtyFormController extends Controller {
       if (this.dirty && !this.submitting) { event.preventDefault(); event.returnValue = ""; }
     };
     this.warnVisit = (event) => {
-      if (this.dirty && !this.submitting && !window.confirm("Leave this form? Unsaved changes will be lost.")) event.preventDefault();
+      if (this.dirty && !this.submitting && !window.confirm(message("leave_form"))) event.preventDefault();
     };
     window.addEventListener("beforeunload", this.warnUnload);
     document.addEventListener("turbo:before-visit", this.warnVisit);
@@ -52,7 +62,7 @@ class FormRecoveryController extends Controller {
     this.pending = true;
     this.element.querySelectorAll('input[type=submit], button[type=submit]').forEach((button) => { button.disabled = true; });
     this.element.dispatchEvent(new CustomEvent("raa:form-paused", { bubbles: true }));
-    this.show("Your session needs attention. Sign in in another tab, then resume here. Unsaved input stays only in this open tab.");
+    this.show(message("session_attention"));
   }
   finished() {
     this.pending = false;
@@ -71,6 +81,8 @@ class FormRecoveryController extends Controller {
     let bytes = 0;
     for (const [name, value] of new FormData(this.element)) {
       if (!/^record\[[a-z][a-z0-9_]*\]$/.test(name)) continue;
+      // A chosen file cannot be kept across sign-in; the person picks it again.
+      if (typeof File !== "undefined" && value instanceof File) continue;
       if (typeof value !== "string") throw new Error("Unsupported form input");
       bytes += new TextEncoder().encode(name + value).byteLength;
       if (bytes > 1048576) throw new Error("Form input bound exceeded");
@@ -116,9 +128,9 @@ class FormRecoveryController extends Controller {
       const notice = form.querySelector('[data-raa-form-recovery-target="notice"]');
       notice.hidden = false;
       notice.querySelector('[data-raa-form-recovery-target="message"]').textContent =
-        restored.size < values.size ? "Session restored. Some fields are no longer editable; their input was not restored. Review the form, then save explicitly." : "Session restored. Your input is ready for review. Nothing has been saved; submit explicitly when ready.";
+        restored.size < values.size ? message("restored_partial") : message("restored");
       if (form.dataset.raaFormRecoveryReturnDiscardedValue === "true") {
-        notice.querySelector('[data-raa-form-recovery-target="message"]').textContent += " Some list settings changed; return links use the current permitted list.";
+        notice.querySelector('[data-raa-form-recovery-target="message"]').textContent += " " + message("return_changed");
       }
       form.querySelector('[data-raa-form-recovery-target="resume"]').hidden = true;
       const fresh = document.importNode(form, true);
@@ -127,7 +139,7 @@ class FormRecoveryController extends Controller {
       this.element.replaceWith(fresh);
       requestAnimationFrame(() => fresh.querySelector('[data-raa-form-recovery-target="notice"]').focus());
     } catch {
-      if (this.element.isConnected) this.show("Recovery was not completed. Sign in as the original user and tenant, then try again. Changed records, permissions, schema, time zone, expired recovery windows or completed requests require a fresh form. This tab still holds your input; nothing was submitted again.");
+      if (this.element.isConnected) this.show(message("recovery_failed"));
     } finally {
       this.pending = false;
       if (this.element.isConnected) this.resumeTarget.disabled = false;
@@ -263,7 +275,90 @@ class SelectionController extends Controller {
   }
   disconnect() { document.removeEventListener("change", this.update); }
 }
+// Fills a typed reference key from the target resource's search. Results are
+// written with textContent only; the key input stays the submitted value.
+// A rich-text editor without uploads: the admin stores text, not files, in
+// Action Text content. Edits count as unsaved changes.
+class RichTextController extends Controller {
+  refuse(event) { event.preventDefault(); }
+  change() { this.element.dispatchEvent(new Event("input", { bubbles: true })); }
+}
+
+class ReferencePickerController extends Controller {
+  static targets = ["panel", "query", "status", "results", "current"];
+  static values = { url: String, key: String, messages: Object };
+  connect() {
+    this.key = document.getElementById(this.keyValue);
+    if (!this.key) return;
+    this.panelTarget.hidden = false;
+    this.sequence = 0;
+  }
+  disconnect() { clearTimeout(this.timer); this.abort?.abort(); }
+  keydown(event) {
+    // Enter in the search box must never submit the surrounding form.
+    if (event.key === "Enter") {
+      event.preventDefault();
+      this.resultsTarget.querySelector("button")?.focus();
+    } else if (event.key === "Escape") { this.clear(); }
+  }
+  search(event) {
+    event.stopPropagation();
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => this.fetch(this.queryTarget.value.trim()), 250);
+  }
+  async fetch(term) {
+    this.abort?.abort();
+    if (term === "") { this.clear(); return; }
+    const sequence = ++this.sequence;
+    this.abort = new AbortController();
+    this.statusTarget.textContent = this.messagesValue.searching;
+    try {
+      const url = new URL(this.urlValue, location.href);
+      url.searchParams.set("q", term);
+      const response = await fetch(url, { headers: { Accept: "application/json" }, credentials: "same-origin", signal: this.abort.signal });
+      if (!response.ok || url.origin !== location.origin) throw new Error("search failed");
+      const body = await response.json();
+      if (sequence === this.sequence) this.render(Array.isArray(body.results) ? body.results : []);
+    } catch (error) {
+      if (error.name !== "AbortError" && sequence === this.sequence) {
+        this.resultsTarget.replaceChildren();
+        this.statusTarget.textContent = this.messagesValue.failed;
+      }
+    }
+  }
+  render(results) {
+    const items = results.filter((result) => typeof result.id === "string" && typeof result.label === "string").map((result) => {
+      const item = document.createElement("li");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = result.label;
+      button.addEventListener("click", () => this.choose(result));
+      item.append(button);
+      return item;
+    });
+    this.resultsTarget.replaceChildren(...items);
+    const template = items.length === 0 ? this.messagesValue.none : (items.length === 1 ? this.messagesValue.one : this.messagesValue.other);
+    this.statusTarget.textContent = template.replace("%{count}", String(items.length));
+  }
+  choose(result) {
+    this.key.value = result.id;
+    this.key.dispatchEvent(new Event("input", { bubbles: true }));
+    this.key.dispatchEvent(new Event("change", { bubbles: true }));
+    this.currentTarget.textContent = this.messagesValue.chosen.replace("%{label}", result.label);
+    this.currentTarget.hidden = false;
+    this.clear();
+    this.key.focus();
+  }
+  clear() {
+    clearTimeout(this.timer);
+    this.queryTarget.value = "";
+    this.resultsTarget.replaceChildren();
+    this.statusTarget.textContent = "";
+  }
+}
 application.register("raa-selection", SelectionController);
+application.register("raa-reference-picker", ReferencePickerController);
+application.register("raa-rich-text", RichTextController);
 // Review Surfaces carry data-controller="rails-tool-views" for saving and
 // failure status text (RAA-019); the factory is rails_tool_views' own.
 application.register("rails-tool-views", railsToolViewsController(Controller));
