@@ -14,8 +14,9 @@ class ReleaseCheck
   SHIPPED_ROOTS = %w[app/ config/ db/ lib/].freeze
   HOST_GEMFILES = %w[spec_hosts/session_sqlite/Gemfile spec_hosts/devise_postgres/Gemfile].freeze
 
-  def initialize(root)
+  def initialize(root, candidate: false)
     @root = File.expand_path(root)
+    @candidate = candidate
   end
 
   def version
@@ -112,7 +113,7 @@ class ReleaseCheck
     spec = Dir.chdir(@root) { Gem::Specification.load(File.join(@root, "rails_ai_admin.gemspec")) }
     host = spec.metadata["allowed_push_host"]
     if host == BLOCKED_PUSH_HOST
-      return Check.new("publish_gate", development? ? :closed : :error,
+      return Check.new("publish_gate", (development? || @candidate) ? :closed : :error,
         "allowed_push_host blocks `gem push`. Only the owner changes it, in the release commit, after approval.")
     end
     return Check.new("publish_gate", :error, "allowed_push_host is open in a development build") if development?

@@ -116,7 +116,7 @@ class ResourcesTest < ActionDispatch::IntegrationTest
     search = "raa-private-query-#{SecureRandom.hex(8)}"
     get "/backoffice/customers", params: { q: search, unexpected: "raa-private-extra" }
     assert_response :success
-    lines = File.readlines(File.expand_path("../../log/test.log", __dir__)).select { |line| line.include?("Started GET") }
+    lines = File.readlines(File.expand_path("../../log/test-#{Process.pid}.log", __dir__)).select { |line| line.include?('Started GET "/backoffice/customers?') }
     assert lines.any?
     refute_includes lines.last, search
     refute_includes lines.last, "raa-private-extra"

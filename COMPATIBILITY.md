@@ -1,9 +1,21 @@
 # Compatibility
 
-Status checked 2026-11-12. This is unreleased development evidence.
-The rows below retain dated historical runs; old clean dependency scans do not
-apply to a new candidate. Current hardening evidence is recorded separately.
-CI configuration is not a completed CI run; no production support is declared.
+## 2026-11-13 Public Preview candidate
+
+Local results from the 0.1.0 preparation:
+
+| Check | Result |
+| --- | --- |
+| Ruby 3.3.5 and 4.0.9, Rails 8.0.5.2 and 8.1.4.1, SQLite and PostgreSQL 17 | All eight combinations passed with 549 tests and 5,080 assertions before the chat UI update. The final local Rails 8.1/SQLite run passed 549 tests and 5,086 assertions with no skips |
+| Ruby coverage for the Rails 8.1/SQLite suite | 6,108 of 6,494 executable lines (94.06%), 2,773 of 3,612 branches (76.77%) in 118 loaded Ruby files under `app/` and `lib/`. Excludes ERB, JavaScript, generator source templates and the version file loaded before instrumentation |
+| Packaged session / SQLite | 17 tests / 346 assertions and 18 / 419 with overrides. Closed generated install, reload and production eager load passed |
+| Packaged Devise / Pundit / PostgreSQL | 27 tests / 425 assertions and 28 / 453 with overrides on both Propshaft and Sprockets. Production asset builds, reload, outbox and collection crash recovery passed |
+| Static and dependency checks | RuboCop and reproducible frontend build passed. npm audit and all three Ruby lockfiles reported no known advisories against the database updated on 2026-11-11 |
+| Browser | Demo login, overview, list, keyboard search, filters, detail, new form and offline Chat. The redesigned chat was checked at desktop and 320px widths. The updated demo was exercised from a fresh seeded host through streaming search, a title change with explicit confirmation, and the audited history. At a 320px viewport only the records region scrolls horizontally. Documentation search, dark mode and the RDoc entry loaded |
+| Documentation | 40 guide sources pass lint. Jekyll/RDoc build passes at the project base path. A temporary tagged fixture produced the 0.1.0 and `/next/` builds with 326 HTML pages and zero broken internal references, with versioned install examples, API URLs and sitemaps checked |
+
+Exact-commit remote CI, Pages deployment, current live-provider verification
+and a human screen-reader pass remain open.
 
 ## 2026-11-12 dependency update
 

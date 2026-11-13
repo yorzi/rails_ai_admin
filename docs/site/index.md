@@ -5,8 +5,8 @@ description: Build authorized admin pages with explicit resources and atomic ope
 permalink: /
 hero:
   name: Rails AI Admin
-  text: Explicit Rails administration
-  tagline: A self-hosted Rails admin with everyday features, default-deny policies and one audited write path.
+  text: A self-hosted admin for Rails
+  tagline: Manage records with default-deny policies and one audited write path. Enable AI when your team needs it.
   actions:
     - theme: brand
       text: Get started
@@ -45,9 +45,10 @@ features:
     link_text: Build a dashboard
 ---
 
-## Build Locally
+## Install Rails AI Admin
 
-This gem and documentation site are not published. In the checkout:
+{% if site.docs_unreleased %}
+Build a local package from this checkout:
 
 ```sh
 bundle install
@@ -55,8 +56,18 @@ bundle exec rake test
 bundle exec rake build
 ```
 
-The development package is `pkg/rails_ai_admin-{{ site.version }}.gem`. The
-[ten-minute quickstart]({% link _getting_started/quickstart.md %}) takes an app with
+The package is `pkg/rails_ai_admin-{{ site.version }}.gem`.
+{% else %}
+Add the Public Preview to the host app's Gemfile:
+
+```ruby
+gem "rails_ai_admin", "{{ site.version }}"
+```
+
+Run `bundle install` in your host app.
+{% endif %}
+
+The [ten-minute quickstart]({% link _getting_started/quickstart.md %}) takes an app with
 Rails 8 sign-in to a working Users admin; the
 [installation guide]({% link _getting_started/getting-started.md %}) connects other
 hosts. It remains closed until you supply authentication and policies.
@@ -135,9 +146,7 @@ settings confer no record or operation authority.
 
 ## Current Scope
 
-The current slice implements scalar CRUD, synchronous member operations and
-durable post-commit delivery intent. Chat, trusted Surfaces, CSV, associations,
-private files, global actions and larger asynchronous business workflows remain
-future milestones.
-Read [development status]({% link _reference/development-status.md %}) before treating
-a target API in the plan as implemented.
+The Public Preview covers native CRUD, bounded collection jobs, audited
+operations and optional Chat, review Surfaces and MCP. Its
+[release notes]({% link _getting_started/whats-new-in-0-1.md %}) list the supported
+workflows and limits.

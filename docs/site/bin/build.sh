@@ -11,7 +11,7 @@ set -euo pipefail
 
 unset RUBYOPT RUBYLIB BUNDLE_GEMFILE BUNDLE_BIN_PATH BUNDLE_BIN BUNDLE_APP_CONFIG
 
-docs="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+docs="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 repo="$(git -C "$docs" rev-parse --show-toplevel)"
 rel="${docs#"$repo"/}"
 site="${SITE:-$docs/_site}"
@@ -22,7 +22,7 @@ BASE="${BASE-$(read_config baseurl)}"
 BASE="${BASE%/}"
 
 # A tag has docs when its tree holds this site's _config.yml on the same theme.
-has_docs() { git -C "$repo" show "$1:$rel/_config.yml" 2>/dev/null | grep -q 'jekyll-vitepress-theme'; }
+has_docs() { git -C "$repo" grep -q 'jekyll-vitepress-theme' "$1" -- "$rel/_config.yml"; }
 major() { local version="${1#v}"; echo "${version%%.*}"; }
 
 tags="$(git -C "$repo" tag --list --sort=-v:refname | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+$' || true)"

@@ -1,20 +1,44 @@
-<p><%= link_to t("rails_ai_admin.assistant.all"), assistant_path %></p>
 <% admin_title t("rails_ai_admin.assistant.conversation"), t("rails_ai_admin.layout.assistant") %>
-<h1><%= t("rails_ai_admin.assistant.title") %></h1>
-<% if !@current %>
-  <p class="raa-notice" role="status"><%= @chat.status == "archived" ? t("rails_ai_admin.assistant.archived_note") : t("rails_ai_admin.assistant.closed_note") %></p>
-  <%= button_to t("rails_ai_admin.assistant.new"), assistant_conversations_path, method: :post, class: "raa-button" %>
-<% else %>
-  <%= render "rails_ai_admin/assistant/transcript" %>
-  <%= form_with url: assistant_messages_path(chat_ref: @chat.ref), method: :post, class: "raa-chat-composer" do |form| %>
-    <%= hidden_field_tag :admission_key, @admission_key, id: nil %>
-    <%= form.label :content, t("rails_ai_admin.assistant.message") %>
-    <% if @message_error %><p class="raa-field-error" id="raa-chat-error"><%= @message_error %></p><% end %>
-    <%= form.text_area :content, value: @draft, rows: 3, maxlength: RailsAiAdmin::Assistant::Coordinator::MAX_CONTENT, required: true,
-      aria: { describedby: (@message_error ? "raa-chat-error" : nil), invalid: (@message_error ? true : nil) } %>
-    <div class="raa-actions"><%= form.submit t("rails_ai_admin.assistant.send"), class: "raa-button" %></div>
+<section class="raa-conversation" aria-labelledby="raa-conversation-title" data-controller="raa-conversation">
+  <header class="raa-conversation-header">
+    <div>
+      <%= link_to t("rails_ai_admin.assistant.all"), assistant_path %>
+      <h1 id="raa-conversation-title"><%= t("rails_ai_admin.assistant.title") %></h1>
+    </div>
+    <% if @current %>
+      <div class="raa-actions">
+        <%= button_to t("rails_ai_admin.assistant.new"), assistant_conversations_path, method: :post, class: "raa-secondary" %>
+        <%= button_to t("rails_ai_admin.assistant.archive"), archive_assistant_conversation_path(chat_ref: @chat.ref), method: :post, class: "raa-chat-archive" %>
+      </div>
+    <% end %>
+  </header>
+  <% if @current %>
+    <div class="raa-conversation-thread" data-raa-conversation-target="thread"
+      data-action="scroll->raa-conversation#track turbo:frame-load->raa-conversation#follow"
+      role="region" aria-label="<%= t("rails_ai_admin.assistant.transcript") %>" tabindex="0">
+      <%= render "rails_ai_admin/assistant/transcript" %>
+    </div>
+    <footer class="raa-conversation-footer">
+      <button type="button" class="raa-secondary raa-chat-latest" hidden data-raa-conversation-target="latest"
+        data-action="raa-conversation#jump"><%= t("rails_ai_admin.assistant.latest") %></button>
+      <%= form_with url: assistant_messages_path(chat_ref: @chat.ref), method: :post, class: "raa-chat-composer raa-conversation-composer" do |form| %>
+        <%= hidden_field_tag :admission_key, @admission_key, id: nil %>
+        <%= form.label :content, t("rails_ai_admin.assistant.message"), class: "raa-visually-hidden" %>
+        <% if @message_error %><p class="raa-field-error" id="raa-chat-error" role="alert"><%= @message_error %></p><% end %>
+        <div class="raa-chat-input">
+          <%= form.text_area :content, value: @draft, rows: 2, maxlength: RailsAiAdmin::Assistant::Coordinator::MAX_CONTENT, required: true,
+            placeholder: t("rails_ai_admin.assistant.compose_placeholder"),
+            data: { action: "keydown->raa-conversation#submitOnEnter" },
+            aria: { describedby: (@message_error ? "raa-chat-error" : nil), invalid: (@message_error ? true : nil) } %>
+          <%= form.submit t("rails_ai_admin.assistant.send"), data: { turbo_submits_with: t("rails_ai_admin.assistant.sending") } %>
+        </div>
+        <p class="raa-chat-shortcut" hidden data-raa-conversation-target="shortcut"><%= t("rails_ai_admin.assistant.shortcut") %></p>
+      <% end %>
+    </footer>
+  <% else %>
+    <div class="raa-conversation-closed">
+      <p class="raa-notice" role="status"><%= @chat.status == "archived" ? t("rails_ai_admin.assistant.archived_note") : t("rails_ai_admin.assistant.closed_note") %></p>
+      <%= button_to t("rails_ai_admin.assistant.new"), assistant_conversations_path, method: :post %>
+    </div>
   <% end %>
-  <div class="raa-actions">
-    <%= button_to t("rails_ai_admin.assistant.archive"), archive_assistant_conversation_path(chat_ref: @chat.ref), method: :post, class: "raa-button" %>
-  </div>
-<% end %>
+</section>

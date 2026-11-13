@@ -3,7 +3,7 @@ layout: default
 title: Release History
 nav_order: 3
 guide: false
-description: Distinguish the unreleased development build from future published releases.
+description: Find release notes and installation instructions for each documentation version.
 ---
 
 # {{ page.title }}
@@ -11,11 +11,11 @@ description: Distinguish the unreleased development build from future published 
 {{ page.description }}
 {: .fs-6 .fw-300 }
 
-There is no published release yet. The current development identifier is
-`{{ site.version }}` and `released` remains false.
+{% if site.docs_unreleased %}
+This is the development documentation. Use the source installation in
+[Getting Started]({% link _getting_started/getting-started.md %}).
+{% endif %}
 
-The local build script renders the working tree at the configured root until a
-release tag containing the documentation exists. It can later render the latest
-release at `/`, development at `/next/` and older major documentation at `/vN/`.
-No remote repository, GitHub Pages deployment or RubyGems publication is implied
-by these build conventions.
+| Version | Notes |
+| --- | --- |
+| 0.1.0{% if site.docs_unreleased %} (Public Preview candidate){% else %} (Public Preview){% endif %} | [What's New in 0.1]({% link _getting_started/whats-new-in-0-1.md %}) |

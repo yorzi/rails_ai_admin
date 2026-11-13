@@ -3,7 +3,7 @@ layout: default
 title: Upgrading
 nav_order: 2
 guide: false
-description: Review development contract and storage changes before replacing a local build.
+description: Migrate a host from a development build to the 0.1.0 Public Preview.
 ---
 
 # {{ page.title }}
@@ -11,9 +11,30 @@ description: Review development contract and storage changes before replacing a 
 {{ page.description }}
 {: .fs-6 .fw-300 }
 
-No stable gem has been released. Development APIs and migrations can still change;
-read the checkout's `CHANGELOG.md` and public contract before replacing a local build.
-Do not infer that an unchanged `0.1.0.dev` identifier guarantees compatible storage.
+For a fresh install, follow the [Quickstart]({% link _getting_started/quickstart.md %}).
+If your host already runs a development build, update its gem and copy the current
+engine migrations:
+
+```sh
+bin/rails generate rails_ai_admin:install --skip
+# Only on hosts that already enable Admin Chat:
+bin/rails generate rails_ai_admin:assistant --skip
+bin/rails db:migrate
+bin/rails rails_ai_admin:doctor
+```
+
+The native migrations add the record audit index. The optional assistant migrations
+add RubyLLM 2.2 storage, streaming draft columns and the MCP access-token table.
+The generators preserve migrations already copied to the host.
+
+Review custom layout, overview, list and form overrides. The new styling uses
+the existing layout regions plus `raa-list-heading`, `raa-list-toolbar`,
+`raa-dashboard-intro` and `raa-record-form` classes. Bring those classes into any
+override that should adopt the new styles.
+
+Resources cannot use the reserved keys `search` or `mcp`. Registered custom
+field types named `email`, `url`, `time`, `json` or `password` must be renamed.
+Models that use `updated_at` for write versioning cannot declare it writable.
 
 The operation fingerprint now includes the explicit resource policy mapping.
 Existing development intents from before this change can return
@@ -87,6 +108,5 @@ policy matrix and verify packaged installation before using a changed build.
 Never delete live operation receipts to get a replay to execute again. Keep
 pending/unknown outcomes and the full supported retry window intact.
 
-A future stable release must document SemVer, supported combinations, migration
-and rollback limits, release notes and explicit owner approval. This page does not
-approve deployment or publication.
+Review the [Public Preview limits]({% link _getting_started/whats-new-in-0-1.md %})
+and run the host's authentication and authorization tests before deploying.

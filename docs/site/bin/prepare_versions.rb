@@ -28,7 +28,7 @@ archives.each_with_index do |tag, offset|
 end
 
 items.each do |item|
-  item['title'] = "#{number.call(release)} (stable)" if item['id'] == 'stable'
+  item['title'] = number.call(release) if item['id'] == 'stable'
   item['url'] = "#{base}#{item.fetch('url')}" unless item['external']
 end
 

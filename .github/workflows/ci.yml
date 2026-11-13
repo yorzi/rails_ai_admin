@@ -42,7 +42,7 @@ jobs:
           RAA_TEST_DATABASE_URL: postgresql://postgres:synthetic-ci-only@127.0.0.1:5432/raa_test
         run: bundle exec rake test
       - run: bundle exec rake build
-      - run: bundle exec rake release:check
+      - run: bundle exec rake release:check_candidate
       - name: Packaged session / SQLite consumer
         run: bundle exec ruby script/packaged_smoke.rb
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -130,6 +130,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
       - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
         with:
           ruby-version: .ruby-version

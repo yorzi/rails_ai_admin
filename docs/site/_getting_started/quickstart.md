@@ -39,12 +39,19 @@ authentication generator returns there after sign-in.
 
 ## 2. Install the Closed Engine
 
-Add the gem to the Gemfile. There is no published release yet, so use a local
-checkout or a built package (see [Getting Started]({% link _getting_started/getting-started.md %})):
+Add the gem to your app's Gemfile. See
+[Getting Started]({% link _getting_started/getting-started.md %}) for the supported
+Ruby and Rails versions.
 
+{% if site.docs_unreleased %}
 ```ruby
 gem "rails_ai_admin", path: "../rails_ai_admin"
 ```
+{% else %}
+```ruby
+gem "rails_ai_admin", "{{ site.version }}"
+```
+{% endif %}
 
 Then install it:
 

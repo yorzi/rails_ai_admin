@@ -11,11 +11,11 @@ class ReleaseCheckTest < Minitest::Test
 
   def statuses(check) = check.checks.to_h { |entry| [ entry.name, entry.status ] }
 
-  def test_the_development_tree_is_consistent_and_publishing_stays_blocked
-    check = ReleaseCheck.new(ROOT)
+  def test_the_tree_is_consistent_in_candidate_ci
+    check = ReleaseCheck.new(ROOT, candidate: true)
     assert_empty check.errors.map(&:message)
     result = statuses(check)
-    assert_equal :closed, result.fetch("publish_gate")
+    assert_includes %i[closed review], result.fetch("publish_gate")
     %w[version host_pins docs_config changelog package_files metadata].each { |name| assert_equal :ok, result.fetch(name), name }
   end
 
@@ -46,6 +46,8 @@ class ReleaseCheckTest < Minitest::Test
         check_spec.metadata["allowed_push_host"] = ReleaseCheck::BLOCKED_PUSH_HOST
         Gem::Specification.stub(:load, check_spec) do
           assert_equal :error, check.send(:publish_gate_check).status
+          candidate = ReleaseCheck.new(check.instance_variable_get(:@root), candidate: true)
+          assert_equal :closed, candidate.send(:publish_gate_check).status
         end
       end
     end

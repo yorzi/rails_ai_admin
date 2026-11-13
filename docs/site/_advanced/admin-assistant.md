@@ -225,6 +225,17 @@ record's scope and show grant again; a list adds its search text and list tab.
 It is visible in the transcript, it is data for the model, and it grants nothing:
 the model still reads the record with its tools.
 
+## Use the Conversation
+
+Open **Assistant** and choose **New conversation**. The message box stays below
+the scrollable conversation. Press Enter to send or Shift+Enter for a new line.
+While a reply arrives, the message area follows it if you are at the bottom.
+When reading older messages, use **Jump to latest** to catch up.
+
+Tool activity, links to records you can access and review cards appear alongside
+messages. Use **Stop** while a turn is active, or **Try again** when a failed turn
+can be retried.
+
 ## Streaming Replies
 
 Replies stream: the worker asks the provider to stream and saves the text written

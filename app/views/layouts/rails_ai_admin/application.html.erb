@@ -18,7 +18,7 @@
   <a class="raa-skip" href="#raa-main"><%= t("rails_ai_admin.layout.skip") %></a>
   <header class="raa-header"><%= link_to RailsAiAdmin.configuration.title, root_path %>
     <% if @context && searchable_resources.any? %>
-      <%= form_with url: global_search_path, method: :get, local: true, class: "raa-global-search", role: "search" do |form| %>
+      <%= form_with url: global_search_path, method: :get, local: true, class: "raa-global-search", html: { role: "search", aria: { label: t("rails_ai_admin.search.label") } } do |form| %>
         <%= form.label :q, t("rails_ai_admin.search.label"), class: "raa-visually-hidden", for: "raa-global-search" %>
         <%= form.search_field :q, id: "raa-global-search", value: (controller_path == "rails_ai_admin/search" ? @query : nil), maxlength: 200, placeholder: t("rails_ai_admin.search.placeholder") %>
       <% end %>

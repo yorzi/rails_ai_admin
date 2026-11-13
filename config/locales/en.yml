@@ -492,9 +492,15 @@ en:
       closed_note: This conversation is closed because your access changed. Start a new conversation.
       message: Message
       send: Send
+      sending: Sending…
+      compose_placeholder: Message the assistant…
+      shortcut: Enter to send · Shift+Enter for a new line
+      transcript: Conversation messages
+      latest: Jump to latest
       archive: Archive conversation
       archived: Conversation archived.
-      empty: Ask a question about your records to start.
+      empty_title: How can I help?
+      empty: Ask about your records, or propose a change to review.
       roles:
         user: You
         review: Review

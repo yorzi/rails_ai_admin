@@ -6,5 +6,5 @@ exclude:
   - \.json$
 footer_content:
   Documentation:
-    Guides: http://127.0.0.1:4000/
-    Upgrading: http://127.0.0.1:4000/upgrading/
+    Guides: https://yorzi.github.io/rails_ai_admin/
+    Upgrading: https://yorzi.github.io/rails_ai_admin/upgrading/

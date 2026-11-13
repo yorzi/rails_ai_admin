@@ -3,7 +3,7 @@
 
 # Runs a local demo admin: a fresh copy of the packaged session/SQLite host
 # (spec_hosts/session_sqlite) on this checkout, seeded with sample data and
-# served on 127.0.0.1 only. Every run rebuilds tmp/demo from scratch.
+# served on 127.0.0.1 only. Each port has its own disposable host directory.
 #
 #   bin/demo                  serve http://127.0.0.1:3917/staff; Ctrl-C stops it
 #   bin/demo --assistant      also turn on admin Chat against an offline fake
@@ -18,7 +18,9 @@ require "bundler"
 require "fileutils"
 require "optparse"
 
-options = { port: 3917, assistant: false, showcase: true, serve: true }
+DEFAULT_PORT = 3917
+
+options = { port: DEFAULT_PORT, assistant: false, showcase: true, serve: true }
 OptionParser.new do |parser|
   parser.banner = "Usage: bin/demo [--assistant] [--plain] [--port PORT] [--setup-only]"
   parser.on("--assistant", "Enable admin Chat with an offline fake provider") { options[:assistant] = true }
@@ -31,15 +33,19 @@ abort "bin/demo: choose a port from 1024 to 65534" unless options[:port].between
 
 ROOT = File.expand_path("..", __dir__)
 ASSETS = File.join(ROOT, "script/demo")
-TARGET = File.join(ROOT, "tmp/demo")
+TARGET = File.join(ROOT, "tmp", options[:port] == DEFAULT_PORT ? "demo" : "demo-#{options[:port]}")
+DISPLAY_TARGET = TARGET.delete_prefix("#{ROOT}/")
 ENV_VARS = { "BUNDLE_GEMFILE" => File.join(TARGET, "Gemfile"), "BUNDLE_PATH" => File.join(ROOT, "vendor/bundle"),
   "BUNDLE_APP_CONFIG" => File.join(TARGET, ".bundle"), "RAILS_ENV" => "development" }.freeze
 
 def step(message) = puts("==> #{message}")
 
+def run(*command)
+  Bundler.with_unbundled_env { system(ENV_VARS, *command, chdir: TARGET, out: File::NULL) }
+end
+
 def run!(*command)
-  ok = Bundler.with_unbundled_env { system(ENV_VARS, *command, chdir: TARGET, out: File::NULL) }
-  abort "bin/demo: failed: #{command.join(' ')} (rerun it inside tmp/demo to see the output)" unless ok
+  abort "bin/demo: failed: #{command.join(' ')} (rerun it inside #{DISPLAY_TARGET} to see the output)" unless run(*command)
 end
 
 def edit(path, before, after)
@@ -49,7 +55,7 @@ def edit(path, before, after)
   File.write(file, source.sub(before, after))
 end
 
-step "Copying the session/SQLite host to tmp/demo"
+step "Copying the session/SQLite host to #{DISPLAY_TARGET}"
 FileUtils.rm_rf(TARGET)
 FileUtils.mkdir_p(File.dirname(TARGET))
 FileUtils.cp_r(File.join(ROOT, "spec_hosts/session_sqlite"), TARGET)
@@ -121,7 +127,7 @@ end
 
 step "Installing gems (prefers those already installed)"
 FileUtils.rm_f(File.join(TARGET, "Gemfile.lock"))
-run!("bundle", "install", "--prefer-local")
+run!("bundle", "install", "--prefer-local") unless run("bundle", "install", "--local", "--quiet")
 step "Running the install generators"
 run!("bundle", "exec", "rails", "generate", "rails_ai_admin:install", "--skip")
 if options[:assistant]
@@ -135,14 +141,18 @@ run!("bundle", "exec", "rails", "db:migrate", "db:seed")
 admin = "http://127.0.0.1:#{options[:port]}/staff"
 puts <<~TEXT
 
-  Demo ready in tmp/demo.
+  Demo ready in #{DISPLAY_TARGET}.
     Sign in:  http://127.0.0.1:#{options[:port]}/login  (one-click buttons for each account)
     Admin:    #{admin}
     Logins:   admin@example.test (writes), viewer@example.test (reads only),
               other@example.test (another tenant); password demo-password
 TEXT
-puts "  Import:   #{admin}/articles/imports/new with tmp/demo/articles-import.csv" if options[:showcase]
-puts "  Chat:     #{admin}/assistant; try \"set articles 1 title to Hello\", \"history of articles 1\" or \"award 5 points to 1\"" if options[:assistant]
+puts "  Import:   #{admin}/articles/imports/new with #{DISPLAY_TARGET}/articles-import.csv" if options[:showcase]
+if options[:assistant]
+  prompts = options[:showcase] ? '"search articles for upgrading", "set articles 1 title to Hello", then "history of articles 1"' :
+    '"count customers", or "award 5 points to 1"'
+  puts "  Chat:     #{admin}/assistant → New conversation. Try #{prompts}."
+end
 exit unless options[:serve]
 
 pids = []

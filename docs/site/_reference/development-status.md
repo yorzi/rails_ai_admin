@@ -11,9 +11,8 @@ description: Read the supported development slice and the gates still required f
 {{ page.description }}
 {: .fs-6 .fw-300 }
 
-The implementation starts with conventional scalar CRUD and a shared authorized
-operation boundary. It is a development build, not a complete replacement for an
-existing admin framework and not a production-readiness claim.
+See [What's New in 0.1]({% link _getting_started/whats-new-in-0-1.md %}) for
+the Public Preview scope, supported workflows and limitations.
 
 Current code includes explicit resources, fresh host contexts, custom default-deny
 policy contracts and an optional Pundit adapter with an explicit policy per
@@ -121,18 +120,15 @@ review Surfaces. A confirmed review writes once and continues the conversation
 once. Turns run through a leased, fenced inbox that recovers after crashes
 without repeating the human message. Evidence uses RubyLLM's real provider and
 tool loop against offline fixtures, packaged Host B and a Chromium check, plus
-one live run per model family through OpenRouter; native provider APIs,
-streaming, budgets and retention are not done.
+one live run per model family through OpenRouter on an earlier build. Current
+Chat supports streaming and server-checked context from record and list pages.
+The same grant-filtered tools are available through the optional
+[MCP server]({% link _advanced/mcp-server.md %}).
 
-Not implemented in this slice: association search and writes beyond `belongs_to`, nested attributes, uploads/private
-attachments, imports/exports, all-filtered or 10,000-target batch manifests,
-metrics dashboards, saved views, global custom operations, custom CRUD handler
-replacement, a full job center/retention workflow, general reconciliation UI,
-native-provider
-assistant evidence, streaming and AI budgets. ActionPolicy integration
-and association/file/money field extensions remain future work. Host-owned Devise authentication
-is demonstrated in a packaged consumer; the engine does not provide accounts or
-login routes.
+The current collection workflows use fixed selections of up to 100 records.
+All-filtered selections, saved views, global custom operations, custom CRUD
+handler replacement and a general reconciliation UI are future work. The Devise
+consumer demonstrates host-owned authentication.
 
 Fixed selections persist only owner/contract/count/digest/expiry and target
 ID/version/position metadata. They do not persist queries, labels or business

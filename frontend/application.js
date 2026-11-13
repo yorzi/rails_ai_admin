@@ -227,6 +227,42 @@ class ErrorSummaryController extends Controller {
 }
 // Reloads the transcript frame while a turn is pending. Without JavaScript
 // the transcript offers a plain Refresh link instead.
+class ConversationController extends Controller {
+  static targets = ["thread", "latest", "shortcut"];
+
+  connect() {
+    if (!this.hasThreadTarget) return;
+    this.following = true;
+    this.shortcutTarget.hidden = false;
+    this.follow();
+  }
+
+  // Keep streaming visible when reading the latest message. Leave the scroll
+  // position alone when someone has gone back to read or act on an earlier one.
+  track() {
+    const thread = this.threadTarget;
+    this.following = thread.scrollHeight - thread.scrollTop - thread.clientHeight <= 48;
+    this.latestTarget.hidden = this.following;
+  }
+
+  follow() {
+    if (this.following) this.threadTarget.scrollTop = this.threadTarget.scrollHeight;
+  }
+
+  jump() {
+    this.following = true;
+    this.follow();
+    this.threadTarget.focus({ preventScroll: true });
+    this.latestTarget.hidden = true;
+  }
+
+  submitOnEnter(event) {
+    if (event.key !== "Enter" || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey || event.isComposing || event.keyCode === 229) return;
+    event.preventDefault();
+    const input = event.target;
+    if (!event.repeat && input.value.trim() && input.form.getAttribute("aria-busy") !== "true") input.form.requestSubmit();
+  }
+}
 class PollController extends Controller {
   static values = { url: String };
   connect() {
@@ -365,6 +401,7 @@ application.register("raa-rich-text", RichTextController);
 // failure status text (RAA-019); the factory is rails_tool_views' own.
 application.register("rails-tool-views", railsToolViewsController(Controller));
 application.register("raa-poll", PollController);
+application.register("raa-conversation", ConversationController);
 application.register("raa-form-recovery", FormRecoveryController);
 application.register("raa-dirty-form", DirtyFormController);
 application.register("raa-tabs", TabsController);

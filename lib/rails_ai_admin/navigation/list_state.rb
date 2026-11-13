@@ -72,7 +72,7 @@ module RailsAiAdmin
         freeze
       end
 
-      # Hidden form inputs for a (possibly nested) state, e.g. return_to[filter][total][gte].
+      # Hidden form inputs for a (possibly nested) state, e.g. +return_to[filter][total][gte]+.
       def self.form_pairs(state, prefix = nil)
         state.flat_map do |key, value|
           name = prefix ? "#{prefix}[#{key}]" : key.to_s

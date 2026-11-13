@@ -3,7 +3,7 @@ layout: default
 title: API Reference
 nav_order: 1
 guide: false
-description: Read generated Ruby API documentation for the development implementation.
+description: Find generated Ruby API documentation and documented host entry points.
 ---
 
 # {{ page.title }}
@@ -37,12 +37,14 @@ The [RDoc reference]({{ '/api/' | relative_url }}) opens on `RailsAiAdmin` and h
 | Review/admit/cancel collection operations | `Collections::Runner`, `Collections::Runner::Proposal`, `Collections::Result` |
 | Recover admitted collection items | `Collections::Dispatcher` |
 | Read current collection job receipts | `Collections::Queries` |
+| Opt in to admin Chat or MCP | `config.assistant`, `config.mcp`, `Resource.assistant_changes` |
 | Verify host boundaries | `TestKit`, `Doctor` |
 
-Only documented, tested APIs are current. Pseudocode in the development plan is
-not an implemented public contract. Global handlers, custom CRUD overrides and
-Assistant APIs remain unavailable. Start with [Configuration]({% link _getting_started/configuration.md %})
-and [Operations]({% link _core_features/operations.md %}) before invoking the Ruby API.
+Use [Configuration]({% link _getting_started/configuration.md %}) and
+[Operations]({% link _core_features/operations.md %}) for host contracts.
+[Admin Assistant]({% link _advanced/admin-assistant.md %}) and
+[MCP Server]({% link _advanced/mcp-server.md %}) document the optional
+integrations and their supported entry points.
 [Fixed Selections]({% link _core_features/selections.md %}) documents the metadata-only
 manifest contract; capture is not approval or collection execution.
 [Collection Operations]({% link _core_features/collection-operations.md %}) documents

@@ -1,6 +1,29 @@
 # Changelog
 
-## Unreleased
+## 0.1.0 (2026-11-13)
+
+First Public Preview. Requires Ruby 3.3 or newer, Rails 8.0.5.2 or newer
+below 8.2 and SQLite or PostgreSQL. Use Rails 8.1.4.1 or newer on the 8.1
+series and keep `json` below 3 on Rails 8.0. Native admin works without AI.
+
+Preview limits include association sorting, polymorphic writes, nested child
+forms and separate attach/detach grants. Collection selections cover at most
+100 explicitly selected targets. Chat has a per-person daily message limit.
+Token and cost budgets, automatic conversation retention and native-provider
+and live failure-recovery verification are open. Live provider evidence
+covers an earlier build via OpenRouter. English ships with the engine. A
+human screen-reader pass remains open. APIs, templates and storage may
+change across 0.x releases. See the [upgrade guide](docs/site/_reference/upgrading.md)
+for existing development hosts.
+
+### Changes
+
+- Give Admin Chat a scrollable conversation and a persistent composer, with
+  keyboard shortcuts, live reply following and inline tool and review cards.
+  Update the offline demo to stream readable tool summaries and confirm reviewed
+  changes in the same conversation.
+- Refine the overview, navigation, list controls, tables and forms in light and
+  dark mode. Bound list searches so wide records scroll inside their table region.
 
 - MCP server: with `config.mcp = true` (on top of the assistant setup),
   `POST <admin>/mcp` serves the admin Chat tools to agents such as Claude Code or
@@ -433,9 +456,3 @@
   layout/dashboard contracts to revisions 3/2; legacy visible_resources is kept.
 - Reject an unusable fallback menu label at registration instead of making every
   admin page unavailable at render time.
-
-Assistant Chat, global actions, custom CRUD replacement, 10,000-target batch
-materialization, association search/sort and writes beyond belongs_to, files, CSV
-and metrics dashboards are not implemented. Release gates remain open.
-
-No gem has been published.

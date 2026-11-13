@@ -52,6 +52,8 @@ class AssistantIntegrationTest < ActionDispatch::IntegrationTest
       post "/backoffice/assistant/conversations/#{chat.ref}/messages", params: { content: "Please mark Alice as reviewed", admission_key: key }
       assert_equal 1, chat.turns.count, "a repeated submission of the same form is admitted once"
       get "/backoffice/assistant/conversations/#{chat.ref}"
+      assert_select "section.raa-conversation[data-controller=raa-conversation] .raa-conversation-thread[tabindex='0'] turbo-frame#raa_assistant_transcript"
+      assert_select ".raa-conversation-footer form textarea[name=content][required]"
       assert_select "[data-raa-pending]", text: /Waiting for the assistant/
       assert_select ".raa-chat-user", text: /Please mark Alice as reviewed/, count: 1
       assert_select "turbo-frame#raa_assistant_transcript form[action$='/cancel'][data-turbo-frame=_top]"
@@ -66,6 +68,7 @@ class AssistantIntegrationTest < ActionDispatch::IntegrationTest
       get "/backoffice/assistant/conversations/#{chat.ref}", headers: { "Turbo-Frame" => "raa_assistant_transcript" }
       assert_response :success
       assert_select "turbo-frame#raa_assistant_transcript"
+      assert_select ".raa-conversation-footer", count: 0, message: "polling leaves the draft composer in place"
       assert response.body.start_with?("<!DOCTYPE html>"), "frame responses stay in standards mode"
       assert_select "[data-raa-pending]", count: 0
       assert_select "form[action$='/cancel']", { count: 0 }, "Stop appears only while a turn is pending"
@@ -172,6 +175,7 @@ class AssistantIntegrationTest < ActionDispatch::IntegrationTest
       assert_response :see_other
       get "/backoffice/assistant/conversations/#{chat.ref}"
       assert_select ".raa-notice", text: /archived/
+      assert_select "form[action$='/messages']", count: 0
     end
   end
 

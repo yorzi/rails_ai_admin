@@ -19,12 +19,17 @@ task :build do
 end
 
 namespace :release do
-  desc "Check release readiness without building, tagging or publishing"
-  task :check do
-    require_relative "script/support/release_check"
-    report = ReleaseCheck.new(__dir__)
-    checks = report.checks
-    checks.each { |check| puts format("%-14s %-7s %s", check.name, check.status, check.message) }
-    abort "Release check failed: #{checks.count { |check| check.status == :error }} error(s)" if checks.any? { |check| check.status == :error }
+  {
+    check: "Check release readiness, including owner approval to publish",
+    check_candidate: "Check candidate metadata and package with publishing still closed"
+  }.each do |name, description|
+    desc description
+    task name do
+      require_relative "script/support/release_check"
+      checks = ReleaseCheck.new(__dir__, candidate: name == :check_candidate).checks
+      checks.each { |check| puts format("%-14s %-7s %s", check.name, check.status, check.message) }
+      errors = checks.count { |check| check.status == :error }
+      abort "Release check failed: #{errors} error(s)" if errors.positive?
+    end
   end
 end

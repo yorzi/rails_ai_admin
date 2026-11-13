@@ -36,7 +36,7 @@ Other options:
 |---|---|
 | `bin/demo` | Everything except AI chat and MCP |
 | `bin/demo --plain` | Only the packaged customers and orders |
-| `bin/demo --port 4000` | The same on another port (the fake model uses the next one) |
+| `bin/demo --port 4000` | Use port 4000 and a separate host in `tmp/demo-4000`. The fake model uses the next port |
 | `bin/demo --setup-only` | Prepares `tmp/demo` without serving it |
 
 Every run starts from scratch, so changes you make are reset next time. Press
@@ -82,8 +82,13 @@ admin account already. Every account's password is `demo-password`.
 
 ## AI Chat and MCP
 
-With `--assistant`, the fake model answers a few fixed phrases instead of free
-questions, so you can see every path without a provider:
+Run `bin/demo --assistant`, sign in as Admin and choose **Assistant** →
+**New conversation**. The demo uses an offline model that recognizes fixed
+phrases and streams its replies. The prompts below exercise the tools in the
+chat UI without an API key.
+
+Enter sends a message and Shift+Enter adds a line. Scroll back to read earlier
+messages and choose **Jump to latest** to return to the current reply.
 
 | Type this | What happens |
 |---|---|
@@ -91,12 +96,17 @@ questions, so you can see every path without a provider:
 | `create articles with title Draft` | A create review; nothing is created until you confirm |
 | `delete articles 2` | A delete review with a **Delete** button |
 | `history of articles 1` | The article's audited changes |
-| `search articles for upgrading` | Matching articles, linked under the reply |
+| `search articles for upgrading` | The assistant streams a summary and the conversation links the matching articles |
+| `count customers` | A count of customers visible to the signed-in administrator |
 | `award 5 points to 1` | A review for the customers' custom operation |
 
-Start from **Assistant** in the menu, or from an article page with **Ask the
-assistant about this record**, which opens the chat with a `Context:` line naming
-the page. Replies stream in a few characters at a time.
+Try the search first. Then submit the title change, check the before and after
+values on the review card, and choose **Confirm and execute**. The completed
+card and assistant reply appear in the same conversation. Ask for the article's
+history to see the audited update.
+
+You can also start a chat from an article page with **Ask the assistant about
+this record**. The first message includes a `Context:` line naming the page.
 
 **MCP access** in the menu issues a personal access token and shows the exact
 `claude mcp add` command for `http://127.0.0.1:3917/staff/mcp`. An agent

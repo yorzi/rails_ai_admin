@@ -1,8 +1,8 @@
 title: "Rails AI Admin"
 description: "Build authorized admin pages with explicit resources and atomic operations."
 tagline: "Explicit Rails administration"
-url: http://127.0.0.1:4000
-baseurl: ""
+url: https://yorzi.github.io
+baseurl: /rails_ai_admin
 lang: en-US
 
 theme: jekyll-vitepress-theme
@@ -43,7 +43,7 @@ jekyll_vitepress:
     publisher:
       type: Organization
       name: "Rails AI Admin"
-      url: http://127.0.0.1:4000
+      url: https://github.com/yorzi/rails_ai_admin
   llms:
     title: Rails AI Admin Documentation
     description: "Build authorized admin pages with explicit resources and atomic operations."
@@ -59,11 +59,15 @@ jekyll_vitepress:
   tokens:
     light:
       "--vp-c-brand-1": "#155E75"
+      "--vp-home-hero-name-color": "#155E75"
+      "--vp-home-hero-name-background": "none"
       "--vp-c-brand-2": "#1A738F"
       "--vp-c-brand-3": "#10495B"
       "--vp-c-brand-soft": "rgba(21, 94, 117, 0.14)"
     dark:
-      "--vp-c-brand-1": "#1E88A9"
+      "--vp-c-brand-1": "#87D8EB"
+      "--vp-home-hero-name-color": "#87D8EB"
+      "--vp-home-hero-name-background": "none"
       "--vp-c-brand-2": "#1A738F"
       "--vp-c-brand-3": "#155E75"
       "--vp-c-brand-soft": "rgba(30, 136, 169, 0.18)"
@@ -72,7 +76,7 @@ jekyll_vitepress:
   footer:
     enabled: true
     show_on_docs: false
-    message: "Unreleased development. Source licensed under MIT."
+    message: "Source licensed under MIT."
     copyright: "Copyright © 2026 Andy Wang"
   doc_footer:
     enabled: true
@@ -102,6 +106,6 @@ code_language: ruby
 # Values that change between releases. Pages read them as {{ site.version }}
 # and {{ site.examples.NAME }}, so one edit here updates every page. Set
 # `released: true` and the new version in the commit you tag for a release.
-released: false
-version: "0.1.0.dev"
+released: true
+version: "0.1.0"
 examples: {}

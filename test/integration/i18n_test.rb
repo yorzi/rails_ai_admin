@@ -45,7 +45,7 @@ class I18nTest < ActionDispatch::IntegrationTest
     I18n.available_locales = previous_locales | [ :de ]
     # A complete host locale: the English tree with a few strings replaced.
     I18n.backend.store_translations(:de, LOCALE)
-    I18n.backend.store_translations(:de, rails_ai_admin: { dashboard: { title: "Übersicht" }, layout: { skip: "Zum Inhalt" },
+    I18n.backend.store_translations(:de, rails_ai_admin: { dashboard: { title: "Übersicht" }, layout: { skip: "Zum Inhalt", resources_nav: "Ressourcen" },
       statuses: { not_found: { title: "Nicht gefunden" } }, script: { leave_form: "Formular verlassen?" } })
     I18n.with_locale(:de) do
       get "/backoffice"
@@ -53,6 +53,7 @@ class I18nTest < ActionDispatch::IntegrationTest
       assert_select "html[lang=de]"
       assert_select "h1", text: "Übersicht"
       assert_select "a.raa-skip", text: "Zum Inhalt"
+      assert_select ".raa-shell > nav[aria-label='Ressourcen'] a[aria-current=page]"
       assert_equal "Formular verlassen?", JSON.parse(css_select("body").first["data-raa-messages"])["leave_form"]
       get "/backoffice/customers/#{@other.id}"
       assert_response :not_found

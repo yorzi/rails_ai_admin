@@ -27,7 +27,7 @@ module Dummy
     config.action_dispatch.show_exceptions = :none
     config.action_controller.allow_forgery_protection = false
     config.active_support.deprecation = :stderr
-    config.logger = Logger.new(File.expand_path("../../../log/test.log", __dir__))
+    config.logger = Logger.new(File.expand_path("../../../log/test-#{Process.pid}.log", __dir__))
     config.session_store :cookie_store, key: "_raa_dummy_session"
     # Every framework string must exist in config/locales (I18n release gate).
     config.i18n.raise_on_missing_translations = true

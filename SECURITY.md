@@ -1,8 +1,8 @@
 # Security policy
 
-This project is unreleased and has no supported production release yet. Do not
-use it for real administrative access until the documented security and release
-gates pass.
+0.1.0 is a Public Preview. Review the limitations in CHANGELOG.md and deploy
+behind your host application's authentication and network controls. Verify
+tenant scopes and action and field grants before granting access.
 
 Report suspected vulnerabilities privately to wangyaodi@gmail.com. Include the
 affected version, minimal synthetic reproduction, impact and suggested fix.

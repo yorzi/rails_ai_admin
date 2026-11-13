@@ -8,20 +8,55 @@
 #   "set articles 1 title to Hello", "create articles with title Draft",
 #   "delete articles 2", "history of articles 1"; a page's "Context:" line
 #   opens that record.
-# A tool result is answered with a short summary; anything else is echoed.
+# Summarize tool results and review outcomes for the browser walkthrough.
 require "json"
+require "securerandom"
 
-calls = 0
+def demo_tool_reply(text)
+  result = JSON.parse(text)
+  return result.fetch("message") if result["error"]
+  if result["status"] == "awaiting_human_confirmation"
+    return "I prepared a review in this conversation. Check the proposed changes and confirm when you are ready."
+  end
+  if result["records"].is_a?(Array)
+    count = result["records"].size
+    return "I did not find any matching records." if count.zero?
+    return "I found #{count} matching #{count == 1 ? 'record' : 'records'} on this page. Open a record from the links in the conversation."
+  end
+  if result["changes"].is_a?(Array)
+    changes = result["changes"]
+    return "No audited changes are visible for this record yet." if changes.empty?
+    return changes.map do |change|
+      fields = change["fields"].empty? ? "no visible fields" : change["fields"].join(", ")
+      "#{change['at']}: #{change['change']} (#{fields})"
+    end.join("\n")
+  end
+  return "The count is #{result['count']}#{' or more' if result['capped']}." if result.key?("count")
+
+  JSON.pretty_generate(result)[0, 600]
+rescue JSON::ParserError
+  "The demo could not read the tool result."
+end
+
+def demo_review_reply(text)
+  case text
+  when /Nothing was changed\.\z/ then "The review was dismissed. No changes were made."
+  when /The change was applied\.\z/, /The record was created with id [^\n]+\.\z/
+    "The confirmed change was applied. The review card shows the outcome."
+  else "The review finished. Check the card for the outcome."
+  end
+end
+
 run lambda { |env|
   request = JSON.parse(env["rack.input"].read) rescue {}
   last = (request["messages"] || []).last || {}
   text = last["content"].is_a?(Array) ? last["content"].map { |part| part["text"] }.join : last["content"].to_s
   tool = lambda do |name, arguments|
-    calls += 1
-    { role: "assistant", content: nil, tool_calls: [ { id: "call_demo_#{calls}", type: "function", function: { name: name, arguments: JSON.generate(arguments) } } ] }
+    { role: "assistant", content: nil, tool_calls: [ { id: "call_demo_#{SecureRandom.hex(8)}", type: "function", function: { name: name, arguments: JSON.generate(arguments) } } ] }
   end
   message =
-    if last["role"] == "tool" then { role: "assistant", content: "Here is what the admin returned: #{text[0, 600]}" }
+    if last["role"] == "tool" then { role: "assistant", content: demo_tool_reply(text) }
+    elsif text.start_with?("Review result: ") then { role: "assistant", content: demo_review_reply(text) }
     elsif (match = text.match(/set (\w+) (\S+) (\w+) to (.+)/i)) then tool.("propose_change", { resource: match[1], action: "update", id: match[2], values: { match[3] => match[4].strip } })
     elsif (match = text.match(/create (\w+) with (\w+) (.+)/i)) then tool.("propose_change", { resource: match[1], action: "create", values: { match[2] => match[3].strip } })
     elsif (match = text.match(/delete (\w+) (\S+)/i)) then tool.("propose_change", { resource: match[1], action: "destroy", id: match[2] })

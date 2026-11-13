@@ -8,7 +8,7 @@ Gem::Specification.new do |spec|
   spec.authors = [ "Andy Wang" ]
   spec.email = [ "wangyaodi@gmail.com" ]
   spec.summary = "An explicit, authorized Rails admin engine"
-  spec.description = "A self-hosted Rails admin with typed resources and a shared, audited operation boundary. Unreleased development."
+  spec.description = "A self-hosted Rails admin with typed resources and a shared, audited operation boundary."
   spec.license = "MIT"
   spec.homepage = "https://github.com/yorzi/rails_ai_admin"
   spec.required_ruby_version = ">= 3.3"

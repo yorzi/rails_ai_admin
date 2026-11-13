@@ -3,17 +3,18 @@
 A self-hosted Rails admin engine with explicitly registered resources and one
 policy-checked, audited execution boundary for conventional CRUD.
 
-**Unreleased development.** Current code supplies conventional CRUD with everyday
+**0.1.0 Public Preview.** Current code supplies conventional CRUD with everyday
 field types (text, numbers, dates, times, email, URL, JSON, write-only passwords,
 Active Storage files and Action Text rich text), `belongs_to` references,
 many-to-many `references` lists, readonly `has_many`/`has_one` panels, registered
-field types and partials, CSV export, record history, bulk delete, a search across
-resources, synchronous member operations, fixed Selection previews, bounded
+field types and partials, CSV export and import, record history, the audit log,
+dashboard metrics and trends, bulk delete, a search across resources, synchronous member operations, fixed Selection previews, bounded
 asynchronous collection operations, opt-in admin review Surfaces and a durable
-outbox for one declared post-commit effect, and an opt-in admin Chat whose
-proposals become review Surfaces. Native-provider evidence, streaming and AI
-budgets, nested and polymorphic association writes and the broader job-center
-workflows remain future work. The
+outbox for one declared post-commit effect. Opt-in admin Chat streams replies and
+turns proposals into review Surfaces. An optional MCP endpoint exposes the same
+grant-filtered tools. Native-provider verification, token and cost budgets,
+nested and polymorphic association writes and broader job-center workflows
+remain open. The
 [development plan](docs/development-plan.md) describes the target product, not the
 supported feature set.
 
@@ -58,8 +59,11 @@ packaged session/SQLite host to `tmp/demo`, seeds sample data and serves it on
 bin/demo --assistant   # everything, incl. admin Chat and MCP against an offline fake model (no key)
 bin/demo               # everything except admin Chat and MCP
 # then open http://127.0.0.1:3917/login and click "Sign in as Admin"
-# (admin@example.test / demo-password)
+# Open Assistant → New conversation and send: search articles for upgrading
 ```
+
+Follow the [demo walkthrough](docs/site/_getting_started/demo.md#ai-chat-and-mcp)
+to try streamed replies, record links and a change that you review in Chat.
 
 ```sh
 bundle install
@@ -67,7 +71,7 @@ bundle exec rake test
 bundle exec rake build
 ```
 
-The build creates `pkg/rails_ai_admin-<version>.gem` (currently `0.1.0.dev`); it
+The build creates `pkg/rails_ai_admin-<version>.gem` (currently `0.1.0`); it
 does not publish. `bundle exec rake release:check` reports release readiness, and
 [RELEASING.md](RELEASING.md) lists the next release's open gates and procedure. The
 [ten-minute quickstart](docs/site/_getting_started/quickstart.md) goes from an app
@@ -275,9 +279,9 @@ and Surface remain host-owned, beside its opt-in admin Chat.
 Changing a resource's policy mapping changes its operation fingerprint. Reopen
 existing development forms if their old intents are invalidated.
 
-The Jekyll/RDoc site lives under `docs/site/`. It is a local documentation source;
-no hosted site or remote repository is implied. Build it with
-`docs/site/bin/build.sh` after installing its separate bundle.
+The Jekyll/RDoc site lives under `docs/site/`. Install its separate bundle, then
+run `docs/site/bin/build.sh`. See [Releasing](RELEASING.md) for the Pages setup
+and versioned builds.
 
 Local automated checks and internal review do not establish production readiness,
 independent security review, real-provider behavior or user acceptance. Release

@@ -143,7 +143,11 @@ class DailyUseTest < ActionDispatch::IntegrationTest
     Customer.create!(account_id: 1, name: "Bob", points: 5)
     with_daily do
       get "/backoffice/daily_customers"
-      assert_select ".raa-heading form.raa-search input[name=q][placeholder='Contains…']"
+      assert_select ".raa-list-toolbar form.raa-search[role=search] input[name=q][placeholder='Contains…']" do |inputs|
+        assert_equal "24", inputs.first["size"]
+        assert_equal "200", inputs.first["maxlength"]
+      end
+      assert_select ".raa-table-scroll[tabindex='0'] > table"
       assert_select "details.raa-filter-panel:not([open]) form.raa-filters"
       assert_select "a", text: "Edit"
       get "/backoffice/daily_customers", params: { filter: { points: { gte: "1" } } }

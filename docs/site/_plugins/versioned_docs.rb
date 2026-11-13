@@ -6,7 +6,7 @@
 #   while _config.yml says `released: false`. Pages use it to show the install
 #   command for the default branch. A build of a release tag is never
 #   unreleased, even when that tag forgot to set `released: true`.
-# - A versioned build takes `version` from _data/versions.yml, which
+# - A tagged build takes `version` from _data/versions.yml, which
 #   bin/prepare_versions.rb fills in from the tag, so a tag that forgot to bump
 #   `version` still shows the right install command.
 # - An absolute canonical_url on this site becomes a path, so the theme adds
@@ -22,7 +22,7 @@ Jekyll::Hooks.register :site, :post_read, priority: :high do |site|
   else
     site.config['docs_unreleased'] = ['next', 'Next (unreleased)'].include?(current)
     release = versions['release'].to_s
-    site.config['version'] = release unless release.empty?
+    site.config['version'] = release unless release.empty? || site.config['docs_unreleased']
   end
 
   origin = site.config['url'].to_s.delete_suffix('/')
@@ -38,9 +38,15 @@ Jekyll::Hooks.register :site, :post_read, priority: :high do |site|
   end
 
   llms = site.config.dig('jekyll_vitepress', 'llms')
-  next unless llms.is_a?(Hash) && !current.empty?
+  next unless llms.is_a?(Hash)
 
-  label = current == 'next' ? 'Next (unreleased)' : current
+  label = if current.empty?
+            site.config['version']
+          elsif current == 'next'
+            'Next (unreleased)'
+          else
+            current
+          end
   llms['description'] = "Developer documentation for #{site.config['title']} #{label}."
   llms['details'] = llms['details'].to_s.gsub("#{root}/api/", "#{origin}#{base}/api/") unless origin.empty?
 end

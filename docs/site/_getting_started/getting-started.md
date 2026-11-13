@@ -2,7 +2,7 @@
 layout: default
 title: Getting Started
 nav_order: 2
-description: Install the development gem and connect a closed admin engine to your host.
+description: Install the gem and connect a closed admin engine to your host.
 ---
 
 # {{ page.title }}
@@ -15,13 +15,14 @@ the [Ten-Minute Quickstart]({% link _getting_started/quickstart.md %}).
 
 After reading this guide, you will know:
 
-* How to install a local development build.
+* How to install the gem in a host application.
 * How to mount the engine and register a resource.
 * Which host contracts you must implement before enabling access.
 
-## Install a Development Build
+## Install the Gem
 
-This project has no published gem release. From this checkout, build the package:
+{% if site.docs_unreleased %}
+Build the package from this checkout:
 
 ```sh
 bundle install
@@ -36,6 +37,13 @@ host's bundle. During source development, a sibling checkout is also usable:
 # Host Gemfile, development only
 gem "rails_ai_admin", path: "../rails_ai_admin"
 ```
+{% else %}
+Add this to the host app's Gemfile:
+
+```ruby
+gem "rails_ai_admin", "{{ site.version }}"
+```
+{% endif %}
 
 The runtime requires Ruby 3.3 or newer and Rails 8.0.5.2 to below 8.2; on Rails 8.1
 use 8.1.4.1 or newer (doctor reports an older patch release). CI runs the
