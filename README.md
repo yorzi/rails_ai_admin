@@ -4,8 +4,8 @@ Rails AI Admin is a self-hosted admin engine for Rails. Give your team an admin
 for the models you choose, then add a RubyLLM-powered assistant that can answer
 questions about records and prepare changes for review.
 
-**0.1.0 Public Preview** · [Documentation](http://rails-ai-admin.wangyaodi.com/) ·
-[Quickstart](http://rails-ai-admin.wangyaodi.com/quickstart/) ·
+**0.1.0 Public Preview** · [Documentation](https://rails-ai-admin.wangyaodi.com/) ·
+[Quickstart](https://rails-ai-admin.wangyaodi.com/quickstart/) ·
 [RubyGems](https://rubygems.org/gems/rails_ai_admin)
 
 ## What you can do
@@ -28,8 +28,8 @@ Add the gem to your Gemfile and run `bundle install`:
 gem "rails_ai_admin", "~> 0.1.0"
 ```
 
-Requires Ruby 3.3+ and Rails 8. See the [installation guide](http://rails-ai-admin.wangyaodi.com/getting-started/)
-for supported Rails patch versions. The [quickstart](http://rails-ai-admin.wangyaodi.com/quickstart/)
+Requires Ruby 3.3+ and Rails 8. See the [installation guide](https://rails-ai-admin.wangyaodi.com/getting-started/)
+for supported Rails patch versions. The [quickstart](https://rails-ai-admin.wangyaodi.com/quickstart/)
 walks through connecting sign-in and policies, then registering your first
 resource. Conventional admin pages work without a model provider or API key.
 
@@ -45,7 +45,7 @@ bin/demo --assistant
 Open `http://127.0.0.1:3917/login`, choose **Sign in as Admin**, then select
 **Assistant → New conversation**. Try `search articles for upgrading`, followed
 by `set articles 1 title to Hello` to see a change review. The demo uses seeded
-data and an offline model. Follow the [demo walkthrough](http://rails-ai-admin.wangyaodi.com/demo/)
+data and an offline model. Follow the [demo walkthrough](https://rails-ai-admin.wangyaodi.com/demo/)
 for more examples.
 
 [MIT License](LICENSE) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
