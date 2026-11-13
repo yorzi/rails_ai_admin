@@ -29,7 +29,11 @@
     </div>
   </header>
   <div class="raa-shell">
-    <nav aria-label="<%= t("rails_ai_admin.layout.resources_nav") %>">
+    <%# The menu button appears on narrow screens once the script connects;
+        without script the menu stays open. %>
+    <nav aria-label="<%= t("rails_ai_admin.layout.resources_nav") %>" data-controller="raa-menu">
+      <button type="button" class="raa-menu-toggle raa-secondary" hidden aria-expanded="false" aria-controls="raa-menu" data-raa-menu-target="toggle" data-action="raa-menu#toggle"><%= t("rails_ai_admin.layout.menu") %></button>
+      <div id="raa-menu" class="raa-menu" data-raa-menu-target="menu">
       <div class="raa-nav-primary">
         <%= link_to t("rails_ai_admin.layout.overview"), root_path, aria: { current: (controller_path == "rails_ai_admin/dashboard" ? "page" : nil) } %>
         <% if assistant_available? %><%= link_to t("rails_ai_admin.layout.assistant"), assistant_path, aria: { current: (controller_path == "rails_ai_admin/assistant" ? "location" : nil) } %><% end %>
@@ -38,6 +42,7 @@
         <% if collection_jobs_available? %><%= link_to t("rails_ai_admin.layout.collection_jobs"), collection_jobs_path, aria: { current: (controller_path == "rails_ai_admin/collection_jobs" ? "location" : nil) } %><% end %>
       </div>
       <%= render "rails_ai_admin/shared/navigation", groups: resource_navigation %>
+      </div>
     </nav>
     <main id="raa-main" tabindex="-1">
       <% if return_state_discarded? %><p class="raa-notice" role="status"><%= t("rails_ai_admin.layout.return_state_discarded") %></p><% end %>

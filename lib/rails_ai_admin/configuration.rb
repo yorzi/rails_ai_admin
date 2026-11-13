@@ -51,7 +51,11 @@ module RailsAiAdmin
       # own synchronous create.
       :import_limit,
       # Opt-in MCP server for outside agents; requires the assistant setup.
-      :mcp
+      :mcp,
+      # Header identity (all optional). actor_label names a public method of
+      # the actor, such as :email_address, whose text is shown to that person.
+      # sign_out_path is the host's sign-out route and sign_out_method its verb.
+      :actor_label, :sign_out_path, :sign_out_method
 
     def initialize
       @authentication_path = nil
@@ -77,6 +81,9 @@ module RailsAiAdmin
       @export_limit = 10_000
       @import_limit = 500
       @mcp = false
+      @actor_label = nil
+      @sign_out_path = nil
+      @sign_out_method = :delete
     end
 
     # Validates and freezes the boot configuration without reading domain tables.
@@ -121,6 +128,15 @@ module RailsAiAdmin
         raise ConfigurationError, "authentication_path must be a fixed internal path without query or fragment"
       end
       authentication_path&.freeze
+      unless sign_out_path.nil? || sign_out_path.is_a?(String) && sign_out_path.valid_encoding? && sign_out_path.ascii_only? && sign_out_path.match?(INTERNAL_PATH)
+        raise ConfigurationError, "sign_out_path must be a fixed internal path without query or fragment"
+      end
+      sign_out_path&.freeze
+      raise ConfigurationError, "sign_out_method must be :delete, :post or :get" unless %i[delete post get].include?(sign_out_method)
+      unless actor_label.nil? || (actor_label.is_a?(Symbol) || actor_label.is_a?(String)) && actor_label.to_s.match?(/\A[a-z_][a-zA-Z0-9_]{0,63}\z/)
+        raise ConfigurationError, "actor_label must be nil or the name of a method on the actor"
+      end
+      self.actor_label = actor_label.to_sym if actor_label
       Fields::Registry.new(field_types).validate!
       field_types.each { |key, name| key.freeze; name.freeze }
       field_types.freeze

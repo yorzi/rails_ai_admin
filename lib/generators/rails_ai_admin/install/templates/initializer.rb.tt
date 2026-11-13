@@ -1,0 +1,31 @@
+RailsAiAdmin.configure do |config|
+  config.context_adapter = "AdminContext"
+<% if options[:full_access] -%>
+  # Grants everyone AdminContext admits everything the resources declare.
+<% else -%>
+  # This generated adapter denies every scope, action and field.
+<% end -%>
+  config.authorization_adapter = "AdminPolicyAdapter"
+  # The resources the admin serves. `bin/rails generate rails_ai_admin:resource`
+  # adds to this list; nothing else is exposed.
+  config.resources = []
+<% if @auth -%>
+
+  # Signed-out visitors go to the sign-in page; the header shows who is
+  # signed in and a sign-out button.
+  config.authentication_path = "<%= @auth.sign_in %>"
+  config.actor_label = :<%= @auth.label %>
+<% if @auth.sign_out -%>
+  config.sign_out_path = "<%= @auth.sign_out %>"
+<% unless @auth.sign_out_method == :delete -%>
+  config.sign_out_method = :<%= @auth.sign_out_method %>
+<% end -%>
+<% end -%>
+<% else -%>
+
+  # Optional: where signed-out visitors go, and the header's identity.
+  # config.authentication_path = "/session/new"
+  # config.actor_label = :email_address
+  # config.sign_out_path = "/session"
+<% end -%>
+end

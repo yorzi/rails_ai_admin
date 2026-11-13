@@ -56,7 +56,7 @@ class NativeComputedFieldsTest < ActionDispatch::IntegrationTest
       get "/backoffice/computed_customers"
       assert_response :success
       assert_select "td", text: "Alice (0)"
-      assert_select "a", text: "View Alice (0)"
+      assert_select "td a.raa-row-title", text: "Alice (0)"
       assert_equal 1, Summary.calls
       get "/backoffice/computed_customers/#{@customer.id}"
       assert_select "dd", text: "Alice (0)"
@@ -73,7 +73,7 @@ class NativeComputedFieldsTest < ActionDispatch::IntegrationTest
     with_resource do
       get "/backoffice/computed_customers"
       assert_response :success
-      assert_select "a", text: "View Record ##{@customer.id}"
+      assert_select "td a.raa-row-title", text: "Record ##{@customer.id}"
       refute_includes response.body, "Private name"
       assert_equal 0, Summary.calls
       post "/backoffice/computed_customers/selections", params: { target_ids: [ @customer.id ] }

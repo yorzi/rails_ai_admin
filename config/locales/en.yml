@@ -100,6 +100,7 @@ en:
         select_all: Select all records on this page
         actions: Actions
         select_row: Select %{label}
+        view: View
         view_row: View %{label}
         empty: No records match this query.
         pagination: Pagination
@@ -333,6 +334,8 @@ en:
       collection_jobs: Collection jobs
       audit_log: Audit log
       resources_nav: Admin resources
+      menu: Menu
+      sign_out: Sign out
       return_state_discarded: Some list settings are no longer available. Return links use the current
         permitted list.
       administration: Administration

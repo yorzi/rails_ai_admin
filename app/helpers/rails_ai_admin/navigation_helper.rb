@@ -34,6 +34,16 @@ module RailsAiAdmin
       [ *Array(@raa_title_parts), RailsAiAdmin.configuration.title ].join(" · ")
     end
 
+    # The signed-in person's own label for the header, from the public actor
+    # method named by config.actor_label. Nil when unset or not plain text.
+    def admin_actor_label
+      name = RailsAiAdmin.configuration.actor_label
+      actor = @context&.actor
+      return unless name && actor.respond_to?(name)
+      label = actor.public_send(name)
+      label.is_a?(String) && label.valid_encoding? && label.present? ? label.squish.truncate(80) : nil
+    end
+
     ICON_PATHS = {
       "users" => [ "M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z", "M2 21v-3a6 6 0 0 1 12 0v3M17 4a4 4 0 0 1 0 8M18 15a5 5 0 0 1 4 5v1" ],
       "shopping-bag" => [ "M4 7h16l1 14H3L4 7ZM8 8V6a4 4 0 0 1 8 0v2" ],

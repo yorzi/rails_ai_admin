@@ -117,24 +117,63 @@ class DeveloperToolsTest < Minitest::Test
     end
   end
 
-  def test_generator_only_enables_readonly_id_and_never_samples_records
+  def test_generator_enables_suggested_fields_and_never_samples_records
     sql = []
     listener = ->(_name, _start, _finish, _id, payload) { sql << payload[:sql] }
     Dir.mktmpdir("raa-generator-", File.expand_path("../../tmp", __dir__)) do |directory|
+      output = nil
       ActiveSupport::Notifications.subscribed(listener, "sql.active_record") do
         generator = RailsAiAdmin::Generators::ResourceGenerator.new([ "SchemaSuggestionRecord" ], [], destination_root: directory)
-        capture_io { generator.invoke_all }
+        output, = capture_io { generator.invoke_all }
       end
       source = File.read(File.join(directory, "app/rails_ai_admin/schema_suggestion_record_admin.rb"))
-      assert_includes source, "# text :name, nullable: false, max_length: 80"
-      refute_match(/password_digest|api_token|secret_note|private_memo|customer_id|linked_ref|lock_version|attachable|text :type/, source)
-      # The declared reference column appears only as a commented suggestion.
-      assert_equal [ %(    # belongs_to :customer, foreign_key: "owner_ref"\n) ], source.lines.grep(/owner_ref/)
-      active = source.lines.reject { |line| line.lstrip.start_with?("#") }.join
-      assert_includes active, "readonly"
-      assert_match(/fields do\s+id :id\s+end/, active)
-      RubyVM::InstructionSequence.compile(source)
+      refute_match(/password_digest|api_token|secret_note|private_memo|customer_id|linked_ref|lock_version|attachable|text :type|account/, source)
+      assert_equal <<~RUBY, source
+        class SchemaSuggestionRecordAdmin < RailsAiAdmin::Resource
+          model "SchemaSuggestionRecord"
+          key :schema_suggestion_records
+          title :name
+          fields do
+            id :id
+            text :name, nullable: false, max_length: 80, searchable: :contains, sortable: true
+            textarea :description
+            decimal :price, precision: 8, scale: 2, sortable: true
+            boolean :active, filterable: true
+            date :starts_on, sortable: true
+            enum :state, values: ["open", "closed"], filterable: true
+            belongs_to :customer, foreign_key: "owner_ref", filterable: true
+            json :metadata
+            datetime :created_at, nullable: false, readonly: true, create: false, sortable: true
+            datetime :updated_at, nullable: false, readonly: true, create: false, sortable: true
+            # 11 sensitive, relationship, internal or unsupported columns omitted.
+          end
+          index do
+            columns :id, :name, :price, :active, :starts_on, :state, :created_at
+            default_sort :created_at, :desc
+            count :exact
+          end
+        end
+      RUBY
+      assert_includes output, "SchemaSuggestionRecordAdmin: enabled fields: id, name, description"
+      assert_includes output, "Add \"SchemaSuggestionRecordAdmin\" to config.resources", "no initializer to edit here"
       refute sql.any? { |statement| statement.match?(/\b(?:FROM|UPDATE|INTO)\s+["`]?schema_suggestion_records\b/i) }, sql.join("\n")
+      # The generated declaration registers beside the resource it references.
+      Object.class_eval(source)
+      begin
+        registry = RailsAiAdmin::Registry.new(%w[SchemaSuggestionRecordAdmin TestResource])
+        assert_equal %w[schema_suggestion_records customers], registry.resources.map { |resource| resource.key.to_s }
+      ensure
+        Object.send(:remove_const, :SchemaSuggestionRecordAdmin)
+      end
+    end
+  end
+
+  def test_generator_readonly_option_keeps_the_resource_closed_to_writes
+    Dir.mktmpdir("raa-generator-", File.expand_path("../../tmp", __dir__)) do |directory|
+      output, = capture_io { RailsAiAdmin::Generators::ResourceGenerator.new([ "SchemaSuggestionRecord" ], [ "--readonly" ], destination_root: directory).invoke_all }
+      source = File.read(File.join(directory, "app/rails_ai_admin/schema_suggestion_record_admin.rb"))
+      assert_includes source, "  title :name\n  readonly\n  fields do"
+      assert_includes output, "enabled readonly fields: id, name"
     end
   end
 
@@ -148,14 +187,14 @@ class DeveloperToolsTest < Minitest::Test
       source = File.read(File.join(directory, "app/rails_ai_admin/schema_suggestion_record_admin.rb"))
       active = source.lines.reject { |line| line.lstrip.start_with?("#") }.join
       assert_includes active, "title :name"
-      assert_includes active, "readonly"
-      assert_includes active, "    text :name, nullable: false, max_length: 80\n"
-      assert_includes active, "    decimal :price, precision: 8, scale: 2\n"
-      assert_includes active, %(    belongs_to :customer, foreign_key: "owner_ref"\n)
+      refute_includes active, "readonly"
+      assert_includes active, "    text :name, nullable: false, max_length: 80, searchable: :contains, sortable: true\n"
+      assert_includes active, "    decimal :price, precision: 8, scale: 2, sortable: true\n"
+      assert_includes active, %(    belongs_to :customer, foreign_key: "owner_ref", filterable: true\n)
       assert_includes source, "    # boolean :active"
       refute_includes source, "# text :name"
       RubyVM::InstructionSequence.compile(source)
-      assert_includes output, "Enabled readonly fields: id, name, price, customer"
+      assert_includes output, "enabled fields: id, name, price, customer"
       refused = {
         %w[password_digest] => "not a suggested field",
         %w[account_id] => "not a suggested field",
@@ -175,6 +214,15 @@ class DeveloperToolsTest < Minitest::Test
         capture_io { RailsAiAdmin::Generators::ResourceGenerator.new([ "NoSchemaModel" ], [ "--fields", "name" ], destination_root: directory).invoke_all }
       end
       assert_includes error.message, "Schema unavailable"
+      { [ [ "SchemaSuggestionRecord", "Customer" ], [ "--fields", "name" ] ] => "--fields applies to one named model",
+        [ [], [] ] => "Name at least one model, or pass --all",
+        [ [ "schema suggestion" ], [] ] => "Use a model class name",
+        [ [ "Customer", "customer" ], [] ] => "listed twice" }.each do |(names, flags), message|
+        error = assert_raises(Rails::Generators::Error) do
+          capture_io { RailsAiAdmin::Generators::ResourceGenerator.new(names, flags, destination_root: directory).invoke_all }
+        end
+        assert_includes error.message, message
+      end
     end
   end
 
@@ -272,7 +320,7 @@ class DeveloperToolsTest < Minitest::Test
         File.write(File.join(directory, "config/routes.rb"), "Rails.application.routes.draw do\nend\n")
         application = Struct.new(:root, :routes).new(Pathname.new(directory), ActionDispatch::Routing::RouteSet.new)
         capture_io { RailsAiAdmin::Generators::InstallGenerator.new([], { force: true }, destination_root: directory, application: application).invoke_all }
-        paths = %w[app/rails_ai_admin/admin_policy_adapter.rb app/rails_ai_admin/example_admin.rb test/rails_ai_admin/access_test.rb]
+        paths = %w[app/rails_ai_admin/admin_policy_adapter.rb test/rails_ai_admin/access_test.rb]
         paths.each { |path| File.open(File.join(directory, path), "a") { |file| file.puts "# reviewed host extension" } }
         # A migration from an older engine build may already have run; a forced
         # re-install keeps it instead of recreating it under a new timestamp.
@@ -346,8 +394,8 @@ class DeveloperToolsTest < Minitest::Test
   end
 
   def test_install_rejects_a_host_constant_collision_before_writing
-    created = !Object.const_defined?(:ExampleAdmin)
-    Object.const_set(:ExampleAdmin, Class.new) if created
+    created = !Object.const_defined?(:AdminPolicyAdapter)
+    Object.const_set(:AdminPolicyAdapter, Class.new) if created
     Dir.mktmpdir("raa-install-", File.expand_path("../../tmp", __dir__)) do |directory|
       FileUtils.mkdir_p(File.join(directory, "config"))
       source = "Rails.application.routes.draw do\nend\n"
@@ -361,7 +409,7 @@ class DeveloperToolsTest < Minitest::Test
       refute File.exist?(File.join(directory, "db"))
     end
   ensure
-    Object.send(:remove_const, :ExampleAdmin) if created
+    Object.send(:remove_const, :AdminPolicyAdapter) if created
   end
   def test_doctor_recognizes_collection_queues_even_without_outbox_handlers
     with_collection do

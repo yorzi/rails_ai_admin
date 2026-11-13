@@ -392,7 +392,7 @@ class SupportHostAcceptanceTest < ActionDispatch::IntegrationTest
     get "/operations/tickets", params: state
     assert_response :success
     assert_select "th[aria-sort=descending] a", text: "Priority"
-    view = css_select("main a").find { |node| node.text.start_with?("View ") }
+    view = css_select("main a.raa-row-title").first
     assert_equal state, Rack::Utils.parse_nested_query(URI(view["href"]).query)["return_to"]
     get view["href"]
     get css_select("main a").find { |node| node.text == "Edit" }["href"]

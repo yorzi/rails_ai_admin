@@ -1,5 +1,8 @@
-<%# Signed-in user and sign-out links in the admin header (RAA-024). Empty by
-    default. Override app/views/rails_ai_admin/shared/_session.html.erb in the
-    host to show, for example, the current user's name and a sign-out button
-    built with button_to and a main_app route helper. The admin @context is
-    available; main_app reaches host routes. %>
+<%# The signed-in person and a sign-out button in the admin header. Set
+    config.actor_label and config.sign_out_path to show them, or override
+    app/views/rails_ai_admin/shared/_session.html.erb in the host for other
+    markup. The admin @context is available; main_app reaches host routes. %>
+<% if @context %>
+  <% if (label = admin_actor_label) %><span class="raa-actor"><%= label %></span><% end %>
+  <% if (path = RailsAiAdmin.configuration.sign_out_path) %><%= button_to t("rails_ai_admin.layout.sign_out"), path, method: RailsAiAdmin.configuration.sign_out_method, class: "raa-sign-out", form: { class: "raa-sign-out-form", data: { turbo: false } } %><% end %>
+<% end %>

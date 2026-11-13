@@ -316,6 +316,16 @@
 .raa .raa-filter-panel summary { cursor:pointer; font-weight:650; padding:.4rem 0; }
 .raa .raa-selection-bar { display:flex; flex-wrap:wrap; align-items:center; gap:1rem; margin:.75rem 0; }
 .raa .raa-selection-bar p { margin:0; }
+/* List cells break between words, so a column is as wide as its longest word
+   and the region scrolls, instead of squeezing text one character wide. */
+.raa .raa-table-scroll td { overflow-wrap:break-word; }
+.raa .raa-row-actions { white-space:nowrap; }
+.raa .raa-row-title { font-weight:600; }
+.raa td.raa-cell-title { min-width:12rem; }
+.raa button.raa-menu-toggle { display:none; }
+.raa .raa-actor { color:var(--raa-muted); font-size:.875rem; overflow-wrap:anywhere; }
+.raa .raa-sign-out-form { margin:0; }
+.raa button.raa-sign-out { min-height:2.25rem; padding:.3rem .7rem; border-color:var(--raa-control-line); background:var(--raa-panel); color:var(--raa-brand); font-size:.875rem; }
 .raa .raa-row-actions a { display:inline-block; padding:.125rem 0; }
 .raa .raa-row-actions a + a { margin-inline-start:.65rem; }
 .raa .raa-reference { display:grid; gap:.4rem; }
@@ -335,6 +345,10 @@
   .raa .raa-nav-primary,.raa .raa-nav-group { display:flex; flex-wrap:wrap; gap:0 .2rem; margin-top:0; }
   .raa .raa-nav-group-label { flex-basis:100%; margin:.2rem .55rem 0; }
   .raa .raa-shell > nav a { padding:.4rem .55rem; font-size:.875rem; }
+  .raa button.raa-menu-toggle:not([hidden]) { display:inline-flex; align-items:center; min-height:2.5rem; padding:.3rem .8rem; font-size:.875rem; }
+  .raa td.raa-cell-title { min-width:9rem; }
+  .raa .raa-menu-collapsible:not([data-raa-menu-open]) .raa-menu { display:none; }
+  .raa .raa-menu-collapsible[data-raa-menu-open] .raa-menu { margin-top:.35rem; }
   .raa main { padding:1rem; }
   .raa .raa-list-toolbar { gap:.5rem; }
   .raa .raa-list-toolbar .raa-search { flex-basis:100%; }

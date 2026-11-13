@@ -45,7 +45,7 @@ class ListFiltersTest < ActionDispatch::IntegrationTest
     assert_select "form.raa-search input[type=hidden][name='filter[points][gte]'][value='5']"
     assert_select "input[type=hidden][id]", count: 0
     assert_equal [ "Ten" ], css_select("tbody tr").map { |row| row.text[/Ten|Thirty|Idle|Foreign|Alice/] }
-    view = css_select("main a").find { |node| node.text.start_with?("View ") }
+    view = css_select("main a.raa-row-title").first
     assert_equal @filter, query(view["href"]).dig("return_to", "filter")
     assert_equal @filter, query(css_select("th a").find { |node| node.text == "Name" }["href"])["filter"]
     clear = main_link("Clear filters")

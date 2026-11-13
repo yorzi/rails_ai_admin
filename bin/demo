@@ -70,6 +70,19 @@ FileUtils.cp(File.join(ASSETS, "sessions/new.html.erb"), File.join(TARGET, "app/
 edit("app/controllers/sessions_controller.rb", %(render plain: "Invalid credentials", status: :unauthorized),
   %(@error = "That email and password do not match a demo account. Use one of the buttons, or the password demo-password."\n      render :new, status: :unauthorized))
 
+# The header shows who is signed in and a sign-out button.
+edit("app/controllers/sessions_controller.rb", "  def new; end\n", <<~RUBY.gsub(/^/, "  "))
+  def new; end
+
+  def destroy
+    reset_session
+    redirect_to "/login", status: :see_other
+  end
+RUBY
+edit("config/routes.rb", %(  post "/login", to: "sessions#create"\n), %(  post "/login", to: "sessions#create"\n  delete "/logout", to: "sessions#destroy"\n))
+edit("config/initializers/rails_ai_admin.rb", %(  config.authentication_path = "/login"\n),
+  %(  config.authentication_path = "/login"\n  config.actor_label = :email\n  config.sign_out_path = "/logout"\n))
+
 if options[:assistant]
   File.write(File.join(TARGET, "Gemfile"), %(gem "ruby_llm", "2.2.0"\ngem "rails_tool_views", "1.0.2"\n), mode: "a")
   # rails_tool_views controllers inherit the host's ApplicationController.

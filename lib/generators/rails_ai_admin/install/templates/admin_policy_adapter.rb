@@ -1,6 +1,8 @@
 class AdminPolicyAdapter < RailsAiAdmin::Authorization::Adapter
   # Inherits the empty SQL scope, denied actions and empty field grants.
   # Implement all three contracts, or select the optional Pundit adapter.
+  # For trusted staff, inherit RailsAiAdmin::Authorization::FullAccessAdapter
+  # instead. Rerunning the installer preserves this file.
   # Read the packaged README before granting access to any resource.
 
   # Working example to pair with the AdminContext example: every signed-in

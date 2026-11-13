@@ -48,7 +48,7 @@ class ListScopesTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Alicia"
     refute_includes response.body, "Alien foreign"
     assert_select "form.raa-search input[name=scope][value=rewarded]"
-    view = css_select("main a").find { |node| node.text.start_with?("View ") }
+    view = css_select("main a.raa-row-title").first
     assert_equal "rewarded", query(view["href"]).dig("return_to", "scope")
     sort = css_select("th a").find { |node| node.text == "Name" }
     assert_equal "rewarded", query(sort["href"])["scope"]

@@ -61,6 +61,11 @@
     <p class="raa-field-help"><%= t("rails_ai_admin.resources.index.selection_help") %></p>
   <% end %>
 <% end %>
+<%# The title column links to the record, around the field's own list display
+    (plain label text for types that render a link of their own). Without a
+    title column each row gets a View link. %>
+<% title_column = @columns.any? { |field| field.name == @resource.title } %>
+<% row_actions = !title_column || @rows.any? { |row| row[:editable] } %>
 <div class="raa-table-scroll" role="region" aria-label="<%= t("rails_ai_admin.resources.index.records_region") %>" tabindex="0">
 <table><caption><%= t("rails_ai_admin.resources.index.caption", label: @resource.label, page: @page.number) %></caption>
 <thead><tr><% if @selectable %><th scope="col"><span class="raa-visually-hidden"><%= t("rails_ai_admin.resources.index.select") %></span><input type="checkbox" hidden data-raa-select-all aria-label="<%= t("rails_ai_admin.resources.index.select_all") %>"></th><% end %><% @columns.each do |field| %>
@@ -72,12 +77,12 @@
       <%= link_to field.label, resources_path(resource: @resource.key, **state.symbolize_keys) %>
     <% else %><%= field.label %><% end %>
   </th>
-<% end %><th scope="col"><%= t("rails_ai_admin.resources.index.actions") %></th></tr></thead>
+<% end %><% if row_actions %><th scope="col"><%= t("rails_ai_admin.resources.index.actions") %></th><% end %></tr></thead>
 <tbody><% @rows.each_with_index do |row, index| %><tr>
   <% if @selectable %><td><%= check_box_tag "target_ids[]", row[:id], false, id: "raa-target-#{index}", form: "raa-selection", aria: { label: t("rails_ai_admin.resources.index.select_row", label: row[:label].to_s.truncate(120)) } %></td><% end %>
-  <% @columns.each do |field| %><td<% if RailsAiAdmin::Presentation::IndexSettings::COMPACT_TYPES.include?(field.scalar_type) %> class="raa-cell-compact"<% end %>><%= admin_field_value(field, row[:values][field.name.to_s], view: :index, record_id: row[:id]) if row[:values].key?(field.name.to_s) %></td><% end %>
-  <td class="raa-row-actions"><%= link_to t("rails_ai_admin.resources.index.view_row", label: row[:label]), resource_path(resource: @resource.key, id: row[:id], **navigation_params) %>
-    <% if row[:editable] %><%= link_to t("rails_ai_admin.resources.edit"), edit_resource_path(resource: @resource.key, id: row[:id], **navigation_params), aria: { label: t("rails_ai_admin.resources.edit_title", label: row[:label]) } %><% end %></td>
+  <% @columns.each do |field| %><td<% if field.name == @resource.title %> class="raa-cell-title"<% elsif RailsAiAdmin::Presentation::IndexSettings::COMPACT_TYPES.include?(field.scalar_type) %> class="raa-cell-compact"<% end %>><% if field.name == @resource.title %><%= link_to resource_path(resource: @resource.key, id: row[:id], **navigation_params), class: "raa-row-title" do %><% if row[:values].key?(field.name.to_s) && !RailsAiAdmin::Presentation::IndexSettings::SELF_LINKING_TYPES.include?(field.scalar_type) %><%= admin_field_value(field, row[:values][field.name.to_s], view: :index, record_id: row[:id]) %><% else %><%= row[:label] %><% end %><% end %><% elsif row[:values].key?(field.name.to_s) %><%= admin_field_value(field, row[:values][field.name.to_s], view: :index, record_id: row[:id]) %><% end %></td><% end %>
+  <% if row_actions %><td class="raa-row-actions"><% unless title_column %><%= link_to t("rails_ai_admin.resources.index.view"), resource_path(resource: @resource.key, id: row[:id], **navigation_params), aria: { label: t("rails_ai_admin.resources.index.view_row", label: row[:label]) } %><% end %>
+    <% if row[:editable] %><%= link_to t("rails_ai_admin.resources.edit"), edit_resource_path(resource: @resource.key, id: row[:id], **navigation_params), aria: { label: t("rails_ai_admin.resources.edit_title", label: row[:label]) } %><% end %></td><% end %>
 </tr><% end %></tbody></table></div>
 <% if @rows.empty? && !@omitted_rows %><p><%= t("rails_ai_admin.resources.index.empty") %></p><% end %>
 <nav class="raa-pagination" aria-label="<%= t("rails_ai_admin.resources.index.pagination") %>">

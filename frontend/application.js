@@ -394,6 +394,20 @@ class ReferencePickerController extends Controller {
     this.statusTarget.textContent = "";
   }
 }
+// Narrow screens: the resource menu folds behind a button. The layout renders
+// the menu open and the button hidden, so a page without script keeps it.
+class MenuController extends Controller {
+  static targets = ["toggle", "menu"];
+  connect() {
+    this.toggleTarget.hidden = false;
+    this.element.classList.add("raa-menu-collapsible");
+  }
+  toggle() {
+    const open = this.element.toggleAttribute("data-raa-menu-open");
+    this.toggleTarget.setAttribute("aria-expanded", String(open));
+  }
+}
+application.register("raa-menu", MenuController);
 application.register("raa-selection", SelectionController);
 application.register("raa-reference-picker", ReferencePickerController);
 application.register("raa-rich-text", RichTextController);

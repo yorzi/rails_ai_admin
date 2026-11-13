@@ -30,9 +30,12 @@ run!(env, target, "bundle", "install", "--local")
 run!(env, target, "bundle", "exec", "ruby", File.join(root, "script/support/verify_installed_package.rb"), package)
 # The generator never overwrites, so remove its earlier outputs that the spec
 # host does not provide itself: each run checks this package's templates.
-%w[app/rails_ai_admin/admin_policy_adapter.rb app/rails_ai_admin/example_admin.rb test/rails_ai_admin/access_test.rb].each do |path|
+%w[app/rails_ai_admin/admin_policy_adapter.rb test/rails_ai_admin/access_test.rb].each do |path|
   FileUtils.rm_f(File.join(target, path)) unless File.exist?(File.join(root, "spec_hosts/session_sqlite", path))
 end
+# The initializer and context are checked as generated, then replaced by the
+# host's reviewed files below.
+[ "config/initializers/rails_ai_admin.rb", "app/rails_ai_admin/admin_context.rb" ].each { |path| FileUtils.rm_f(File.join(target, path)) }
 run!(env, target, "bundle", "exec", "rails", "generate", "rails_ai_admin:install", "--force")
 # Generated authentication is deliberately closed; use the independent host's
 # reviewed adapters only after checking the installed stub in a fresh process.
@@ -49,8 +52,9 @@ run!(env, target, "bundle", "exec", "rails", "runner", "raise unless Rails.appli
 run!(env, target, "bundle", "exec", "rails", "rails_ai_admin:doctor")
 run!(env, target, "bundle", "exec", "rails", "test", "test/rails_ai_admin/access_test.rb")
 FileUtils.rm_f(File.join(target, "app/rails_ai_admin/user_admin.rb"))
-run!(env, target, "bundle", "exec", "rails", "generate", "rails_ai_admin:resource", "User")
-run!(env, target, "bundle", "exec", "rails", "runner", "source = Rails.root.join('app/rails_ai_admin/user_admin.rb').read; raise unless source.include?('# email :email'); raise if source.match?(/password|account_id|security_version|role/); raise unless UserAdmin.readonly? && UserAdmin.fields.map(&:name) == [:id]; raise if RailsAiAdmin.registry.resources.include?(UserAdmin)")
+# The host's reviewed registry stays as it is; --no-register only writes the file.
+run!(env, target, "bundle", "exec", "rails", "generate", "rails_ai_admin:resource", "User", "--no-register")
+run!(env, target, "bundle", "exec", "rails", "runner", "raise unless UserAdmin.readonly?; names = UserAdmin.fields.map(&:name); raise unless names.include?(:email); raise if (names & %i[password password_digest account_id security_version role]).any?; raise if RailsAiAdmin.registry.resources.include?(UserAdmin)")
 run!(env, target, "bundle", "exec", "ruby", "test/acceptance_test.rb")
 
 # Exercise every public template through standard app/views resolution in the

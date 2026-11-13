@@ -45,11 +45,16 @@ FileUtils.rm_f(File.join(target, "config/initializers/rails_tool_views.rb"))
 run!(env, target, "bundle", "exec", "rails", "runner", "raise unless Gem.loaded_specs.fetch('rails_tool_views').version.to_s == '1.0.2'; raise unless Rails.application.routes.url_helpers.rails_tool_views_path == '/product_surfaces'")
 # The generator never overwrites, so remove its earlier outputs that the spec
 # host does not provide itself: each run checks this package's templates.
-%w[app/rails_ai_admin/admin_policy_adapter.rb app/rails_ai_admin/example_admin.rb test/rails_ai_admin/access_test.rb].each do |path|
+%w[app/rails_ai_admin/admin_policy_adapter.rb test/rails_ai_admin/access_test.rb].each do |path|
   FileUtils.rm_f(File.join(target, path)) unless File.exist?(File.join(source, path))
 end
+# The initializer and context are checked as generated, then replaced by the
+# host's reviewed files below.
+[ "config/initializers/rails_ai_admin.rb", "app/rails_ai_admin/admin_context.rb" ].each { |path| FileUtils.rm_f(File.join(target, path)) }
 run!(env, target, "bundle", "exec", "rails", "generate", "rails_ai_admin:install", "--force")
-run!(env, target, "bundle", "exec", "rails", "runner", "raise unless AdminContext.new.resolve(nil).nil?")
+# The installer finds Devise and writes a context for its scope. It admits
+# only staff whose admin? is true, and the generated policy grants nothing.
+run!(env, target, "bundle", "exec", "rails", "runner", "source = Rails.root.join('app/rails_ai_admin/admin_context.rb').read; raise unless source.include?('authenticate(scope: :staff_user)') && source.include?('user.respond_to?(:admin?) && user.admin?'); raise unless AdminContext.instance_method(:resolve).arity == 1; raise unless Rails.root.join('config/initializers/rails_ai_admin.rb').read.include?('config.authentication_path = \"/staff_users/sign_in\"')")
 # Admin Chat storage beside the product's RubyLLM tables; the generated adapter
 # must stay closed until the host replaces it with its reviewed one.
 FileUtils.rm_f(File.join(target, "app/rails_ai_admin/admin_assistant.rb"))
@@ -63,8 +68,9 @@ run!(env, target, "bundle", "exec", "rails", "zeitwerk:check")
 run!(env, target, "bundle", "exec", "rails", "rails_ai_admin:doctor")
 run!(env, target, "bundle", "exec", "rails", "test", "test/rails_ai_admin/access_test.rb")
 FileUtils.rm_f(File.join(target, "app/rails_ai_admin/staff_user_admin.rb"))
-run!(env, target, "bundle", "exec", "rails", "generate", "rails_ai_admin:resource", "StaffUser")
-run!(env, target, "bundle", "exec", "rails", "runner", "source = Rails.root.join('app/rails_ai_admin/staff_user_admin.rb').read; raise unless source.include?('# email :email'); raise if source.match?(/password|security_version|role/); raise unless StaffUserAdmin.readonly? && StaffUserAdmin.fields.map(&:name) == [:id]; raise if RailsAiAdmin.registry.resources.include?(StaffUserAdmin)")
+# The host's reviewed registry stays as it is; --no-register only writes the file.
+run!(env, target, "bundle", "exec", "rails", "generate", "rails_ai_admin:resource", "StaffUser", "--no-register")
+run!(env, target, "bundle", "exec", "rails", "runner", "source = Rails.root.join('app/rails_ai_admin/staff_user_admin.rb').read; raise unless source.match?(/^    email :email/); raise if source.match?(/password|security_version|role/); raise if StaffUserAdmin.readonly?; raise unless StaffUserAdmin.fields.map(&:name).include?(:email); raise if RailsAiAdmin.registry.resources.include?(StaffUserAdmin)")
 run!(env, target, "bundle", "exec", "ruby", "test/acceptance_test.rb")
 
 # Exercise every public template through standard app/views resolution in the

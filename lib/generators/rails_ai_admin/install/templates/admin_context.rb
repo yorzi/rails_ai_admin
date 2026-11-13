@@ -20,6 +20,6 @@ class AdminContext
   #   user = session&.user
   #   return unless user&.admin?
   #   # Any change to the user, including the admin flag, invalidates open forms.
-  #   RailsAiAdmin::Context.new(actor: user, tenant: TENANT, security_version: user.updated_at.to_i.to_s)
+  #   RailsAiAdmin::Context.new(actor: user, tenant: TENANT, security_version: user.updated_at.utc.iso8601(6))
   # end
 end

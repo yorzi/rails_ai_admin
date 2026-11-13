@@ -31,7 +31,7 @@ class ListNavigationTest < ActionDispatch::IntegrationTest
     26.times { Customer.create!(account_id: 1, name: "Alice") }
     get "/backoffice/customers", params: @state
     assert_response :success
-    view = css_select("main a").find { |node| node.text.start_with?("View ") }
+    view = css_select("main a.raa-row-title").first
     assert_equal @state, query(view["href"])["return_to"]
     assert_equal @state, query(main_link("New customer"))["return_to"]
     assert_select "th[aria-sort=descending] a", text: "Name"

@@ -80,6 +80,7 @@ module RailsAiAdmin
         adapter_check("policy", config.authorization_adapter, { scope: [ 0, %i[context resource relation] ], allowed?: [ 0, %i[context action resource record] ], fields: [ 0, %i[context resource action record] ] }),
         autoload_check,
         rails_check,
+        policy_preset_check,
         assistant_check,
         mcp_check,
         Check.new("files", :unsupported, "Private attachment management is not implemented."),
@@ -90,6 +91,8 @@ module RailsAiAdmin
         backlog_check,
         surface_check
       ]
+      result.compact!
+      result.concat(unregistered_checks)
       result.concat(override_checks)
       if @work_registry.definitions.any? || collections > 0
         result << adapter_check("job_context", config.context_adapter, { resolve_job: [ 0, %i[actor_ref tenant_ref security_version] ] })
@@ -135,16 +138,41 @@ module RailsAiAdmin
 
     def queue_name(config) = config.respond_to?(:queue_name) ? config.queue_name.to_s : "rails_ai_admin"
 
-    # The gemspec admits Rails 8.0.5.2 and up, the patched 8.0 release, but
-    # cannot also exclude 8.1 releases older than their patch, 8.1.4.1.
-    PATCHED_RAILS = { "8.0" => "8.0.5.2", "8.1" => "8.1.4.1" }.freeze
+    # The gemspec requires Rails 8.1 from its patched release; a host that
+    # loads the engine some other way still gets the answer here.
+    PATCHED_RAILS = { "8.1" => "8.1.4.1" }.freeze
 
     def rails_check(version: Rails.gem_version)
       series = version.segments.first(2).join(".")
       patched = PATCHED_RAILS[series]
       return Check.new("rails", :ok, "Rails #{version} is at or above the patched #{series} release.") if patched && version >= Gem::Version.new(patched)
-      Check.new("rails", :error, "Rails #{version} is older than the patched #{series} release (#{patched || 'unknown series'}). " \
-        "Update Rails; known advisories affect this version.")
+      return Check.new("rails", :error, "Rails #{version} is outside the supported series (#{PATCHED_RAILS.keys.join(', ')}).") unless patched
+      Check.new("rails", :error, "Rails #{version} is older than the patched #{series} release (#{patched}). Update Rails; known advisories affect this version.")
+    end
+
+    # Says plainly when the policy is the trusted-staff preset, and whether
+    # the host narrowed its record scope.
+    def policy_preset_check
+      adapter = @configuration.authorization_adapter.to_s.safe_constantize
+      return unless adapter.is_a?(Class) && adapter <= Authorization::FullAccessAdapter
+      scoped = adapter.instance_method(:scope).owner != Authorization::FullAccessAdapter
+      assistant = adapter.instance_method(:assistant?).owner != Authorization::Adapter
+      Check.new("policy_preset", :review, "#{adapter.name} uses the full-access preset: everyone the context adapter admits may use everything the resources declare. " \
+        "Record scope overridden=#{scoped} (without it every row of a registered model is visible, across tenants); assistant grant overridden=#{assistant}.")
+    end
+
+    # Resource classes under app/rails_ai_admin that config.resources leaves
+    # out: usually a file written by hand and not registered yet.
+    def unregistered_checks
+      return [] unless @application
+      root = @application.root.join("app/rails_ai_admin")
+      registered = @registry.resources.map(&:name)
+      root.glob("**/*_admin.rb").sort.filter_map do |path|
+        name = path.relative_path_from(root).to_s.delete_suffix(".rb").camelize
+        resource = name.safe_constantize
+        next unless resource.is_a?(Class) && resource < Resource && !registered.include?(resource.name)
+        Check.new("unregistered:#{name}", :review, "#{name} is not in config.resources, so the admin does not serve it. Add it there once it is reviewed.")
+      end
     end
 
     # Work that has been due for a while means no worker or scan is running it

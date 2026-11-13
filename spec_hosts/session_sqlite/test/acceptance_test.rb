@@ -276,7 +276,7 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
     state = { "q" => "客户 🚀", "sort" => "name", "direction" => "desc", "page" => "2" }
     get "/staff/customers", params: state
     assert_response :success
-    view = css_select("main a").find { |node| node.text.start_with?("View ") }
+    view = css_select("main a.raa-row-title").first
     assert_equal state, Rack::Utils.parse_nested_query(URI(view["href"]).query)["return_to"]
     get view["href"]
     edit = css_select("main a").find { |node| node.text == "Edit" }

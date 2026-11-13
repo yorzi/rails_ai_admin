@@ -20,7 +20,11 @@ module RailsAiAdmin
         # The readable text stays visible; the exact value is machine-readable,
         # and long text keeps its line breaks (RAA-015).
         if field.scalar_type == :datetime
-          text = tag.time(text, datetime: value.in_time_zone(@context.time_zone).iso8601)
+          local = value.in_time_zone(@context.time_zone)
+          # Lists show the minute; the exact time and zone stay in the
+          # element's datetime and on the record's own page.
+          text = local.strftime("%-d %b %Y %H:%M") if view == :index
+          text = tag.time(text, datetime: local.iso8601, title: (view == :index ? field.format(value, time_zone: @context.time_zone) : nil))
         elsif field.scalar_type == :date
           text = tag.time(text, datetime: value.iso8601)
         elsif field.scalar_type == :textarea && view != :index

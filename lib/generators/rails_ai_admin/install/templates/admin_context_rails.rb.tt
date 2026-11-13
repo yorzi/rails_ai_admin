@@ -1,0 +1,37 @@
+# Who may use the admin. Written for the Rails authentication generator
+# (the Session model and its signed session_id cookie).
+class AdminContext
+  # One fixed tenant for an app without accounts. With an Account model, pass
+  # the user's account instead and scope the policy by it.
+  SingleTenant = Data.define(:id)
+  TENANT = SingleTenant.new(id: "app")
+
+  def resolve(controller)
+    session = Session.find_by(id: controller.request.cookie_jar.signed[:session_id])
+    context_for(session&.user)
+  end
+
+  # Background work (bulk operations, the assistant) rebuilds the same
+  # authority from the stored reference.
+  def resolve_job(actor_ref:, tenant_ref:, security_version:)
+    prefix = "raa:actor:<%= @auth.model %>:"
+    return unless actor_ref.start_with?(prefix)
+    context = context_for(<%= @auth.model %>.find_by(id: actor_ref.delete_prefix(prefix)))
+    context if context&.tenant_ref == tenant_ref
+  end
+
+  private
+
+  def context_for(user)
+    return unless user && admin?(user)
+    # Any change to the user, including the admin flag, closes open forms.
+    RailsAiAdmin::Context.new(actor: user, tenant: TENANT, security_version: user.updated_at.utc.iso8601(6))
+  end
+
+  # Decide who may use the admin. It stays closed until this returns true for
+  # someone. The usual way is a boolean column:
+  #   bin/rails generate migration AddAdminTo<%= @auth.model.pluralize %> admin:boolean
+  def admin?(user)
+    user.respond_to?(:admin?) && user.admin?
+  end
+end
