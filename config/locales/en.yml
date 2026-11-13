@@ -279,6 +279,7 @@ en:
       empty: No records.
       view_all: View all in %{label}
       first: Showing the first %{count}.
+      add: Add %{label}
     errors:
       title: Changes were not saved
       needs_reload: This form cannot be submitted again. Open a fresh form to review the latest record

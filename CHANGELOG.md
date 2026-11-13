@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Association panels offer "Add <child>" when the actor may create a child with a
+  writable reference back to the parent. New forms accept
+  `prefill[<belongs_to>]=<key>` for writable references to visible targets;
+  other prefills are ignored.
 - `files` fields edit `has_many_attached` attachments: remove ticked files and add
   new uploads without replacing the list, with per-file `accept`/`max_size` and a
   `max_files` bound (default 20). Removed blobs are purged after commit; the

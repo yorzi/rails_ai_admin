@@ -153,6 +153,19 @@ The panel reads children only through the child resource:
 The panel adds no write path. Creating, attaching or detaching children happens
 in the child resource's own forms and operations.
 
+## Adding a Child from Its Parent
+
+When the actor may create a child and write its reference back to the parent, a
+`has_many` panel shows **Add invoice** (and a `has_one` panel shows **Add
+profile** while it is empty). The link opens the child's ordinary new form with
+`prefill[customer]=<parent key>`, so the reference is already chosen. The form
+is the child's own: its policy, field grants and validations apply, and nothing
+is written until the person saves.
+
+A new form takes `prefill[...]` only for writable `belongs_to` fields and only a
+target the actor can currently see; anything else is ignored. Use it in your own
+links too, for example from a custom page.
+
 ## A Single Child with has_one
 
 For a model `has_one`, declare a panel the same way; it shows the one child or
@@ -230,5 +243,5 @@ target grants.
 * Association search, sort and label columns (LIST-019): `belongs_to` fields
   cannot be `searchable` or `sortable`.
 * Polymorphic associations, and editing a `has_one` child from its parent.
-* Nested child forms, attach/detach/reparent policies and the dependent-destroy
+* Nested child forms (use the panel's Add link instead), attach/detach/reparent policies and the dependent-destroy
   preview required by CRUD-021.

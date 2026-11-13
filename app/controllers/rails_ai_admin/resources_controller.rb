@@ -127,13 +127,33 @@ module RailsAiAdmin
       @operation = operation
       @record = operation == :create ? @access.relation.new : @access.find!(params[:id], action: operation)
       @access.authorize!(operation, @record)
-      build_form_plan(operation) unless operation == :destroy
+      build_form_plan(operation, operation == :create ? prefill_values : nil) unless operation == :destroy
       @errors = {}
       # GET stays read-only: the form carries a signed reference that becomes
       # an intent on submit (RAA-005, ADR 0025).
       @intent_ref = runner.issue_form_intent(context: @context, resource: @resource, operation: operation,
         target_id: operation == :create ? nil : @record.id, expected_version: operation == :create ? nil : RecordVersion.of(@record)).ref
       render operation == :destroy ? :confirm_destroy : operation == :create ? :new : :edit
+    end
+
+    # prefill[<belongs_to field>]=<key> starts a new record pointing at a
+    # parent, as the "Add" link of an association panel does. Only writable
+    # references to targets the actor can see are taken; anything else is
+    # ignored, and the person still submits the form.
+    def prefill_values
+      raw = params[:prefill]
+      return nil unless raw.is_a?(ActionController::Parameters)
+      raw = raw.to_unsafe_h
+      references = @access.fields(:write, @record, operation: :create).select { |field| field.scalar_type == :belongs_to }
+      resolver = Fields::Association.new(@context, @resource)
+      references.each_with_object({}) do |field, values|
+        value = raw[field.name.to_s]
+        next unless value.is_a?(String)
+        key = field.coerce(value)
+        values[field.name.to_s] = key if key && resolver.admissible?(field, key)
+      rescue ArgumentError
+        next
+      end
     end
 
     def submit(operation)
