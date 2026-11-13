@@ -134,6 +134,17 @@ en:
       remove: Remove the current file
       remove_named: Remove %{file}
       list_limit: "Choose one or more files, up to %{size} each; at most %{count} in all."
+    audit:
+      title: Audit log
+      intro: Changes and exports made through the admin, newest first, for the resources you may audit.
+      resource: Resource
+      change: Change
+      outcome: Outcome
+      any: Any
+      saved: Saved
+      record: Record
+      empty: No events match.
+      only_actor: "Showing only changes by %{actor}."
     history:
       link: History
       title: History of %{record}
@@ -154,6 +165,7 @@ en:
         create: Created
         update: Updated
         destroy: Deleted
+        export: Exported CSV
       origins:
         surface: From a review in Chat
         assistant: Proposed in Chat
@@ -260,6 +272,7 @@ en:
       overview: Overview
       assistant: Assistant
       collection_jobs: Collection jobs
+      audit_log: Audit log
       resources_nav: Admin resources
       return_state_discarded: Some list settings are no longer available. Return links use the current
         permitted list.

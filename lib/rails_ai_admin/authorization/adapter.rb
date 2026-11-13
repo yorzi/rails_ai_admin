@@ -68,6 +68,13 @@ module RailsAiAdmin
         false
       end
 
+      # Lists this resource's audit events on the audit log page, across
+      # records and actors of the current tenant. Field names still follow the
+      # read and write grants.
+      def view_audit_log?(context:, resource:)
+        false
+      end
+
       # Shows a record's change history (who changed it, when, which fields).
       # Field names are filtered to the actor's current read and write grants;
       # this grant only decides whether the page exists for the record.

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Audit log: `<admin>/audit` lists the tenant's audit events across records for
+  resources granting `view_audit_log?(context:, resource:)`, filterable by
+  resource, change, outcome and actor, with field names under current grants.
 - Association panels offer "Add <child>" when the actor may create a child with a
   writable reference back to the parent. New forms accept
   `prefill[<belongs_to>]=<key>` for writable references to visible targets;

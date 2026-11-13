@@ -59,6 +59,16 @@ Run `bin/rails db:migrate` after upgrading: the
 `add_record_index_to_rails_ai_admin_audit_events` engine migration adds the
 index this page reads.
 
+## The Audit Log
+
+A separate default-deny grant, `view_audit_log?(context:, resource:)` (Pundit:
+`view_audit_log?` on the resource's policy), adds **Audit log** to the menu. It
+lists the current tenant's events for every resource that grants it, newest
+first, 50 at a time, including CSV exports and rejected writes. Filter by
+resource, change, outcome or actor (click a name). Field names follow each
+resource's current read and write grants, as on the History page; a record link
+opens the record's page, which applies its own scope and show grant again.
+
 ## Show Names Instead of References
 
 Audit events store an actor reference such as `raa:actor:User:42`, which the page

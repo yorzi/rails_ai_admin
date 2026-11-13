@@ -21,6 +21,7 @@ RailsAiAdmin::Engine.routes.draw do
     post "assistant/conversations/:chat_ref/archive", to: "assistant#archive", as: :archive_assistant_conversation
   end
   get "search", to: "search#index", as: :global_search
+  get "audit", to: "audit#index", as: :audit_log
   get "jobs", to: "collection_jobs#index", as: :collection_jobs
   get "jobs/:job_ref", to: "collection_jobs#show", as: :collection_job
   post "jobs/:job_ref/cancel", to: "collection_jobs#cancel", as: :cancel_collection_job

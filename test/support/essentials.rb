@@ -109,6 +109,7 @@ module EssentialFixtures
     def select_records?(context:, resource:) = select
 
     def view_history?(context:, resource:, record:) = history
+    def view_audit_log?(context:, resource:) = history && resource.key == :articles
     def export_records?(context:, resource:) = export
 
     def scope(context:, resource:, relation:)

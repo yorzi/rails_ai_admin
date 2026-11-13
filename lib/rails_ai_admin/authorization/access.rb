@@ -159,6 +159,12 @@ module RailsAiAdmin
         true
       end
 
+      def authorize_audit_log!
+        allowed = @adapter.respond_to?(:view_audit_log?) && @adapter.view_audit_log?(context: context, resource: resource) == true
+        raise AccessDenied unless allowed
+        true
+      end
+
       def authorize_history!(record)
         authorize!(:show, record)
         allowed = @adapter.respond_to?(:view_history?) && @adapter.view_history?(context: context, resource: resource, record: record) == true

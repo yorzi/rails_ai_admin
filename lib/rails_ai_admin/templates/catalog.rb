@@ -15,6 +15,7 @@ module RailsAiAdmin
         "session_links" => [ "rails_ai_admin/shared/_session.html.erb", %i[context], [] ],
         "resource_navigation" => [ "rails_ai_admin/shared/_navigation.html.erb", [], %i[groups] ],
         "dashboard" => [ "rails_ai_admin/dashboard/index.html.erb", %i[context counts], [] ],
+        "audit_log" => [ "rails_ai_admin/audit/index.html.erb", %i[context log filters page actor_labels], [] ],
         "search" => [ "rails_ai_admin/search/index.html.erb", %i[context query sections], [] ],
         "resource_index" => [ "rails_ai_admin/resources/index.html.erb", %i[context resource page columns rows searchable selectable exportable sortable_fields list_scopes current_scope filter_fields omitted_rows], [] ],
         "resource_show" => [ "rails_ai_admin/resources/show.html.erb", %i[context resource record values fields operations association_panels], [] ],
