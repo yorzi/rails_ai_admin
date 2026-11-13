@@ -12,6 +12,7 @@ module RailsAiAdmin
     helper RailsAiAdmin::NavigationHelper
     helper RailsAiAdmin::FiltersHelper
     helper RailsAiAdmin::ToolViewsHelper
+    helper RailsAiAdmin::HistoryHelper
     prepend_before_action :secure_headers
     before_action :authenticate_admin
     after_action :notice_discarded_list_settings
@@ -195,6 +196,25 @@ module RailsAiAdmin
     # resource policy; nothing is shared across requests or actors.
     def admin_associations
       @admin_associations ||= Fields::Association.new(@context, @resource)
+    end
+
+    # Display names for stored actor references. The context adapter may
+    # answer actor_labels(context:, actor_refs:) with a Hash; otherwise a
+    # reference reads as "User #42".
+    def actor_labels(refs)
+      adapter = RailsAiAdmin.configuration.context_adapter&.constantize&.new
+      given = adapter.respond_to?(:actor_labels) ? adapter.actor_labels(context: @context, actor_refs: refs) : {}
+      given = {} unless given.is_a?(Hash)
+      refs.to_h do |ref|
+        label = given[ref]
+        label = nil unless label.is_a?(String) && label.valid_encoding? && label.length.between?(1, 200)
+        [ ref, label || default_actor_label(ref) ]
+      end
+    end
+
+    def default_actor_label(ref)
+      _, _, kind, id = ref.to_s.split(":", 4)
+      kind && id ? "#{kind.demodulize.titleize} ##{id}" : ref.to_s
     end
 
     def record_label(resource, record, values: nil, view: :show)

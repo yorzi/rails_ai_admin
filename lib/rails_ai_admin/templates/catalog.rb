@@ -17,6 +17,7 @@ module RailsAiAdmin
         "dashboard" => [ "rails_ai_admin/dashboard/index.html.erb", %i[context], [] ],
         "resource_index" => [ "rails_ai_admin/resources/index.html.erb", %i[context resource page columns rows searchable selectable sortable_fields list_scopes current_scope filter_fields omitted_rows], [] ],
         "resource_show" => [ "rails_ai_admin/resources/show.html.erb", %i[context resource record values fields operations association_panels], [] ],
+        "resource_history" => [ "rails_ai_admin/resources/history.html.erb", %i[context resource record history actor_labels], [] ],
         "resource_associations" => [ "rails_ai_admin/resources/_associations.html.erb", [], %i[panels] ],
         "resource_new" => [ "rails_ai_admin/resources/new.html.erb", %i[context resource record operation intent_ref form_fields form_values form_plan errors failure_code needs_reload], [] ],
         "resource_edit" => [ "rails_ai_admin/resources/edit.html.erb", %i[context resource record operation intent_ref form_fields form_values form_plan errors failure_code needs_reload], [] ],
@@ -41,7 +42,7 @@ module RailsAiAdmin
         "selection" => [ "rails_ai_admin/selections/show.html.erb", %i[context resource selection operations], [] ]
       }.freeze
       ENTRIES = DEFINITIONS.map do |key, (path, assigns, locals)|
-        navigation = %w[layout resource_index resource_show resource_new resource_edit resource_form resource_destroy operation_form operation_confirmation operation_failure collection_form collection_confirmation collection_failure job_show selection].include?(key)
+        navigation = %w[layout resource_index resource_show resource_history resource_new resource_edit resource_form resource_destroy operation_form operation_confirmation operation_failure collection_form collection_confirmation collection_failure job_show selection].include?(key)
         assigns += [ :list_navigation ] if navigation
         revision = if key == "layout"
           4 # page titles, environment label and the session_links slot (RAA-024)

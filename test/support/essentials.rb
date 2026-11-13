@@ -35,11 +35,15 @@ module EssentialFixtures
     WRITE = %i[title views contact website opens_at settings password].freeze
     class_attribute :read, default: READ
     class_attribute :write, default: WRITE
+    class_attribute :history, default: true
 
     def self.reset!
       self.read = READ
       self.write = WRITE
+      self.history = true
     end
+
+    def view_history?(context:, resource:, record:) = history
 
     def scope(context:, resource:, relation:) = relation.where(account_id: context.tenant.id)
 

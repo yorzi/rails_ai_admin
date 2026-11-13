@@ -204,6 +204,9 @@ your own adapter, never from global RubyLLM configuration. See the
 
 ## Fixed Selection Previews
 
+A default-deny `view_history?` grant adds a record History page listing its audited
+changes (fields named only when currently readable or writable).
+
 A separate default-deny `select_records?` grant enables native index checkboxes
 and a no-JavaScript preview of up to 100 explicit targets. `Selections::Builder`
 captures exact canonical IDs/versions and revalidates ownership, security version,

@@ -68,6 +68,15 @@ module RailsAiAdmin
       end
     end
 
+    # Who changed this record, when and which fields, newest first.
+    def history
+      @record = @access.find!(params[:id])
+      before = params[:before]
+      raise AccessDenied, "INVALID_QUERY" unless before.nil? || before.is_a?(String)
+      @history = Presentation::History.new(@access, @record).page(before: before)
+      @actor_labels = actor_labels(@history.entries.map(&:actor_ref).uniq)
+    end
+
     def new
       prepare_form(:create)
     end

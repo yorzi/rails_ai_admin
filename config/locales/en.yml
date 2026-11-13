@@ -115,6 +115,29 @@ en:
       saved: Changes saved.
       saved_with_warning: Changes saved, but a host callback failed. Review operation %{operation} before
         continuing.
+    history:
+      link: History
+      title: History of %{record}
+      back: Back to %{record}
+      caption: Changes made through the admin, newest first.
+      empty: No changes have been recorded for this record yet.
+      when: When
+      change: Change
+      fields: Fields
+      by: By
+      you: (you)
+      older: Show older changes
+      not_saved: Not saved
+      other_fields:
+        one: 1 other field
+        other: "%{count} other fields"
+      operations:
+        create: Created
+        update: Updated
+        destroy: Deleted
+      origins:
+        surface: From a review in Chat
+        assistant: Proposed in Chat
     selections:
       empty: Select at least one record.
       title: Selected records

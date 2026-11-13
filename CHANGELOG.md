@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Record History: with a new default-deny `view_history?(context:, resource:,
+  record:)` grant (Pundit: `view_history?`), a record's page links to
+  `<admin>/<resource>/<id>/history`, its audit trail newest first (50 per
+  page): time, change, changed fields named only when currently readable or
+  writable, actor and origin. Rejected writes now record their target, so a
+  lost edit appears as "Not saved". A context adapter may answer
+  `actor_labels(context:, actor_refs:)` to show names. New engine migration
+  `add_record_index_to_rails_ai_admin_audit_events`.
 - New field types: `time` (time of day), `email` (mailto link), `url` (only
   http/https addresses become links), `json` (indented editing and display on
   json/jsonb columns) and write-only `password` for `has_secure_password`. No

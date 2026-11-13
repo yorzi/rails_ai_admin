@@ -551,7 +551,7 @@ module RailsAiAdmin
         return if run.parent_run_id || run.selection_id
         AuditEvent.create!(actor_ref: context.actor_ref, tenant_ref: context.tenant_ref,
           resource_key: run.resource_key, operation: run.operation, status: "rejected", code: code,
-          correlation_ref: run.id, origin: origin.to_s, changed_fields: [], created_at: Time.current)
+          record_id: run.target_id, correlation_ref: run.id, origin: origin.to_s, changed_fields: [], created_at: Time.current)
       end
     end
   end

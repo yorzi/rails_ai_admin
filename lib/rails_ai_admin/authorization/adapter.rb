@@ -61,6 +61,13 @@ module RailsAiAdmin
       def assistant?(context:, resource:)
         false
       end
+
+      # Shows a record's change history (who changed it, when, which fields).
+      # Field names are filtered to the actor's current read and write grants;
+      # this grant only decides whether the page exists for the record.
+      def view_history?(context:, resource:, record:)
+        false
+      end
     end
   end
 end

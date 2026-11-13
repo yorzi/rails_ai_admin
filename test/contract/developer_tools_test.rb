@@ -283,7 +283,7 @@ class DeveloperToolsTest < Minitest::Test
         paths.each { |path| assert_includes File.read(File.join(directory, path)), "# reviewed host extension" }
         assert_equal installed, Dir[File.join(directory, "db/migrate/*.rb")].sort
         assert_includes File.read(installed.first), "# copied from an older engine build"
-        assert_equal 5, output.scan(/exist\s+db\/migrate\//).size
+        assert_equal Dir[File.expand_path("../../db/migrate/*.rb", __dir__)].size, output.scan(/exist\s+db\/migrate\//).size
         assert_equal 1, File.read(File.join(directory, "config/routes.rb")).scan("mount RailsAiAdmin::Engine").size
       end
     end
