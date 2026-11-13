@@ -154,6 +154,31 @@ en:
       fixed_note: >-
         Changes to a selected record require a fresh selection. Unselected and newly matching records
         are never added automatically.
+      destroy:
+        link:
+          one: Delete the selected record
+          other: Delete the %{count} selected records
+        title: Delete selected records
+        question:
+          one: Delete this record? This cannot be undone.
+          other: Delete these %{count} records? This cannot be undone.
+        skipped:
+          one: 1 selected record cannot be deleted by you and will be kept.
+          other: "%{count} selected records cannot be deleted by you and will be kept."
+        each_note: Each record is deleted on its own and recorded in the audit; a record that cannot be deleted does not stop the others.
+        submit:
+          one: Delete 1 record
+          other: Delete %{count} records
+        deleting: Deleting…
+        done:
+          one: Deleted 1 record.
+          other: Deleted %{count} records.
+        result_title: Delete results
+        deleted:
+          one: Deleted 1 record.
+          other: Deleted %{count} records.
+        not_deleted: These records were not deleted
+        reason: Reason
     collection_jobs:
       waiting: Waiting for a worker. The oldest item has been queued for %{age}.
       waiting_hint_html: >-

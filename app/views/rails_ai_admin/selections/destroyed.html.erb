@@ -1,0 +1,15 @@
+<p><%= link_to list_return_label, list_return_path %></p>
+<% admin_title t("rails_ai_admin.selections.destroy.result_title"), @resource.label %>
+<h1><%= t("rails_ai_admin.selections.destroy.result_title") %></h1>
+<p role="status"><%= t("rails_ai_admin.selections.destroy.deleted", count: @deleted) %></p>
+<% if @skipped.positive? %><p><%= t("rails_ai_admin.selections.destroy.skipped", count: @skipped) %></p><% end %>
+<% if @failed.any? %>
+  <h2><%= t("rails_ai_admin.selections.destroy.not_deleted") %></h2>
+  <div class="raa-table-scroll"><table>
+    <thead><tr><th scope="col"><%= t("rails_ai_admin.collection_jobs.record") %></th><th scope="col"><%= t("rails_ai_admin.selections.destroy.reason") %></th></tr></thead>
+    <tbody><% @failed.each do |target, code| %><tr>
+      <td><% if code == "NOT_FOUND" %><%= target.label %><% else %><%= link_to target.label, resource_path(resource: @resource.key, id: target.id, **navigation_params) %><% end %></td>
+      <td><%= admin_outcome(code) %></td>
+    </tr><% end %></tbody>
+  </table></div>
+<% end %>

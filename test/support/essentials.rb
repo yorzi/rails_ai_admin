@@ -10,6 +10,11 @@ class Article < ActiveRecord::Base
   has_secure_password :password, validations: false
   validates :title, presence: true
   validates :password, length: { minimum: 8 }, allow_nil: true
+  before_destroy do
+    next unless title == "Locked"
+    errors.add(:base, "Locked articles are kept")
+    throw :abort
+  end
 end
 
 module EssentialFixtures
@@ -30,6 +35,17 @@ module EssentialFixtures
     end
   end
 
+  class ReadonlyArticleAdmin < RailsAiAdmin::Resource
+    model "Article"
+    key :articles
+    title :title
+    readonly
+    fields do
+      id :id
+      text :title
+    end
+  end
+
   class Policy < RailsAiAdmin::Authorization::Adapter
     READ = %i[id title views contact website opens_at settings password updated_at].freeze
     WRITE = %i[title views contact website opens_at settings password].freeze
@@ -37,13 +53,19 @@ module EssentialFixtures
     class_attribute :write, default: WRITE
     class_attribute :history, default: true
     class_attribute :export, default: true
+    class_attribute :select, default: true
+    class_attribute :undeletable, default: []
 
     def self.reset!
       self.read = READ
       self.write = WRITE
       self.history = true
       self.export = true
+      self.select = true
+      self.undeletable = []
     end
+
+    def select_records?(context:, resource:) = select
 
     def view_history?(context:, resource:, record:) = history
     def export_records?(context:, resource:) = export
@@ -51,6 +73,7 @@ module EssentialFixtures
     def scope(context:, resource:, relation:) = relation.where(account_id: context.tenant.id)
 
     def allowed?(context:, action:, resource:, record: nil)
+      return false if action == :destroy && record && undeletable.include?(record.title)
       context.actor.id == 1 || %i[index show].include?(action)
     end
 

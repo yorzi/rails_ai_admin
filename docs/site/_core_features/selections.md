@@ -70,6 +70,27 @@ A record that later begins matching an index search is never added automatically
 Changing a selected record requires a fresh selection; the current preview does
 not silently substitute a replacement record with the same display name or count.
 
+## Delete Selected Records
+
+When the resource allows `destroy` and the actor may delete at least one of the
+selected records, the selection page offers **Delete the N selected records**.
+The review page lists the records the actor may delete now and says how many
+will be kept because their own `destroy` check fails. Nothing is written until
+the person confirms.
+
+Confirming posts the selection's manifest digest. The selection is revalidated
+first: if any selected record changed, nothing is deleted and the page asks for
+a fresh selection. Then each record is deleted on its own through the native
+destroy operation, with its own policy check, captured version, transaction and
+audit event, exactly as from its own Delete button. A record that cannot be
+deleted (for example, `dependent: :restrict_with_error` or a `before_destroy`
+abort) does not stop the others. When everything was deleted, the list opens
+with "Deleted N records."; otherwise a results page lists each record that was
+kept and why.
+
+Bulk delete is synchronous and bounded by the selection limit of 100 records.
+It needs no collection operation, queue or worker.
+
 ## Use the Builder With Explicit Targets
 
 Given the current authenticated `context`, registered `CustomerAdmin` and two

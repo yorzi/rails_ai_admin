@@ -11,6 +11,9 @@
   <td><%= target.id %></td><td><%= target.expected_version %></td>
 </tr><% end %></tbody></table></div>
 <p><%= t("rails_ai_admin.selections.fixed_note") %></p>
+<% if @deletable %>
+  <p><%= link_to t("rails_ai_admin.selections.destroy.link", count: @selection.targets.size), confirm_destroy_selection_path(selection_ref: @selection.selection_ref, **navigation_params), class: "raa-danger" %></p>
+<% end %>
 <% @operations.each do |operation| %>
   <p><%= link_to operation.description, collection_operation_form_path(resource: @resource.key, operation: operation.key, selection_ref: @selection.selection_ref, **navigation_params), class: "raa-button" %></p>
 <% end %>

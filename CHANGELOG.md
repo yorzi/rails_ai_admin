@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Bulk delete: a fixed selection offers "Delete the N selected records" when the
+  resource allows `destroy` and the actor may delete at least one of them. After
+  a review page, each record is deleted on its own through the native destroy
+  operation (own policy check, version, transaction and audit); records that
+  cannot be deleted are kept and listed with the reason. A changed selection
+  deletes nothing. `Selections::Builder#revalidate` now yields current records
+  to a block.
 - CSV export: a default-deny `export_records?(context:, resource:)` grant (Pundit:
   `export_records?`) adds an Export CSV button that POSTs the current search,
   list tab, filters and sort to `<admin>/<resource>/exports`. Rows and columns

@@ -29,6 +29,8 @@ RailsAiAdmin::Engine.routes.draw do
   post ":resource/selections", to: "selections#create", as: :capture_selection
   post ":resource/exports", to: "exports#create", as: :resource_export
   get "selections/:selection_ref", to: "selections#show", as: :selection
+  get "selections/:selection_ref/destroy", to: "selections#confirm_destroy", as: :confirm_destroy_selection
+  post "selections/:selection_ref/destroy", to: "selections#destroy", as: :destroy_selection
   get ":resource/:id/operations/:operation", to: "operations#new", as: :operation_form
   post ":resource/:id/operations/:operation/preflight", to: "operations#preflight", as: :operation_preflight
   post ":resource/:id/operations/:operation/execute", to: "operations#execute", as: :operation_execute

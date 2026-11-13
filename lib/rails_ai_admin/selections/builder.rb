@@ -38,8 +38,9 @@ module RailsAiAdmin
 
       # This is a fresh check, not a lock or authorization for a later write.
       # Execution must bind this digest and recheck each item in its transaction.
-      def revalidate(context:, selection_ref:, resource: nil, manifest_digest: nil)
-        read_snapshot(context: context, selection_ref: selection_ref, resource: resource, manifest_digest: manifest_digest, labels: true)
+      # A block receives each current record, inside the same read-only check.
+      def revalidate(context:, selection_ref:, resource: nil, manifest_digest: nil, &block)
+        read_snapshot(context: context, selection_ref: selection_ref, resource: resource, manifest_digest: manifest_digest, labels: true, &block)
       end
 
       # Internal admission path: no title projection or domain preflight under

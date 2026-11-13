@@ -39,10 +39,12 @@ module RailsAiAdmin
         "collection_failure" => [ "rails_ai_admin/collection_operations/failure.html.erb", %i[context resource failure_code uncertain_job_ref], [] ],
         "job_index" => [ "rails_ai_admin/collection_jobs/index.html.erb", %i[context jobs], [] ],
         "job_show" => [ "rails_ai_admin/collection_jobs/show.html.erb", %i[context resource job], [] ],
-        "selection" => [ "rails_ai_admin/selections/show.html.erb", %i[context resource selection operations], [] ]
+        "selection" => [ "rails_ai_admin/selections/show.html.erb", %i[context resource selection operations deletable], [] ],
+        "selection_destroy" => [ "rails_ai_admin/selections/confirm_destroy.html.erb", %i[context resource selection deletable skipped], [] ],
+        "selection_destroy_result" => [ "rails_ai_admin/selections/destroyed.html.erb", %i[context resource selection deleted skipped failed], [] ]
       }.freeze
       ENTRIES = DEFINITIONS.map do |key, (path, assigns, locals)|
-        navigation = %w[layout resource_index resource_show resource_history resource_new resource_edit resource_form resource_destroy operation_form operation_confirmation operation_failure collection_form collection_confirmation collection_failure job_show selection].include?(key)
+        navigation = %w[layout resource_index resource_show resource_history resource_new resource_edit resource_form resource_destroy operation_form operation_confirmation operation_failure collection_form collection_confirmation collection_failure job_show selection selection_destroy selection_destroy_result].include?(key)
         assigns += [ :list_navigation ] if navigation
         revision = if key == "layout"
           4 # page titles, environment label and the session_links slot (RAA-024)
