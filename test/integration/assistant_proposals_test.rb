@@ -128,7 +128,8 @@ class AssistantProposalsTest < ActionDispatch::IntegrationTest
         choices: [ { index: 0, finish_reason: "stop", message: { role: "assistant", content: "I opened a review for you to confirm." } } ],
         usage: { prompt_tokens: 80, completion_tokens: 10, total_tokens: 90 } }
       requests = []
-      stub_request(:post, COMPLETIONS).to_return do |request|
+      completion = stub_request(:post, COMPLETIONS)
+        .with(headers: { "Authorization" => "Bearer synthetic-offline-key" }).to_return do |request|
         requests << JSON.parse(request.body)
         { status: 200, headers: { "Content-Type" => "application/json" }, body: (requests.size == 1 ? tool_turn : final_turn).to_json }
       end
@@ -150,7 +151,7 @@ class AssistantProposalsTest < ActionDispatch::IntegrationTest
       assert_equal "proposed", run.status
       assert RailsToolViews::Surface.exists?(context_ref: "raa:conversation:c1", actor_ref: context.actor_ref)
       assert_same global, RubyLLM.config, "the admin used an isolated RubyLLM.context"
-      assert_requested(:post, COMPLETIONS, times: 2)
+      assert_requested(completion, times: 2)
     end
   end
 end

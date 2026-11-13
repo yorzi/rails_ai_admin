@@ -45,9 +45,9 @@ hosts, not by external users.
 | Owner approval and publishing | Owner only | `allowed_push_host` blocks `gem push` today |
 
 The 0.1.0 candidate still needs CI on the exact release commit and the owner's
-approval to publish. The docs build targets the GitHub Pages project path
-`/rails_ai_admin`. Verify repository visibility, the public docs destination
-and the Pages deployment setup with the owner before publishing the site.
+approval to publish. The docs build targets the custom GitHub Pages domain
+`rails-ai-admin.wangyaodi.com`. Verify the Pages source and the Cloudflare
+CNAME before publishing the site.
 A screen-reader pass and an independent install trial remain recommended.
 
 Publishing an earlier, conventional-only prerelease (for example

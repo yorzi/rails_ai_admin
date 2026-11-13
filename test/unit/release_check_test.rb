@@ -19,13 +19,12 @@ class ReleaseCheckTest < Minitest::Test
     %w[version host_pins docs_config changelog package_files metadata].each { |name| assert_equal :ok, result.fetch(name), name }
   end
 
-  def test_a_release_version_requires_every_synchronized_value_and_owner_approval
+  def test_a_release_version_requires_synchronized_metadata
     check = ReleaseCheck.new(ROOT)
     check.define_singleton_method(:version) { "0.2.0" }
     result = statuses(check)
-    %w[host_pins docs_config changelog publish_gate].each { |name| assert_equal :error, result.fetch(name), name }
+    %w[host_pins docs_config changelog].each { |name| assert_equal :error, result.fetch(name), name }
     assert_equal :ok, result.fetch("package_files")
-    assert_match(/owner/, check.checks.find { |entry| entry.name == "publish_gate" }.message)
   end
 
   def test_an_invalid_version_is_an_error

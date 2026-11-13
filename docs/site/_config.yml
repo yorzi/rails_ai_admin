@@ -1,8 +1,8 @@
 title: "Rails AI Admin"
 description: "Build authorized admin pages with explicit resources and atomic operations."
 tagline: "Explicit Rails administration"
-url: https://yorzi.github.io
-baseurl: /rails_ai_admin
+url: https://rails-ai-admin.wangyaodi.com
+baseurl: ""
 lang: en-US
 
 theme: jekyll-vitepress-theme

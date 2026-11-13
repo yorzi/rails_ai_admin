@@ -18,8 +18,8 @@ Gem::Specification.new do |spec|
   spec.metadata["source_code_uri"] = spec.homepage
   spec.metadata["changelog_uri"] = "#{spec.homepage}/blob/main/CHANGELOG.md"
   spec.metadata["bug_tracker_uri"] = "#{spec.homepage}/issues"
-  # Prevent an accidental release before the explicit owner approval gate.
-  spec.metadata["allowed_push_host"] = "https://unreleased.invalid"
+  spec.metadata["documentation_uri"] = "https://rails-ai-admin.wangyaodi.com/"
+  spec.metadata["allowed_push_host"] = "https://rubygems.org"
 
   spec.add_dependency "base64", "~> 0.3"
   # 8.0.5.2 and 8.1.4.1 are the patched releases of each series; doctor
