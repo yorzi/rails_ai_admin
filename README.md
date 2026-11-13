@@ -3,14 +3,17 @@
 A self-hosted Rails admin engine with explicitly registered resources and one
 policy-checked, audited execution boundary for conventional CRUD.
 
-**Unreleased development.** Current code supplies scalar conventional CRUD,
-`belongs_to` references with readonly `has_many` panels, registered scalar field
-types and partials, synchronous member operations, fixed Selection previews,
-bounded asynchronous collection operations, opt-in admin review Surfaces and a
-durable outbox for one declared post-commit effect, and an opt-in admin Chat
-whose proposals become review Surfaces. Native-provider evidence, streaming and AI
-budgets, association search and broader association writes, CSV, private files,
-metrics dashboards and the broader batch/job-center workflows remain future work. The
+**Unreleased development.** Current code supplies conventional CRUD with everyday
+field types (text, numbers, dates, times, email, URL, JSON, write-only passwords,
+Active Storage files and Action Text rich text), `belongs_to` references,
+many-to-many `references` lists, readonly `has_many`/`has_one` panels, registered
+field types and partials, CSV export, record history, bulk delete, a search across
+resources, synchronous member operations, fixed Selection previews, bounded
+asynchronous collection operations, opt-in admin review Surfaces and a durable
+outbox for one declared post-commit effect, and an opt-in admin Chat whose
+proposals become review Surfaces. Native-provider evidence, streaming and AI
+budgets, `has_many_attached`, nested and polymorphic association writes, imports,
+metrics dashboards and the broader job-center workflows remain future work. The
 [development plan](docs/development-plan.md) describes the target product, not the
 supported feature set.
 

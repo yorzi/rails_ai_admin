@@ -218,8 +218,12 @@ Continue the shared execution contracts while the full Phase 1 evidence remains 
   custom-operation recovery stay open.
 - Early proof follow-up: extend the existing Chat/Surface/continuation fault
   coverage and native-provider evidence; the initial offline flow is implemented.
-- Phases 3–4: associations, batch/selection, CSV, private files, audit explorer,
-  dashboards and the complete conventional P0 baseline.
+- Phases 3–4: done locally on 2026-11-13 for everyday needs: many-to-many
+  `references`, `has_one` panels, bulk delete over a selection, CSV export,
+  Active Storage `file` and Action Text `rich_text` fields, record history,
+  cross-resource search and overview counts. Still open: `has_many_attached`,
+  nested and polymorphic writes, imports, a cross-record audit explorer and
+  metrics dashboards.
 - Phases 5–7: expand the existing persistent Chat, shared-runtime Surface and
   continuation implementation with quotas, streaming, context, retention and
   the complete revocation/failure/evaluation matrix.
