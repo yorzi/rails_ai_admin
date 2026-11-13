@@ -81,8 +81,10 @@ through `lock_version` or `updated_at` and share the domain's connection pool.
 
 ## See It Running
 
-`bin/demo` serves a seeded admin on `127.0.0.1` with every feature turned on:
-uploads, rich text, imports, history, charts and search. See
+`bin/demo --assistant` serves a seeded admin on `127.0.0.1` with every feature
+turned on: uploads, rich text, imports, history, charts, search, and AI chat and
+MCP against an offline fake model. Open `http://127.0.0.1:3917/login` and click
+**Sign in as Admin**. See
 [Try the Demo]({% link _getting_started/demo.md %}).
 
 ## Extend Scalar Fields

@@ -55,8 +55,10 @@ packaged session/SQLite host to `tmp/demo`, seeds sample data and serves it on
 127.0.0.1 only; Ctrl-C stops it:
 
 ```sh
-bin/demo               # http://127.0.0.1:3917/staff, admin@example.test / demo-password
-bin/demo --assistant   # also admin Chat, against an offline fake provider (no key)
+bin/demo --assistant   # everything, incl. admin Chat and MCP against an offline fake model (no key)
+bin/demo               # everything except admin Chat and MCP
+# then open http://127.0.0.1:3917/login and click "Sign in as Admin"
+# (admin@example.test / demo-password)
 ```
 
 ```sh

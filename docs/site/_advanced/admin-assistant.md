@@ -94,7 +94,7 @@ end
 ```
 
 Boot fails when `ruby_llm` is not loaded. Proposals also need
-[Review Surfaces](review-surfaces.html) and at least one member operation with
+[Review Surfaces]({% link _advanced/review-surfaces.md %}) and at least one member operation with
 `surface: true, assistant: true`. Native Surface permission alone does not
 expose an operation to the assistant.
 

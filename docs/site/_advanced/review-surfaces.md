@@ -119,7 +119,7 @@ configuration.
 
 Inside admin Chat, a resource that declares `assistant_changes :create, :update,
 :destroy` also lets the model propose native changes with `propose_change`; see
-[Admin Assistant](admin-assistant.html). Those reviews show before → after for
+[Admin Assistant]({% link _advanced/admin-assistant.md %}). Those reviews show before → after for
 each field and use the same Confirm and Dismiss actions.
 
 ## Confirm or Dismiss
@@ -135,6 +135,6 @@ Stimulus controller, so the Surface's saving and failure status texts appear.
 
 Inputs cannot be edited inside the Surface, and Surface templates are not in the
 override catalog. Assistant chats and their follow-up after a confirmation or a
-dismissal are described in [Admin Chat](admin-assistant.html). A review ends by
+dismissal are described in [Admin Chat]({% link _advanced/admin-assistant.md %}). A review ends by
 Confirm or Dismiss; rails_tool_views' own close and retention of admin Surfaces
 are not wired up.
