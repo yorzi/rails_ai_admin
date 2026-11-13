@@ -95,6 +95,10 @@
 .raa .raa-multiline { white-space:pre-wrap; }
 .raa .raa-file-preview { display:block; max-width:min(100%,20rem); max-height:14rem; margin:.25rem 0; border:1px solid var(--raa-line); border-radius:.4rem; background:var(--raa-panel); }
 .raa .raa-file-current,.raa .raa-file-remove { margin:.25rem 0; }
+.raa .raa-rich-text { overflow-wrap:anywhere; }
+.raa .raa-rich-text > :first-child { margin-top:0; }
+.raa .raa-rich-text-editor { display:block; min-height:10rem; padding:.6rem .8rem; background:var(--raa-panel); border:1px solid var(--raa-line); border-radius:.4rem; }
+.raa trix-toolbar [data-trix-button-group="file-tools"] { display:none; }
 .raa .raa-json { margin:0; padding:.6rem .8rem; max-height:24rem; overflow:auto; white-space:pre; font:.85rem/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; background:var(--raa-bg); border:1px solid var(--raa-line); border-radius:.4rem; }
 .raa textarea.raa-json-input { font:.85rem/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
 .raa .raa-header-meta { display:flex; align-items:center; gap:1rem; }

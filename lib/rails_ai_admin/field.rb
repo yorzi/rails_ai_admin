@@ -10,14 +10,16 @@ module RailsAiAdmin
   # Declares one scalar input/output contract. All presentation and query flags
   # only narrow the permissions returned by the host policy.
   class Field
-    TYPES = %i[id text textarea integer decimal boolean date datetime enum select belongs_to time email url password json file].freeze
+    TYPES = %i[id text textarea integer decimal boolean date datetime enum select belongs_to time email url password json file rich_text].freeze
     # Text-like scalars share text coercion, search and equality filters.
     TEXT_TYPES = %i[text textarea id email url].freeze
     # Never listed, searched, sorted or filtered: a password is write-only and
     # JSON has no stable text or ordering.
-    UNQUERYABLE_TYPES = %i[password json file].freeze
+    UNQUERYABLE_TYPES = %i[password json file rich_text].freeze
     # Registered types refine plain scalars only.
-    PLUGIN_EXCLUDED = %i[belongs_to password json file].freeze
+    PLUGIN_EXCLUDED = %i[belongs_to password json file rich_text].freeze
+    # Rich text is stored HTML; its bound is larger than other text.
+    MAX_RICH_TEXT = 1_048_576
     # Default upload bound for a file field: 10 MB.
     MAX_FILE_SIZE = 10 * 1024 * 1024
     CONTENT_TYPE = %r{\A[a-z]+/(?:\*|[a-z0-9][a-z0-9.+-]*)\z}
@@ -70,6 +72,7 @@ module RailsAiAdmin
       defaults.merge!(max_length: 65_536) if @scalar_type == :json
       defaults.merge!(index: false, show: false) if @scalar_type == :password
       defaults.merge!(max_size: MAX_FILE_SIZE) if @scalar_type == :file
+      defaults.merge!(max_length: MAX_RICH_TEXT) if @scalar_type == :rich_text
       @options = immutable_copy(defaults.merge(options))
       validate_options!
       validate_association_options!
@@ -139,6 +142,7 @@ module RailsAiAdmin
       when :time then format_time_of_day(value)
       when :json then format_json(value)
       when :password then "—"
+      when :rich_text then plain_text(value.to_s)
       when :file then value.respond_to?(:filename) ? "#{value.filename} (#{ActiveSupport::NumberHelper.number_to_human_size(value.byte_size)})" : value.to_s
       else value.to_s
       end
@@ -157,6 +161,12 @@ module RailsAiAdmin
       parts = value.to_s.match(TIME_OF_DAY)
       return value.to_s unless parts
       parts[3].nil? || parts[3] == "00" ? "#{parts[1]}:#{parts[2]}" : "#{parts[1]}:#{parts[2]}:#{parts[3]}"
+    end
+
+    # Rich text as plain text, for lists, CSV and the assistant.
+    def plain_text(html)
+      text = defined?(::ActionText::Content) ? ::ActionText::Content.new(html).to_plain_text : Rails::HTML5::FullSanitizer.new.sanitize(html)
+      text.to_s.truncate_bytes(16_000)
     end
 
     # Indented JSON, cut to the page bound so a large document cannot fail a page.
@@ -207,11 +217,11 @@ module RailsAiAdmin
         value = value.to_s if value.is_a?(Integer) && value.positive?
         raise ArgumentError, message(:unavailable_choice, "is not an available choice") unless value.is_a?(String) && value.valid_encoding? && value.match?(REFERENCE)
         String.new(value)
-      when :text, :textarea, :id, :email, :url, :password
+      when :text, :textarea, :id, :email, :url, :password, :rich_text
         raise ArgumentError, message(:not_text, "must be text") unless value.is_a?(String)
         raise ArgumentError, message(:too_long, "is too long") if value.length > options[:max_length]
         raise ArgumentError, message(:invalid, "is invalid") unless value.valid_encoding?
-        if strict && value.match?(scalar_type == :textarea ? TEXTAREA_CONTROLS : TEXT_CONTROLS)
+        if strict && value.match?(%i[textarea rich_text].include?(scalar_type) ? TEXTAREA_CONTROLS : TEXT_CONTROLS)
           raise ArgumentError, message(:control_characters, "contains control characters")
         end
         if strict && scalar_type == :email && !value.match?(EMAIL)
@@ -393,7 +403,7 @@ module RailsAiAdmin
       return false unless value.is_a?(String)
       return value.empty? && !%i[text textarea].include?(scalar_type) unless strict
       return true if value.empty?
-      (TEXT_TYPES + %i[password time json]).include?(scalar_type) && value.valid_encoding? && value.match?(BLANK)
+      (TEXT_TYPES + %i[password time json rich_text]).include?(scalar_type) && value.valid_encoding? && value.match?(BLANK)
     end
 
     # Field input messages are translatable under rails_ai_admin.fields.errors.
@@ -452,7 +462,7 @@ module RailsAiAdmin
 
     def validate_options!
       unless %i[readonly nullable required create edit index show hidden].all? { |key| [ true, false ].include?(options[key]) } &&
-          options[:max_length].is_a?(Integer) && (1..65_536).cover?(options[:max_length]) &&
+          options[:max_length].is_a?(Integer) && (1..(scalar_type == :rich_text ? MAX_RICH_TEXT : 65_536)).cover?(options[:max_length]) &&
           (options[:label].nil? || options[:label].is_a?(String) && options[:label].length.between?(1, 200) && options[:label].valid_encoding?)
         raise ConfigurationError, "Field flags, label or length are invalid"
       end

@@ -7,6 +7,7 @@ require "support/essentials"
 class Document < ActiveRecord::Base
   has_one_attached :cover
   has_one_attached :contract
+  has_rich_text :body
   validates :title, presence: true
 end
 
@@ -20,16 +21,17 @@ module AttachmentFixtures
       text :title, required: true, nullable: false
       file :cover, accept: %w[image/*], max_size: 1024 * 1024
       file :contract, accept: %w[application/pdf]
+      rich_text :body
     end
   end
 
   class Policy < RailsAiAdmin::Authorization::Adapter
-    class_attribute :read, default: %i[id title cover contract]
-    class_attribute :write, default: %i[title cover contract]
+    class_attribute :read, default: %i[id title cover contract body]
+    class_attribute :write, default: %i[title cover contract body]
 
     def self.reset!
-      self.read = %i[id title cover contract]
-      self.write = %i[title cover contract]
+      self.read = %i[id title cover contract body]
+      self.write = %i[title cover contract body]
     end
 
     def scope(context:, resource:, relation:) = relation.where(account_id: context.tenant.id)
@@ -80,6 +82,7 @@ module AttachmentFixtures
 
   def reset_documents
     Policy.reset!
+    ActionText::RichText.delete_all
     ActiveStorage::Attachment.delete_all
     ActiveStorage::Blob.delete_all
     Document.delete_all

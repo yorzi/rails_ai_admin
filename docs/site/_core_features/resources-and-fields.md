@@ -45,7 +45,7 @@ Declare columns that exist on your own host model; this example is a field-type
 reference, not an instruction to add business columns. No schema inference runs
 at boot. The current types are `id`, `text`, `textarea`, `integer`, `decimal`,
 `boolean`, `date`, `datetime`, `time`, `enum`, `select`, `email`, `url`, `json`,
-`password`, `file` and `belongs_to`. Registered scalar
+`password`, `file`, `rich_text` and `belongs_to`. Registered scalar
 [Field Types]({% link _core_features/field-types.md %}) can refine coercion, validation
 and field presentation. [Computed Fields]({% link _core_features/computed-fields.md %})
 adds readonly virtual scalars over explicit currently authorized dependencies.
@@ -74,6 +74,13 @@ Money remains unimplemented. `file` fields are covered in
   and the stored input digest holds only a keyed hash (derived from
   `secret_key_base`) of the new value. Your model's own validations, such as a
   minimum length, still apply. Operation inputs cannot be passwords.
+* `rich_text` edits a `has_rich_text` attribute with Trix, loaded from your
+  application's Action Text assets (`trix.js` and `trix.css`) only on forms that
+  have one. The editor accepts formatted text but refuses file attachments.
+  Show pages render the stored HTML through Rails' safe-list sanitizer; lists,
+  CSV and Chat get plain text. Input is bounded by `max_length` (1 MB by
+  default) and audit names the field when the content changes. It cannot
+  search, sort or filter.
 
 
 For physical fields, the runtime checks that a scalar projection or title names

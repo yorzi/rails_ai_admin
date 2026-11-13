@@ -6,6 +6,7 @@ require "action_controller/railtie"
 require "active_job/railtie"
 # Loaded as a host with uploads would; file fields need Active Storage.
 require "active_storage/engine"
+require "action_text/engine"
 require "propshaft"
 require "rails_ai_admin"
 # Loaded as a host would; the dummy app deliberately configures no global

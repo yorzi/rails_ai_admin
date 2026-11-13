@@ -30,6 +30,9 @@ module RailsAiAdmin
           text = link_to(text, value.to_s, rel: "noopener noreferrer nofollow", target: "_blank")
         elsif field.scalar_type == :json
           text = view == :index ? text.squish.truncate(80) : tag.pre(text, class: "raa-json")
+        elsif field.scalar_type == :rich_text
+          # The stored HTML through Rails' safe list; lists show plain text.
+          text = view == :index ? text.squish.truncate(80) : tag.div(sanitize(value.to_s), class: "raa-rich-text")
         end
       end
       partial = field.display_partial(view) || "rails_ai_admin/fields/#{view == :index ? 'index' : 'show'}"
@@ -47,6 +50,17 @@ module RailsAiAdmin
       return link unless view != :index && value.image?
       safe_join([ tag.img(src: resource_file_path(resource: @resource.key, id: record_id, field: field.name, disposition: "inline"),
         alt: value.filename, class: "raa-file-preview", loading: "lazy"), tag.br, link ])
+    end
+
+    # Trix, from the host's Action Text assets, edits a hidden input. The
+    # label and descriptions point at the editor; file attachments are refused.
+    def admin_rich_text_input(form, field, value, input_options)
+      id = form.field_id(field.name)
+      editor = content_tag("trix-editor", "", id: id, input: "#{id}--value", class: "raa-rich-text-editor",
+        aria: input_options[:aria].merge(required: input_options[:required]), data: { controller: "raa-rich-text",
+        action: "trix-file-accept->raa-rich-text#refuse trix-change->raa-rich-text#change" })
+      safe_join([ stylesheet_link_tag("trix"), javascript_include_tag("trix", defer: true),
+        hidden_field_tag(form.field_name(field.name), value, id: "#{id}--value"), editor ])
     end
 
     # Current file, a file chooser and (when the field may be empty) a remove box.

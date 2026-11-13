@@ -114,6 +114,7 @@ module RailsAiAdmin
         raise AccessDenied if field.hidden? || field.scalar_type == :password
         raise ConfigurationError, "Computed fields do not invoke model methods" if field.virtual?
         return read_file(record, field) if field.scalar_type == :file
+        return read_rich_text(record, field) if field.scalar_type == :rich_text
         name = field.column
         primary_key = record.class.primary_key
         id_alias = name == "id" && primary_key.is_a?(String) && record.has_attribute?(primary_key)
@@ -190,6 +191,16 @@ module RailsAiAdmin
       end
 
       private
+
+      # The stored Action Text HTML, or nil. Pages sanitize it when they show it.
+      def read_rich_text(record, field)
+        unless record.class.reflect_on_association("rich_text_#{field.column}")
+          raise ConfigurationError, "rich_text fields must name a has_rich_text attribute"
+        end
+        content = ActiveRecord::Base.while_preventing_writes { record.public_send(field.column)&.body }
+        html = content&.to_html.to_s
+        html.match?(Field::BLANK) ? nil : String.new(html)
+      end
 
       def read_file(record, field)
         attached = attachment(record, field)

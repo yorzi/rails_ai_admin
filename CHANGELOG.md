@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Rich text: a `rich_text` field edits a `has_rich_text` attribute with Trix from
+  the host's Action Text assets (loaded only on forms that need it; file
+  attachments refused). Show pages sanitize the stored HTML; lists, CSV and
+  Chat use plain text; audit names the field when the content changes.
 - File uploads: a `file` field for a `has_one_attached` attachment, with
   `accept:` content types and `max_size:` (default 10 MB). Uploads become new
   blobs only for fields the actor may write; the Runner accepts only new,

@@ -242,6 +242,8 @@ module RailsAiAdmin
             changed_fields = record.changes.keys.map { |column| names.fetch(column, column) } & values.keys
             # A password writer changes a digest column the resource never names.
             changed_fields |= resource.fields.select { |field| field.scalar_type == :password && !values[field.name.to_s].nil? }.map { |field| field.name.to_s }
+            # Action Text keeps the content in its own record.
+            changed_fields |= resource.fields.select { |field| field.scalar_type == :rich_text && values.key?(field.name.to_s) && record.public_send(field.column)&.changed? }.map { |field| field.name.to_s }
             # Active Storage keeps attachment changes outside the attributes.
             if record.respond_to?(:attachment_changes)
               changed_fields |= resource.fields.select { |field| field.scalar_type == :file && values.key?(field.name.to_s) && record.attachment_changes.key?(field.column) }.map { |field| field.name.to_s }

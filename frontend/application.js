@@ -277,6 +277,13 @@ class SelectionController extends Controller {
 }
 // Fills a typed reference key from the target resource's search. Results are
 // written with textContent only; the key input stays the submitted value.
+// A rich-text editor without uploads: the admin stores text, not files, in
+// Action Text content. Edits count as unsaved changes.
+class RichTextController extends Controller {
+  refuse(event) { event.preventDefault(); }
+  change() { this.element.dispatchEvent(new Event("input", { bubbles: true })); }
+}
+
 class ReferencePickerController extends Controller {
   static targets = ["panel", "query", "status", "results", "current"];
   static values = { url: String, key: String, messages: Object };
@@ -351,6 +358,7 @@ class ReferencePickerController extends Controller {
 }
 application.register("raa-selection", SelectionController);
 application.register("raa-reference-picker", ReferencePickerController);
+application.register("raa-rich-text", RichTextController);
 // Review Surfaces carry data-controller="rails-tool-views" for saving and
 // failure status text (RAA-019); the factory is rails_tool_views' own.
 application.register("rails-tool-views", railsToolViewsController(Controller));

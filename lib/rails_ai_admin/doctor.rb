@@ -225,7 +225,8 @@ module RailsAiAdmin
           (field.scalar_type == :id && field.name == :id && model.primary_key.is_a?(String) && columns.key?(model.primary_key)) ||
           # has_secure_password defines password= over a digest column.
           (field.scalar_type == :password && model.method_defined?("#{field.column}=")) ||
-          (field.scalar_type == :file && model.respond_to?(:reflect_on_attachment) && model.reflect_on_attachment(field.column)&.macro == :has_one_attached)
+          (field.scalar_type == :file && model.respond_to?(:reflect_on_attachment) && model.reflect_on_attachment(field.column)&.macro == :has_one_attached) ||
+          (field.scalar_type == :rich_text && model.reflect_on_association("rich_text_#{field.column}").present?)
       end
       result = [ Check.new("schema:#{resource.key}", invalid.empty? ? :ok : :error,
         "#{invalid.size} declared fields lack supported scalar columns. Check field names/types; computed fields use declared dependency graphs. No records were sampled.") ]

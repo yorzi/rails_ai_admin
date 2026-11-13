@@ -25,5 +25,6 @@ ActiveRecord::Migration.verbose = false
 ActiveRecord::MigrationContext.new(File.expand_path("../../db/migrate", __dir__)).migrate
 ActiveRecord::MigrationContext.new(RailsToolViews::Engine.root.join("db/migrate").to_s).migrate
 ActiveRecord::MigrationContext.new(Gem.loaded_specs.fetch("activestorage").full_gem_path + "/db/migrate").migrate
+ActiveRecord::MigrationContext.new(Gem.loaded_specs.fetch("actiontext").full_gem_path + "/db/migrate").migrate
 # The application does not have a database.yml; preserve the explicit test DB.
 require "rails/test_help"
