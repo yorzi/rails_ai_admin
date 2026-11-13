@@ -113,6 +113,7 @@ module RailsAiAdmin
       def read_attribute(record, field)
         raise AccessDenied if field.hidden? || field.scalar_type == :password
         raise ConfigurationError, "Computed fields do not invoke model methods" if field.virtual?
+        return read_file(record, field) if field.scalar_type == :file
         name = field.column
         primary_key = record.class.primary_key
         id_alias = name == "id" && primary_key.is_a?(String) && record.has_attribute?(primary_key)
@@ -181,7 +182,19 @@ module RailsAiAdmin
         raise AccessDenied unless allowed
         true
       end
+      # The attached blob's facts, or nil. The field must name a has_one_attached.
+      def attachment(record, field)
+        reflection = record.class.respond_to?(:reflect_on_attachment) && record.class.reflect_on_attachment(field.column)
+        raise ConfigurationError, "file fields must name a has_one_attached attachment" unless reflection && reflection.macro == :has_one_attached
+        ActiveRecord::Base.while_preventing_writes { record.public_send(field.column) }
+      end
+
       private
+
+      def read_file(record, field)
+        attached = attachment(record, field)
+        attached.attached? ? Fields::FileValue.from(attached.blob) : nil
+      end
 
       def write_view(operation, view)
         expected = operation.to_sym == :create ? :create : :edit if operation

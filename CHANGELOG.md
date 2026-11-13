@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- File uploads: a `file` field for a `has_one_attached` attachment, with
+  `accept:` content types and `max_size:` (default 10 MB). Uploads become new
+  blobs only for fields the actor may write; the Runner accepts only new,
+  unattached blobs that fit; refused writes purge them; a remove box clears an
+  optional file; audit names the field. Downloads go through
+  `<admin>/<resource>/<id>/files/<field>` with the record's scope, show grant
+  and field read grant, streamed with a sandboxed CSP; only raster images show
+  inline. Form recovery skips chosen files instead of failing.
 - Bulk delete: a fixed selection offers "Delete the N selected records" when the
   resource allows `destroy` and the actor may delete at least one of them. After
   a review page, each record is deleted on its own through the native destroy

@@ -4,8 +4,11 @@ module RailsAiAdmin
   module FieldsHelper
     # Only receives the already-authorized scalar projection. Host partials are
     # trusted Rails code, not a sandbox or an authorization mechanism.
-    def admin_field_value(field, value, view:)
+    # record_id names the record a file field links to; pages that show one
+    # record use @record.
+    def admin_field_value(field, value, view:, record_id: @record&.id)
       value = String.new(value) if value.is_a?(String)
+      return admin_file_value(field, value, view: view, record_id: record_id) if field.scalar_type == :file && !field.plugin?
       if field.scalar_type == :belongs_to
         reference = value.nil? ? nil : admin_associations.reference(field, value)
         return render(partial: "rails_ai_admin/fields/reference", locals: { field: field, value: value, reference: reference })
@@ -31,6 +34,37 @@ module RailsAiAdmin
       end
       partial = field.display_partial(view) || "rails_ai_admin/fields/#{view == :index ? 'index' : 'show'}"
       render(partial: partial, locals: { field: field, value: value, text: text })
+    end
+
+    # A file links to the admin's own download route, which checks the record
+    # and field grants again. Raster images also show a small inline preview.
+    def admin_file_value(field, value, view:, record_id:)
+      return "—" unless value.is_a?(Fields::FileValue)
+      text = field.format(value, time_zone: @context.time_zone)
+      return text unless record_id && @resource
+      path = resource_file_path(resource: @resource.key, id: record_id, field: field.name)
+      link = link_to(text, path)
+      return link unless view != :index && value.image?
+      safe_join([ tag.img(src: resource_file_path(resource: @resource.key, id: record_id, field: field.name, disposition: "inline"),
+        alt: value.filename, class: "raa-file-preview", loading: "lazy"), tag.br, link ])
+    end
+
+    # Current file, a file chooser and (when the field may be empty) a remove box.
+    def admin_file_input(form, field, value, input_options)
+      current = value.is_a?(Fields::FileValue) ? value : nil
+      parts = []
+      if current
+        parts << tag.p(t("rails_ai_admin.files.current", file: field.format(current, time_zone: @context.time_zone)), class: "raa-file-current")
+      end
+      options = input_options.merge(required: current ? nil : input_options[:required])
+      options[:accept] = field.options[:accept].join(",") if field.options[:accept]
+      parts << form.file_field(field.name, **options)
+      parts << tag.p(t("rails_ai_admin.files.limit", size: number_to_human_size(field.options[:max_size])), class: "raa-field-help")
+      if current && !admin_field_required?(field)
+        id = "#{form.field_id(field.name)}--remove"
+        parts << tag.p(safe_join([ check_box_tag("remove_files[]", field.name.to_s, false, id: id), " ", label_tag(id, t("rails_ai_admin.files.remove")) ]), class: "raa-file-remove")
+      end
+      safe_join(parts)
     end
 
     # A bounded picker of currently visible targets. A stored key the actor

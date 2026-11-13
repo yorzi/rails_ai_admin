@@ -69,7 +69,7 @@
 <% end %><th scope="col"><%= t("rails_ai_admin.resources.index.actions") %></th></tr></thead>
 <tbody><% @rows.each_with_index do |row, index| %><tr>
   <% if @selectable %><td><%= check_box_tag "target_ids[]", row[:id], false, id: "raa-target-#{index}", form: "raa-selection", aria: { label: t("rails_ai_admin.resources.index.select_row", label: row[:label].to_s.truncate(120)) } %></td><% end %>
-  <% @columns.each do |field| %><td<% if RailsAiAdmin::Presentation::IndexSettings::COMPACT_TYPES.include?(field.scalar_type) %> class="raa-cell-compact"<% end %>><%= admin_field_value(field, row[:values][field.name.to_s], view: :index) if row[:values].key?(field.name.to_s) %></td><% end %>
+  <% @columns.each do |field| %><td<% if RailsAiAdmin::Presentation::IndexSettings::COMPACT_TYPES.include?(field.scalar_type) %> class="raa-cell-compact"<% end %>><%= admin_field_value(field, row[:values][field.name.to_s], view: :index, record_id: row[:id]) if row[:values].key?(field.name.to_s) %></td><% end %>
   <td class="raa-row-actions"><%= link_to t("rails_ai_admin.resources.index.view_row", label: row[:label]), resource_path(resource: @resource.key, id: row[:id], **navigation_params) %>
     <% if row[:editable] %><%= link_to t("rails_ai_admin.resources.edit"), edit_resource_path(resource: @resource.key, id: row[:id], **navigation_params), aria: { label: t("rails_ai_admin.resources.edit_title", label: row[:label]) } %><% end %></td>
 </tr><% end %></tbody></table></div>

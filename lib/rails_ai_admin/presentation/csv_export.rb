@@ -61,6 +61,7 @@ module RailsAiAdmin
           when :datetime then value.in_time_zone(@context.time_zone).iso8601
           when :decimal then field.format_decimal(value)
           when :json then JSON.generate(value)
+          when :file then value.filename
           when :belongs_to then references.reference(field, value.to_s).label.to_s
           else field.format(value, time_zone: @context.time_zone)
           end

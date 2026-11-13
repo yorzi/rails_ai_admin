@@ -81,6 +81,8 @@ class FormRecoveryController extends Controller {
     let bytes = 0;
     for (const [name, value] of new FormData(this.element)) {
       if (!/^record\[[a-z][a-z0-9_]*\]$/.test(name)) continue;
+      // A chosen file cannot be kept across sign-in; the person picks it again.
+      if (typeof File !== "undefined" && value instanceof File) continue;
       if (typeof value !== "string") throw new Error("Unsupported form input");
       bytes += new TextEncoder().encode(name + value).byteLength;
       if (bytes > 1048576) throw new Error("Form input bound exceeded");

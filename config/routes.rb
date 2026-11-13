@@ -40,6 +40,7 @@ RailsAiAdmin::Engine.routes.draw do
   get ":resource/:id/edit", to: "resources#edit", as: :edit_resource
   get ":resource/:id/confirm_destroy", to: "resources#confirm_destroy", as: :confirm_destroy_resource
   get ":resource/:id/history", to: "resources#history", as: :resource_history
+  get ":resource/:id/files/:field", to: "files#show", as: :resource_file
   get ":resource", to: "resources#index", as: :resources
   post ":resource", to: "resources#create"
   get ":resource/:id", to: "resources#show", as: :resource

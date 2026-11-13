@@ -140,9 +140,11 @@ module RailsAiAdmin
       input = operation == :destroy ? {} : submitted_input
       @intent_ref = params[:intent_ref]
       intent_id = runner.materialize_form_intent(context: @context, reference: @intent_ref)
+      upload_files(operation, input) unless operation == :destroy
       result = runner.execute(context: @context, intent_ref: intent_id, input: input,
         human_confirmed: true, origin: :ui,
         binding: { resource_key: @resource.key, operation: operation, target_id: params[:id] })
+      discard_uploads unless result.success?
       if result.success?
         target = operation == :destroy ? list_return_path : resource_path(resource: @resource.key, id: result.record_id, **navigation_params)
         redirect_to target, status: :see_other, notice: result.warning ? t("rails_ai_admin.resources.saved_with_warning", operation: intent_id) : t("rails_ai_admin.resources.saved")
@@ -167,6 +169,42 @@ module RailsAiAdmin
       raise AccessDenied
     end
 
+    # A chosen file becomes a new blob before the write, and only for a file
+    # field the actor may write now. Pages never pass blob ids: a text value in
+    # a file slot is refused. remove_files[] clears a file that is not required.
+    def upload_files(operation, input)
+      @uploaded_blobs = []
+      record = operation == :create ? @access.relation.new : @access.find!(params[:id], action: operation)
+      files = @access.fields(:write, record, operation: operation).select { |field| field.scalar_type == :file }.index_by { |field| field.name.to_s }
+      input.each_key do |name|
+        value = input[name]
+        next unless files.key?(name) || value.is_a?(ActionDispatch::Http::UploadedFile)
+        field = files[name] || raise(AccessDenied, "INVALID_QUERY")
+        if value == ""
+          input.delete(name)
+        elsif !value.is_a?(ActionDispatch::Http::UploadedFile)
+          raise AccessDenied, "INVALID_QUERY"
+        elsif value.size > field.options[:max_size]
+          input[name] = Fields::RejectedUpload.new("too_large", field.options[:max_size])
+        else
+          raise ConfigurationError, "file fields need Active Storage" unless defined?(::ActiveStorage::Blob)
+          blob = ::ActiveStorage::Blob.create_and_upload!(io: value, filename: value.original_filename.presence || "upload",
+            content_type: value.content_type, identify: true)
+          @uploaded_blobs << blob
+          input[name] = blob.signed_id
+        end
+      end
+      removals = params[:remove_files]
+      return if removals.nil?
+      raise AccessDenied, "INVALID_QUERY" unless removals.is_a?(Array) && removals.size <= files.size && removals.all? { |name| name.is_a?(String) && files.key?(name) }
+      removals.each { |name| input[name] = nil unless input.key?(name) }
+    end
+
+    # A refused write keeps no new upload; the person chooses the file again.
+    def discard_uploads
+      Array(@uploaded_blobs).each { |blob| blob.purge_later unless blob.attachments.exists? }
+    end
+
     def submitted_input
       value = params[:record]
       raise AccessDenied, "INVALID_QUERY" unless value.nil? || value.is_a?(ActionController::Parameters)
@@ -184,7 +222,9 @@ module RailsAiAdmin
       names = @form_fields.map { |field| field.name.to_s }
       @form_values = readable_values.slice(*names)
       if input.is_a?(Hash)
-        @form_values.merge!(input.stringify_keys.slice(*names).reject { |_, value| value.is_a?(Hash) || value.is_a?(Array) })
+        # A refused file is chosen again; the form keeps showing the stored one.
+        files = @form_fields.select { |field| field.scalar_type == :file }.map { |field| field.name.to_s }
+        @form_values.merge!(input.stringify_keys.slice(*(names - files)).reject { |_, value| value.is_a?(Hash) || value.is_a?(Array) })
       end
       readonly_fields = @access.fields(:read, @record, view: view).select { |field| readable_values.key?(field.name.to_s) && !names.include?(field.name.to_s) }
       readonly_values = readable_values.slice(*readonly_fields.map { |field| field.name.to_s })

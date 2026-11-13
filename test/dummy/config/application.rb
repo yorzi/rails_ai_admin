@@ -4,6 +4,8 @@ require "rails"
 require "active_record/railtie"
 require "action_controller/railtie"
 require "active_job/railtie"
+# Loaded as a host with uploads would; file fields need Active Storage.
+require "active_storage/engine"
 require "propshaft"
 require "rails_ai_admin"
 # Loaded as a host would; the dummy app deliberately configures no global
@@ -28,5 +30,7 @@ module Dummy
     config.session_store :cookie_store, key: "_raa_dummy_session"
     # Every framework string must exist in config/locales (I18n release gate).
     config.i18n.raise_on_missing_translations = true
+    config.active_storage.service = :test
+    config.active_job.queue_adapter = :test
   end
 end

@@ -55,6 +55,7 @@ module RailsAiAdmin
           value
         when Time, ActiveSupport::TimeWithZone, DateTime then value.to_time.getutc
         when Date then Date.iso8601(value.iso8601)
+        when Fields::FileValue then value
         # A JSON field edits its document as indented text.
         when Hash, Array, Float
           raise ConfigurationError, "Form values require supported scalars" unless json

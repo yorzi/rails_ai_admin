@@ -55,6 +55,9 @@ en:
         not_url: must be an http or https address
         not_time: must be a time of day (HH:MM)
         not_json: must be valid JSON
+        file_unavailable: is not an available upload
+        file_too_large: is larger than %{size}
+        file_type: is not an accepted file type
       'yes': 'Yes'
       'no': 'No'
       not_set: Not set
@@ -118,6 +121,10 @@ en:
     exports:
       button: Export CSV
       too_many: This list has more than %{limit} records. Narrow it with search or filters, then export again.
+    files:
+      current: "Current file: %{file}"
+      limit: "Up to %{size}."
+      remove: Remove the current file
     history:
       link: History
       title: History of %{record}

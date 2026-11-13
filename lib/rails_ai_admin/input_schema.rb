@@ -67,6 +67,7 @@ module RailsAiAdmin
       when BigDecimal then { "$decimal" => value.to_s("F") }
       when Time, ActiveSupport::TimeWithZone then { "$time" => value.utc.iso8601(6) }
       when Date then { "$date" => value.iso8601 }
+      when Fields::FileValue, Fields::RejectedUpload then value.to_h.transform_keys(&:to_s)
       when Field::Secret then { "$secret" => OpenSSL::HMAC.hexdigest("SHA256", secret_key, value) }
       else value
       end

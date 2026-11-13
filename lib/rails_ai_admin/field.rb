@@ -10,18 +10,21 @@ module RailsAiAdmin
   # Declares one scalar input/output contract. All presentation and query flags
   # only narrow the permissions returned by the host policy.
   class Field
-    TYPES = %i[id text textarea integer decimal boolean date datetime enum select belongs_to time email url password json].freeze
+    TYPES = %i[id text textarea integer decimal boolean date datetime enum select belongs_to time email url password json file].freeze
     # Text-like scalars share text coercion, search and equality filters.
     TEXT_TYPES = %i[text textarea id email url].freeze
     # Never listed, searched, sorted or filtered: a password is write-only and
     # JSON has no stable text or ordering.
-    UNQUERYABLE_TYPES = %i[password json].freeze
+    UNQUERYABLE_TYPES = %i[password json file].freeze
     # Registered types refine plain scalars only.
-    PLUGIN_EXCLUDED = %i[belongs_to password json].freeze
+    PLUGIN_EXCLUDED = %i[belongs_to password json file].freeze
+    # Default upload bound for a file field: 10 MB.
+    MAX_FILE_SIZE = 10 * 1024 * 1024
+    CONTENT_TYPE = %r{\A[a-z]+/(?:\*|[a-z0-9][a-z0-9.+-]*)\z}
     TIME_OF_DAY = /\A([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d)(?:\.\d{1,6})?)?\z/
     # A practical address check (Rails' own URI::MailTo pattern), not delivery proof.
     EMAIL = URI::MailTo::EMAIL_REGEXP
-    OPTIONS = %i[readonly required nullable values max_length searchable sortable filterable create edit label choices index show hidden help_text tab panel resource foreign_key precision scale].freeze
+    OPTIONS = %i[readonly required nullable values max_length searchable sortable filterable create edit label choices index show hidden help_text tab panel resource foreign_key precision scale accept max_size].freeze
     # A belongs_to value is the target's opaque primary-key text, never a record.
     REFERENCE = /\A[A-Za-z0-9][A-Za-z0-9_-]{0,99}\z/
     NAME = /\A[a-z][a-z0-9_]*\z/
@@ -66,6 +69,7 @@ module RailsAiAdmin
       defaults.merge!(resource: @name.to_s.pluralize.to_sym, foreign_key: "#{@name}_id") if @scalar_type == :belongs_to
       defaults.merge!(max_length: 65_536) if @scalar_type == :json
       defaults.merge!(index: false, show: false) if @scalar_type == :password
+      defaults.merge!(max_size: MAX_FILE_SIZE) if @scalar_type == :file
       @options = immutable_copy(defaults.merge(options))
       validate_options!
       validate_association_options!
@@ -135,6 +139,7 @@ module RailsAiAdmin
       when :time then format_time_of_day(value)
       when :json then format_json(value)
       when :password then "—"
+      when :file then value.respond_to?(:filename) ? "#{value.filename} (#{ActiveSupport::NumberHelper.number_to_human_size(value.byte_size)})" : value.to_s
       else value.to_s
       end
     end
@@ -219,6 +224,7 @@ module RailsAiAdmin
         parts = value.is_a?(String) && value.match(TIME_OF_DAY)
         raise ArgumentError, message(:not_time, "must be a time of day (HH:MM)") unless parts
         "#{parts[1]}:#{parts[2]}:#{parts[3] || '00'}"
+      when :file then coerce_file(value)
       when :json
         value = parse_json(value) if value.is_a?(String)
         raise ArgumentError, message(:not_json, "must be valid JSON") unless json_value?(value)
@@ -281,6 +287,13 @@ module RailsAiAdmin
       column_decimal_limits
     end
 
+    # Whether a declared accept list admits this content type ("image/*" works).
+    def accepts?(content_type)
+      list = options[:accept]
+      return true if list.nil?
+      list.any? { |pattern| pattern.end_with?("/*") ? content_type.start_with?(pattern.delete_suffix("*")) : content_type == pattern }
+    end
+
     # An absolute http(s) address, the only kind pages turn into links.
     def web_address?(value)
       uri = URI.parse(value)
@@ -337,6 +350,21 @@ module RailsAiAdmin
     rescue ArgumentError
       raise ArgumentError, message(:invalid, "is invalid"), cause: nil if @plugin
       raise
+    end
+
+    # An upload arrives as the signed id of a new, unattached Active Storage
+    # blob. Its identified content type and size must fit the declaration.
+    def coerce_file(value)
+      if value.is_a?(Fields::RejectedUpload)
+        raise ArgumentError, message(:file_too_large, "is larger than %{size}", size: ActiveSupport::NumberHelper.number_to_human_size(options[:max_size]))
+      end
+      raise ConfigurationError, "file fields need Active Storage" unless defined?(::ActiveStorage::Blob)
+      raise ArgumentError, message(:invalid, "is invalid") unless value.is_a?(String) && value.valid_encoding? && value.length.between?(1, 1000)
+      blob = ::ActiveStorage::Blob.find_signed(value)
+      raise ArgumentError, message(:file_unavailable, "is not an available upload") unless blob && !blob.attachments.exists?
+      raise ArgumentError, message(:file_too_large, "is larger than %{size}", size: ActiveSupport::NumberHelper.number_to_human_size(options[:max_size])) if blob.byte_size > options[:max_size]
+      raise ArgumentError, message(:file_type, "is not an accepted file type") unless accepts?(blob.content_type.to_s)
+      String.new(value)
     end
 
     def parse_json(text)
@@ -460,6 +488,16 @@ module RailsAiAdmin
       end
       if scalar_type == :time && (options[:searchable] || options[:filterable])
         raise ConfigurationError, "time fields can sort but cannot search or filter"
+      end
+      if scalar_type != :file && (options.key?(:accept) || options.key?(:max_size))
+        raise ConfigurationError, "accept and max_size are file options"
+      end
+      if scalar_type == :file
+        accept, size = options[:accept], options[:max_size]
+        unless accept.nil? || accept.is_a?(Array) && accept.size.between?(1, 50) && accept.all? { |type| type.is_a?(String) && type.match?(CONTENT_TYPE) }
+          raise ConfigurationError, "file accept must list content types such as image/png or image/*"
+        end
+        raise ConfigurationError, "file max_size must be a positive Integer of bytes" unless size.is_a?(Integer) && size.between?(1, 2**40)
       end
       if scalar_type == :password && (options[:index] || options[:show] || options[:readonly])
         raise ConfigurationError, "password fields are write-only: no index, show or readonly"
