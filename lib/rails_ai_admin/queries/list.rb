@@ -36,23 +36,7 @@ module RailsAiAdmin
         size = page_size || settings.page_size
         raise AccessDenied, "INVALID_QUERY" unless size.is_a?(Integer) && size.between?(1, Presentation::IndexSettings::MAX_PAGE_SIZE)
         raise AccessDenied, "INVALID_QUERY" unless offset.nil? || offset.is_a?(Integer) && offset.between?(0, 99_999) && !recover_empty_page
-        table = @resource.model_class.arel_table
-        primary = @resource.model_class.primary_key
-        sortable = @access.fields(:sort)
-        field = if sort.present?
-          sortable.find { |entry| entry.name.to_s == sort } || raise(AccessDenied, "INVALID_QUERY")
-        elsif settings.default_sort
-          # An ungranted default would reveal order on a hidden basis; skip it.
-          direction = settings.default_direction
-          sortable.find { |entry| entry.name == settings.default_sort }
-        end
-        if field
-          # Empty values sort last in both directions on every database (RAA-028).
-          relation = relation.reorder(table[field.column].public_send(direction).nulls_last)
-          relation = relation.order(table[primary].asc) unless field.column == primary
-        else
-          relation = relation.reorder(table[primary].asc)
-        end
+        relation, field, direction = sorted(relation, sort, direction)
         records = relation.offset(offset || (page.to_i - 1) * size).limit(size + 1).to_a
         number = page.to_i
         if recover_empty_page && records.empty? && number > 1
@@ -64,6 +48,15 @@ module RailsAiAdmin
         Page.new(records: records.first(size), number: number, has_next: records.size > size, scope: named&.name&.to_s,
           sort: field&.name&.to_s, direction: field ? direction : "asc", page_size: size,
           count: total && [ total, COUNT_LIMIT ].min, count_capped: !!total && total > COUNT_LIMIT)
+      end
+
+      # The complete ordered relation the index shows across all its pages,
+      # with the same grants and validation. Callers bound it themselves.
+      def relation(search: nil, sort: nil, direction: "asc", scope: nil, filters: nil)
+        @access.authorize!(:index)
+        raise AccessDenied, "INVALID_QUERY" unless %w[asc desc].include?(direction)
+        relation, = filtered_relation(search: search, scope: scope, filters: filters)
+        sorted(relation, sort, direction).first
       end
 
       # The bounded number of records the same search/scope/filters match,
@@ -88,6 +81,28 @@ module RailsAiAdmin
       end
 
       private
+
+      def sorted(relation, sort, direction)
+        settings = @resource.index
+        table = @resource.model_class.arel_table
+        primary = @resource.model_class.primary_key
+        sortable = @access.fields(:sort)
+        field = if sort.present?
+          sortable.find { |entry| entry.name.to_s == sort } || raise(AccessDenied, "INVALID_QUERY")
+        elsif settings.default_sort
+          # An ungranted default would reveal order on a hidden basis; skip it.
+          direction = settings.default_direction
+          sortable.find { |entry| entry.name == settings.default_sort }
+        end
+        if field
+          # Empty values sort last in both directions on every database (RAA-028).
+          relation = relation.reorder(table[field.column].public_send(direction).nulls_last)
+          relation = relation.order(table[primary].asc) unless field.column == primary
+        else
+          relation = relation.reorder(table[primary].asc)
+        end
+        [ relation, field, direction ]
+      end
 
       def filtered_relation(search:, scope:, filters:)
         # Leading and trailing spaces are never part of the term (RAA-021).

@@ -9,6 +9,12 @@
     <%= form.submit t("rails_ai_admin.resources.index.search") %>
   <% end %>
 <% end %>
+<% if @exportable %>
+  <%= form_with url: resource_export_path(resource: @resource.key), method: :post, local: true, class: "raa-export", data: { turbo: false } do |form| %>
+    <%= list_state_fields("q", "sort", "direction", "scope", "filter") %>
+    <%= form.submit t("rails_ai_admin.exports.button"), class: "raa-secondary", name: nil %>
+  <% end %>
+<% end %>
 <% if allowed_action?(@resource, :create) %><%= link_to t("rails_ai_admin.resources.new", label: @resource.label.singularize.downcase_first), new_resource_path(resource: @resource.key, **navigation_params), class: "raa-button" %><% end %>
 </div></div>
 <% if @list_scopes.any? %>

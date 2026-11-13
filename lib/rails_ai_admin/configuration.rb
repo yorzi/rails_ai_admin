@@ -40,7 +40,10 @@ module RailsAiAdmin
       :environment_label,
       # Active Job queue for collection, outbox and assistant jobs (RAA-020).
       # Workers with explicit queue lists must include it.
-      :queue_name
+      :queue_name,
+      # Most rows one CSV export may contain (1..100,000). A larger list asks
+      # the person to narrow it first.
+      :export_limit
 
     def initialize
       @authentication_path = nil
@@ -62,6 +65,7 @@ module RailsAiAdmin
       @assistant_provider = nil
       @assistant_protocol = nil
       @assistant_daily_message_limit = 100
+      @export_limit = 10_000
     end
 
     # Validates and freezes the boot configuration without reading domain tables.
@@ -83,6 +87,7 @@ module RailsAiAdmin
       end
       environment_label&.freeze
       raise ConfigurationError, "validation_messages must be :model or :generic" unless %i[model generic].include?(validation_messages)
+      raise ConfigurationError, "export_limit must be an Integer from 1 to 100000" unless export_limit.is_a?(Integer) && export_limit.between?(1, 100_000)
       unless (queue_name.is_a?(String) || queue_name.is_a?(Symbol)) && queue_name.to_s.match?(/\A[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}\z/)
         raise ConfigurationError, "queue_name must be a short queue name"
       end

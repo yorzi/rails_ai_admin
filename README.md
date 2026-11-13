@@ -204,6 +204,8 @@ your own adapter, never from global RubyLLM configuration. See the
 
 ## Fixed Selection Previews
 
+A default-deny `export_records?` grant adds an Export CSV button for the current list
+(same rows, columns and values as the pages; audited and bounded by `export_limit`).
 A default-deny `view_history?` grant adds a record History page listing its audited
 changes (fields named only when currently readable or writable).
 

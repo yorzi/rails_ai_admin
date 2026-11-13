@@ -36,14 +36,17 @@ module EssentialFixtures
     class_attribute :read, default: READ
     class_attribute :write, default: WRITE
     class_attribute :history, default: true
+    class_attribute :export, default: true
 
     def self.reset!
       self.read = READ
       self.write = WRITE
       self.history = true
+      self.export = true
     end
 
     def view_history?(context:, resource:, record:) = history
+    def export_records?(context:, resource:) = export
 
     def scope(context:, resource:, relation:) = relation.where(account_id: context.tenant.id)
 
@@ -89,9 +92,10 @@ module EssentialFixtures
     Article.reset_column_information
   end
 
-  def with_essential_resources(resources: RESOURCES, policy: "EssentialFixtures::Policy")
+  def with_essential_resources(resources: RESOURCES, policy: "EssentialFixtures::Policy", **settings)
     config = RailsAiAdmin.configuration.dup
     config.authorization_adapter = policy
+    settings.each { |name, value| config.public_send("#{name}=", value) }
     registry = RailsAiAdmin::Registry.new(resources)
     operations = RailsAiAdmin::Operations::Registry.new(registry.resources)
     RailsAiAdmin.stub(:configuration, config) do

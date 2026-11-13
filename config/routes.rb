@@ -27,6 +27,7 @@ RailsAiAdmin::Engine.routes.draw do
   post ":resource/operations/:operation/preflight", to: "collection_operations#preflight", as: :collection_operation_preflight
   post ":resource/operations/:operation/execute", to: "collection_operations#execute", as: :collection_operation_execute
   post ":resource/selections", to: "selections#create", as: :capture_selection
+  post ":resource/exports", to: "exports#create", as: :resource_export
   get "selections/:selection_ref", to: "selections#show", as: :selection
   get ":resource/:id/operations/:operation", to: "operations#new", as: :operation_form
   post ":resource/:id/operations/:operation/preflight", to: "operations#preflight", as: :operation_preflight

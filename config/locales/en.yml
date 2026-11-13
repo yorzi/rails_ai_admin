@@ -115,6 +115,9 @@ en:
       saved: Changes saved.
       saved_with_warning: Changes saved, but a host callback failed. Review operation %{operation} before
         continuing.
+    exports:
+      button: Export CSV
+      too_many: This list has more than %{limit} records. Narrow it with search or filters, then export again.
     history:
       link: History
       title: History of %{record}

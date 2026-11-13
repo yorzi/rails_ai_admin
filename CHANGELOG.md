@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- CSV export: a default-deny `export_records?(context:, resource:)` grant (Pundit:
+  `export_records?`) adds an Export CSV button that POSTs the current search,
+  list tab, filters and sort to `<admin>/<resource>/exports`. Rows and columns
+  follow the index, show and read grants; references export their labels;
+  formula-like text is neutralized; `config.export_limit` (default 10,000)
+  bounds a file, and each export is audited.
 - Record History: with a new default-deny `view_history?(context:, resource:,
   record:)` grant (Pundit: `view_history?`), a record's page links to
   `<admin>/<resource>/<id>/history`, its audit trail newest first (50 per

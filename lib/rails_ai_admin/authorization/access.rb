@@ -148,6 +148,13 @@ module RailsAiAdmin
         definition.handler_class.input.select { |field| names.include?(field.name) }
       end
 
+      def authorize_export!
+        authorize!(:index)
+        allowed = @adapter.respond_to?(:export_records?) && @adapter.export_records?(context: context, resource: resource) == true
+        raise AccessDenied unless allowed
+        true
+      end
+
       def authorize_history!(record)
         authorize!(:show, record)
         allowed = @adapter.respond_to?(:view_history?) && @adapter.view_history?(context: context, resource: resource, record: record) == true

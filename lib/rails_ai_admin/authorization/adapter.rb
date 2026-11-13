@@ -62,6 +62,12 @@ module RailsAiAdmin
         false
       end
 
+      # Downloads the current list as CSV. Rows, columns and values still come
+      # from the index, show and read grants; this grant only adds the button.
+      def export_records?(context:, resource:)
+        false
+      end
+
       # Shows a record's change history (who changed it, when, which fields).
       # Field names are filtered to the actor's current read and write grants;
       # this grant only decides whether the page exists for the record.

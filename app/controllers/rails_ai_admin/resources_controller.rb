@@ -52,6 +52,11 @@ module RailsAiAdmin
       rescue AccessDenied
         false
       end
+      @exportable = begin
+        @access.authorize_export!
+      rescue AccessDenied
+        false
+      end
     end
 
     def show
