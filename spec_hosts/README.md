@@ -52,8 +52,9 @@ reliability is established.
 
 Both consumers execute the install-generated anonymous HTTP test at their actual
 custom mount, and run host-owned TestKit role/field-grant matrices. They generate
-an unregistered readonly resource for a user model and verify that schema advice
-stays commented and omits sensitive authority/authentication columns. Host B draws
+an unregistered resource for a user model and verify that schema suggestions
+are enabled while sensitive authority/authentication columns stay omitted. Models
+without a version column remain readonly. Host B draws
 its admin mount from `config/routes/admin.rb`; installation must preserve it rather
 than insert a second root-file mount.
 
@@ -89,3 +90,8 @@ through Devise, changes its body and explicitly reloads Rails. It verifies a fre
 controller and the changed rendered body, then removes the owned override. This is
 actual development-mode evidence; dummy request tests use ordinary test-mode
 reloading settings so filesystem edits do not invalidate fixture transactions.
+
+The separate `script/packaged_quickstart_smoke.rb` creates a fresh Rails app,
+runs Rails authentication and the opt-in full-access installer, generates all
+resources, and checks signed-in create/update, audits, access revocation and
+preservation of generated files on rerun. It uses the built gem, not a path gem.

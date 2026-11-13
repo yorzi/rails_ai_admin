@@ -19,12 +19,12 @@ Gem::Specification.new do |spec|
   spec.metadata["changelog_uri"] = "#{spec.homepage}/blob/main/CHANGELOG.md"
   spec.metadata["bug_tracker_uri"] = "#{spec.homepage}/issues"
   spec.metadata["documentation_uri"] = "https://rails-ai-admin.wangyaodi.com/"
-  spec.metadata["allowed_push_host"] = "https://rubygems.org"
+  spec.metadata["allowed_push_host"] = "https://unreleased.invalid"
 
   spec.add_dependency "base64", "~> 0.3"
-  # 8.0.5.2 and 8.1.4.1 are the patched releases of each series; doctor
-  # reports an 8.1 below 8.1.4.1, which this requirement cannot exclude.
-  spec.add_dependency "rails", ">= 8.0.5.2", "< 8.2"
+  # Rails 8.1 from its patched 8.1.4.1 release. The upper bound moves when a
+  # newer series passes the suite.
+  spec.add_dependency "rails", ">= 8.1.4.1", "< 8.2"
   spec.add_dependency "json_schemer", "~> 2.5"
   # allow_duplicate_key (template override headers) arrived in json 2.13.
   spec.add_dependency "json", ">= 2.13"

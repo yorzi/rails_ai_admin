@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased
+
+0.2.0 preparation. Not published; owner review is pending.
+
+- Require Rails 8.1.4.1 or newer within 8.1; drop Rails 8.0. Ruby 3.3+
+  remains supported. Rails 7 is not supported.
+- Detect Rails authentication and Devise during installation, generate working
+  contexts, and configure the signed-in identity and sign-out controls. Existing
+  host files are preserved even with `--force`.
+- Add an opt-in `--full-access` policy preset for trusted staff. It grants
+  declared resource capabilities without tenant scoping; assistant access
+  remains a separate grant. Default installation still denies all policy access.
+- Generate and register multiple models, namespaced models or `--all`, with
+  schema-suggested fields, list settings, references and child panels. Sensitive
+  columns and sign-in sessions are excluded from discovery; models without a
+  record version remain readonly. `--readonly` and `--no-register` narrow setup.
+- Link list titles, shorten row actions, compact timestamps, and collapse the
+  resource menu on narrow screens.
+- Restrict automatic Devise admin-scope recognition to `admin` and `admin_user`,
+  reject inactive accounts, and preserve microseconds in generated security versions.
+- Reject colliding generated resource keys before writing files.
+
 ## 0.1.1 (2026-11-13)
 
 - Clarify the documentation homepage and introductory guide.

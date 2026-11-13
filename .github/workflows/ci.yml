@@ -43,6 +43,9 @@ jobs:
         run: bundle exec rake test
       - run: bundle exec rake build
       - run: bundle exec rake release:check_candidate
+      - name: Packaged Rails authentication quickstart
+        if: matrix.database == 'sqlite'
+        run: bundle exec ruby script/packaged_quickstart_smoke.rb
       - name: Packaged session / SQLite consumer
         run: bundle exec ruby script/packaged_smoke.rb
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -69,22 +72,16 @@ jobs:
           RAA_ASSET_PIPELINE: sprockets
         run: bundle exec ruby script/packaged_support_smoke.rb
 
-  # The engine suite on each end of the supported range. gemspec bounds
-  # (Ruby >= 3.3, Rails >= 8.0 and < 8.2) come from what passes here.
+  # The engine suite on the oldest supported Ruby. gemspec bounds (Ruby >= 3.3,
+  # Rails >= 8.1.4.1 and < 8.2) come from what passes here and in the test job,
+  # which runs Ruby 4.0.9.
   compatibility:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        ruby: ["3.3", "4.0.9"]
-        gemfile: [Gemfile, gemfiles/rails_8_0.gemfile]
+        ruby: ["3.3"]
         database: [sqlite, postgres]
-        exclude:
-          # The test job already runs Ruby 4.0.9 with the main Gemfile.
-          - ruby: "4.0.9"
-            gemfile: Gemfile
-    env:
-      BUNDLE_GEMFILE: ${{ github.workspace }}/${{ matrix.gemfile }}
     services:
       postgres:
         image: postgres:17

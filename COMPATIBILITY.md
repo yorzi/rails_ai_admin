@@ -1,5 +1,29 @@
 # Compatibility
 
+## 2026-11-13 — 0.2.0 development candidate
+
+Requires Ruby >= 3.3 and Rails >= 8.1.4.1, < 8.2. Rails 7 and 8.0 are not
+supported. RubyGems' Rails API returned 8.1.4.1 as the latest release on this date.
+The package remains `0.2.0.dev`; publishing is blocked pending owner review.
+
+| Check | Executed result |
+| --- | --- |
+| Ruby 3.3.5 and 4.0.9 × SQLite and PostgreSQL 17.12, Rails 8.1.4.1 | All four combinations: 568 tests / 5,327 assertions, zero failures, errors or skips |
+| Fresh packaged Rails authentication quickstart | 2 tests / 16 assertions; actual Rails app/auth generator, generated policy/resources, anonymous denial, signed-in create/update, audits, revocation and unchanged host files on installer rerun |
+| Packaged session / SQLite | 17 / 346; 18 / 419 with overrides; generated anonymous test 1 / 2, reload, production precompile and eager boot passed |
+| Packaged Devise / Pundit / PostgreSQL | 27 / 425; 28 / 453 with overrides on Propshaft and Sprockets; generated anonymous test 1 / 2, reload, production precompile and eager boot passed |
+| Recovery | Outbox process-loss, idempotent retry, uncertain-outcome reconciliation and collection worker recovery passed against synthetic effects |
+| Browser | Local demo sign-in, article list/title links, identity and sign-out; 320px menu expand/collapse and no document-wide horizontal overflow |
+| Static checks | RuboCop: 345 files, no offenses; reproducible frontend build passed |
+| Dependencies | Main and docs bundle-audit clean against 1,359 advisories at `305f8b079a23bf95d00c881842f366bb8db19f35` (2026-11-13); npm audit reports zero vulnerabilities |
+| Documentation | Jekyll/RDoc build serves tagged 0.1.1 at `/` and the development guides at `/next/` |
+
+Remote CI must be checked on the final commit separately. No release, tag,
+provider call or documentation deployment is part of this preparation. Human
+screen-reader validation and an independent production-like host trial remain open.
+
+Earlier results below describe their historical builds, not the current support matrix.
+
 ## 2026-11-13 Public Preview candidate
 
 Local results from the 0.1.0 preparation:
@@ -95,9 +119,7 @@ the broader security matrix and later Beta/1.0 gates remain open.
 | Real providers | One full flow per model family through OpenRouter on 2026-11-03 is recorded above. Native OpenAI/Anthropic APIs and live failure recovery remain unverified; no paid call was made during the 2026-11-06 hardening pass |
 | Assistant evaluation set | `test/assistant_eval/questions.yml`: 20 fixed questions (counts with and without a scope, filters and ranges, sort, contains and non-ASCII search, a reference label, a two-step count, another tenant's record, an ungranted field, a proposal, a refused delete and two prompt injections), graded for tool calls, result values, answer text, proposals, unchanged business data and no foreign or ungranted values. 2026-11-10: the offline replay passes 21 / 21 through RubyLLM's real tool loop; reverting the RAA-007 fix fails 4 questions. **Live run pending:** run it against at least one real model before each release (instructions in `test/contract/assistant_eval_test.rb`) and record the model, date and score here. No paid call was made on 2026-11-10 |
 
-Runtime bounds: Ruby >= 3.3 (development pins `.ruby-version` 4.0.9); Rails >= 8.0.5.2 and < 8.2 (8.0.5.2 and 8.1.4.1 are the patched releases of each series;
-doctor reports an 8.1 below 8.1.4.1); json >= 2.13
-(Rails 8.0 also needs json < 3); json_schemer ~> 2.5; base64 ~> 0.3; turbo-rails ~> 2.0; stimulus-rails ~> 1.3. Optional, from the host's Gemfile and
+Current runtime bounds: Ruby >= 3.3 (development pins `.ruby-version` 4.0.9); Rails >= 8.1.4.1 and < 8.2; json >= 2.13; json_schemer ~> 2.5; base64 ~> 0.3; turbo-rails ~> 2.0; stimulus-rails ~> 1.3. Optional, from the host's Gemfile and
 checked at boot only when the feature is on: rails_tool_views ~> 1.0.2 (`config.surfaces`) and RubyLLM >= 2.2.0 and
 < 3 (`config.assistant`). These bounds are candidate dependency constraints, not proof every resolvable combination works.
 The lockfile records actual resolution, including Linux/source platform metadata.

@@ -3,13 +3,32 @@ layout: default
 title: Upgrading
 nav_order: 2
 guide: false
-description: Migrate a host from a development build to the 0.1.0 Public Preview.
+description: Prepare an existing host for 0.2.0 and review earlier migration requirements.
 ---
 
 # {{ page.title }}
 
 {{ page.description }}
 {: .fs-6 .fw-300 }
+
+## Prepare for 0.2.0
+
+0.2.0 is unreleased. Upgrade Rails to 8.1.4.1 or newer below 8.2 first;
+Rails 7 and 8.0 are unsupported. Ruby 3.3+ remains supported.
+
+Existing resources and policies remain explicit. The installer preserves host
+files even with `--force`; use it to copy missing migrations. Resource generation
+now enables suggested fields, makes versioned models editable and registers them.
+Use `--readonly --no-register` to retain manual review before activation.
+`--all` skips existing resources. Review generated exposure before using the
+opt-in full-access policy; it does not scope records by tenant.
+
+Generated contexts now preserve microseconds in `updated_at` security versions.
+Existing custom contexts are not rewritten: use `updated_at.utc.iso8601(6)` if
+that timestamp is your authority version. The Devise template also checks
+`active_for_authentication?` when resolving users, including background work.
+
+## Earlier Public Preview Migration Notes
 
 For a fresh install, follow the [Quickstart]({% link _getting_started/quickstart.md %}).
 If your host already runs a development build, update its gem and copy the current
@@ -85,7 +104,8 @@ recreate or edit persisted receipts to force execution.
   GET) now redirects with 303 to that path plus `return_to`, instead of a 401.
   Form submissions, recovery, frames and non-HTML requests still get 401. Update
   host tests that expected a 401 for a page visit.
-* The supported range is now Ruby 3.3+ and Rails 8.0.5.2 to below 8.2.
+* 0.1 supported Ruby 3.3+ and Rails 8.0.5.2 to below 8.2.
+  0.2 requires Rails 8.1.4.1+ below 8.2.
   Engine migrations declare `ActiveRecord::Migration[8.0]`; on Rails 8.1 that
   produces the same schema, so a host that already ran them changes nothing.
   Rails 8.0 hosts keep `json` below 3.

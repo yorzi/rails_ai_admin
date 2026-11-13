@@ -21,7 +21,7 @@ class ReleaseCheckTest < Minitest::Test
 
   def test_a_release_version_requires_synchronized_metadata
     check = ReleaseCheck.new(ROOT)
-    check.define_singleton_method(:version) { "0.2.0" }
+    check.define_singleton_method(:version) { "0.9.0" }
     result = statuses(check)
     %w[host_pins docs_config changelog].each { |name| assert_equal :error, result.fetch(name), name }
     assert_equal :ok, result.fetch("package_files")

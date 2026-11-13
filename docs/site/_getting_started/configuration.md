@@ -210,3 +210,22 @@ not provide persistent drafts, login routes or automatic write replay.
 * [Pundit and Devise]({% link _advanced/pundit-and-devise.md %}) connects explicit policies and host sessions.
 * [Host Verification]({% link _advanced/host-verification.md %}) checks your policy boundary.
 * [Operations]({% link _core_features/operations.md %}) covers intent expiry and execution-time authorization.
+
+## Trusted-Staff Preset and Header
+
+`RailsAiAdmin::Authorization::FullAccessAdapter` grants admitted actors every
+capability declared by registered resources. It applies no tenant scope or roles;
+subclass it to narrow those decisions. Assistant access remains denied. The
+installer selects it only with `--full-access`; existing policy files are preserved.
+
+Configure the optional signed-in header in the initializer:
+
+```ruby
+config.actor_label = :email_address
+config.sign_out_path = "/session"
+config.sign_out_method = :delete
+```
+
+The label names a public actor method returning text. The sign-out route must be
+a fixed internal path; supported verbs are `:delete`, `:post` and `:get`. Known
+authentication systems receive these settings during a fresh install.

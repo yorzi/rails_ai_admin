@@ -4,7 +4,7 @@ Rails AI Admin is a self-hosted admin engine for Rails. Give your team an admin
 for the models you choose, then add a RubyLLM-powered assistant that can answer
 questions about records and prepare changes for review.
 
-**0.1.1 Public Preview** · [Documentation](https://rails-ai-admin.wangyaodi.com/) ·
+**0.2.0 in development — unreleased** · [Documentation](https://rails-ai-admin.wangyaodi.com/) ·
 [Quickstart](https://rails-ai-admin.wangyaodi.com/quickstart/) ·
 [RubyGems](https://rubygems.org/gems/rails_ai_admin)
 
@@ -25,13 +25,28 @@ questions about records and prepare changes for review.
 Add the gem to your Gemfile and run `bundle install`:
 
 ```ruby
-gem "rails_ai_admin", "~> 0.1.1"
+# Review this branch locally before release
+gem "rails_ai_admin", path: "../rails_ai_admin"
 ```
 
-Requires Ruby 3.3+ and Rails 8. See the [installation guide](https://rails-ai-admin.wangyaodi.com/getting-started/)
+Requires Ruby 3.3+ and Rails 8.1.4.1+ (below 8.2). Rails 7 and 8.0 are not supported. See the [installation guide](https://rails-ai-admin.wangyaodi.com/getting-started/)
 for supported Rails patch versions. The [quickstart](https://rails-ai-admin.wangyaodi.com/quickstart/)
 walks through connecting sign-in and policies, then registering your first
 resource. Conventional admin pages work without a model provider or API key.
+
+For an app with Rails authentication or Devise already migrated:
+
+```sh
+bin/rails generate rails_ai_admin:install --full-access
+bin/rails db:migrate
+bin/rails generate rails_ai_admin:resource --all
+bin/rails rails_ai_admin:doctor
+```
+
+Review the generated files before use. The opt-in full-access preset grants all
+rows and declared capabilities to people admitted by `AdminContext`; add tenant
+scoping for account-based apps. Omit `--full-access` to keep policy access closed.
+The assistant remains off. This branch prepares 0.2.0 for review; it is not a release.
 
 ## Try the local demo
 

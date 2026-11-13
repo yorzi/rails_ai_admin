@@ -1,5 +1,0 @@
-# Rails 8.0 compatibility suite (the CI compatibility job). Active Support
-# 8.0's JSON encoder fails on json 3, so Rails 8.0 hosts stay on json 2.x.
-eval_gemfile File.expand_path("../Gemfile", __dir__)
-gem "rails", "~> 8.0.3"
-gem "json", ">= 2.13", "< 3"

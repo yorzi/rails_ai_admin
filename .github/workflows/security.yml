@@ -20,5 +20,3 @@ jobs:
       - run: bundle-audit check --update --database tmp/ruby-advisory-db
       - name: Audit documentation bundle
         run: bundle-audit check --database tmp/ruby-advisory-db --gemfile-lock docs/site/Gemfile.lock
-      - name: Audit the Rails 8.0 compatibility bundle
-        run: bundle-audit check --database tmp/ruby-advisory-db --gemfile-lock gemfiles/rails_8_0.gemfile.lock

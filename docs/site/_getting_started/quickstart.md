@@ -2,7 +2,7 @@
 layout: default
 title: Ten-Minute Quickstart
 nav_order: 1
-description: Go from a Rails app with sign-in to a working, policy-checked Users admin.
+description: Generate an editable admin from an app with Rails authentication or Devise.
 ---
 
 # {{ page.title }}
@@ -12,38 +12,35 @@ description: Go from a Rails app with sign-in to a working, policy-checked Users
 
 After reading this guide, you will know:
 
-* How to install the engine and keep it closed until you open it.
-* How to turn the generated examples into a working context and policy.
-* How to list, read and then edit your users through the admin.
+* How to connect existing sign-in without writing an authentication adapter.
+* How to opt into the trusted-staff policy and generate resources.
+* How to review exposure and keep tenant data scoped.
 
-This guide starts from an app made with Rails 8's authentication generator, the
-shortest path to a signed-in user. Every step below was run against a fresh
-`rails new` app. If your app signs in another way, read
-[Getting Started]({% link _getting_started/getting-started.md %}) instead; the
-policy part is the same.
+## Prepare Sign-In
 
-## 1. Start from an App With Sign-In
-
-Skip the commands you have already run in your own app:
+Use Ruby 3.3+ and Rails 8.1.4.1+ below 8.2. In a fresh Rails app:
 
 ```sh
-rails new quick
-cd quick
 bin/rails generate authentication
 bin/rails generate migration AddAdminToUsers admin:boolean
+bin/rails db:migrate
 ```
 
-Give the new column `null: false, default: false` in its migration. Only users with
-`admin` set will reach the admin. Your app also needs a `root` route, because the
-authentication generator returns there after sign-in.
+Give the admin column `null: false, default: false` before migrating. Add a
+`root` route for the authentication generator's sign-in redirect. Create your
+business models and migrate them before installing the admin.
 
-## 2. Install the Closed Engine
+Devise apps can keep their existing sign-in setup. The installer uses the `user`
+scope when present, otherwise the first mapping. It requires `admin?` to be true,
+except for the exact `admin` and `admin_user` scopes, where every active signed-in
+account is admitted. Review that choice in the generated `AdminContext`.
+Unknown authentication systems receive a closed context to implement yourself.
 
-Add the gem to your app's Gemfile. See
-[Getting Started]({% link _getting_started/getting-started.md %}) for the supported
-Ruby and Rails versions.
+## Install and Generate
 
 {% if site.docs_unreleased %}
+Use this checkout in the host Gemfile; 0.2.0 is not published:
+
 ```ruby
 gem "rails_ai_admin", path: "../rails_ai_admin"
 ```
@@ -53,119 +50,73 @@ gem "rails_ai_admin", "{{ site.version }}"
 ```
 {% endif %}
 
-Then install it:
+From an app with migrated models and sign-in, run:
 
 ```sh
 bundle install
-bin/rails generate rails_ai_admin:install
+bin/rails generate rails_ai_admin:install --full-access
 bin/rails db:migrate
-```
-
-The engine is now mounted at `/admin` and closed. `AdminContext` returns no one,
-and `AdminPolicyAdapter` grants nothing. Each generated file also contains a
-commented, working example for this kind of app.
-
-## 3. Use the Examples
-
-In `app/rails_ai_admin/admin_context.rb`, delete the closed `resolve` method and
-uncomment the example below it. It reads the session cookie that the
-authentication generator sets, admits only admins, and uses one fixed tenant
-because this app has no accounts:
-
-```ruby
-class AdminContext
-  SingleTenant = Data.define(:id)
-  TENANT = SingleTenant.new(id: "app")
-
-  def resolve(controller)
-    session = Session.find_by(id: controller.request.cookie_jar.signed[:session_id])
-    user = session&.user
-    return unless user&.admin?
-    RailsAiAdmin::Context.new(actor: user, tenant: TENANT, security_version: user.updated_at.to_i.to_s)
-  end
-end
-```
-
-Uncomment the example in `app/rails_ai_admin/admin_policy_adapter.rb`. It lets an
-admin list and read users, and grants nothing on any other resource. Its search and
-sort grants take effect once the field declares `searchable:` and `sortable:`:
-
-```ruby
-class AdminPolicyAdapter < RailsAiAdmin::Authorization::Adapter
-  def scope(context:, resource:, relation:)
-    resource.key == :users ? relation.all : relation.none
-  end
-
-  def allowed?(context:, action:, resource:, record: nil)
-    resource.key == :users && %i[index show].include?(action)
-  end
-
-  def fields(context:, resource:, action:, record: nil)
-    return [] unless resource.key == :users
-    case action
-    when :read then %i[id email_address created_at]
-    when :search, :sort then %i[email_address]
-    else []
-    end
-  end
-end
-```
-
-Each line is a decision about your data. With accounts, return the user's account
-as the tenant and scope by it, for example `relation.where(account_id: context.tenant.id)`.
-
-## 4. Generate and Register the Resource
-
-```sh
-bin/rails generate rails_ai_admin:resource User --fields email_address created_at
-```
-
-This writes `app/rails_ai_admin/user_admin.rb` with `id`, `email_address` and
-`created_at` enabled, titled by the email address and `readonly`. The other
-suggested columns stay commented, and `password_digest` is never suggested.
-Register it, and send signed-out visitors to the sign-in page, in
-`config/initializers/rails_ai_admin.rb`:
-
-```ruby
-config.resources = ["UserAdmin"]
-config.authentication_path = "/session/new"
-```
-
-## 5. Check It
-
-```sh
+bin/rails generate rails_ai_admin:resource --all
 bin/rails rails_ai_admin:doctor
-bin/rails test test/rails_ai_admin/access_test.rb
-bin/rails server
 ```
 
-Mark a user as an admin in the console (`User.find_by(email_address: "...").update!(admin: true)`),
-sign in, and open `/admin/users`. You should see:
+The installer mounts `/admin`, connects sign-in, and adds identity and sign-out
+controls. The resource generator writes explicit files under `app/rails_ai_admin`
+and registers them in the initializer. It generates list columns, search, sort,
+filters, supported fields, references and child panels from schema metadata.
+Models with `updated_at` or `lock_version` are editable. Others remain readonly.
 
-* A signed-out browser visit redirects to `/session/new`.
-* A signed-in user without `admin` is sent there too: the example context admits
-  only admins. Requests that do not ask for HTML get a 401.
-* An admin sees the users list and each user's page, with no password digest.
+For selected models, use `rails_ai_admin:resource Article Billing::Invoice`.
+Use `--readonly` to disable writes, `--no-register` to leave registration manual,
+or `--fields title body` to select fields on a single model. Password digests,
+authority flags, encrypted columns and other sensitive names are omitted.
+`--all` skips Rails sign-in sessions and existing resources. Names alone cannot
+prove that a field's contents are safe: review each generated resource.
 
-## 6. Allow Editing (Optional)
+## Decide Who Gets Access
 
-Admin forms detect edits that happened while a form was open through the
-record's `updated_at` (or `lock_version`, if the model has one), so the default
-`users` table needs no migration. Remove `readonly` from `UserAdmin`, then grant
-the action and the field in the policy:
+Set `admin: true` on your trusted staff account, sign in, and open `/admin`.
+The Rails context requires `admin?`; it does not grant access to every user.
+The full-access policy grants admitted staff every declared capability across
+all rows of each registered model. It supplies no tenant condition or roles.
+The assistant remains off and its policy grant stays closed.
+
+For accounts, change the context to return the user's account and narrow the
+policy relation, for example:
 
 ```ruby
-resource.key == :users && %i[index show update].include?(action)
-# ...
-when :write then %i[email_address]
+class AdminPolicyAdapter < RailsAiAdmin::Authorization::FullAccessAdapter
+  def scope(context:, resource:, relation:)
+    relation.where(account_id: context.tenant.id)
+  end
+end
 ```
 
-An admin can now edit an email address. The save runs through the shared operation
-boundary and writes an audit event. Keep a resource `readonly` if its callbacks send
-mail or call other services.
+Apply this only to models with that tenant column; define explicit scopes for
+other models. Omit `--full-access` during installation to start with a policy
+that denies all actions and fields. To opt in later, edit the policy superclass;
+rerunning installation preserves existing host files even with `--force`.
+
+## Verify the Host
+
+```sh
+bin/rails test test/rails_ai_admin/access_test.rb
+bin/rails server -b 127.0.0.1
+```
+
+Check an anonymous visit, a signed-in non-admin, and your staff account. Edit a
+record and check its history. A generated User resource omits passwords; creating
+users who require a password needs an explicitly reviewed write-only password
+field. Keep resources readonly when callbacks have effects that cannot roll back.
+Stop the local server when finished.
+
+The repository's `script/packaged_quickstart_smoke.rb` checks fresh Rails
+authentication, generated registration, audited create/update, revocation and
+installer reruns using the built gem. Your host's roles, callbacks and tenant
+boundaries need their own tests.
 
 ## Next Steps
 
-* [Configuration]({% link _getting_started/configuration.md %}) covers other sign-in systems and Pundit.
-* [Resources and Fields]({% link _core_features/resources-and-fields.md %}) defines search, sort and filters.
-* [Associations]({% link _core_features/associations.md %}) adds `belongs_to` references and `has_many` panels.
+* [Configuration]({% link _getting_started/configuration.md %}) covers host authority and Pundit.
+* [Resources and Fields]({% link _core_features/resources-and-fields.md %}) defines exposure.
+* [Associations]({% link _core_features/associations.md %}) explains reference and child panels.

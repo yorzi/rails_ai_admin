@@ -19,7 +19,7 @@ After reading this guide, you will know:
 
 ## Use Released Dependency Lines
 
-The gem currently bounds Rails to 8.0.5.2 through below 8.2, `turbo-rails` to 2.x and
+The gem currently bounds Rails to 8.1.4.1 through below 8.2, `turbo-rails` to 2.x and
 `stimulus-rails` to 1.x. The optional `rails_tool_views` (1.0.2 through below 1.1) and
 RubyLLM (2.2.0 through below 3) come from your Gemfile and are checked at boot. Refer to the lockfile for the exact resolved graph. A
 candidate range does not prove all future versions in that range are compatible.

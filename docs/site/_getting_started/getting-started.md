@@ -45,12 +45,9 @@ gem "rails_ai_admin", "{{ site.version }}"
 ```
 {% endif %}
 
-The runtime requires Ruby 3.3 or newer and Rails 8.0.5.2 to below 8.2; on Rails 8.1
-use 8.1.4.1 or newer (doctor reports an older patch release). CI runs the
-engine suite on Ruby 3.3 and 4.0 with Rails 8.0 and 8.1; the range does not prove
-every combination has passed, so consult `COMPATIBILITY.md` in the checkout for
-executed evidence. On Rails 8.0 keep `json` below 3: Active Support 8.0's encoder
-fails on json 3. Generic writes target SQLite and PostgreSQL.
+The runtime requires Ruby 3.3+ and Rails 8.1.4.1+ below 8.2. Rails 7 and
+8.0 are unsupported. CI covers Ruby 3.3 and 4.0 on SQLite and PostgreSQL;
+`COMPATIBILITY.md` records executed evidence for specific combinations.
 
 ## Install the Closed Engine
 
@@ -64,43 +61,22 @@ bin/rails generate rails_ai_admin:resource Customer
 bin/rails rails_ai_admin:doctor
 ```
 
-The install generator copies conventional execution/audit migrations, a
-configuration initializer, a closed `AdminContext`, a default-deny
-`AdminPolicyAdapter`, an unregistered `ExampleAdmin`, and an anonymous request test
-at `test/rails_ai_admin/access_test.rb`. It adds the `/admin` mount named
-`rails_ai_admin` when the host has no existing admin engine mount. The generated
-context returns `nil`; the generated policy grants no actions or fields. An
-authenticated host user receives no automatic permission.
+The installer copies conventional execution/audit migrations, an initializer,
+`AdminContext`, a default-deny `AdminPolicyAdapter`, and an anonymous access test.
+It detects Rails authentication or Devise and connects the context to existing
+sign-in; unknown sign-in systems get a closed context. It adds `/admin` only if
+there is no existing engine mount. Authenticated users still need policy grants.
 
-The generator does not create users, roles, provider settings or assistant tables.
-It preserves an existing policy scaffold, example declaration or anonymous test,
-even with `--force`. The initializer and `AdminContext` still use normal generator
-conflict handling: `--force` can overwrite those files. Review them before rerunning
-installation; do not treat the force option as a safe merge of real authentication.
-Conflicting scaffold constants loaded from other paths are rejected before writing.
-Run installation inside the target Rails application: its actual loaded RouteSet
-is checked before writing. The destination must match that application's root;
-pointing the generator at another directory is refused. The check handles drawn
-route files and the final names produced by namespace/self.mount syntax, rather
-than parsing a particular Ruby source spelling.
+`--full-access` opts into the trusted-staff preset described in the
+[quickstart]({% link _getting_started/quickstart.md %}). It applies no tenant scope.
+Installation preserves existing initializer, context, policy and access-test
+files, even with `--force`. Rerunning copies missing migrations and files only.
+Run it inside the target Rails app so it can inspect the actual routes. Conflicting
+constants and mount aliases are rejected before writing. The installer creates
+no users, provider settings or assistant tables.
 
-Only one admin engine mount is supported, with final helper name `rails_ai_admin`,
-a path without dynamic parameters, and all HTTP verbs. A static custom path is
-retained. Other aliases, namespace-generated helper prefixes, dynamic parameters,
-verb restrictions or multiple admin mounts are rejected before files are written.
-If no admin mount exists but another route already owns the `rails_ai_admin` name,
-installation refuses the collision rather than adding a conflicting route.
-
-The setup message links this guide in the source repository; the gem ships no
-`docs/` directory. `ExampleAdmin` is an unregistered declaration to
-review, not a discovered business model or live endpoint. The generated test checks
-the anonymous HTTP boundary; run it before and after adapting authentication:
-
-```sh
-bin/rails test test/rails_ai_admin/access_test.rb
-```
-
-A passing anonymous test does not prove a logged-in policy or tenant boundary.
+Run `bin/rails test test/rails_ai_admin/access_test.rb` before and after changing
+host authentication. An anonymous test alone does not prove your tenant boundary.
 
 ## Connect Host Authority
 
@@ -120,33 +96,27 @@ Configuration freezes after initialization; the registry rebuilds in `to_prepare
 
 ## Review Suggested Fields
 
-`rails_ai_admin:resource Customer` emits a readonly resource with only its ID
-enabled, and does not register it. If schema metadata is available, supported
-scalar columns appear as commented suggestions. Sensitive names, encrypted
-attributes, foreign keys and polymorphic foreign-type columns, the STI inheritance
-column, `lock_version`, authority-like names such as `role`, `permission`, `admin`,
-`superuser` and `security_version`, and unsupported column types are excluded. A declared
-non-polymorphic `belongs_to` becomes a commented `belongs_to` suggestion instead
-of a raw key column; see [Associations]({% link _core_features/associations.md %}).
-The generator reads schema metadata, not sample records or business values.
+`rails_ai_admin:resource Customer` writes and registers a resource from schema
+metadata. Supported fields are enabled, with search, sort, filter and list settings.
+It reads no business records. Sensitive names, encrypted attributes, raw foreign
+keys, tenant/authority columns and unsupported types are omitted. References are
+enabled when their target resources are registered or generated together.
 
-To enable some suggestions straight away, name them with `--fields`; each may
-carry its type as a check:
+Generate several models with `rails_ai_admin:resource Customer Order`, or use
+`--all` for models under `app/models`. Existing resources and Rails sign-in sessions
+are skipped by `--all`. Namespaced models are supported. Use `--readonly` for
+read-only setup and `--no-register` for manual registration.
+
+For a single model, select schema suggestions explicitly:
 
 ```sh
 bin/rails generate rails_ai_admin:resource Customer --fields name:text points active
 ```
 
-Each named field must be one the schema already suggests, so a sensitive,
-foreign-key, tenant or internal column is refused rather than enabled, and a type
-that differs from the suggestion is an error. Named fields are written active, the
-first text field becomes the title, and the resource stays `readonly`; the other
-suggestions stay commented. Your policy must still grant the fields.
-
-An unknown model or an unavailable/unmigrated table does not cause automatic
-exposure: the generator leaves the safe readonly declaration without relying on
-suggestions. Review field meaning and host policy yourself; a harmless column name
-is not proof that its contents are nonsensitive.
+Other suggestions remain commented. Sensitive or unsupported names and mismatched
+types are rejected. Unknown models and unavailable tables produce unregistered
+readonly stubs. Models without `updated_at` or `lock_version` remain readonly.
+Review field meaning: a harmless name does not prove nonsensitive contents.
 
 After reviewing the model and policy, replace the generated declaration and
 register it deliberately:
