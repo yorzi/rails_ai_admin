@@ -64,7 +64,7 @@ run!(env, target, "bundle", "exec", "rails", "rails_ai_admin:doctor")
 run!(env, target, "bundle", "exec", "rails", "test", "test/rails_ai_admin/access_test.rb")
 FileUtils.rm_f(File.join(target, "app/rails_ai_admin/staff_user_admin.rb"))
 run!(env, target, "bundle", "exec", "rails", "generate", "rails_ai_admin:resource", "StaffUser")
-run!(env, target, "bundle", "exec", "rails", "runner", "source = Rails.root.join('app/rails_ai_admin/staff_user_admin.rb').read; raise unless source.include?('# text :email'); raise if source.match?(/password|security_version|role/); raise unless StaffUserAdmin.readonly? && StaffUserAdmin.fields.map(&:name) == [:id]; raise if RailsAiAdmin.registry.resources.include?(StaffUserAdmin)")
+run!(env, target, "bundle", "exec", "rails", "runner", "source = Rails.root.join('app/rails_ai_admin/staff_user_admin.rb').read; raise unless source.include?('# email :email'); raise if source.match?(/password|security_version|role/); raise unless StaffUserAdmin.readonly? && StaffUserAdmin.fields.map(&:name) == [:id]; raise if RailsAiAdmin.registry.resources.include?(StaffUserAdmin)")
 run!(env, target, "bundle", "exec", "ruby", "test/acceptance_test.rb")
 
 # Exercise every public template through standard app/views resolution in the
