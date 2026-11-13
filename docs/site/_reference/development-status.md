@@ -53,10 +53,20 @@ explicit Save. Persistent session drafts and custom-operation/delete recovery
 remain unavailable. These changes do not close Phase 2 or any release Gate.
 
 [Associations]({% link _core_features/associations.md %}) adds `belongs_to`
-reference fields and readonly `has_many` show panels. Labels, pickers, writes and
-child lists go through each target or child resource's own relation and grants.
-Association search/sort, a picker endpoint for large targets, has_one/through
-and many-to-many writes and attach/detach policies remain open.
+reference fields with a search picker for large targets, readonly `has_many` and
+`has_one` panels with an Add link that prefills the parent, and `references`
+fields that edit has_many/through/HABTM lists. Labels, pickers, writes and child
+lists go through each target or child resource's own relation and grants.
+Association search/sort, polymorphic writes, nested child forms and
+attach/detach policies remain open.
+
+Everyday admin features are implemented locally (2026-11-13): records without
+`lock_version` use `updated_at` as their version; field types cover time, email,
+URL, JSON, write-only passwords, Active Storage `file`/`files` and Action Text
+`rich_text`; CSV export and checked CSV import, bulk delete over a selection,
+record History and an Audit log, dashboard metrics and trends and a search
+across resources each sit behind their own default-deny grant. `bin/demo` shows
+all of them. See [Try the Demo]({% link _getting_started/demo.md %}).
 
 [List Navigation]({% link _core_features/list-navigation.md %}) now retains
 bounded search/sort/page hints across native resource/operation/selection/job

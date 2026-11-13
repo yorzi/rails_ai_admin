@@ -103,6 +103,27 @@ a field in a template does not establish authorization. You can instead opt into
 the [Pundit adapter]({% link _advanced/pundit-and-devise.md %}) with an explicit policy
 for each resource. ActionPolicy integration remains future work.
 
+### Optional Grants
+
+Every other capability has its own default-deny method. Implement only the ones
+you use; each still needs the ordinary action and field grants.
+
+| Method | Turns on | Guide |
+|---|---|---|
+| `filter` in `fields` | Typed list filters | [Typed Filters]({% link _core_features/typed-filters.md %}) |
+| `named_scopes(context:, resource:)` | List tabs and dashboard metrics over them | [Named Scopes]({% link _core_features/named-scopes.md %}) |
+| `select_records?(context:, resource:)` | Index checkboxes, fixed selections, bulk delete | [Fixed Selections]({% link _core_features/selections.md %}) |
+| `export_records?(context:, resource:)` | Export CSV | [CSV Export and Import]({% link _core_features/csv-export.md %}) |
+| `import_records?(context:, resource:)` | Import CSV (with `create`) | [CSV Export and Import]({% link _core_features/csv-export.md %}) |
+| `view_history?(context:, resource:, record:)` | A record's History page | [Record History]({% link _core_features/record-history.md %}) |
+| `view_audit_log?(context:, resource:)` | The Audit log page | [Record History]({% link _core_features/record-history.md %}) |
+| `operation_fields`, `read_operation_receipt?`, `deliver_work?`, `cancel_operation?` | Custom operations and their receipts | [Operations]({% link _core_features/operations.md %}) |
+| `assistant?(context:, resource:)` | Admin Chat for the resource | [Admin Assistant]({% link _advanced/admin-assistant.md %}) |
+| `presentation_fields(context:, resource:, view:, record:)` | Per-view narrowing of fields | [Resources and Fields]({% link _core_features/resources-and-fields.md %}) |
+
+With the Pundit adapter, the same names are methods on each resource's policy
+(for example `def export_records? = user.actor.admin?`).
+
 ## Configure Before Boot
 
 ```ruby
