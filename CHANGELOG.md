@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Security regression sweep (RAA-0210): every state-changing engine route,
+  including Surface and Chat routes, rejects a missing CSRF token without a
+  side effect; unwritable, framework and tenant attributes are never mass
+  assigned; record text and request values are escaped on every page; list
+  and selection pages keep a constant query count as rows grow.
 - Reference inputs past 100 targets keep the typed key input and add a search
   box that fills it. `GET <admin>/<target>/references/search?q=` returns at
   most 20 `{id, label}` results through the target's own policy relation,

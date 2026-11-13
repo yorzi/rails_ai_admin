@@ -37,7 +37,7 @@ hosts, not by external users.
 | Live provider check | Local | 2026-11-03: Host B full flow against OpenAI, Anthropic and Google models through OpenRouter, one run each. Native OpenAI/Anthropic APIs and live failure recovery remain open (RAA-0509) |
 | Dependency security | Local clean | Both Ruby lockfiles pass the refreshed advisory scan after the 2026-11-06 patches; exact candidate CI remains required |
 | Reproduced correctness defects | Locally fixed | Late worker responses, search pagination and prerelease release metadata have regression tests (COMPATIBILITY.md) |
-| Phase 2 security regressions (RAA-0210) | Open | CSRF, mass assignment, XSS and N+1 regressions across list and Surface routes |
+| Phase 2 security regressions (RAA-0210) | Local | `test/integration/security_regressions_test.rb`: every non-GET engine route (Surface and Chat included) rejects a missing CSRF token with no side effect; unwritable, framework and tenant attributes are never assigned; record text and request values are escaped on every page; list and selection pages keep a constant query count. CSRF and XSS checks were mutation-tested |
 | Framework I18n | Open | Engine strings are English literals |
 | Accessibility pass | Partial | Keyboard and 320px Chromium checks for some pages; no screen-reader pass; associations not yet checked |
 | Remote CI on the release commit | Required per candidate | Historical main CI passed on 9892431; the reconciled hardening candidate must pass on its own exact SHA |

@@ -178,8 +178,8 @@ release steps. RAA-0509 still needs the native OpenAI and Anthropic APIs.
 
 Then extend admin Chat where the plan requires it: AI-012 budget reservation,
 AI-010 page/selection context, streaming (AI-003) and chat retention. Close the
-remaining Phase 2 evidence in parallel: RAA-0210 (validation, CSRF, mass assignment, XSS and N+1
-regressions across list and Surface routes), I18n of framework strings, a
+remaining Phase 2 evidence in parallel (RAA-0210 security regressions are covered
+as of 2026-11-13): I18n of framework strings, a
 screen-reader pass, and the RAA-0203/0208 extension matrix. Then start Phase 3
 continuing associations (RAA-0301): association
 columns (LIST-019), has_one/has_many :through and CRUD-021 attach/detach policies.
