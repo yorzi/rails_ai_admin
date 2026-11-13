@@ -1,0 +1,20 @@
+<% admin_title t("rails_ai_admin.search.title") %>
+<h1><%= t("rails_ai_admin.search.title") %></h1>
+<%= form_with url: global_search_path, method: :get, local: true, class: "raa-search", role: "search" do |form| %>
+  <%= form.label :q, t("rails_ai_admin.search.label"), class: "raa-visually-hidden" %>
+  <%= form.search_field :q, value: @query, maxlength: 200, autofocus: @query.empty? %>
+  <%= form.submit t("rails_ai_admin.resources.index.search"), name: nil %>
+<% end %>
+<% if @query.present? %>
+  <% if @sections.empty? %>
+    <p role="status"><%= t("rails_ai_admin.search.none", query: @query) %></p>
+  <% else %>
+    <% @sections.each do |section| %>
+      <section class="raa-association" aria-labelledby="raa-search-<%= section.resource.key %>">
+        <h2 id="raa-search-<%= section.resource.key %>"><%= section.resource.label %></h2>
+        <ul><% section.rows.each do |row| %><li><%= link_to row.label, resource_path(resource: section.resource.key, id: row.id) %></li><% end %></ul>
+        <p><%= link_to(section.more ? t("rails_ai_admin.search.view_all", label: section.resource.label) : t("rails_ai_admin.search.open_list", label: section.resource.label), resources_path(resource: section.resource.key, q: @query)) %></p>
+      </section>
+    <% end %>
+  <% end %>
+<% end %>

@@ -260,6 +260,12 @@ en:
       administration: Administration
       settings_unavailable: Some list settings are no longer available.
     dashboard:
+      count:
+        one: 1 record
+        other: "%{number} records"
+      count_capped:
+        one: More than %{number} records
+        other: More than %{number} records
       title: Overview
       intro: Select a resource to manage. Available resources follow your current permissions.
       empty: No resources are available for this session.
@@ -306,6 +312,12 @@ en:
           Check current records or existing operation results before retrying. A prior write may have
           completed.
     search:
+      title: Search
+      label: Search all records
+      placeholder: Search everything
+      none: Nothing matches “%{query}” in the records you can search.
+      view_all: View all matches in %{label}
+      open_list: Open in %{label}
       prefix: Starts with…
       contains: Contains…
       exact: Exact match…

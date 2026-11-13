@@ -20,6 +20,7 @@ RailsAiAdmin::Engine.routes.draw do
     post "assistant/conversations/:chat_ref/retry", to: "assistant#retry_turn", as: :retry_assistant_conversation
     post "assistant/conversations/:chat_ref/archive", to: "assistant#archive", as: :archive_assistant_conversation
   end
+  get "search", to: "search#index", as: :global_search
   get "jobs", to: "collection_jobs#index", as: :collection_jobs
   get "jobs/:job_ref", to: "collection_jobs#show", as: :collection_job
   post "jobs/:job_ref/cancel", to: "collection_jobs#cancel", as: :cancel_collection_job

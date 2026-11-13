@@ -27,6 +27,19 @@ class I18nTest < ActionDispatch::IntegrationTest
     assert_empty missing, "add these keys to config/locales/en.yml"
   end
 
+  # A repeated key silently replaces the earlier block in YAML.
+  def test_the_english_locale_repeats_no_key
+    duplicates = []
+    walk = lambda do |node, path|
+      next unless node.is_a?(Psych::Nodes::Mapping)
+      keys = node.children.each_slice(2).map { |key, _| key.value }
+      keys.tally.each { |key, count| duplicates << (path + [ key ]).join(".") if count > 1 }
+      node.children.each_slice(2) { |key, value| walk.call(value, path + [ key.value ]) }
+    end
+    walk.call(Psych.parse_file(File.join(ROOT, "config/locales/en.yml")).root, [])
+    assert_empty duplicates
+  end
+
   def test_a_host_locale_replaces_framework_text
     previous_locales = I18n.available_locales
     I18n.available_locales = previous_locales | [ :de ]

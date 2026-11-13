@@ -2,6 +2,15 @@
 
 module RailsAiAdmin
   class DashboardController < ApplicationController # :nodoc:
-    def index; end
+    # Counts appear only for resources whose list already opts into exact
+    # counts, with the same bound (10,000) and default list tab.
+    def index
+      @counts = RailsAiAdmin.registry.resources.each_with_object({}) do |resource, counts|
+        next unless resource.index.count == :exact
+        counts[resource.key.to_s] = Queries::List.new(@context, resource).count
+      rescue AccessDenied
+        next
+      end
+    end
   end
 end

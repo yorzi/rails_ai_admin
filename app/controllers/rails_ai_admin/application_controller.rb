@@ -16,7 +16,7 @@ module RailsAiAdmin
     prepend_before_action :secure_headers
     before_action :authenticate_admin
     after_action :notice_discarded_list_settings
-    helper_method :resource_navigation, :admin_csp_nonce, :list_page_path, :encoded_return_state, :navigation_state, :navigation_params, :list_return_path, :list_return_label, :return_state_discarded?, :return_navigation_fields, :list_state_fields, :visible_resources, :allowed_action?, :record_label, :collection_jobs_available?, :admin_associations, :assistant_available?
+    helper_method :resource_navigation, :admin_csp_nonce, :list_page_path, :encoded_return_state, :navigation_state, :navigation_params, :list_return_path, :list_return_label, :return_state_discarded?, :return_navigation_fields, :list_state_fields, :visible_resources, :allowed_action?, :record_label, :collection_jobs_available?, :admin_associations, :assistant_available?, :searchable_resources
 
     rescue_from AccessDenied, with: :deny_access
     rescue_from ConfigurationError do
@@ -162,6 +162,19 @@ module RailsAiAdmin
     def visible_resources
       RailsAiAdmin.registry.resources.select do |resource|
         Authorization::Access.new(@context, resource).authorize!(:index)
+      rescue AccessDenied
+        false
+      end
+    end
+
+    # Resources in the menu that this actor may list and search, for the
+    # header search box. Request-local; no grant survives the request.
+    def searchable_resources
+      @searchable_resources ||= RailsAiAdmin.registry.resources.select do |resource|
+        next false if resource.navigation.hidden
+        access = Authorization::Access.new(@context, resource)
+        access.authorize!(:index)
+        access.fields(:search).any?
       rescue AccessDenied
         false
       end

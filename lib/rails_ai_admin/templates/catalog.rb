@@ -14,7 +14,8 @@ module RailsAiAdmin
         "status_page" => [ "rails_ai_admin/statuses/show.html.erb", %i[admin_status status_sign_in_path], [] ],
         "session_links" => [ "rails_ai_admin/shared/_session.html.erb", %i[context], [] ],
         "resource_navigation" => [ "rails_ai_admin/shared/_navigation.html.erb", [], %i[groups] ],
-        "dashboard" => [ "rails_ai_admin/dashboard/index.html.erb", %i[context], [] ],
+        "dashboard" => [ "rails_ai_admin/dashboard/index.html.erb", %i[context counts], [] ],
+        "search" => [ "rails_ai_admin/search/index.html.erb", %i[context query sections], [] ],
         "resource_index" => [ "rails_ai_admin/resources/index.html.erb", %i[context resource page columns rows searchable selectable exportable sortable_fields list_scopes current_scope filter_fields omitted_rows], [] ],
         "resource_show" => [ "rails_ai_admin/resources/show.html.erb", %i[context resource record values fields operations association_panels], [] ],
         "resource_history" => [ "rails_ai_admin/resources/history.html.erb", %i[context resource record history actor_labels], [] ],
@@ -49,7 +50,7 @@ module RailsAiAdmin
         revision = if key == "layout"
           4 # page titles, environment label and the session_links slot (RAA-024)
         elsif key == "dashboard"
-          2
+          3 # counts
         elsif key == "resource_index"
           7 # exportable (CSV export)
         elsif key == "resource_show"

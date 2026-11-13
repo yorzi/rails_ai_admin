@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Search everything: a header search box (shown when the actor may search at
+  least one menu resource) opens `<admin>/search`, which runs each resource's own
+  list search and shows up to five records per resource through their show
+  grants. **Breaking:** `search` is now a reserved resource key.
+- The overview shows record counts for resources whose list opts into exact
+  counts, with the list's bound. Dark mode already follows the system setting.
 - Associations: `has_one :profile` shows a record's single child as a panel,
   with the same grants as `has_many` panels. A `references :tags` field edits a
   `has_many`/`:through`/HABTM list through `tag_ids=`: checkboxes for up to 100
