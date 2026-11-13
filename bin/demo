@@ -49,7 +49,9 @@ FileUtils.rm_rf(TARGET)
 FileUtils.mkdir_p(File.dirname(TARGET))
 FileUtils.cp_r(File.join(ROOT, "spec_hosts/session_sqlite"), TARGET)
 FileUtils.mkdir_p(%w[storage log].map { |dir| File.join(TARGET, dir) })
-edit("Gemfile", %(gem "rails_ai_admin", "0.1.0.dev"), %(gem "rails_ai_admin", path: #{ROOT.inspect}))
+# The packaged host pins the exact release version; the demo runs this checkout.
+require_relative "../lib/rails_ai_admin/version"
+edit("Gemfile", %(gem "rails_ai_admin", "#{RailsAiAdmin::VERSION}"), %(gem "rails_ai_admin", path: #{ROOT.inspect}))
 FileUtils.cp(File.join(ASSETS, "seeds.rb"), File.join(TARGET, "db/seeds.rb"))
 
 if options[:assistant]
