@@ -543,7 +543,8 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
     assert_equal %w[customer number total], RailsAiAdmin::AuditEvent.where(resource_key: "orders", operation: "create", status: "succeeded").last.changed_fields.sort
     get "/staff/customers/#{@customer.id}"
     assert_response :success
-    assert_equal %w[REF-1 REF-3], css_select("section.raa-association li a").map(&:text)
+    assert_equal %w[REF-1 REF-3], css_select("section.raa-association li a:not(.raa-row-edit)").map(&:text)
+    assert_select "section.raa-association a.raa-row-edit[href*=\"back%5Bresource%5D=customers\"]", minimum: 1
     view_all = css_select("section.raa-association a").find { |node| node.text == "View all in Orders" }["href"]
     get view_all
     assert_response :success
