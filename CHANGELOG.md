@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+No changes yet.
+
 ## 0.2.0 (2026-11-14)
 
 Public Preview. Requires Ruby 3.3+ and Rails 8.1.4.1 or newer below 8.2.
