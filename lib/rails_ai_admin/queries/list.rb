@@ -192,7 +192,7 @@ module RailsAiAdmin
       def reference_titles(field)
         relation, model, title = reference_relation(field)
         table = model.arel_table
-        [ relation.reselect(table[model.primary_key].as("raa_key"), table[title.column].as("raa_title")).arel.as("raa_reference_titles"), :raa_title ]
+        [ relation.reselect(table[model.primary_key].as("raa_key"), table[title.column].as("raa_title")).distinct.arel.as("raa_reference_titles"), :raa_title ]
       end
 
       # Keys of target records in the target's policy relation whose title matches.

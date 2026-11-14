@@ -1,6 +1,6 @@
 # Roadmap
 
-Rails AI Admin is a Public Preview. 0.2.0 was released on 2026-11-14. See [CHANGELOG.md](CHANGELOG.md) for changes and
+Rails AI Admin is a Public Preview. 0.3.0 was released on 2026-11-14. See [CHANGELOG.md](CHANGELOG.md) for changes and
 [COMPATIBILITY.md](COMPATIBILITY.md) for version-specific validation evidence.
 
 ## 0.2.0: simpler setup (released)
@@ -17,7 +17,7 @@ These changes do not establish adoption or production suitability for every host
 An independent app trial and human screen-reader review remain open. A hosted
 read-only demo is a future task, not part of this release's claim.
 
-## 0.3.0: everyday list work (in development)
+## 0.3.0: everyday list work (released)
 
 - `contains`, `in` (any of) and `blank` filters, declared per field.
 - Sorting and searching by a `belongs_to` reference, under the target's grants.

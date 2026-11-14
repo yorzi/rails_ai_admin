@@ -1,5 +1,11 @@
 # Compatibility
 
+## 2026-11-14 — 0.3.0 release validation
+
+Local Ruby 4.0.9 / Rails 8.1.4.1 / SQLite passed 602 tests and 5,689 assertions.
+The suite includes a regression test for reference sorting with a joined
+authorization scope. RuboCop checked 357 files with no offenses.
+
 ## 2026-11-14 — 0.3.0 development candidate
 
 Requires Ruby >= 3.3 and Rails >= 8.1.4.1, < 8.2, as in 0.2.0. The package is

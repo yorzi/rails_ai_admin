@@ -1,6 +1,6 @@
 # Security policy
 
-0.2.0 is the current Public Preview. Review the limitations in CHANGELOG.md and deploy
+0.3.0 is the current Public Preview. Review the limitations in CHANGELOG.md and deploy
 behind your host application's authentication and network controls. Verify
 tenant scopes and action and field grants before granting access.
 

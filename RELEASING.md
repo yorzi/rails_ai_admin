@@ -1,8 +1,8 @@
 # Releasing
 
-0.2.0 is the current Public Preview release. The owner authorized its publication
-on 2026-11-14 with “release 0.2.0”. The release commit opens `allowed_push_host`;
-the main branch has reopened as `0.3.0.dev` with publishing blocked.
+The owner authorized publication of the 0.3.0 Public Preview on 2026-11-14.
+The release commit opens `allowed_push_host`. Future development builds must
+close it again.
 
 ## Candidate checks
 

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 (2026-11-14)
 
 Everyday list work. Requires the new saved views migration
 (`bin/rails generate rails_ai_admin:install --skip`, then `db:migrate`); see

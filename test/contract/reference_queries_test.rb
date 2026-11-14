@@ -69,6 +69,14 @@ class ReferenceQueriesTest < Minitest::Test
     assert_equal %w[I-2 I-6 I-4], list(sort: "customer", search: "a"), "Ada twice, then Mia"
   end
 
+  def test_sorting_by_a_reference_deduplicates_joined_target_scope
+    AssociationFixtures::Policy.join_customer_invoices = true
+
+    assert_equal %w[I-2 I-6], list(sort: "customer", page_size: 2)
+    assert_equal %w[I-4 I-1], list(sort: "customer", page_size: 2, page: "2")
+    assert_equal %w[I-2 I-6 I-4 I-1 I-3 I-5], list(sort: "customer")
+  end
+
   def test_searching_a_reference_matches_the_target_title_inside_the_target_policy
     assert_equal %w[I-2 I-6], list(search: "ad").sort
     assert_equal %w[I-2 I-4 I-6], list(search: "a").sort, "contains, case-insensitive, never the foreign Aaron"

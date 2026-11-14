@@ -40,7 +40,7 @@ add-on are marked as such.
 
 | | Rails AI Admin | ActiveAdmin | Avo | Administrate | RailsAdmin | Madmin | Trestle |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Latest version | 0.2.0 (Public Preview) | 3.5.2 (4.0 in beta) | 4.4.4 | 1.0.0 | 3.3.1 | 3.4.1 | 0.10.1 |
+| Latest version | 0.3.0 (Public Preview) | 3.5.2 (4.0 in beta) | 4.4.4 | 1.0.0 | 3.3.1 | 3.4.1 | 0.10.1 |
 | License | MIT | MIT | LGPL-3.0 or commercial | MIT | MIT | MIT | LGPL-3.0 |
 | Cost | Free | Free | Free Community plan, paid plans for more features | Free | Free | Free | Free |
 | Rails versions | 8.1 | 6.1 and later | 6.1 and later | 6.0 to 8.x | 6.0 to 8.x | 7.0 and later | 6.0 and later |

@@ -39,6 +39,7 @@ module AssociationFixtures
 
   class Policy < RailsAiAdmin::Authorization::Adapter
     class_attribute :hidden_customers, default: []
+    class_attribute :join_customer_invoices, default: false
     class_attribute :deny_customer_show, default: false
     class_attribute :deny_customer_index, default: false
     class_attribute :customer_sort, default: %i[name]
@@ -50,6 +51,7 @@ module AssociationFixtures
 
     def self.reset!
       self.hidden_customers = []
+      self.join_customer_invoices = false
       self.deny_customer_show = false
       self.deny_customer_index = false
       self.customer_sort = %i[name]
@@ -62,7 +64,10 @@ module AssociationFixtures
 
     def scope(context:, resource:, relation:)
       scoped = relation.where(account_id: context.tenant.id)
-      resource.key == :customers && hidden_customers.any? ? scoped.where.not(name: hidden_customers) : scoped
+      return scoped unless resource.key == :customers
+
+      scoped = scoped.joins("INNER JOIN invoices ON invoices.customer_id = customers.id") if join_customer_invoices
+      hidden_customers.any? ? scoped.where.not(name: hidden_customers) : scoped
     end
 
     def allowed?(context:, action:, resource:, record: nil)

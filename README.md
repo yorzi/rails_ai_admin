@@ -4,7 +4,7 @@ Rails AI Admin is a self-hosted admin engine for Rails. Give your team an admin
 for the models you choose, then add a RubyLLM-powered assistant that can answer
 questions about records and prepare changes for review.
 
-**0.2.0 Public Preview** · [Documentation](https://rails-ai-admin.wangyaodi.com/) ·
+**0.3.0 Public Preview** · [Documentation](https://rails-ai-admin.wangyaodi.com/) ·
 [Quickstart](https://rails-ai-admin.wangyaodi.com/quickstart/) ·
 [RubyGems](https://rubygems.org/gems/rails_ai_admin)
 
@@ -52,7 +52,7 @@ sources and more detail. Data as of November 2026.
 Add the gem to your Gemfile and run `bundle install`:
 
 ```ruby
-gem "rails_ai_admin", "~> 0.2.0"
+gem "rails_ai_admin", "~> 0.3.0"
 ```
 
 Requires Ruby 3.3+ and Rails 8.1.4.1+ (below 8.2). Rails 7 and 8.0 are not supported. See the [installation guide](https://rails-ai-admin.wangyaodi.com/getting-started/)
