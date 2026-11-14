@@ -1,10 +1,9 @@
 # Roadmap
 
-Rails AI Admin is a Public Preview. 0.1.1 is published; 0.2.0 is in development
-and awaits owner review. See [CHANGELOG.md](CHANGELOG.md) for changes and
+Rails AI Admin is a Public Preview. 0.2.0 was released on 2026-11-14. See [CHANGELOG.md](CHANGELOG.md) for changes and
 [COMPATIBILITY.md](COMPATIBILITY.md) for version-specific validation evidence.
 
-## 0.2.0: simpler setup
+## 0.2.0: simpler setup (released)
 
 - Rails 8.1.4.1+ within the 8.1 series, Ruby 3.3+, SQLite and PostgreSQL.
   Rails 7 and 8.0 are not supported.
@@ -16,7 +15,7 @@ and awaits owner review. See [CHANGELOG.md](CHANGELOG.md) for changes and
 
 These changes do not establish adoption or production suitability for every host.
 An independent app trial and human screen-reader review remain open. A hosted
-read-only demo is a future task, not part of this candidate's release claim.
+read-only demo is a future task, not part of this release's claim.
 
 ## Next candidates
 
