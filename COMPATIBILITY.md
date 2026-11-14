@@ -1,5 +1,27 @@
 # Compatibility
 
+## 2026-11-14 — 0.3.0 development candidate
+
+Requires Ruby >= 3.3 and Rails >= 8.1.4.1, < 8.2, as in 0.2.0. The package is
+`0.3.0.dev`; publishing is blocked pending owner review. Results are local; remote
+CI on the pushed commit must be checked separately.
+
+| Check | Executed result |
+| --- | --- |
+| Ruby 3.3.5 and 4.0.9 × SQLite and PostgreSQL 17.12, Rails 8.1.4.1 | All four combinations: 601 tests / 5,686 assertions, zero failures, errors or skips |
+| Fresh packaged Rails authentication quickstart | 2 tests / 21 assertions; generated authentication, registration, CRUD, revocation and rerun preservation, including the saved views migration |
+| Packaged session / SQLite | 18 / 377; 19 / 450 with every catalogued template overridden (including `resource_deleted`); reload, production precompile and eager boot passed |
+| Packaged Devise / Pundit / PostgreSQL | 27 / 425; 28 / 453 with overrides, on Propshaft and on Sprockets |
+| Recovery | Development reload, crash/replay, outbox death/retry/reconciliation and collection worker recovery passed against synthetic effects |
+| Browser | Local demo: `in`, `contains` and `blank` filters, sorting orders by customer, numbered pages, saving and opening a view, one-step bulk delete with "all matching", soft delete and restore of an article, child Edit links; 390px without page overflow |
+| Static checks | RuboCop: 357 files, no offenses; reproducible frontend build passed |
+| Dependencies | bundle-audit: no vulnerabilities in the main and docs bundles; npm audit: 0 vulnerabilities |
+| Documentation | Jekyll build serves tagged 0.2.0 at `/` and the 0.3 guides at `/next/`; `docs.py check` reports no errors |
+| Candidate check | `release:check_candidate` passed on a clean tree with the publishing gate closed |
+
+Human screen-reader validation, an independent host trial and current live
+provider checks remain open.
+
 ## 2026-11-14 — 0.2.0 release validation
 
 Local Ruby 4.0.9 / Rails 8.1.4.1 / SQLite: 569 tests, 5,343 assertions,
