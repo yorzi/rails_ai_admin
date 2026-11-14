@@ -17,13 +17,22 @@ These changes do not establish adoption or production suitability for every host
 An independent app trial and human screen-reader review remain open. A hosted
 read-only demo is a future task, not part of this release's claim.
 
+## 0.3.0: everyday list work (in development)
+
+- Partial-text and empty/not-empty filters, declared per field.
+- Numbered pages for counted lists.
+- One-step bulk delete and collection operations from the list, still through
+  their review pages.
+- A doctor summary line and a problems-only mode.
+
 ## Next candidates
 
 Prioritize from actual host use rather than a fixed release calendar:
 
-- Richer filters and saved views; association search and sorting.
+- Saved views, multi-value and OR filters; association search and sorting.
 - Nested child forms and separately controlled attachment changes.
-- Bulk operations beyond explicitly selected, bounded record sets.
+- Bulk operations beyond explicitly selected, bounded record sets ("select all
+  matching").
 - Assistant token/cost budgets, conversation retention and aggregate queries.
 - Current native-provider checks, more locales and additional policy adapters.
 
