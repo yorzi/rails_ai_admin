@@ -76,6 +76,14 @@ extract() {
 prepare() {
   local source="$1" channel="$2"
   mkdir -p "$source/_data" "$source/_plugins"
+  # Keep site-wide header links current without changing tagged guide content.
+  cp "$docs/_data/social_links.yml" "$source/_data/social_links.yml"
+  ruby -ryaml -e '
+    current = YAML.safe_load_file(ARGV.fetch(0))
+    target = YAML.safe_load_file(ARGV.fetch(1))
+    target.fetch("jekyll_vitepress")["github_star"] = current.fetch("jekyll_vitepress").fetch("github_star")
+    File.write(ARGV.fetch(1), YAML.dump(target))
+  ' "$docs/_config.yml" "$source/_config.yml"
   cp "$docs/bin/versions.yml" "$source/_data/versions.yml"
   cp "$docs/_plugins/versioned_docs.rb" "$source/_plugins/"
   ruby "$docs/bin/prepare_versions.rb" "$source/_data/versions.yml" "$channel" "$BASE" "$release" \

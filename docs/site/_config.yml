@@ -75,7 +75,7 @@ jekyll_vitepress:
   github_star:
     enabled: true
     repository: yorzi/rails_ai_admin
-    text: Star on GitHub
+    text: Star
     show_count: true
   footer:
     enabled: true
