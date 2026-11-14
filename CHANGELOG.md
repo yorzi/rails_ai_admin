@@ -19,7 +19,11 @@
   and `ONLY=review` or `ONLY=errors` hides the other lines.
 - The `resource_index` template contract is revision 9 and adds
   `bulk_destroy` and `bulk_operations`. Regenerate copied index overrides.
-- Show the new filters in the demo's Articles list.
+- Add an `in` filter operator for `enum` and `select` fields: a group of
+  checkboxes that matches any of the ticked choices. List links, record pages
+  and exports keep the list.
+- Show the new filters in the demo: contact and website on Articles, and order
+  state on Orders.
 
 ## 0.2.0 (2026-11-14)
 

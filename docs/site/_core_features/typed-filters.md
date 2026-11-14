@@ -2,7 +2,7 @@
 layout: default
 title: Typed Filters
 nav_order: 10
-description: Let granted users narrow a list by exact values, ranges, partial text and empty values on declared scalar fields.
+description: Let granted users narrow a list by exact values, lists of choices, ranges, partial text and empty values on declared scalar fields.
 ---
 
 # {{ page.title }}
@@ -29,7 +29,7 @@ class OrderAdmin < RailsAiAdmin::Resource
   fields do
     id :id
     text :number, searchable: :prefix, sortable: true
-    select :state, choices: [ [ "Draft", "draft" ], [ "Approved", "approved" ] ], filterable: true
+    select :state, choices: [ [ "Draft", "draft" ], [ "Approved", "approved" ] ], filterable: %i[eq in]
     decimal :total, filterable: true
     date :delivery_on, filterable: %i[gte lte]
     boolean :expedited, filterable: true
@@ -41,17 +41,19 @@ end
 | Scalar type | Allowed operators | `filterable: true` |
 | --- | --- | --- |
 | `text`, `textarea`, `email`, `url` | `eq`, `contains`, `blank` | `eq` |
-| `id`, `enum`, `select`, `boolean`, `belongs_to` | `eq`, `blank` | `eq` |
+| `enum`, `select` | `eq`, `in`, `blank` | `eq` |
+| `id`, `boolean`, `belongs_to` | `eq`, `blank` | `eq` |
 | `integer`, `decimal`, `date`, `datetime` | `eq`, `gte`, `lte`, `blank` | `gte`, `lte` |
 
-`gte`/`lte` are inclusive. `contains` matches part of the text and ignores case
+`gte`/`lte` are inclusive. `in` matches any of up to 20 declared choices and
+renders as a group of checkboxes ("State is any of"). `contains` matches part of the text and ignores case
 (SQLite's `LIKE` ignores case for ASCII letters only); `%` and `_` in the value are
 literal characters. `blank` keeps records with no value (`"true"`) or with a
 value (`"false"`); for text, an empty string also counts as no value.
 
 Pass an Array to choose operators, such as `filterable: %i[eq gte lte]` or
 `filterable: %i[contains blank]`. `filterable: true` keeps the defaults in the
-last column, so `contains` and `blank` are always an explicit choice. Text
+last column, so `in`, `contains` and `blank` are always an explicit choice. Text
 equality is exact and follows your database collation. Virtual and hidden
 fields cannot be filtered. A field without `filterable:` keeps exactly its
 previous contract.
@@ -91,7 +93,9 @@ Conditions are combined with AND, up to 20 in total. Every value is a nonempty
 string of at most 200 characters, coerced through the field's own type: `"false"`
 is a boolean value, decimals stay exact, dates are ISO dates and datetimes use
 the authenticated Context time zone (as `datetime-local` inputs do). A `contains`
-value is trimmed and must not be empty; a `blank` value is `"true"` or `"false"`. Values are
+value is trimmed and must not be empty; a `blank` value is `"true"` or `"false"`.
+An `in` value is a list of 1 to 20 distinct values, each coerced like `eq`, so
+`filter[state][in][]=draft&filter[state][in][]=approved` matches either state. Values are
 bound as parameters on the declared column; no column, operator or SQL comes
 from input. An undeclared or ungranted field, an unsupported operator or a value
 outside the field's contract raises `AccessDenied` with `INVALID_QUERY`.
@@ -117,8 +121,9 @@ intent, Selection or receipt identity.
 
 `resource_index` (revision 9) receives `filter_fields`, the currently granted
 filterable fields. Each operator renders a labelled input named
-`filter[field][operator]`: a text box for `contains` ("Name contains") and an
-Any / Empty / Not empty select for `blank` ("Name is"). Keep the hidden list-state fields in both the search
+`filter[field][operator]`: a text box for `contains` ("Name contains"), an
+Any / Empty / Not empty select for `blank` ("Name is"), and for `in` a fieldset
+of checkboxes named `filter[field][in][]` (use `admin_filter_choices`). Keep the hidden list-state fields in both the search
 and filter forms (the `list_state_fields` helper does this), and use
 `return_navigation_fields` for record forms so nested filters survive.
 

@@ -184,6 +184,10 @@
 .raa .raa-filter { min-width:0; }
 .raa .raa-filter label { display:block; margin-bottom:.25rem; font-weight:600; overflow-wrap:anywhere; }
 .raa .raa-filter input:not([type="checkbox"],[type="radio"]),.raa .raa-filter select { width:100%; }
+.raa .raa-filters fieldset.raa-filter-choices { display:block; grid-column:1/-1; margin:0; padding:0; border:0; }
+.raa .raa-filter-choices legend { padding:0; margin-bottom:.25rem; font-weight:600; }
+.raa .raa-filter-choices .raa-choice { display:inline-flex; align-items:center; gap:.4rem; margin:.2rem .9rem .2rem 0; min-height:44px; }
+.raa .raa-filter-choices .raa-choice label { display:inline; margin:0; font-weight:400; }
 
 .raa .raa-conversation {
   display:flex;

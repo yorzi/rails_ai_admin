@@ -24,7 +24,7 @@ module RailsAiAdmin
       # scope: nil uses the declared default when it is currently granted;
       # NamedScope::NONE applies no named scope at all.
       # A named scope must be declared and granted; it is never discarded here.
-      # filters: { "field" => { "eq" | "gte" | "lte" | "contains" | "blank" => "wire string" } }, ANDed.
+      # filters: { "field" => { "eq" | "gte" | "lte" | "contains" | "blank" => "wire string", "in" => [ "wire string" ] } }, ANDed.
       # Every field needs a current :filter grant and a declared operator.
       def call(search: nil, sort: nil, direction: "asc", page: "1", recover_empty_page: false, scope: nil, filters: nil, page_size: nil, offset: nil)
         @access.authorize!(:index)
@@ -72,9 +72,17 @@ module RailsAiAdmin
 
       # Coerces each wire value through the field's scalar contract. Values are
       # bound by Arel; no operator, column or SQL text comes from the request.
-      # contains keeps the stripped text itself; blank is "true" or "false".
+      # contains keeps the stripped text itself; blank is "true" or "false";
+      # in takes a list of distinct values, each coerced like eq.
       def self.filter_value(field, operator, raw, time_zone:)
-        raise AccessDenied, "INVALID_QUERY" unless field.filter_operators.include?(operator.to_sym) && FILTER_VALUE.call(raw)
+        raise AccessDenied, "INVALID_QUERY" unless field.filter_operators.include?(operator.to_sym)
+        if operator.to_s == "in"
+          unless raw.is_a?(Array) && raw.size.between?(1, Field::MAX_IN_VALUES) && raw.all?(&FILTER_VALUE) && raw.uniq.size == raw.size
+            raise AccessDenied, "INVALID_QUERY"
+          end
+          return raw.map { |item| coerce_filter(field, item, time_zone) }
+        end
+        raise AccessDenied, "INVALID_QUERY" unless FILTER_VALUE.call(raw)
         case operator.to_s
         when "blank"
           raise AccessDenied, "INVALID_QUERY" unless %w[true false].include?(raw)
@@ -84,16 +92,22 @@ module RailsAiAdmin
           raise AccessDenied, "INVALID_QUERY" if term.empty?
           return term
         end
+        coerce_filter(field, raw, time_zone)
+      end
+
+      def self.coerce_filter(field, raw, time_zone)
         value = field.coerce(raw, time_zone: time_zone)
         raise AccessDenied, "INVALID_QUERY" if value.nil?
         value
       rescue ArgumentError
         raise AccessDenied, "INVALID_QUERY", cause: nil
       end
+      private_class_method :coerce_filter
 
       # The Arel condition for one validated filter value.
       def self.filter_predicate(field, column, operator, value)
         case operator.to_s
+        when "in" then column.in(value)
         when "contains" then column.matches("%#{ActiveRecord::Base.sanitize_sql_like(value)}%", "\\")
         when "blank"
           # Text stores "no value" as NULL or as an empty string.

@@ -46,13 +46,17 @@ module RailsAiAdmin
     DATETIME = /\A(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,6})?)?(?:Z|[+-](\d{2}):(\d{2}))?\z/
     # Upper bound for decimal wire text, matching the integer bound.
     MAX_NUMBER_TEXT = 100
-    # Typed list filter operators. eq/gte/lte compare a coerced value;
-    # contains matches part of a text value; blank ("true" or "false") keeps
-    # records with or without a value. Each must be granted per field.
-    FILTER_OPERATORS = %i[eq gte lte contains blank].freeze
+    # Typed list filter operators. eq/gte/lte compare a coerced value; in
+    # matches any of up to MAX_IN_VALUES choices; contains matches part of a
+    # text value; blank ("true" or "false") keeps records with or without a
+    # value. Each must be granted per field.
+    FILTER_OPERATORS = %i[eq in gte lte contains blank].freeze
+    MAX_IN_VALUES = 20
     RANGE_TYPES = %i[integer decimal date datetime].freeze
     # Text that partial matching makes sense for; ids stay exact.
     CONTAINS_TYPES = %i[text textarea email url].freeze
+    # Fixed choice lists, where "any of" is a set of checkboxes.
+    CHOICE_TYPES = %i[enum select].freeze
     # A registered type's own rejection message; passes through coercion.
     class TypeMessage < ArgumentError; end
     # A coerced password. It is a String for the model's password= writer;
@@ -585,6 +589,7 @@ module RailsAiAdmin
       value = options[:filterable]
       return [].freeze if value.nil? || value == false
       allowed = RANGE_TYPES.include?(scalar_type) ? %i[eq gte lte] : %i[eq]
+      allowed += %i[in] if CHOICE_TYPES.include?(scalar_type)
       allowed += %i[contains] if CONTAINS_TYPES.include?(scalar_type)
       allowed += %i[blank]
       return (RANGE_TYPES.include?(scalar_type) ? %i[gte lte] : %i[eq]).freeze if value == true

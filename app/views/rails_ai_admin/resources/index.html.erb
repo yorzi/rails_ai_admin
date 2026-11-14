@@ -41,6 +41,7 @@
     <fieldset><legend><%= t("rails_ai_admin.resources.index.filters") %></legend>
       <% @filter_fields.each do |field| %><% field.filter_operators.each do |operator| %>
         <% id = "raa-filter-#{field.name}-#{operator}" %>
+        <% if operator == :in %><%= admin_filter_choices(field, navigation_state.dig("filter", field.name.to_s, "in"), id: id) %><% next %><% end %>
         <div class="raa-filter"><label for="<%= id %>"><%= admin_filter_label(field, operator) %></label>
         <%= admin_filter_input(field, operator, navigation_state.dig("filter", field.name.to_s, operator.to_s), id: id) %></div>
       <% end %><% end %>

@@ -371,6 +371,16 @@ class AssistantContractTest < ActiveSupport::TestCase
     end
   end
 
+  def test_filter_tools_accept_value_lists_for_any_of
+    schema = RailsAiAdmin::Assistant::SearchRecords.allocate.parameters_schema
+    schema = JSON.parse(JSON.generate(schema))
+    value = schema.dig("properties", "filters", "additionalProperties", "additionalProperties")
+    assert_equal 20, value["anyOf"].last["maxItems"]
+    tool = RailsAiAdmin::Assistant::CountRecords.allocate
+    assert_equal({ "kind" => { "in" => %w[a 2 true], "eq" => "1" } }, tool.send(:wire_filters, { kind: { in: [ "a", 2, true ], eq: 1 } }))
+    assert_raises(RailsAiAdmin::AccessDenied) { tool.send(:wire_filters, { kind: { in: [ { "a" => 1 } ] } }) }
+  end
+
   def test_doctor_reports_the_opt_in_without_calling_the_adapter_or_a_provider
     with_assistant do
       TestAssistant.available = false

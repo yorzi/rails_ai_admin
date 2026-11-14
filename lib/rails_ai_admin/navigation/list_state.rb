@@ -73,10 +73,15 @@ module RailsAiAdmin
       end
 
       # Hidden form inputs for a (possibly nested) state, e.g. +return_to[filter][total][gte]+.
+      # A list ("in" values) becomes one +name[]+ input per item.
       def self.form_pairs(state, prefix = nil)
         state.flat_map do |key, value|
           name = prefix ? "#{prefix}[#{key}]" : key.to_s
-          value.is_a?(Hash) ? form_pairs(value, name) : [ [ name, value ] ]
+          case value
+          when Hash then form_pairs(value, name)
+          when Array then value.map { |item| [ "#{name}[]", item ] }
+          else [ [ name, value ] ]
+          end
         end
       end
 
@@ -155,16 +160,31 @@ module RailsAiAdmin
           return INVALID unless (name.is_a?(String) || name.is_a?(Symbol)) && name.to_s.match?(/\A[a-z][a-z0-9_]{0,79}\z/) && conditions.is_a?(Hash)
           conditions.each do |operator, condition|
             return INVALID unless (operator.is_a?(String) || operator.is_a?(Symbol)) && FILTER_OPERATORS.include?(operator.to_s)
-            return INVALID unless condition.nil? || condition.is_a?(String) && condition.valid_encoding? && (condition.encoding == Encoding::UTF_8 || condition.ascii_only?) && condition.length <= 200 && !condition.match?(/[\x00-\x1f\x7f]/)
-            next if condition.blank?
+            if operator.to_s == "in"
+              # Checkbox lists: blanks dropped, repeats collapsed, order kept.
+              return INVALID unless condition.nil? || condition.is_a?(Array) && condition.size <= Field::MAX_IN_VALUES && condition.all? { |item| item.nil? || filter_text?(item) }
+              condition = Array(condition).compact_blank.uniq
+              next if condition.empty?
+            else
+              return INVALID unless condition.nil? || filter_text?(condition)
+              next if condition.blank?
+            end
             (parsed[name.to_s] ||= {})[operator.to_s] = condition
           end
         end
         parsed.values.sum(&:size) <= Queries::List::MAX_FILTER_CONDITIONS ? parsed : INVALID
       end
 
+      def filter_text?(value)
+        value.is_a?(String) && value.valid_encoding? && (value.encoding == Encoding::UTF_8 || value.ascii_only?) && value.length <= 200 && !value.match?(/[\x00-\x1f\x7f]/)
+      end
+
       def deep_copy(value)
-        value.is_a?(Hash) ? value.to_h { |key, item| [ String.new(key.to_s).freeze, deep_copy(item) ] }.freeze : String.new(value).freeze
+        case value
+        when Hash then value.to_h { |key, item| [ String.new(key.to_s).freeze, deep_copy(item) ] }.freeze
+        when Array then value.map { |item| deep_copy(item) }.freeze
+        else String.new(value).freeze
+        end
       end
 
       def parse(raw)

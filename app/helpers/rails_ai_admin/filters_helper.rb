@@ -9,8 +9,25 @@ module RailsAiAdmin
       when :gte then t("rails_ai_admin.filters.from", label: field.label)
       when :lte then t("rails_ai_admin.filters.to", label: field.label)
       when :contains then t("rails_ai_admin.filters.contains", label: field.label)
+      when :in then t("rails_ai_admin.filters.any_of", label: field.label)
       when :blank then t("rails_ai_admin.filters.blank", label: field.label)
       else Field::RANGE_TYPES.include?(field.scalar_type) ? t("rails_ai_admin.filters.equals", label: field.label) : field.label
+      end
+    end
+
+    # "Any of" is a group of checkboxes, one per declared choice, each its
+    # own labelled control inside a fieldset whose legend names the field.
+    def admin_filter_choices(field, values, id:)
+      values = Array(values)
+      tag.fieldset(class: "raa-filter raa-filter-choices") do
+        legend = tag.legend(admin_filter_label(field, :in))
+        boxes = field.choice_options.each_with_index.map do |(label, value), index|
+          box_id = "#{id}-#{index}"
+          tag.span(class: "raa-choice") do
+            check_box_tag("filter[#{field.name}][in][]", value, values.include?(value), id: box_id) + label_tag(box_id, label)
+          end
+        end
+        legend + safe_join(boxes)
       end
     end
 

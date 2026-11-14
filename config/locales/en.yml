@@ -424,6 +424,7 @@ en:
       to: "%{label} to"
       equals: "%{label} equals"
       contains: "%{label} contains"
+      any_of: "%{label} is any of"
       blank: "%{label} is"
       empty: Empty
       present: Not empty

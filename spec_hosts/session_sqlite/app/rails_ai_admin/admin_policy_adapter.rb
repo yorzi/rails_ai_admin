@@ -30,7 +30,7 @@ class AdminPolicyAdapter < RailsAiAdmin::Authorization::Adapter
       when :search then [ :number ]
       when :sort then %i[number delivery_on]
       # Amount ranges are commercial detail; delivery filters are operational.
-      when :filter then %i[customer delivery_on expedited] + (context.actor.role == "admin" ? [ :total ] : [])
+      when :filter then %i[customer state delivery_on expedited] + (context.actor.role == "admin" ? [ :total ] : [])
       else []
       end
     else

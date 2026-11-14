@@ -40,6 +40,9 @@ module RailsAiAdmin
     # Results are bounded JSON data for the model; they grant nothing.
     class Tool < ::RubyLLM::Tool
       MAX_RESULT_BYTES = 16_384
+      # One filter value: a scalar, or a list of scalars for "in".
+      FILTER_VALUE_SCHEMA = { "anyOf" => [ { "type" => %w[string number boolean] },
+        { "type" => "array", "maxItems" => Field::MAX_IN_VALUES, "items" => { "type" => %w[string number boolean] } } ] }.freeze
       MESSAGES = {
         "NOT_FOUND" => "Not found or not available to this user.",
         "INVALID_QUERY" => "The request was not valid for this resource.",
@@ -168,7 +171,7 @@ module RailsAiAdmin
         raise AccessDenied, "INVALID_QUERY" unless filters.is_a?(Hash) && filters.size <= Queries::List::MAX_FILTER_CONDITIONS
         filters.to_h do |name, conditions|
           raise AccessDenied, "INVALID_QUERY" unless conditions.is_a?(Hash)
-          [ name.to_s, conditions.to_h { |operator, value| [ operator.to_s, scalar(value) ] } ]
+          [ name.to_s, conditions.to_h { |operator, value| [ operator.to_s, value.is_a?(Array) ? value.map { |item| scalar(item) } : scalar(value) ] } ]
         end
       end
 
@@ -274,8 +277,8 @@ module RailsAiAdmin
         "properties" => {
           "resource" => { "type" => "string" },
           "query" => { "type" => "string", "maxLength" => 200, "description" => "Text matched against searchable fields with each field's match mode" },
-          "filters" => { "type" => "object", "description" => "Field name to {operator: value} with operators from describe_resource: eq, gte, lte, contains (part of the text) or blank (true for empty, false for not empty); use select values, not labels",
-            "additionalProperties" => { "type" => "object", "additionalProperties" => { "type" => %w[string number boolean] } } },
+          "filters" => { "type" => "object", "description" => "Field name to {operator: value} with operators from describe_resource: eq, in (a list of values), gte, lte, contains (part of the text) or blank (true for empty, false for not empty); use select values, not labels",
+            "additionalProperties" => { "type" => "object", "additionalProperties" => FILTER_VALUE_SCHEMA } },
           "scope" => { "type" => "string", "description" => "Optional scope name from describe_resource" },
           "sort" => { "type" => "string", "description" => "Optional sortable field from describe_resource" },
           "direction" => { "type" => "string", "enum" => %w[asc desc] },
@@ -327,8 +330,8 @@ module RailsAiAdmin
         "properties" => {
           "resource" => { "type" => "string" },
           "query" => { "type" => "string", "maxLength" => 200 },
-          "filters" => { "type" => "object", "description" => "Field name to {operator: value} with operators from describe_resource: eq, gte, lte, contains (part of the text) or blank (true for empty, false for not empty)",
-            "additionalProperties" => { "type" => "object", "additionalProperties" => { "type" => %w[string number boolean] } } },
+          "filters" => { "type" => "object", "description" => "Field name to {operator: value} with operators from describe_resource: eq, in (a list of values), gte, lte, contains (part of the text) or blank (true for empty, false for not empty)",
+            "additionalProperties" => { "type" => "object", "additionalProperties" => FILTER_VALUE_SCHEMA } },
           "scope" => { "type" => "string", "description" => "Optional scope name from describe_resource" }
         } })
 

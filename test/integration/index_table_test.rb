@@ -107,4 +107,26 @@ class IndexTableTest < ActionDispatch::IntegrationTest
       assert_select "select#raa-filter-points-blank option[selected][value=true]"
     end
   end
+
+  def test_any_of_filters_render_checkboxes_and_keep_the_list_in_links
+    [ "Ada Lovelace", "Grace Hopper", "Linus Torvalds" ].each { |name| Customer.create!(account_id: 1, name: name) }
+    TestPolicy.granted_filters = %i[name]
+    RailsAiAdmin.stub(:registry, RailsAiAdmin::Registry.new([ "TestResource", "ChoiceFilteredCustomerAdmin" ])) do
+      get "/backoffice/choice_filtered_customers"
+      assert_select "fieldset.raa-filter-choices legend", text: "Name is any of"
+      assert_select "fieldset.raa-filter-choices input[type=checkbox][name='filter[name][in][]']", count: 3
+      assert_select "label[for=raa-filter-name-in-1]", text: "Grace"
+      get "/backoffice/choice_filtered_customers", params: { filter: { name: { in: [ "Ada Lovelace", "Linus Torvalds" ] } } }
+      assert_response :success
+      assert_equal %w[Ada Linus], css_select("tbody .raa-row-title").map { |node| node.text.strip }.sort
+      assert_select "input#raa-filter-name-in-0[checked]"
+      assert_select "input#raa-filter-name-in-1:not([checked])"
+      record = css_select("tbody .raa-row-title").first["href"]
+      assert_equal({ "return_to" => { "filter" => { "name" => { "in" => [ "Ada Lovelace", "Linus Torvalds" ] } } } }, query(record))
+      get record
+      assert_select "a[href='/backoffice/choice_filtered_customers?#{ { filter: { name: { in: [ "Ada Lovelace", "Linus Torvalds" ] } } }.to_query }']"
+      get "/backoffice/choice_filtered_customers", params: { filter: { name: { in: [ "Unknown" ] } } }
+      assert_response :unprocessable_content
+    end
+  end
 end

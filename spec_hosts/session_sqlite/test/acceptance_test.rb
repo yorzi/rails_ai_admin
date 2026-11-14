@@ -472,6 +472,10 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
     refute_includes response.body, "FILTER-SMALL"
     get "/staff/orders", params: { filter: { total: { gte: "ten" } } }
     assert_response :unprocessable_content
+    get "/staff/orders", params: { q: "FILTER", scope: "all", filter: { state: { in: %w[approved rejected] } } }
+    assert_select "fieldset.raa-filter-choices input[type=checkbox][name='filter[state][in][]']", count: 3
+    assert_includes response.body, "FILTER-EDGE"
+    %w[FILTER-SMALL FILTER-LARGE].each { |number| refute_includes response.body, number }
     @user.update!(role: "viewer")
     get "/staff/orders", params: { scope: "all", filter: filter }
     assert_response :see_other
@@ -545,7 +549,7 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
       assert RailsAiAdmin::TestKit.assert_access(context: context, resource: CustomerAdmin, action: :update, record: @customer, allowed: role == "admin")
       assert RailsAiAdmin::TestKit.assert_field_grants(context: context, resource: CustomerAdmin, record: @customer,
         expected: { read: %i[id name active points created_at status_summary], write: role == "admin" ? %i[name active points] : [], search: [ :name ], sort: [ :name ], filter: [] })
-      assert_equal (%w[customer delivery_on expedited] + (role == "admin" ? [ "total" ] : [])).sort, RailsAiAdmin::TestKit.field_grants(context: context, resource: OrderAdmin).fetch("filter")
+      assert_equal (%w[customer state delivery_on expedited] + (role == "admin" ? [ "total" ] : [])).sort, RailsAiAdmin::TestKit.field_grants(context: context, resource: OrderAdmin).fetch("filter")
       assert RailsAiAdmin::TestKit.assert_hidden(context: context, resource: CustomerAdmin, field: :secret)
     end
     context = RailsAiAdmin::Context.new(actor: @user, tenant: @account, security_version: @user.security_version.to_s)

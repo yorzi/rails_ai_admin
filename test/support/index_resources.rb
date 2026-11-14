@@ -36,3 +36,14 @@ class PartlyFilteredCustomerAdmin < RailsAiAdmin::Resource
     integer :points, filterable: %i[gte blank]
   end
 end
+
+# "Any of" checkboxes over a fixed list of names.
+class ChoiceFilteredCustomerAdmin < RailsAiAdmin::Resource
+  model "Customer"
+  key :choice_filtered_customers
+  title :name
+  fields do
+    id :id
+    select :name, choices: [ [ "Ada", "Ada Lovelace" ], [ "Grace", "Grace Hopper" ], [ "Linus", "Linus Torvalds" ] ], filterable: [ :in ]
+  end
+end

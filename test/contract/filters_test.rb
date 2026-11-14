@@ -30,6 +30,7 @@ class PartialFilterSampleAdmin < RailsAiAdmin::Resource
     text :label, filterable: %i[eq contains blank]
     decimal :amount, filterable: %i[gte blank]
     date :due_on, filterable: [ :blank ]
+    enum :kind, values: %w[standard priority rush], filterable: %i[eq in]
     integer :account_id, readonly: true, hidden: true
   end
 end
@@ -249,5 +250,45 @@ class FiltersTest < Minitest::Test
     loose = RailsAiAdmin::Navigation::ListState.new(access, { "filter" => { "due_on" => { "blank" => "maybe" } } })
     assert loose.discarded?
     assert_nil loose.state["filter"]
+  end
+
+  def test_in_matches_any_of_the_listed_choices
+    assert_equal %i[eq in], field(type: :select, choices: [ %w[A a], %w[B b] ], filterable: %i[in eq]).filter_operators
+    [ :text, :integer, :boolean, :date ].each do |type|
+      assert_raises(RailsAiAdmin::ConfigurationError) { field(type: type, filterable: [ :in ]) }
+    end
+    TestPolicy.granted_filters = %i[kind]
+    sample("A", kind: "standard")
+    sample("B", kind: "priority")
+    sample("C", kind: "rush")
+    sample("D", account_id: 2, kind: "priority")
+    names = ->(filters) { query(filters, resource: PartialFilterSampleAdmin).records.map(&:label).sort }
+    assert_equal %w[B C], names.call({ "kind" => { "in" => %w[priority rush] } })
+    assert_equal %w[B], names.call({ "kind" => { "in" => %w[priority] } })
+    assert_equal %w[B], names.call({ "kind" => { "in" => %w[priority rush], "eq" => "priority" } })
+    [ [], %w[priority priority], %w[priority unknown], "priority", [ "x" * 201 ], [ 1 ], Array.new(21) { |index| "v#{index}" } ].each do |value|
+      error = assert_raises(RailsAiAdmin::AccessDenied, value.inspect) { query({ "kind" => { "in" => value } }, resource: PartialFilterSampleAdmin) }
+      assert_equal "INVALID_QUERY", error.code
+    end
+  end
+
+  def test_list_hints_keep_in_lists_without_blanks_or_repeats
+    TestPolicy.granted_filters = %i[kind]
+    access = RailsAiAdmin::Authorization::Access.new(context, PartialFilterSampleAdmin)
+    state = RailsAiAdmin::Navigation::ListState.new(access, { "filter" => { "kind" => { "in" => [ "", "rush", "priority", "rush" ] } } }, strict: true)
+    assert_equal({ "kind" => { "in" => %w[rush priority] } }, state.state["filter"])
+    assert state.state["filter"]["kind"]["in"].frozen?
+    assert_equal [ [ "return_to[filter][kind][in][]", "rush" ], [ "return_to[filter][kind][in][]", "priority" ] ],
+      RailsAiAdmin::Navigation::ListState.form_pairs(state.state, "return_to")
+    empty = RailsAiAdmin::Navigation::ListState.new(access, { "filter" => { "kind" => { "in" => [ "" ] } } }, strict: true)
+    assert_nil empty.state["filter"]
+    error = assert_raises(RailsAiAdmin::AccessDenied) do
+      RailsAiAdmin::Navigation::ListState.new(access, { "filter" => { "kind" => { "in" => [ "rush", "unknown" ] } } }, strict: true)
+    end
+    assert_equal "INVALID_QUERY", error.code
+    loose = RailsAiAdmin::Navigation::ListState.new(access, { "filter" => { "kind" => { "in" => "rush" } } })
+    assert loose.discarded?, "a single string is not a list"
+    header = RailsAiAdmin::Navigation::ListState.from_header(access, state.encoded)
+    assert_equal state.state, header.state
   end
 end
