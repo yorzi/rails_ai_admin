@@ -2,44 +2,46 @@
 
 ## Unreleased
 
+Everyday list work. Requires the new saved views migration
+(`bin/rails generate rails_ai_admin:install --skip`, then `db:migrate`); see
+the upgrade guide.
+
+### Finding records
+
 - Add `contains` (part of the text) and `blank` (empty or not empty) filter
   operators. Text, textarea, email and url fields may declare `contains`; any
-  filterable field may declare `blank`. `filterable: true` keeps its 0.2
-  defaults, so both are an explicit choice. The assistant's search and count
-  tools accept them under the same filter grant.
-- Number the pages of lists that use `count :exact`, mark the current page, and
-  hide pagination on lists that fit on one page.
-- Act on ticked records in one step: the list's bulk bar offers **Delete
-  selected** and each collection operation the actor may start, and opens that
-  action's review page directly. "Capture selection" is now **Review
-  selection**. A bulk delete with no deletable records returns to the selection
-  with a notice instead of a 404, and Cancel on the delete review returns to the
-  list.
-- `rails_ai_admin:doctor` ends with a summary line counting checks by status,
-  and `ONLY=review` or `ONLY=errors` hides the other lines.
-- The `resource_index` template contract is revision 9 and adds
-  `bulk_destroy` and `bulk_operations`. Regenerate copied index overrides.
+  filterable field may declare `blank`.
 - Add an `in` filter operator for `enum` and `select` fields: a group of
   checkboxes that matches any of the ticked choices. List links, record pages
   and exports keep the list.
+- `filterable: true` keeps its 0.2 defaults, so the new operators are always an
+  explicit choice. The assistant's search and count tools accept them under the
+  same filter grant.
 - Sort and search lists by a `belongs_to` reference: `belongs_to :customer,
   sortable: true, searchable: :contains` orders and matches by the customer's
   title. It needs the field's own grant plus the target title's sort or search
   grant and index access, and reads titles only from the target's policy
   relation; unavailable targets sort last and never match.
-- Select every record a list matches, across its pages, with **All N
-  matching records** in the bulk bar when 100 or fewer match; above that the
-  bar asks to narrow the list. Each record is still checked when captured.
-- Edit children from the parent page: child panels show **Edit** for each
-  child the actor may update, and child forms opened from a panel (Add, Edit,
-  Delete) return to the parent after saving or cancelling through a
-  `back[resource]`/`back[id]` hint that never grants access.
+- Number the pages of lists that use `count :exact`, mark the current page, and
+  hide pagination on lists that fit on one page.
 - Add saved views: each person can save a list's search, sort, tab and filters
   under a name, open it again from the list, replace it or delete it. Views are
   private to the person and tenant, keep no page number, and are rechecked
   against current grants whenever they are shown. They need the new
   `create_rails_ai_admin_saved_views` migration; `rails_ai_admin:doctor` reports
   whether it has run.
+
+### Acting on records
+
+- Act on ticked records in one step: the list's bulk bar offers **Delete
+  selected** and each collection operation the actor may start, and opens that
+  action's review page directly. "Capture selection" is now **Review
+  selection**. A bulk delete with no deletable records returns to the selection
+  with a notice instead of a 404, and Cancel on the delete review returns to the
+  list.
+- Select every record a list matches, across its pages, with **All N matching
+  records** in the bulk bar when 100 or fewer match; above that the bar asks to
+  narrow the list. Each record is still checked when captured.
 - Add soft delete: `soft_delete :discarded_at` makes deleting set that
   timestamp through the usual reviewed and audited delete. Deleted records leave
   every admin list, page, search, export, selection and assistant answer, and a
@@ -47,8 +49,21 @@
   (`restore?` in Pundit) bring one back with a version check and an audit
   event. The resource generator declares `discarded_at` or `deleted_at` columns
   this way, and doctor checks the column.
-- Show the new filters in the demo: contact and website on Articles, and order
-  state on Orders.
+- Edit children from the parent page: child panels show **Edit** for each
+  child the actor may update, and child forms opened from a panel (Add, Edit,
+  Delete) return to the parent after saving or cancelling through a
+  `back[resource]`/`back[id]` hint that never grants access.
+
+### Setup and templates
+
+- `rails_ai_admin:doctor` ends with a summary line counting checks by status,
+  and `ONLY=review` or `ONLY=errors` hides the other lines.
+- The `resource_index` template contract is revision 9 and adds
+  `bulk_destroy`, `bulk_operations`, `saved_views` and `deleted_records`. A new
+  `resource_deleted` template renders the deleted-records page. Regenerate
+  copied index overrides.
+- The demo shows the new filters, saved views, order sorting by customer, and
+  soft delete on Articles and on the packaged host's new Notes.
 
 ## 0.2.0 (2026-11-14)
 

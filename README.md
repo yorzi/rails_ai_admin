@@ -17,8 +17,8 @@ questions about records and prepare changes for review.
 ## What you can do
 
 - **Manage records.** Configure forms, associations, searchable and filterable
-  lists with bulk actions, dashboards, and CSV import and export for explicitly
-  registered resources.
+  lists with saved views and bulk actions, soft delete with restore, dashboards,
+  and CSV import and export for explicitly registered resources.
 - **Keep access in your app.** Use the host's authentication, tenant scoping, and
   policies to decide who can see records, fields, and actions. Track changes
   with record history and an audit log.

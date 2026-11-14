@@ -1,7 +1,8 @@
 ---
 layout: default
 title: What's New in 0.2
-nav_order: 6
+parent: Release History
+nav_order: 2
 description: Install a working admin in a few commands on Rails 8.1, with generated sign-in, an opt-in trusted-staff policy and multi-model resources.
 ---
 

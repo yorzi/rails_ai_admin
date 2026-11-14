@@ -33,8 +33,9 @@ candidate check accepts a closed publishing gate and never publishes.
 Before approval, review generated resource exposure, tenant policies and the
 upgrade guide. A human screen-reader pass, independent host trial and current live
 provider checks remain open. Offline provider tests do not replace live evidence.
-Association sorting, nested child forms, polymorphic writes, separate attach/detach
-grants, conversation retention and token/cost budgets remain outside this release.
+Nested child forms that save with the parent, polymorphic references, bulk actions
+over more than 100 records, separate attach/detach grants, conversation retention
+and token/cost budgets remain outside the 0.3.0 candidate.
 
 ## After owner approval
 

@@ -19,20 +19,23 @@ read-only demo is a future task, not part of this release's claim.
 
 ## 0.3.0: everyday list work (in development)
 
-- Partial-text and empty/not-empty filters, declared per field.
-- Numbered pages for counted lists.
-- One-step bulk delete and collection operations from the list, still through
-  their review pages.
+- `contains`, `in` (any of) and `blank` filters, declared per field.
+- Sorting and searching by a `belongs_to` reference, under the target's grants.
+- Numbered pages for counted lists, and personal saved views.
+- One-step bulk delete and collection operations from the list, including all
+  matching records up to 100, still through their review pages.
+- Soft delete with a Deleted records page and a separate restore grant.
+- Editing children from the parent page, returning there after saving.
 - A doctor summary line and a problems-only mode.
 
 ## Next candidates
 
 Prioritize from actual host use rather than a fixed release calendar:
 
-- Saved views, multi-value and OR filters; association search and sorting.
-- Nested child forms and separately controlled attachment changes.
-- Bulk operations beyond explicitly selected, bounded record sets ("select all
-  matching").
+- OR filters and filters across more than one association.
+- Child forms that save with the parent, polymorphic references and separately
+  controlled attachment changes.
+- Bulk operations over more than 100 records as an asynchronous job.
 - Assistant token/cost budgets, conversation retention and aggregate queries.
 - Current native-provider checks, more locales and additional policy adapters.
 

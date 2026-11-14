@@ -152,5 +152,5 @@ policy matrix and verify packaged installation before using a changed build.
 Never delete live operation receipts to get a replay to execute again. Keep
 pending/unknown outcomes and the full supported retry window intact.
 
-Review the [Public Preview limits]({% link _getting_started/whats-new-in-0-2.md %}#public-preview-limits)
+Review the [Public Preview limits]({% link _getting_started/whats-new-in-0-3.md %}#public-preview-limits)
 and run the host's authentication and authorization tests before deploying.
