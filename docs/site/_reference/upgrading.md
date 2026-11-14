@@ -108,7 +108,6 @@ recreate or edit persisted receipts to force execution.
   0.2 requires Rails 8.1.4.1+ below 8.2.
   Engine migrations declare `ActiveRecord::Migration[8.0]`; on Rails 8.1 that
   produces the same schema, so a host that already ran them changes nothing.
-  Rails 8.0 hosts keep `json` below 3.
 * Re-running `rails_ai_admin:install` or `rails_ai_admin:assistant`, with or
   without `--force`, keeps engine migrations already in `db/migrate`. If an
   earlier forced run replaced one under a new timestamp, delete the new copy
@@ -128,5 +127,5 @@ policy matrix and verify packaged installation before using a changed build.
 Never delete live operation receipts to get a replay to execute again. Keep
 pending/unknown outcomes and the full supported retry window intact.
 
-Review the [Public Preview limits]({% link _getting_started/whats-new-in-0-1.md %})
+Review the [Public Preview limits]({% link _getting_started/whats-new-in-0-2.md %}#public-preview-limits)
 and run the host's authentication and authorization tests before deploying.

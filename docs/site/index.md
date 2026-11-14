@@ -103,5 +103,5 @@ MCP against an offline fake model. Open `http://127.0.0.1:3917/login` and click
 
 ## Version {{ site.version }}
 
-This release is a Public Preview. Read [what is available]({% link _getting_started/whats-new-in-0-1.md %})
+This release is a Public Preview. Read [what's new in 0.2]({% link _getting_started/whats-new-in-0-2.md %})
 and the [current limitations]({% link _reference/development-status.md %}) before adopting it.

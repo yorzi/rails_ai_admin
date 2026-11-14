@@ -18,7 +18,8 @@ requires explicit opt-in and does not provide tenant scoping.
 
 The engine already includes conventional CRUD, typed fields, associations, CSV
 import/export, audit/history, dashboards and optional reviewed assistant changes.
-The [0.1 overview]({% link _getting_started/whats-new-in-0-1.md %}) describes the
+[What's New in 0.2]({% link _getting_started/whats-new-in-0-2.md %}) describes this
+release, and [What's New in 0.1]({% link _reference/whats-new-in-0-1.md %}) the
 inherited capabilities. The repository's `COMPATIBILITY.md` distinguishes local,
 packaged-host, browser and remote-CI evidence for each build.
 

@@ -1,7 +1,8 @@
 ---
 layout: default
 title: What's New in 0.1
-nav_order: 6
+parent: Release History
+nav_order: 1
 description: Explore the first Public Preview workflows and the limits to consider before adopting them.
 ---
 
