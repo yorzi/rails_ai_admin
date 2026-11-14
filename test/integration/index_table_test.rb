@@ -50,4 +50,29 @@ class IndexTableTest < ActionDispatch::IntegrationTest
       assert_equal [ "Points", "Actions" ], headers
     end
   end
+
+  def test_contains_and_blank_filters_render_and_narrow_the_list
+    Customer.create!(account_id: 1, name: "Ada Lovelace", points: 3)
+    Customer.create!(account_id: 1, name: "Grace Hopper", points: nil)
+    TestPolicy.granted_filters = %i[name points]
+    RailsAiAdmin.stub(:registry, RailsAiAdmin::Registry.new([ "TestResource", "PartlyFilteredCustomerAdmin" ])) do
+      get "/backoffice/partly_filtered_customers"
+      assert_select "label[for=raa-filter-name-contains]", text: "Name contains"
+      assert_select "input#raa-filter-name-contains[type=text][name='filter[name][contains]']"
+      assert_select "label[for=raa-filter-points-blank]", text: "Points is"
+      assert_select "select#raa-filter-points-blank option", count: 3
+      assert_select "select#raa-filter-points-blank option[value=true]", text: "Empty"
+      assert_select "select#raa-filter-points-blank option[value=false]", text: "Not empty"
+      get "/backoffice/partly_filtered_customers", params: { filter: { name: { contains: "LOVE", blank: "" }, points: { gte: "", blank: "" } } }
+      assert_response :see_other, "blank inputs are dropped from the shared address"
+      assert_equal({ "filter" => { "name" => { "contains" => "LOVE" } } }, Rack::Utils.parse_nested_query(URI(response.location).query))
+      follow_redirect!
+      assert_select "tbody .raa-row-title", text: "Ada Lovelace"
+      assert_select "tbody tr", count: 1
+      get "/backoffice/partly_filtered_customers", params: { filter: { points: { blank: "true" } } }
+      assert_select "tbody .raa-row-title", text: "Grace Hopper"
+      assert_select "tbody tr", count: 1
+      assert_select "select#raa-filter-points-blank option[selected][value=true]"
+    end
+  end
 end

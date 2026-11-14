@@ -46,10 +46,13 @@ module RailsAiAdmin
     DATETIME = /\A(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,6})?)?(?:Z|[+-](\d{2}):(\d{2}))?\z/
     # Upper bound for decimal wire text, matching the integer bound.
     MAX_NUMBER_TEXT = 100
-    # Typed list filter operators. Text-like values only support exact equality;
-    # contains/prefix matching stays with search.
-    FILTER_OPERATORS = %i[eq gte lte].freeze
+    # Typed list filter operators. eq/gte/lte compare a coerced value;
+    # contains matches part of a text value; blank ("true" or "false") keeps
+    # records with or without a value. Each must be granted per field.
+    FILTER_OPERATORS = %i[eq gte lte contains blank].freeze
     RANGE_TYPES = %i[integer decimal date datetime].freeze
+    # Text that partial matching makes sense for; ids stay exact.
+    CONTAINS_TYPES = %i[text textarea email url].freeze
     # A registered type's own rejection message; passes through coercion.
     class TypeMessage < ArgumentError; end
     # A coerced password. It is a String for the model's password= writer;
@@ -581,7 +584,9 @@ module RailsAiAdmin
     def resolve_filter_operators
       value = options[:filterable]
       return [].freeze if value.nil? || value == false
-      allowed = RANGE_TYPES.include?(scalar_type) ? FILTER_OPERATORS : %i[eq]
+      allowed = RANGE_TYPES.include?(scalar_type) ? %i[eq gte lte] : %i[eq]
+      allowed += %i[contains] if CONTAINS_TYPES.include?(scalar_type)
+      allowed += %i[blank]
       return (RANGE_TYPES.include?(scalar_type) ? %i[gte lte] : %i[eq]).freeze if value == true
       unless value.is_a?(Array) && value.any? && value.all? { |operator| operator.is_a?(Symbol) } && value.uniq.size == value.size && (value - allowed).empty?
         raise ConfigurationError, "Field filterable must be true, false or distinct operators from #{allowed.join(', ')}"

@@ -24,3 +24,15 @@ class IndexedCustomerAdmin < RailsAiAdmin::Resource
     count :exact
   end
 end
+
+# Partial-text and empty/not-empty filters on the same customers.
+class PartlyFilteredCustomerAdmin < RailsAiAdmin::Resource
+  model "Customer"
+  key :partly_filtered_customers
+  title :name
+  fields do
+    id :id
+    text :name, filterable: %i[contains blank]
+    integer :points, filterable: %i[gte blank]
+  end
+end

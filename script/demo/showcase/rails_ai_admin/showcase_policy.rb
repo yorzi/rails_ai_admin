@@ -13,7 +13,7 @@ module ShowcasePolicy
     in [ :articles, :write ] then admin ? %i[title views contact website opens_at cover gallery body settings tags password] : []
     in [ :articles, :search ] then %i[title contact]
     in [ :articles, :sort ] then %i[title views opens_at created_at]
-    in [ :articles, :filter ] then %i[views created_at]
+    in [ :articles, :filter ] then %i[views contact website created_at]
     in [ :tags, :read ] then %i[id name]
     in [ :tags, :write ] then admin ? %i[name] : []
     in [ :tags, :search | :sort ] then %i[name]

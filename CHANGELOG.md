@@ -2,7 +2,12 @@
 
 ## Unreleased
 
-No changes yet.
+- Add `contains` (part of the text) and `blank` (empty or not empty) filter
+  operators. Text, textarea, email and url fields may declare `contains`; any
+  filterable field may declare `blank`. `filterable: true` keeps its 0.2
+  defaults, so both are an explicit choice. The assistant's search and count
+  tools accept them under the same filter grant.
+- Show the new filters in the demo's Articles list.
 
 ## 0.2.0 (2026-11-14)
 

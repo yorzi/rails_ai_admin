@@ -8,6 +8,8 @@ module RailsAiAdmin
       case operator.to_sym
       when :gte then t("rails_ai_admin.filters.from", label: field.label)
       when :lte then t("rails_ai_admin.filters.to", label: field.label)
+      when :contains then t("rails_ai_admin.filters.contains", label: field.label)
+      when :blank then t("rails_ai_admin.filters.blank", label: field.label)
       else Field::RANGE_TYPES.include?(field.scalar_type) ? t("rails_ai_admin.filters.equals", label: field.label) : field.label
       end
     end
@@ -15,6 +17,10 @@ module RailsAiAdmin
     def admin_filter_input(field, operator, value, id:)
       name = "filter[#{field.name}][#{operator}]"
       value = value && String.new(value)
+      if operator.to_sym == :blank
+        return select_tag(name, options_for_select([ [ t("rails_ai_admin.filters.any"), "" ], [ t("rails_ai_admin.filters.empty"), "true" ], [ t("rails_ai_admin.filters.present"), "false" ] ], value), id: id)
+      end
+      return text_field_tag(name, value, id: id, maxlength: 200) if operator.to_sym == :contains
       case field.scalar_type
       when :belongs_to
         choices = admin_associations.choices(field)

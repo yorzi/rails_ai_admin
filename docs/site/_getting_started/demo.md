@@ -74,6 +74,8 @@ admin account already. Every account's password is `demo-password`.
   row that fails on purpose. See [CSV Export and Import]({% link _core_features/csv-export.md %}).
 * **Bulk delete**: tick a few articles, **Capture selection**, then **Delete the
   selected records**.
+* **Filters**: on the Articles list, open **Filters** and enter `editor1` in
+  **Contact contains**, or choose **Website is: Not empty**.
 * **Orders**: list tabs, typed filters, a reference picker for customers and a
   custom review operation. Customers show their orders in a panel with an **Add
   order** link.

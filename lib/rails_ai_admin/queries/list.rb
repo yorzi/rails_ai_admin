@@ -14,6 +14,7 @@ module RailsAiAdmin
       MAX_FILTER_CONDITIONS = 20
       FILTER_VALUE = ->(value) { value.is_a?(String) && value.valid_encoding? && (value.encoding == Encoding::UTF_8 || value.ascii_only?) && value.length.between?(1, 200) && !value.match?(/[\x00-\x1f\x7f]/) }
       AREL_PREDICATES = { "eq" => :eq, "gte" => :gteq, "lte" => :lteq }.freeze
+      OPERATORS = Field::FILTER_OPERATORS.map(&:to_s).freeze
 
       def initialize(context, resource)
         @access = Authorization::Access.new(context, resource)
@@ -23,7 +24,7 @@ module RailsAiAdmin
       # scope: nil uses the declared default when it is currently granted;
       # NamedScope::NONE applies no named scope at all.
       # A named scope must be declared and granted; it is never discarded here.
-      # filters: { "field" => { "eq" | "gte" | "lte" => "wire string" } }, ANDed.
+      # filters: { "field" => { "eq" | "gte" | "lte" | "contains" | "blank" => "wire string" } }, ANDed.
       # Every field needs a current :filter grant and a declared operator.
       def call(search: nil, sort: nil, direction: "asc", page: "1", recover_empty_page: false, scope: nil, filters: nil, page_size: nil, offset: nil)
         @access.authorize!(:index)
@@ -71,13 +72,35 @@ module RailsAiAdmin
 
       # Coerces each wire value through the field's scalar contract. Values are
       # bound by Arel; no operator, column or SQL text comes from the request.
+      # contains keeps the stripped text itself; blank is "true" or "false".
       def self.filter_value(field, operator, raw, time_zone:)
         raise AccessDenied, "INVALID_QUERY" unless field.filter_operators.include?(operator.to_sym) && FILTER_VALUE.call(raw)
+        case operator.to_s
+        when "blank"
+          raise AccessDenied, "INVALID_QUERY" unless %w[true false].include?(raw)
+          return raw == "true"
+        when "contains"
+          term = raw.strip
+          raise AccessDenied, "INVALID_QUERY" if term.empty?
+          return term
+        end
         value = field.coerce(raw, time_zone: time_zone)
         raise AccessDenied, "INVALID_QUERY" if value.nil?
         value
       rescue ArgumentError
         raise AccessDenied, "INVALID_QUERY", cause: nil
+      end
+
+      # The Arel condition for one validated filter value.
+      def self.filter_predicate(field, column, operator, value)
+        case operator.to_s
+        when "contains" then column.matches("%#{ActiveRecord::Base.sanitize_sql_like(value)}%", "\\")
+        when "blank"
+          # Text stores "no value" as NULL or as an empty string.
+          empty = Field::TEXT_TYPES.include?(field.scalar_type) ? column.eq(nil).or(column.eq("")) : column.eq(nil)
+          value ? empty : empty.not
+        else column.public_send(AREL_PREDICATES.fetch(operator.to_s), value)
+        end
       end
 
       private
@@ -143,7 +166,7 @@ module RailsAiAdmin
       def apply_filters(relation, filters)
         return relation if filters.nil?
         unless filters.is_a?(Hash) && filters.keys.all? { |key| key.is_a?(String) || key.is_a?(Symbol) } &&
-            filters.values.all? { |conditions| conditions.is_a?(Hash) && conditions.any? && conditions.keys.all? { |key| AREL_PREDICATES.key?(key.to_s) } } &&
+            filters.values.all? { |conditions| conditions.is_a?(Hash) && conditions.any? && conditions.keys.all? { |key| OPERATORS.include?(key.to_s) } } &&
             filters.values.sum(&:size) <= MAX_FILTER_CONDITIONS
           raise AccessDenied, "INVALID_QUERY"
         end
@@ -153,7 +176,7 @@ module RailsAiAdmin
           field = granted[name.to_s] or raise AccessDenied, "INVALID_QUERY"
           conditions.reduce(scoped) do |inner, (operator, raw)|
             value = self.class.filter_value(field, operator.to_s, raw, time_zone: @access.context.time_zone)
-            inner.where(table[field.column].public_send(AREL_PREDICATES.fetch(operator.to_s), value))
+            inner.where(self.class.filter_predicate(field, table[field.column], operator, value))
           end
         end
       end

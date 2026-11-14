@@ -21,6 +21,19 @@ class FilterSampleAdmin < RailsAiAdmin::Resource
   end
 end
 
+class PartialFilterSampleAdmin < RailsAiAdmin::Resource
+  model "FilterSample"
+  key :partial_filter_samples
+  title :label
+  fields do
+    id :id
+    text :label, filterable: %i[eq contains blank]
+    decimal :amount, filterable: %i[gte blank]
+    date :due_on, filterable: [ :blank ]
+    integer :account_id, readonly: true, hidden: true
+  end
+end
+
 class FiltersTest < Minitest::Test
   include DatabaseHelpers
 
@@ -180,5 +193,61 @@ class FiltersTest < Minitest::Test
     assert_equal :review, check.status
     # RAA-026: the line names what it counts.
     assert_match(/\AFilterable declarations in no index: 6 fields \(label, kind, amount, due_on, seen_at, flagged\)/, check.message)
+  end
+
+  def test_text_fields_may_declare_contains_and_any_field_may_declare_blank
+    assert_equal %i[eq contains blank], field(type: :text, filterable: %i[blank contains eq]).filter_operators
+    assert_equal %i[contains], field(type: :email, filterable: [ :contains ]).filter_operators
+    assert_equal %i[gte lte blank], field(type: :date, filterable: %i[gte lte blank]).filter_operators
+    assert_equal %i[eq blank], field(type: :enum, values: %w[a], filterable: %i[eq blank]).filter_operators
+    assert_equal [ :eq ], field(type: :text, filterable: true).filter_operators, "true keeps the 0.2 defaults"
+    [ { type: :id, filterable: [ :contains ] }, { type: :date, filterable: [ :contains ] }, { type: :boolean, filterable: [ :contains ] },
+      { type: :enum, values: %w[a], filterable: [ :contains ] } ].each do |options|
+      assert_raises(RailsAiAdmin::ConfigurationError) { field(**options) }
+    end
+  end
+
+  def test_contains_matches_part_of_the_text_case_insensitively_and_escapes_wildcards
+    TestPolicy.granted_filters = %i[label amount due_on]
+    %w[Alphabet alpha_beta Betamax 100%_Pure].each { |label| sample(label) }
+    sample("Alphabet", account_id: 2)
+    names = ->(filters) { query(filters, resource: PartialFilterSampleAdmin).records.map(&:label).sort }
+    assert_equal %w[Alphabet Betamax alpha_beta], names.call({ "label" => { "contains" => "BET" } })
+    assert_equal %w[alpha_beta], names.call({ "label" => { "contains" => "a_b" } }), "_ is a literal character"
+    assert_equal %w[100%_Pure], names.call({ "label" => { "contains" => " 0% " } }), "% is literal and outer spaces are trimmed"
+    assert_equal %w[Alphabet], names.call({ "label" => { "contains" => "pha", "eq" => "Alphabet" } })
+    error = assert_raises(RailsAiAdmin::AccessDenied) { query({ "label" => { "contains" => "   " } }, resource: PartialFilterSampleAdmin) }
+    assert_equal "INVALID_QUERY", error.code
+    error = assert_raises(RailsAiAdmin::AccessDenied) { query({ "amount" => { "contains" => "1" } }, resource: PartialFilterSampleAdmin) }
+    assert_equal "INVALID_QUERY", error.code
+  end
+
+  def test_blank_keeps_records_with_or_without_a_value
+    TestPolicy.granted_filters = %i[label amount due_on]
+    sample("Dated", due_on: "2026-11-01", amount: "5.00")
+    sample("Undated", amount: "7.00")
+    sample("Empty", due_on: "2026-11-02")
+    sample("", due_on: "2026-11-03")
+    names = ->(filters) { query(filters, resource: PartialFilterSampleAdmin).records.map(&:label).sort }
+    assert_equal %w[Undated], names.call({ "due_on" => { "blank" => "true" } })
+    assert_equal [ "", "Dated", "Empty" ], names.call({ "due_on" => { "blank" => "false" } })
+    assert_equal [ "", "Empty" ], names.call({ "amount" => { "blank" => "true" } })
+    assert_equal %w[Dated], names.call({ "amount" => { "blank" => "false", "gte" => "1" }, "due_on" => { "blank" => "false" } })
+    assert_equal [ "" ], names.call({ "label" => { "blank" => "true" } }), "an empty string is blank text"
+    assert_equal %w[Dated Empty Undated], names.call({ "label" => { "blank" => "false" } })
+    %w[yes 1 TRUE].each do |value|
+      error = assert_raises(RailsAiAdmin::AccessDenied) { query({ "due_on" => { "blank" => value } }, resource: PartialFilterSampleAdmin) }
+      assert_equal "INVALID_QUERY", error.code
+    end
+  end
+
+  def test_list_hints_keep_new_operators_and_drop_invalid_values
+    TestPolicy.granted_filters = %i[label amount due_on]
+    access = RailsAiAdmin::Authorization::Access.new(context, PartialFilterSampleAdmin)
+    state = RailsAiAdmin::Navigation::ListState.new(access, { "filter" => { "label" => { "contains" => "al", "blank" => "false" }, "due_on" => { "blank" => "true" } } }, strict: true)
+    assert_equal({ "label" => { "contains" => "al", "blank" => "false" }, "due_on" => { "blank" => "true" } }, state.state["filter"])
+    loose = RailsAiAdmin::Navigation::ListState.new(access, { "filter" => { "due_on" => { "blank" => "maybe" } } })
+    assert loose.discarded?
+    assert_nil loose.state["filter"]
   end
 end

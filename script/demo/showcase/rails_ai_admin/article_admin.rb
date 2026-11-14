@@ -8,8 +8,8 @@ class ArticleAdmin < RailsAiAdmin::Resource
     id :id, create: false
     text :title, required: true, nullable: false, searchable: :contains, sortable: true
     integer :views, filterable: true, sortable: true
-    email :contact, searchable: true
-    url :website
+    email :contact, searchable: true, filterable: %i[contains blank]
+    url :website, filterable: [ :blank ]
     time :opens_at, sortable: true
     file :cover, accept: %w[image/png image/jpeg image/webp image/gif], max_size: 2 * 1024 * 1024
     files :gallery, accept: %w[image/*], max_size: 2 * 1024 * 1024, max_files: 6

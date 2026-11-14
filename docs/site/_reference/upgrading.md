@@ -3,13 +3,21 @@ layout: default
 title: Upgrading
 nav_order: 2
 guide: false
-description: Prepare an existing host for 0.2.0 and review earlier migration requirements.
+description: Prepare an existing host for 0.3.0 or 0.2.0 and review earlier migration requirements.
 ---
 
 # {{ page.title }}
 
 {{ page.description }}
 {: .fs-6 .fw-300 }
+
+## Upgrade to 0.3.0 (in development)
+
+0.3.0 needs no migration and no configuration change. Check these if they apply:
+
+* **New filters.** `contains` and `blank` are opt-in per field, for example
+  `email :contact, filterable: %i[contains blank]`, and still need the actor's
+  `filter` grant. See [Typed Filters]({% link _core_features/typed-filters.md %}).
 
 ## Upgrade to 0.2.0
 

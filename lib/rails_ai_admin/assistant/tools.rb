@@ -274,7 +274,7 @@ module RailsAiAdmin
         "properties" => {
           "resource" => { "type" => "string" },
           "query" => { "type" => "string", "maxLength" => 200, "description" => "Text matched against searchable fields with each field's match mode" },
-          "filters" => { "type" => "object", "description" => "Field name to {\"eq\"|\"gte\"|\"lte\": value}; use select values, not labels",
+          "filters" => { "type" => "object", "description" => "Field name to {operator: value} with operators from describe_resource: eq, gte, lte, contains (part of the text) or blank (true for empty, false for not empty); use select values, not labels",
             "additionalProperties" => { "type" => "object", "additionalProperties" => { "type" => %w[string number boolean] } } },
           "scope" => { "type" => "string", "description" => "Optional scope name from describe_resource" },
           "sort" => { "type" => "string", "description" => "Optional sortable field from describe_resource" },
@@ -327,7 +327,7 @@ module RailsAiAdmin
         "properties" => {
           "resource" => { "type" => "string" },
           "query" => { "type" => "string", "maxLength" => 200 },
-          "filters" => { "type" => "object", "description" => "Field name to {\"eq\"|\"gte\"|\"lte\": value}",
+          "filters" => { "type" => "object", "description" => "Field name to {operator: value} with operators from describe_resource: eq, gte, lte, contains (part of the text) or blank (true for empty, false for not empty)",
             "additionalProperties" => { "type" => "object", "additionalProperties" => { "type" => %w[string number boolean] } } },
           "scope" => { "type" => "string", "description" => "Optional scope name from describe_resource" }
         } })

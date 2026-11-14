@@ -416,6 +416,10 @@ en:
       from: "%{label} from"
       to: "%{label} to"
       equals: "%{label} equals"
+      contains: "%{label} contains"
+      blank: "%{label} is"
+      empty: Empty
+      present: Not empty
       any: Any
     states:
       count: "%{state}: %{count}"
