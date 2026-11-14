@@ -247,6 +247,7 @@ en:
       destroy_note: It moves to Deleted records, where people allowed to restore it can bring it back.
     saved_views:
       title: Saved views
+      save_current: Save this view
       name: Name for the current view
       save: Save view
       help: Saves this list's search, sort, tab and filters for you only. Saving a name again replaces it.

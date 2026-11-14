@@ -27,14 +27,15 @@ class SavedViewsTest < ActionDispatch::IntegrationTest
     Customer.create!(account_id: 1, name: "Bob", points: 7)
     with_resources do
       get "/backoffice/indexed_customers"
-      assert_select "details.raa-saved-views:not([open]) summary", text: "Saved views"
+      assert_select ".raa-saved-views details.raa-save-view-panel:not([open]) summary", text: "Save this view"
+      assert_select ".raa-saved-view-list", count: 0
       assert_select "form.raa-save-view input#raa-saved-view-name[maxlength='80'][required]"
       save("  By   name ", { q: "B", sort: "name", direction: "asc", page: "2" })
       assert_response :see_other
       assert_equal({ "q" => "B", "sort" => "name" }, Rack::Utils.parse_nested_query(URI(response.location).query), "the page is not saved")
       follow_redirect!
       assert_select "[role=status], .raa-notice", text: /Saved the view "By name"/
-      assert_select "details.raa-saved-views[open] summary", text: "Saved views (1)"
+      assert_select ".raa-saved-views nav[aria-label='Saved views'] .raa-saved-views-label", text: "Saved views"
       assert_select ".raa-saved-view-list a[aria-current=true]", text: "By name"
       view = RailsAiAdmin::SavedView.sole
       assert_equal [ "By name", "indexed_customers" ], [ view.name, view.resource_key ]
@@ -91,7 +92,7 @@ class SavedViewsTest < ActionDispatch::IntegrationTest
     RailsAiAdmin::Navigation::SavedViews.stub(:available?, false) do
       with_resources do
         get "/backoffice/indexed_customers"
-        assert_select "details.raa-saved-views", count: 0
+        assert_select ".raa-saved-views", count: 0
         save("Nope", { q: "A" })
         assert_response :not_found
       end

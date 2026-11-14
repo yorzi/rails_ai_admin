@@ -186,7 +186,7 @@
 .raa .raa-filter input:not([type="checkbox"],[type="radio"]),.raa .raa-filter select { width:100%; }
 .raa .raa-filters fieldset.raa-filter-choices { display:block; grid-column:1/-1; margin:0; padding:0; border:0; }
 .raa .raa-filter-choices legend { padding:0; margin-bottom:.25rem; font-weight:600; }
-.raa .raa-filter-choices .raa-choice { display:inline-flex; align-items:center; gap:.4rem; margin:.2rem .9rem .2rem 0; min-height:44px; }
+.raa .raa-filter-choices .raa-choice { margin:.2rem .9rem .2rem 0; }
 .raa .raa-filter-choices .raa-choice label { display:inline; margin:0; font-weight:400; }
 
 .raa .raa-conversation {
@@ -324,12 +324,14 @@
 
 .raa .raa-filter-panel { margin:.75rem 0; padding:.15rem .85rem; border:1px solid var(--raa-line); border-radius:.5rem; background:var(--raa-panel); }
 .raa .raa-filter-panel[open] { padding-bottom:.85rem; }
-.raa .raa-saved-views { margin:.75rem 0; padding:.15rem .85rem; border:1px solid var(--raa-line); border-radius:.5rem; background:var(--raa-panel); }
-.raa .raa-saved-views[open] { padding-bottom:.85rem; }
-.raa .raa-saved-views summary { cursor:pointer; font-weight:650; padding:.4rem 0; }
-.raa .raa-saved-view-list { display:flex; flex-wrap:wrap; gap:.25rem 1rem; margin:.5rem 0 .75rem; padding:0; list-style:none; }
-.raa .raa-saved-view-list li { display:inline-flex; align-items:center; gap:.35rem; }
+.raa .raa-saved-views { display:flex; flex-wrap:wrap; align-items:baseline; gap:.25rem 1.25rem; margin:.5rem 0; }
+.raa .raa-saved-views nav { display:flex; flex-wrap:wrap; align-items:baseline; gap:.25rem .75rem; }
+.raa .raa-saved-views-label { color:var(--raa-muted); font-size:.875rem; font-weight:600; }
+.raa .raa-saved-view-list { display:flex; flex-wrap:wrap; gap:.25rem 1rem; margin:0; padding:0; list-style:none; }
+.raa .raa-saved-view-list li { display:inline-flex; align-items:center; gap:.25rem; }
 .raa .raa-saved-view-list a[aria-current] { font-weight:700; }
+.raa .raa-save-view-panel summary { cursor:pointer; color:var(--raa-brand); font-size:.875rem; font-weight:600; min-height:24px; }
+.raa .raa-save-view-panel[open] { flex-basis:100%; }
 .raa .raa-inline-form { display:inline; margin:0; }
 .raa .raa-row-edit { margin-left:.5rem; font-size:.875rem; }
 .raa .raa-list-links { display:flex; flex-wrap:wrap; gap:.5rem 1.25rem; }
@@ -341,7 +343,8 @@
 .raa .raa-filter-panel summary { cursor:pointer; font-weight:650; padding:.4rem 0; }
 .raa .raa-selection-bar { display:flex; flex-wrap:wrap; align-items:center; gap:1rem; margin:.75rem 0; }
 .raa .raa-selection-bar p { margin:0; }
-.raa .raa-selection-count { color:var(--raa-muted); font-variant-numeric:tabular-nums; }
+.raa .raa-selection-count { flex-basis:100%; color:var(--raa-muted); font-variant-numeric:tabular-nums; }
+.raa .raa-selection-bar .raa-choice,.raa .raa-filter-choices .raa-choice { display:inline-flex; align-items:center; gap:.4rem; min-height:44px; }
 /* List cells break between words, so a column is as wide as its longest word
    and the region scrolls, instead of squeezing text one character wide. */
 .raa .raa-table-scroll td { overflow-wrap:break-word; }

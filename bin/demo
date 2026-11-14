@@ -133,8 +133,8 @@ if options[:showcase]
     end
   RUBY
   FileUtils.cp(File.join(showcase, "articles-import.csv"), File.join(TARGET, "articles-import.csv"))
-  edit("config/initializers/rails_ai_admin.rb", %(config.resources = [ "CustomerAdmin", "CustomerDirectoryAdmin", "OrderAdmin" ]),
-    %(config.resources = [ "CustomerAdmin", "CustomerDirectoryAdmin", "OrderAdmin", "ArticleAdmin", "TagAdmin", "SummaryAdmin" ]))
+  edit("config/initializers/rails_ai_admin.rb", %(config.resources = [ "CustomerAdmin", "CustomerDirectoryAdmin", "OrderAdmin", "NoteAdmin" ]),
+    %(config.resources = [ "CustomerAdmin", "CustomerDirectoryAdmin", "OrderAdmin", "NoteAdmin", "ArticleAdmin", "TagAdmin", "SummaryAdmin" ]))
   File.write(File.join(TARGET, "db/seeds.rb"), File.read(File.join(showcase, "seeds.rb")), mode: "a")
 end
 
