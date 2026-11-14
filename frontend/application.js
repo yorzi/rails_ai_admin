@@ -295,7 +295,7 @@ class PollController extends Controller {
 // Without JavaScript the buttons stay enabled and an empty submit returns to
 // the list with a notice.
 class SelectionController extends Controller {
-  static targets = ["submit", "count"];
+  static targets = ["submit", "count", "all"];
   static values = { counts: Object };
   connect() {
     this.all = document.querySelector("[data-raa-select-all]");
@@ -303,14 +303,17 @@ class SelectionController extends Controller {
     this.update = (event) => {
       const boxes = [...document.querySelectorAll(`input[type="checkbox"][form="${this.element.id}"]`)];
       if (event?.target === this.all) boxes.forEach((box) => { box.checked = this.all.checked; });
-      const checked = boxes.filter((box) => box.checked).length;
+      const ticked = boxes.filter((box) => box.checked).length;
       if (this.all) {
-        this.all.checked = boxes.length > 0 && checked === boxes.length;
-        this.all.indeterminate = checked > 0 && checked < boxes.length;
+        this.all.checked = boxes.length > 0 && ticked === boxes.length;
+        this.all.indeterminate = ticked > 0 && ticked < boxes.length;
       }
+      // "All N matching" acts on every match, whatever is ticked on this page.
+      const all = this.hasAllTarget && this.allTarget.checked;
+      const checked = all ? Number(this.allTarget.dataset.count) : ticked;
       this.submitTargets.forEach((button) => { button.disabled = checked === 0; });
       if (this.hasCountTarget) {
-        const text = checked === 0 ? this.countsValue.none : (checked === 1 ? this.countsValue.one : this.countsValue.other);
+        const text = all ? this.countsValue.all : (checked === 0 ? this.countsValue.none : (checked === 1 ? this.countsValue.one : this.countsValue.other));
         if (text) this.countTarget.textContent = text.replace("%{count}", checked);
       }
     };

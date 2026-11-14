@@ -86,6 +86,9 @@ en:
           none: Tick records to act on several at once (up to 100). Every action asks you to confirm first.
           one: "%{count} record selected"
           other: "%{count} records selected"
+          all: "All %{count} matching records selected"
+        all_matching: All %{count} matching records
+        all_matching_limit: Bulk actions take up to %{count} records. Narrow the list to act on every match.
         delete_selected: Delete selected
         search_label: Search %{label}
         search: Search
@@ -256,6 +259,7 @@ en:
         limit: You can keep up to %{count} saved views for this list. Delete one first.
     selections:
       empty: Select at least one record.
+      too_many: More than %{count} records match. Narrow the list with search or filters, then try again.
       title: Selected records
       targets_note:
         one: "%{count} fixed target. This selection does not approve or execute an operation."

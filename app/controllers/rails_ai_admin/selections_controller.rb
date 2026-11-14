@@ -6,13 +6,24 @@ module RailsAiAdmin
     def create
       @resource = RailsAiAdmin.registry.fetch(params[:resource])
       resolve_list_navigation
+      target_ids = if params[:all_matching] == "1"
+        Authorization::Access.new(@context, @resource).authorize_selection!
+        ids = matching_ids
+        if ids.size > Selections::Builder::LIMIT
+          redirect_to list_return_path, status: :see_other, notice: t("rails_ai_admin.selections.too_many", count: Selections::Builder::LIMIT)
+          return
+        end
+        ids
+      else
+        Array(params[:target_ids])
+      end
       # Nothing ticked is an ordinary mistake: return to the same list (RAA-013).
-      if Array(params[:target_ids]).compact_blank.empty?
+      if target_ids.compact_blank.empty?
         Authorization::Access.new(@context, @resource).authorize_selection!
         redirect_to list_return_path, status: :see_other, notice: t("rails_ai_admin.selections.empty")
         return
       end
-      selection = Selections::Builder.new.capture(context: @context, resource: @resource, target_ids: params[:target_ids])
+      selection = Selections::Builder.new.capture(context: @context, resource: @resource, target_ids: target_ids)
       redirect_to next_step_path(selection.selection_ref), status: :see_other
     end
 
@@ -69,6 +80,16 @@ module RailsAiAdmin
     end
 
     private
+
+    # Every record the list shows across its pages, from the same normalized
+    # search, tab, sort and filters, bounded one past the selection limit.
+    # The builder then checks each of them again.
+    def matching_ids
+      state = navigation_state
+      model = @resource.model_class
+      Queries::List.new(@context, @resource).relation(search: state["q"], sort: state["sort"], direction: state.fetch("direction", "asc"),
+        scope: state["scope"], filters: state["filter"]).limit(Selections::Builder::LIMIT + 1).pluck(model.arel_table[model.primary_key]).map(&:to_s)
+    end
 
     # The list's bulk buttons name the action to review next. An unknown or
     # ungranted name falls back to the selection page; nothing runs here.

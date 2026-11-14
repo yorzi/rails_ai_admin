@@ -129,4 +129,33 @@ class BulkDestroyIntegrationTest < ActionDispatch::IntegrationTest
       assert_match %r{\A/backoffice/selections/[0-9a-f-]{36}\z}, URI(response.location).path
     end
   end
+
+  def test_all_matching_records_across_pages_can_be_selected_up_to_the_limit
+    30.times { |index| Article.create!(account_id: 1, title: "Bulk #{index.to_s.rjust(2, "0")}") }
+    Article.create!(account_id: 2, title: "Bulk foreign")
+    with_essential_resources do
+      get "/backoffice/articles"
+      assert_select "nav.raa-pagination"
+      assert_select "form#raa-selection input#raa-all-matching[type=checkbox][name=all_matching][data-count='33']"
+      assert_select "label[for=raa-all-matching]", text: "All 33 matching records"
+      get "/backoffice/articles", params: { q: "Bulk" }
+      assert_select "input#raa-all-matching[data-count='30']"
+      post "/backoffice/articles/selections", params: { all_matching: "1", then: "destroy", return_to: { q: "Bulk" } }
+      assert_response :see_other
+      follow_redirect!
+      assert_select "h1", text: "Delete selected records"
+      assert_select "li", count: 30
+      assert_equal 30, RailsAiAdmin::Selection.last.item_count
+      assert_equal Article.where(account_id: 1).where("title LIKE 'Bulk%'").pluck(:id).map(&:to_s).sort,
+        RailsAiAdmin::SelectionItem.where(selection_id: RailsAiAdmin::Selection.last.id).pluck(:target_id).sort
+      80.times { |index| Article.create!(account_id: 1, title: "More #{index}") }
+      get "/backoffice/articles"
+      assert_select "input#raa-all-matching", count: 0
+      assert_select ".raa-selection-bar .raa-field-help", text: /up to 100 records/
+      post "/backoffice/articles/selections", params: { all_matching: "1" }
+      assert_response :see_other
+      follow_redirect!
+      assert_select ".raa-notice", text: /More than 100 records match/
+    end
+  end
 end

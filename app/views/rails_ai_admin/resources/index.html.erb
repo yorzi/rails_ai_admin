@@ -81,10 +81,15 @@
 <% if @selectable %>
   <%# One step from ticked rows to the reviewed action. Each button captures the
       ticked records first; the action's own review page still confirms. %>
-  <% counts = { none: t("rails_ai_admin.resources.index.selected.none"), one: t("rails_ai_admin.resources.index.selected.one"), other: t("rails_ai_admin.resources.index.selected.other") } %>
+  <% counts = { none: t("rails_ai_admin.resources.index.selected.none"), one: t("rails_ai_admin.resources.index.selected.one"), other: t("rails_ai_admin.resources.index.selected.other"), all: t("rails_ai_admin.resources.index.selected.all") } %>
   <%= form_with url: capture_selection_path(resource: @resource.key), method: :post, local: true, id: "raa-selection", class: "raa-selection-bar", data: { turbo: false, controller: "raa-selection", raa_selection_counts_value: counts.to_json } do |form| %>
     <%= return_navigation_fields %>
     <span class="raa-selection-count" data-raa-selection-target="count" aria-live="polite"><%= t("rails_ai_admin.resources.index.selection_help") %></span>
+    <% if @matching_count && @matching_count <= RailsAiAdmin::Selections::Builder::LIMIT %>
+      <span class="raa-choice"><%= check_box_tag "all_matching", "1", false, id: "raa-all-matching", data: { raa_selection_target: "all", count: @matching_count } %><%= label_tag "raa-all-matching", t("rails_ai_admin.resources.index.all_matching", count: @matching_count) %></span>
+    <% elsif @matching_count %>
+      <span class="raa-field-help"><%= t("rails_ai_admin.resources.index.all_matching_limit", count: RailsAiAdmin::Selections::Builder::LIMIT) %></span>
+    <% end %>
     <% @bulk_operations.each do |operation| %>
       <%= button_tag operation.description, type: "submit", name: "then", value: "operation:#{operation.key}", data: { raa_selection_target: "submit" } %>
     <% end %>

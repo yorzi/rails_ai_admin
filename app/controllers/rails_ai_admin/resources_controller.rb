@@ -56,6 +56,15 @@ module RailsAiAdmin
       end
       # Offered when deleting is on; each record's own grant is checked on review.
       @bulk_destroy = @selectable && @resource.action_enabled?(:destroy)
+      # Offered when the list spans pages; capped one past the selection limit.
+      if @selectable && (@page.has_next || @page.number > 1)
+        @matching_count = if @page.count && !@page.count_capped
+          @page.count
+        else
+          Queries::List.new(@context, @resource).relation(search: navigation_state["q"], scope: navigation_state["scope"],
+            filters: navigation_state["filter"]).except(:order).limit(Selections::Builder::LIMIT + 1).count
+        end
+      end
       @deleted_records = @resource.soft_delete? && allowed_action?(@resource, :restore)
       @bulk_operations = @selectable ? granted_collection_operations(@resource, @access) : []
       @importable = begin

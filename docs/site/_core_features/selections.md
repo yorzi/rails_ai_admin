@@ -60,15 +60,19 @@ bulk bar. Each button captures the ticked records, then opens a review page:
   operation's form for the selection.
 * **Review selection** opens the selection page, which lists the same actions.
 
-Nothing is changed until the review page is confirmed. The bulk bar selects
-explicit records on that page; it does not implement an all-filtered selection
-or persistent selection across pages. It works without JavaScript.
+Nothing is changed until the review page is confirmed. The bar acts on the
+records ticked on the current page. When the list spans several pages and 100 or
+fewer records match its search, tab and filters, the bar also offers **All N
+matching records**: tick it and every button captures all of them instead,
+checked one by one like ticked rows. Above 100 matches the bar says so; narrow the
+list first. Ticks do not carry across pages. It works without JavaScript.
 
 Relative to the engine mount, the flow is:
 
 | Request | Behavior |
 | --- | --- |
 | `POST /:resource/selections` with `target_ids[]` | Capture exact authorized IDs/current versions; redirect with 303 to the selection page, or to the review named by `then` (`destroy` or `operation:<key>`) when that action is available |
+| `POST /:resource/selections` with `all_matching=1` | The same, for every record the list in `return_to` matches, or back to the list with a notice when more than 100 match |
 | `GET /selections/:selection_ref` | Revalidate and display the current authorized labels, IDs and bound versions |
 
 The form uses the host session and normal CSRF boundary. A success means selection
@@ -216,8 +220,8 @@ approval nor execution authority. The original selection must still be valid at
 admission; admitted execution uses its approved exact manifest and a separate job
 deadline rather than extending the selection.
 
-All-filtered capture, 10,000-target manifests and a complete job center remain
-planned. The full batch/async scope and release Gates remain required; this
+Selections above 100 records (an asynchronous all-filtered capture),
+10,000-target manifests and a complete job center remain planned. The full batch/async scope and release Gates remain required; this
 bounded implementation does not narrow those goals.
 
 ## Next Steps

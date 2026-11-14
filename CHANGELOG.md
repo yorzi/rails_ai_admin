@@ -27,6 +27,9 @@
   title. It needs the field's own grant plus the target title's sort or search
   grant and index access, and reads titles only from the target's policy
   relation; unavailable targets sort last and never match.
+- Select every record a list matches, across its pages, with **All N
+  matching records** in the bulk bar when 100 or fewer match; above that the
+  bar asks to narrow the list. Each record is still checked when captured.
 - Add saved views: each person can save a list's search, sort, tab and filters
   under a name, open it again from the list, replace it or delete it. Views are
   private to the person and tenant, keep no page number, and are rechecked
