@@ -139,3 +139,8 @@ RailsAiAdmin::TestKit.assert_field_grants(context: context, resource: OrderAdmin
 
 `rails_ai_admin:doctor` reports filterable columns that appear in no index. That
 is a review hint, not a performance verdict.
+
+## Next Steps
+
+* [Saved Views]({% link _core_features/saved-views.md %}) - keep a filtered list under a name.
+* [Associations]({% link _core_features/associations.md %}) - filter, sort and search by a referenced record.

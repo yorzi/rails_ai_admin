@@ -156,6 +156,7 @@ module DatabaseHelpers
     RailsAiAdmin::OperationRun.delete_all
     RailsAiAdmin::SelectionItem.delete_all
     RailsAiAdmin::Selection.delete_all
+    RailsAiAdmin::SavedView.delete_all
     RailsAiAdmin::AuditEvent.delete_all
     TestPolicy.denied = false
     TestPolicy.hide_name = false

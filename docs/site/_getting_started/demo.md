@@ -76,7 +76,7 @@ admin account already. Every account's password is `demo-password`.
   page lists what will be deleted before anything changes.
 * **Filters**: on the Articles list, open **Filters** and enter `editor1` in
   **Contact contains**, or choose **Website is: Not empty**. On Orders, tick two
-  states under **State is any of**.
+  states under **State is any of**, then keep the result with **Saved views**.
 * **Orders**: list tabs, typed filters, a reference picker for customers and a
   custom review operation. Customers show their orders in a panel with an **Add
   order** link.

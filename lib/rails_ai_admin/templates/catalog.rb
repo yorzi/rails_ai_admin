@@ -18,7 +18,7 @@ module RailsAiAdmin
         "audit_log" => [ "rails_ai_admin/audit/index.html.erb", %i[context log filters page actor_labels], [] ],
         "resource_import" => [ "rails_ai_admin/imports/new.html.erb", %i[context resource import report problem], [] ],
         "search" => [ "rails_ai_admin/search/index.html.erb", %i[context query sections], [] ],
-        "resource_index" => [ "rails_ai_admin/resources/index.html.erb", %i[context resource page columns rows searchable selectable exportable importable sortable_fields list_scopes current_scope filter_fields omitted_rows bulk_destroy bulk_operations], [] ],
+        "resource_index" => [ "rails_ai_admin/resources/index.html.erb", %i[context resource page columns rows searchable selectable exportable importable sortable_fields list_scopes current_scope filter_fields omitted_rows bulk_destroy bulk_operations saved_views], [] ],
         "resource_show" => [ "rails_ai_admin/resources/show.html.erb", %i[context resource record values fields operations association_panels], [] ],
         "resource_history" => [ "rails_ai_admin/resources/history.html.erb", %i[context resource record history actor_labels], [] ],
         "resource_associations" => [ "rails_ai_admin/resources/_associations.html.erb", [], %i[panels] ],
@@ -54,7 +54,7 @@ module RailsAiAdmin
         elsif key == "dashboard"
           4 # counts, widgets
         elsif key == "resource_index"
-          9 # bulk_destroy, bulk_operations (one-step bulk actions)
+          9 # bulk_destroy, bulk_operations, saved_views
         elsif key == "resource_show"
           3
         elsif %w[resource_new resource_edit resource_form].include?(key)

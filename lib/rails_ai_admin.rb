@@ -47,6 +47,7 @@ require_relative "rails_ai_admin/authorization/access"
 require_relative "rails_ai_admin/fields/association"
 require_relative "rails_ai_admin/navigation/list_state"
 require_relative "rails_ai_admin/navigation/menu"
+require_relative "rails_ai_admin/navigation/saved_views"
 
 # Provides an isolated admin engine. The host supplies all authority.
 module RailsAiAdmin

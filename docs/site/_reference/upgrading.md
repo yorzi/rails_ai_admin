@@ -13,10 +13,19 @@ description: Prepare an existing host for 0.3.0 or 0.2.0 and review earlier migr
 
 ## Upgrade to 0.3.0 (in development)
 
-0.3.0 needs no migration and no configuration change. Check these if they apply:
+0.3.0 adds one engine table for saved views. Copy the new migration and run it:
+
+```sh
+bin/rails generate rails_ai_admin:install --skip
+bin/rails db:migrate
+```
+
+Until then the list works as before without the Saved views panel, and
+`rails_ai_admin:doctor` reports saved views as closed. There is no
+configuration change. Check these if they apply:
 
 * **Copied index template.** `resource_index` is now revision 9 and receives
-  `@bulk_destroy` and `@bulk_operations`. Doctor reports the copy for review.
+  `@bulk_destroy`, `@bulk_operations` and `@saved_views`. Doctor reports the copy for review.
   Move it aside, run `bin/rails generate rails_ai_admin:override resource_index`
   (the generator never overwrites a host file) and reapply your changes, or
   your list keeps the old two-step **Capture selection** bar.

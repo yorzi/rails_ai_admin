@@ -38,6 +38,8 @@ RailsAiAdmin::Engine.routes.draw do
   post ":resource/operations/:operation/preflight", to: "collection_operations#preflight", as: :collection_operation_preflight
   post ":resource/operations/:operation/execute", to: "collection_operations#execute", as: :collection_operation_execute
   post ":resource/selections", to: "selections#create", as: :capture_selection
+  post ":resource/views", to: "saved_views#create", as: :saved_views
+  delete ":resource/views/:id", to: "saved_views#destroy", as: :saved_view
   post ":resource/exports", to: "exports#create", as: :resource_export
   get ":resource/imports/new", to: "imports#new", as: :new_resource_import
   get ":resource/imports/template", to: "imports#template", as: :resource_import_template

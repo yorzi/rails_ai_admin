@@ -111,6 +111,7 @@ module RailsAiAdmin
         mcp_check,
         Check.new("files", :unsupported, "Private attachment management is not implemented."),
         selection_check,
+        saved_views_check,
         Check.new("queue", @work_registry.definitions.empty? && collections.zero? ? :closed : :review,
           "#{@work_registry.definitions.size} outbox handlers; #{collections} collection handlers; auto_dispatch=#{config.outbox_auto_dispatch}/#{config.collection_auto_dispatch}; " \
           "jobs use the #{queue_name(config).inspect} queue. Schedule the pending scans, make sure a worker processes that queue, and verify persistent queues/downstream idempotency."),
@@ -239,6 +240,14 @@ module RailsAiAdmin
         "Fixed selection tables installed=#{installed}; at most 100 targets with lock_version or updated_at in one pool. Separate select_records? grant, current scope/show/fields and expiry apply. Selection alone is not approval; collection admission/leases require current host policies and persistent queue scans.")
     rescue ActiveRecord::ActiveRecordError
       Check.new("selections", :error, "Cannot inspect selection tables. Check database connectivity and pending engine migrations.")
+    end
+
+    def saved_views_check
+      if Navigation::SavedViews.available?
+        Check.new("saved_views", :ok, "Saved views are on. Each person's views store list settings only and are rechecked against current grants when shown.")
+      else
+        Check.new("saved_views", :closed, "Saved views are off until the host copies the engine migrations (rails_ai_admin:install --skip) and runs db:migrate.")
+      end
     end
 
     def adapter_check(kind, name, methods)

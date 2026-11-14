@@ -33,6 +33,28 @@
   </ul></nav>
   <% if navigation_state["scope"] == RailsAiAdmin::Queries::NamedScope::NONE %><p class="raa-notice" role="status"><%= t("rails_ai_admin.resources.index.no_list_tab") %></p><% end %>
 <% end %>
+<% if @saved_views %>
+  <% current_view = navigation_state.except("page") %>
+  <details class="raa-saved-views"<% if @saved_views.any? %> open<% end %>>
+  <summary><%= t("rails_ai_admin.saved_views.title") %><% if @saved_views.any? %> (<%= @saved_views.size %>)<% end %></summary>
+  <% if @saved_views.any? %><ul class="raa-saved-view-list">
+    <% @saved_views.each do |view| %><li>
+      <%= link_to view.name, resources_path(resource: @resource.key, **view.state.symbolize_keys), aria: { current: view.state == current_view ? "true" : nil } %>
+      <%= form_with url: saved_view_path(resource: @resource.key, id: view.id), method: :delete, local: true, class: "raa-inline-form" do %>
+        <%= return_navigation_fields %>
+        <%= button_tag t("rails_ai_admin.saved_views.delete"), type: "submit", name: nil, class: "raa-link-button", aria: { label: t("rails_ai_admin.saved_views.delete_named", name: view.name) } %>
+      <% end %>
+    </li><% end %>
+  </ul><% end %>
+  <%= form_with url: saved_views_path(resource: @resource.key), method: :post, local: true, class: "raa-save-view" do |form| %>
+    <%= return_navigation_fields %>
+    <%= form.label :name, t("rails_ai_admin.saved_views.name"), for: "raa-saved-view-name" %>
+    <%= form.text_field :name, id: "raa-saved-view-name", maxlength: RailsAiAdmin::Navigation::SavedViews::MAX_NAME, required: true, autocomplete: "off" %>
+    <%= form.submit t("rails_ai_admin.saved_views.save"), name: nil, class: "raa-secondary" %>
+    <p class="raa-field-help"><%= t("rails_ai_admin.saved_views.help") %></p>
+  <% end %>
+  </details>
+<% end %>
 <% if @filter_fields.any? %>
   <% active_filters = navigation_state["filter"].to_h.values.sum(&:size) %>
   <details class="raa-filter-panel"<% if active_filters.positive? %> open<% end %>>

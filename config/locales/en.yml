@@ -229,6 +229,18 @@ en:
       origins:
         surface: From a review in Chat
         assistant: Proposed in Chat
+    saved_views:
+      title: Saved views
+      name: Name for the current view
+      save: Save view
+      help: Saves this list's search, sort, tab and filters for you only. Saving a name again replaces it.
+      delete: Delete
+      delete_named: Delete the saved view %{name}
+      saved: Saved the view "%{name}".
+      deleted: Deleted the saved view.
+      rejected:
+        name: Name the view with 1 to %{max} characters.
+        limit: You can keep up to %{count} saved views for this list. Delete one first.
     selections:
       empty: Select at least one record.
       title: Selected records

@@ -26,6 +26,8 @@ module RailsAiAdmin
       end
       @sortable_fields = @access.fields(:sort)
       @list_scopes = @access.named_scopes
+      # nil until the host has run the saved views migration.
+      @saved_views = Navigation::SavedViews.new(@access).list if Navigation::SavedViews.available?
       @filter_fields = @access.fields(:filter)
       @current_scope = @page.scope
       @columns = @resource.index.order(@access.fields(:read, view: :index))

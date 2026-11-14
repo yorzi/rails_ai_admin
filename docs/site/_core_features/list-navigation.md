@@ -176,6 +176,7 @@ or completion of the full navigation/release roadmap.
 
 ## Next Steps
 
+* [Saved Views]({% link _core_features/saved-views.md %}) keeps a person's list settings under a name.
 * [Resources and Fields]({% link _core_features/resources-and-fields.md %}) separates readable output from query grants.
 * [Form Session Recovery]({% link _advanced/form-recovery.md %}) preserves open-DOM input without drafts or automatic Save.
 * [Template Overrides]({% link _advanced/template-overrides.md %}) explains context revisions for navigation-aware copies.

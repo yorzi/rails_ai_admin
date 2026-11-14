@@ -27,6 +27,12 @@
   title. It needs the field's own grant plus the target title's sort or search
   grant and index access, and reads titles only from the target's policy
   relation; unavailable targets sort last and never match.
+- Add saved views: each person can save a list's search, sort, tab and filters
+  under a name, open it again from the list, replace it or delete it. Views are
+  private to the person and tenant, keep no page number, and are rechecked
+  against current grants whenever they are shown. They need the new
+  `create_rails_ai_admin_saved_views` migration; `rails_ai_admin:doctor` reports
+  whether it has run.
 - Show the new filters in the demo: contact and website on Articles, and order
   state on Orders.
 
