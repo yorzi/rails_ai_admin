@@ -99,6 +99,7 @@ MCP against an offline fake model. Open `http://127.0.0.1:3917/login` and click
 * [Add review cards]({% link _advanced/review-surfaces.md %}) to confirm changes inside chat with rails_tool_views.
 * [Connect an MCP client]({% link _advanced/mcp-server.md %}) to use the same permission-checked tools from an external agent.
 * [Verify your host integration]({% link _advanced/host-verification.md %}) before enabling access for your team.
+* [Compare Rails admin gems]({% link _getting_started/comparison.md %}) to see when Rails AI Admin fits and when another gem fits better.
 
 ## Version {{ site.version }}
 
