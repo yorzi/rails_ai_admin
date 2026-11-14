@@ -7,6 +7,16 @@
   filterable field may declare `blank`. `filterable: true` keeps its 0.2
   defaults, so both are an explicit choice. The assistant's search and count
   tools accept them under the same filter grant.
+- Number the pages of lists that use `count :exact`, mark the current page, and
+  hide pagination on lists that fit on one page.
+- Act on ticked records in one step: the list's bulk bar offers **Delete
+  selected** and each collection operation the actor may start, and opens that
+  action's review page directly. "Capture selection" is now **Review
+  selection**. A bulk delete with no deletable records returns to the selection
+  with a notice instead of a 404, and Cancel on the delete review returns to the
+  list.
+- The `resource_index` template contract is revision 9 and adds
+  `bulk_destroy` and `bulk_operations`. Regenerate copied index overrides.
 - Show the new filters in the demo's Articles list.
 
 ## 0.2.0 (2026-11-14)

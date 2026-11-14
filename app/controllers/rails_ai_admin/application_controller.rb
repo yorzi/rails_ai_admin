@@ -181,6 +181,18 @@ module RailsAiAdmin
       end
     end
 
+    # Collection operations the actor may start now over a selection.
+    def granted_collection_operations(resource, access)
+      RailsAiAdmin.operation_registry.custom(resource).select do |definition|
+        next false unless definition.scope == :collection
+        access.authorize!(definition.key)
+        definition.fields(access, nil)
+        true
+      rescue AccessDenied
+        false
+      end
+    end
+
     def allowed_action?(resource, action, record = nil)
       Authorization::Access.new(@context, resource).authorize!(action, record)
     rescue AccessDenied

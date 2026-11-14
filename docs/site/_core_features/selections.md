@@ -51,15 +51,24 @@ without acquiring business-write authority.
 ## Capture From the Native Index
 
 When those grants permit it, the resource index shows record checkboxes and a
-**Capture selection** form. The current native form selects explicit records on
-that page; it does not implement an all-filtered selection or persistent selection
-across pages. It works without JavaScript.
+bulk bar. Each button captures the ticked records, then opens a review page:
+
+* **Delete selected** opens the bulk delete review, when the resource allows
+  deleting. If you may delete none of the ticked records, you return to the
+  selection with a notice.
+* One button per collection operation the actor may start opens that
+  operation's form for the selection.
+* **Review selection** opens the selection page, which lists the same actions.
+
+Nothing is changed until the review page is confirmed. The bulk bar selects
+explicit records on that page; it does not implement an all-filtered selection
+or persistent selection across pages. It works without JavaScript.
 
 Relative to the engine mount, the flow is:
 
 | Request | Behavior |
 | --- | --- |
-| `POST /:resource/selections` with `target_ids[]` | Capture exact authorized IDs/current versions; redirect with 303 |
+| `POST /:resource/selections` with `target_ids[]` | Capture exact authorized IDs/current versions; redirect with 303 to the selection page, or to the review named by `then` (`destroy` or `operation:<key>`) when that action is available |
 | `GET /selections/:selection_ref` | Revalidate and display the current authorized labels, IDs and bound versions |
 
 The form uses the host session and normal CSRF boundary. A success means selection

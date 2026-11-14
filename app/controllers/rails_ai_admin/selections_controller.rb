@@ -13,7 +13,7 @@ module RailsAiAdmin
         return
       end
       selection = Selections::Builder.new.capture(context: @context, resource: @resource, target_ids: params[:target_ids])
-      redirect_to selection_path(selection_ref: selection.selection_ref, **navigation_params), status: :see_other
+      redirect_to next_step_path(selection.selection_ref), status: :see_other
     end
 
     def show
@@ -28,21 +28,16 @@ module RailsAiAdmin
       rescue AccessDenied
         false
       end
-      @operations = RailsAiAdmin.operation_registry.custom(@resource).select do |definition|
-        next false unless definition.scope == :collection
-        access.authorize!(definition.key)
-        definition.fields(access, nil)
-        true
-      rescue AccessDenied
-        false
-      end
+      @operations = granted_collection_operations(@resource, access)
     end
 
     # Bulk delete reviews the fixed selection: records the actor may delete
-    # now, and how many will be skipped.
+    # now, and how many will be skipped. With none, the selection stays.
     def confirm_destroy
       load_deletable
-      raise AccessDenied if @deletable.empty?
+      return if @deletable.any?
+      redirect_to selection_path(selection_ref: @selection.selection_ref, **navigation_params), status: :see_other,
+        notice: t("rails_ai_admin.selections.destroy.none")
     end
 
     # Each record is deleted through the native destroy operation, with its own
@@ -74,6 +69,23 @@ module RailsAiAdmin
     end
 
     private
+
+    # The list's bulk buttons name the action to review next. An unknown or
+    # ungranted name falls back to the selection page; nothing runs here.
+    def next_step_path(selection_ref)
+      step = params[:then]
+      if step == "destroy" && @resource.action_enabled?(:destroy)
+        return confirm_destroy_selection_path(selection_ref: selection_ref, **navigation_params)
+      end
+      if step.is_a?(String) && (key = step[/\Aoperation:([a-z][a-z0-9_]{0,79})\z/, 1])
+        access = Authorization::Access.new(@context, @resource)
+        operation = granted_collection_operations(@resource, access).find { |definition| definition.key.to_s == key }
+        if operation
+          return collection_operation_form_path(resource: @resource.key, operation: operation.key, selection_ref: selection_ref, **navigation_params)
+        end
+      end
+      selection_path(selection_ref: selection_ref, **navigation_params)
+    end
 
     def load_deletable(manifest_digest: nil)
       records = {}

@@ -32,6 +32,22 @@ class CollectionOperationsRequestsTest < ActionDispatch::IntegrationTest
       selection_ref: @selection_ref, confirmed_input: css_select("input[name=confirmed_input]").first["value"] }
   end
 
+  def test_the_list_opens_a_collection_operation_form_in_one_step
+    with_collection do
+      get "/backoffice/batch_customers"
+      button = css_select("form#raa-selection button[name=then]").find { |node| node["value"] == "operation:award" }
+      assert button, "granted collection operations appear beside the selection"
+      post "/backoffice/batch_customers/selections", params: { target_ids: [ @customer.id, @second.id ], then: "operation:award" }
+      assert_response :see_other
+      location = URI(response.location)
+      assert_equal "/backoffice/batch_customers/operations/award", location.path
+      assert_match(/selection_ref=[0-9a-f-]{36}/, location.query)
+      get location.request_uri
+      assert_response :success
+      assert_select "input[name=selection_ref]"
+    end
+  end
+
   def test_native_review_admission_current_results_and_independent_cancel
     with_collection do
       confirmation = native_proposal

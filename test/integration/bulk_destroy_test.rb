@@ -85,8 +85,12 @@ class BulkDestroyIntegrationTest < ActionDispatch::IntegrationTest
       path = URI(response.location).path
       get path
       assert_select "a[href$='/destroy']", count: 0
+      # Nothing deletable: back to the selection with a reason, not an error.
       get "#{path}/destroy"
-      assert_response :not_found
+      assert_response :see_other
+      assert_equal path, URI(response.location).path
+      follow_redirect!
+      assert_select "[role=status], .raa-notice", text: /None of the selected records can be deleted by you/
     end
     post "/test/sign_in/1"
     with_essential_resources(resources: %w[EssentialFixtures::ReadonlyArticleAdmin]) do
@@ -98,5 +102,31 @@ class BulkDestroyIntegrationTest < ActionDispatch::IntegrationTest
       assert_response :not_found
     end
     assert_equal 3, Article.where(account_id: 1).count
+  end
+
+  def test_the_list_offers_delete_selected_in_one_step_through_the_review_page
+    with_essential_resources do
+      get "/backoffice/articles"
+      assert_select "form#raa-selection button[name=then][value=destroy]", text: "Delete selected"
+      assert_select "form#raa-selection button:not([name])", text: "Review selection"
+      post "/backoffice/articles/selections", params: { target_ids: [ @article.id, @third.id ], then: "destroy" }
+      assert_response :see_other
+      assert_match %r{\A/backoffice/selections/[0-9a-f-]{36}/destroy\z}, URI(response.location).path
+      follow_redirect!
+      assert_select "h1", text: "Delete selected records"
+      assert_select "a[href='/backoffice/articles']", text: "Cancel", minimum: 1
+      assert_equal 3, Article.where(account_id: 1).count, "the one-step button only opens the review"
+      # Unknown next steps fall back to the selection page.
+      [ "operation:missing", "operation:Bad", "drop", "" ].each do |step|
+        post "/backoffice/articles/selections", params: { target_ids: [ @article.id ], then: step }
+        assert_match %r{\A/backoffice/selections/[0-9a-f-]{36}\z}, URI(response.location).path, step
+      end
+    end
+    with_essential_resources(resources: %w[EssentialFixtures::ReadonlyArticleAdmin]) do
+      get "/backoffice/articles"
+      assert_select "button[name=then][value=destroy]", count: 0
+      post "/backoffice/articles/selections", params: { target_ids: [ @article.id ], then: "destroy" }
+      assert_match %r{\A/backoffice/selections/[0-9a-f-]{36}\z}, URI(response.location).path
+    end
   end
 end

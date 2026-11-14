@@ -10,6 +10,16 @@ module RailsAiAdmin
       nil
     end
 
+    # Page numbers for a list whose last page is known: the first and last
+    # pages, and two either side of the current one. nil marks a gap.
+    def admin_page_window(current, last, around: 2)
+      pages = ([ 1, last ] + ((current - around)..(current + around)).to_a).select { |page| page.between?(1, last) }.uniq.sort
+      pages.each_with_index.flat_map do |page, index|
+        gap = index.positive? && page - pages[index - 1] > 1
+        gap ? [ (page - pages[index - 1] == 2 ? page - 1 : nil), page ] : [ page ]
+      end
+    end
+
     # A result code as a sentence, with the code kept as secondary text for
     # support (RAA-027).
     def admin_outcome(code)

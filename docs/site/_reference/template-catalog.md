@@ -29,7 +29,7 @@ outside this ERB template catalog.
 
 The current catalog contains 36 entries; the table below is generated from
 `RailsAiAdmin::Templates::Catalog::ENTRIES` and lists each revision.
-resource_index is at revision 8 (it adds `exportable` and `importable`) and
+resource_index is at revision 9 (it adds `bulk_destroy` and `bulk_operations`) and
 dashboard at revision 4 (`counts` and `widgets`). New pages for record history,
 the audit log, search, CSV import and bulk delete start at revision 1 or, when
 they carry list navigation, revision 2. `session_links`
@@ -51,9 +51,11 @@ its link uses the fixed configured host authentication_path. See
 
 Navigation-aware entries receive list_navigation as an immutable plain list
 hint, never route/record authority. resource_index also receives sortable_fields,
-the currently granted list_scopes, the applied current_scope name (or nil) and the
-granted filter_fields. Its `columns` are already ordered by any index settings and
-`page` reports the applied sort/direction and optional count; see
+the currently granted list_scopes, the applied current_scope name (or nil), the
+granted filter_fields, bulk_destroy (true when deleting is on and selections are
+granted) and bulk_operations (the collection operations the actor may start).
+Its `columns` are already ordered by any index settings and `page` reports the
+applied sort/direction and optional count; see
 [Index Tables]({% link _core_features/index-tables.md %}),
 [Named Scopes]({% link _core_features/named-scopes.md %})
 and [Typed Filters]({% link _core_features/typed-filters.md %}). Keep nested
@@ -83,7 +85,7 @@ legacy visible_resources still includes hidden-menu resources. See
 | `audit_log` | 1 | `rails_ai_admin/audit/index.html.erb` | `context`, `log`, `filters`, `page`, `actor_labels` | None |
 | `resource_import` | 1 | `rails_ai_admin/imports/new.html.erb` | `context`, `resource`, `import`, `report`, `problem` | None |
 | `search` | 1 | `rails_ai_admin/search/index.html.erb` | `context`, `query`, `sections` | None |
-| `resource_index` | 8 | `rails_ai_admin/resources/index.html.erb` | `context`, `resource`, `page`, `columns`, `rows`, `searchable`, `selectable`, `exportable`, `importable`, `sortable_fields`, `list_scopes`, `current_scope`, `filter_fields`, `omitted_rows`, `list_navigation` | None |
+| `resource_index` | 9 | `rails_ai_admin/resources/index.html.erb` | `context`, `resource`, `page`, `columns`, `rows`, `searchable`, `selectable`, `exportable`, `importable`, `sortable_fields`, `list_scopes`, `current_scope`, `filter_fields`, `omitted_rows`, `bulk_destroy`, `bulk_operations`, `list_navigation` | None |
 | `resource_show` | 3 | `rails_ai_admin/resources/show.html.erb` | `context`, `resource`, `record`, `values`, `fields`, `operations`, `association_panels`, `list_navigation` | None |
 | `resource_history` | 2 | `rails_ai_admin/resources/history.html.erb` | `context`, `resource`, `record`, `history`, `actor_labels`, `list_navigation` | None |
 | `resource_associations` | 1 | `rails_ai_admin/resources/_associations.html.erb` | None | `panels` |

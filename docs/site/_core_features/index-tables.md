@@ -67,7 +67,7 @@ order is implicit in URLs and list hints, and header `aria-sort` shows it.
 ## Counting
 
 `count :exact` shows "N matching records" for the current authorized, scoped,
-filtered and searched list. The count stops at 10,000 and then reads "More than
+filtered and searched list, and numbers the pages so you can jump to any of them. The count stops at 10,000 and then reads "More than
 10,000 matching records", so a large table never runs an unbounded `COUNT(*)`.
 Database table statistics are not used for estimates: they cover every tenant
 and ignore filters, so they would disclose data and mislead.

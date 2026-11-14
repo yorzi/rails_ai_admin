@@ -1,4 +1,4 @@
-<p><%= link_to t("rails_ai_admin.actions.cancel"), selection_path(selection_ref: @selection.selection_ref, **navigation_params) %></p>
+<p><%= link_to t("rails_ai_admin.actions.cancel"), list_return_path %></p>
 <% admin_title t("rails_ai_admin.selections.destroy.title"), @resource.label %>
 <h1><%= t("rails_ai_admin.selections.destroy.title") %></h1>
 <p><strong><%= t("rails_ai_admin.selections.destroy.question", count: @deletable.size) %></strong></p>
@@ -9,5 +9,5 @@
   <%= hidden_field_tag :manifest_digest, @selection.manifest_digest, id: nil %>
   <%= return_navigation_fields %>
   <div class="raa-actions"><%= form.submit t("rails_ai_admin.selections.destroy.submit", count: @deletable.size), class: "raa-danger", name: nil, data: { turbo_submits_with: t("rails_ai_admin.selections.destroy.deleting") } %>
-  <%= link_to t("rails_ai_admin.actions.cancel"), selection_path(selection_ref: @selection.selection_ref, **navigation_params) %></div>
+  <%= link_to t("rails_ai_admin.actions.cancel"), list_return_path %></div>
 <% end %>

@@ -83,8 +83,12 @@ The native index distinguishes malformed requests from revoked settings:
 HTML normalization does not make that Ruby API silently permissive. Sort headers
 are offered only for currently displayed readable columns that also have a sort
 grant. Clicking a header toggles direction and resets page. Search preserves sort/
-direction and resets page. Pagination carries canonical settings; Previous to
-page one drops its page parameter. No Next link goes beyond page 1000.
+direction and resets page. Pagination carries canonical settings; the link to
+page one drops its page parameter. With `count :exact`, the list shows numbered
+pages (the first, the last and two either side of the current page, marked with
+`aria-current="page"`); otherwise it shows Previous and Next around the page
+number. A list that fits on one page shows no pagination. No link goes beyond
+page 1000.
 
 ## Recover an Empty HTML Page Once
 

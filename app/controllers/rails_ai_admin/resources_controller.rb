@@ -52,6 +52,9 @@ module RailsAiAdmin
       rescue AccessDenied
         false
       end
+      # Offered when deleting is on; each record's own grant is checked on review.
+      @bulk_destroy = @selectable && @resource.action_enabled?(:destroy)
+      @bulk_operations = @selectable ? granted_collection_operations(@resource, @access) : []
       @importable = begin
         @access.authorize_import!
       rescue AccessDenied

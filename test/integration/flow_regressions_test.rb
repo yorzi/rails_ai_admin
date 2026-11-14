@@ -137,7 +137,7 @@ class FlowRegressionsTest < ActionDispatch::IntegrationTest
   def test_raa_013_an_empty_selection_returns_to_the_list_and_duplicates_collapse
     with_adapter("FlowRegressionsTest::RowPolicy") do
       get "/backoffice/customers"
-      assert_select "form#raa-selection[data-controller='raa-selection'] input[type=submit][data-raa-selection-target='submit']"
+      assert_select "form#raa-selection[data-controller='raa-selection'] button[type=submit][data-raa-selection-target='submit']", text: "Review selection"
       post "/backoffice/customers/selections", params: { return_to: { q: "Al" } }
       assert_response :see_other
       assert_equal "/backoffice/customers?q=Al", URI(response.location).request_uri

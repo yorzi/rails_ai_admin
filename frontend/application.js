@@ -290,11 +290,13 @@ class PollController extends Controller {
     this.element.removeEventListener("turbo:submit-end", this.changed);
   }
 }
-// Enables "Capture selection" once a row is ticked. The boxes live in the
-// table and join the form through form="…". Without JavaScript the button
-// stays enabled and an empty submit returns to the list with a notice.
+// Enables the bulk action buttons once a row is ticked and says how many are
+// ticked. The boxes live in the table and join the form through form="…".
+// Without JavaScript the buttons stay enabled and an empty submit returns to
+// the list with a notice.
 class SelectionController extends Controller {
-  static targets = ["submit"];
+  static targets = ["submit", "count"];
+  static values = { counts: Object };
   connect() {
     this.all = document.querySelector("[data-raa-select-all]");
     if (this.all) this.all.hidden = false;
@@ -306,7 +308,11 @@ class SelectionController extends Controller {
         this.all.checked = boxes.length > 0 && checked === boxes.length;
         this.all.indeterminate = checked > 0 && checked < boxes.length;
       }
-      if (this.hasSubmitTarget) this.submitTarget.disabled = checked === 0;
+      this.submitTargets.forEach((button) => { button.disabled = checked === 0; });
+      if (this.hasCountTarget) {
+        const text = checked === 0 ? this.countsValue.none : (checked === 1 ? this.countsValue.one : this.countsValue.other);
+        if (text) this.countTarget.textContent = text.replace("%{count}", checked);
+      }
     };
     document.addEventListener("change", this.update);
     this.update();

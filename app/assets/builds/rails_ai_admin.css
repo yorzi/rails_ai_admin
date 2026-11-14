@@ -68,11 +68,13 @@
   overflow-wrap:anywhere;
 }
 .raa :is(button:not(.trix-button), input[type="submit"], .raa-button):hover:not(:disabled) { filter:brightness(.92); }
-.raa input[type="submit"]:disabled { border-color:var(--raa-line); background:var(--raa-subtle); color:var(--raa-muted); cursor:not-allowed; }
+.raa :is(input[type="submit"], button[type="submit"]:not(.trix-button)):disabled { border-color:var(--raa-line); background:var(--raa-subtle); color:var(--raa-muted); cursor:not-allowed; }
 .raa input.raa-secondary,.raa button.raa-secondary,.raa a.raa-button.raa-secondary { border-color:var(--raa-control-line); background:var(--raa-panel); color:var(--raa-brand); }
 .raa .raa-export { display:inline; }
 .raa .raa-danger { color:var(--raa-danger); }
 .raa input.raa-danger { color:var(--raa-on-danger); background:var(--raa-danger); border-color:var(--raa-danger); }
+/* Opens the delete review rather than deleting: an outlined danger button. */
+.raa button.raa-danger { color:var(--raa-danger); background:var(--raa-panel); border-color:var(--raa-danger); }
 .raa .raa-table-scroll { overflow-x:auto; border:1px solid var(--raa-line); border-radius:var(--raa-radius); background:var(--raa-panel); box-shadow:var(--raa-shadow); margin:1rem 0; }
 .raa table { border-collapse:collapse; width:100%; text-align:start; }
 .raa .raa-table-scroll table { min-width:38rem; }
@@ -81,7 +83,12 @@
 .raa thead { background:var(--raa-subtle); }
 .raa tbody tr:hover { background:var(--raa-subtle); }
 .raa th { font-size:.85rem; font-weight:700; overflow-wrap:break-word; }
-.raa .raa-pagination { display:flex; gap:1rem; }
+.raa .raa-pagination { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem 1rem; margin-top:1rem; }
+.raa .raa-page-numbers { display:flex; flex-wrap:wrap; gap:.25rem; margin:0; padding:0; list-style:none; }
+.raa .raa-page-numbers a,.raa .raa-page-numbers span[aria-current] { display:inline-flex; align-items:center; justify-content:center; min-width:2.25rem; min-height:2.25rem; padding:0 .5rem; border-radius:.5rem; font-variant-numeric:tabular-nums; }
+.raa .raa-page-numbers span[aria-current] { background:var(--raa-brand); color:var(--raa-on-brand); font-weight:600; }
+.raa .raa-page-numbers li[aria-hidden] { align-self:center; color:var(--raa-muted); padding:0 .25rem; }
+.raa .raa-page-current { color:var(--raa-muted); font-variant-numeric:tabular-nums; }
 .raa .raa-count { margin:.85rem 0 0; color:var(--raa-muted); font-size:.875rem; font-variant-numeric:tabular-nums; }
 .raa td.raa-cell-compact { white-space:nowrap; }
 .raa .raa-search { display:flex; flex-wrap:wrap; align-items:center; gap:.75rem; }
@@ -316,6 +323,7 @@
 .raa .raa-filter-panel summary { cursor:pointer; font-weight:650; padding:.4rem 0; }
 .raa .raa-selection-bar { display:flex; flex-wrap:wrap; align-items:center; gap:1rem; margin:.75rem 0; }
 .raa .raa-selection-bar p { margin:0; }
+.raa .raa-selection-count { color:var(--raa-muted); font-variant-numeric:tabular-nums; }
 /* List cells break between words, so a column is as wide as its longest word
    and the region scrolls, instead of squeezing text one character wide. */
 .raa .raa-table-scroll td { overflow-wrap:break-word; }

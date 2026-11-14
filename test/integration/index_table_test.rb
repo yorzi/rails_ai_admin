@@ -51,6 +51,38 @@ class IndexTableTest < ActionDispatch::IntegrationTest
     end
   end
 
+  def test_an_exact_count_shows_numbered_pages_with_the_current_one_marked
+    68.times { |index| Customer.create!(account_id: 1, name: "Row #{index.to_s.rjust(2, "0")}", points: index) }
+    with_indexed_resource do
+      get "/backoffice/indexed_customers"
+      assert_select "p.raa-count", text: "69 matching records"
+      assert_select "nav.raa-pagination ol.raa-page-numbers" do
+        assert_select "span[aria-current=page]", text: "Page 1"
+        assert_equal %w[2 3 7], css_select("nav.raa-pagination ol a").map { |node| node.text.strip }
+        assert_select "li[aria-hidden=true]", text: "…", count: 1
+      end
+      assert_select "nav.raa-pagination a[rel=prev]", count: 0
+      get "/backoffice/indexed_customers", params: { page: "5" }
+      assert_equal %w[1 2 3 4 6 7], css_select("nav.raa-pagination ol a").map { |node| node.text.strip }
+      assert_select "nav.raa-pagination li[aria-hidden]", count: 0, message: "a one-page gap shows that page instead of …"
+      assert_select "a[rel=prev][href*='page=4']", text: "Previous"
+      assert_select "a[rel=next][href*='page=6']", text: "Next"
+      last = css_select("nav.raa-pagination ol a").find { |node| node.text.strip == "7" }
+      assert_equal "Page 7", last["aria-label"]
+      assert_equal({ "page" => "7" }, query(last["href"]))
+      get "/backoffice/indexed_customers", params: { page: "7" }
+      assert_select "tbody tr", count: 9
+      assert_select "a[rel=next]", count: 0
+    end
+  end
+
+  def test_one_page_lists_have_no_pagination
+    with_indexed_resource do
+      get "/backoffice/indexed_customers"
+      assert_select "nav.raa-pagination", count: 0
+    end
+  end
+
   def test_contains_and_blank_filters_render_and_narrow_the_list
     Customer.create!(account_id: 1, name: "Ada Lovelace", points: 3)
     Customer.create!(account_id: 1, name: "Grace Hopper", points: nil)

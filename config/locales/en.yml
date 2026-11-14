@@ -81,8 +81,12 @@ en:
         active_filters:
           one: "%{count} active"
           other: "%{count} active"
-        selection_help: Tick records below, then capture their current versions (up to 100). This does
-          not change anything.
+        selection_help: Tick records to act on several at once (up to 100). Every action asks you to confirm first.
+        selected:
+          none: Tick records to act on several at once (up to 100). Every action asks you to confirm first.
+          one: "%{count} record selected"
+          other: "%{count} records selected"
+        delete_selected: Delete selected
         search_label: Search %{label}
         search: Search
         scopes: "%{label} scopes"
@@ -93,7 +97,7 @@ en:
           one: "%{number} matching record"
           other: "%{number} matching records"
         count_capped: More than %{number} matching records
-        capture_selection: Capture selection
+        capture_selection: Review selection
         records_region: Resource records
         caption: "%{label}, page %{page}"
         select: Select
@@ -106,6 +110,8 @@ en:
         pagination: Pagination
         previous: Previous
         next: Next
+        page: Page
+        page_number: Page %{number}
         page_limit: Narrow your search to view more records within the page limit.
         settings_restored: Some list settings are no longer available. The current list settings have
           been restored.
@@ -254,6 +260,7 @@ en:
         done:
           one: Deleted 1 record.
           other: Deleted %{count} records.
+        none: None of the selected records can be deleted by you.
         result_title: Delete results
         deleted:
           one: Deleted 1 record.

@@ -55,10 +55,17 @@
 <% if @omitted_rows %><p class="raa-notice" role="status"><%= t("rails_ai_admin.resources.index.omitted_rows") %></p><% end %>
 <% if @page.count %><p class="raa-count"><%= @page.count_capped ? t("rails_ai_admin.resources.index.count_capped", count: @page.count, number: number_with_delimiter(@page.count)) : t("rails_ai_admin.resources.index.count", count: @page.count, number: number_with_delimiter(@page.count)) %></p><% end %>
 <% if @selectable %>
-  <%= form_with url: capture_selection_path(resource: @resource.key), method: :post, local: true, id: "raa-selection", class: "raa-selection-bar", data: { turbo: false, controller: "raa-selection" } do |form| %>
+  <%# One step from ticked rows to the reviewed action. Each button captures the
+      ticked records first; the action's own review page still confirms. %>
+  <% counts = { none: t("rails_ai_admin.resources.index.selected.none"), one: t("rails_ai_admin.resources.index.selected.one"), other: t("rails_ai_admin.resources.index.selected.other") } %>
+  <%= form_with url: capture_selection_path(resource: @resource.key), method: :post, local: true, id: "raa-selection", class: "raa-selection-bar", data: { turbo: false, controller: "raa-selection", raa_selection_counts_value: counts.to_json } do |form| %>
     <%= return_navigation_fields %>
-    <%= form.submit t("rails_ai_admin.resources.index.capture_selection"), data: { raa_selection_target: "submit" } %>
-    <p class="raa-field-help"><%= t("rails_ai_admin.resources.index.selection_help") %></p>
+    <span class="raa-selection-count" data-raa-selection-target="count" aria-live="polite"><%= t("rails_ai_admin.resources.index.selection_help") %></span>
+    <% @bulk_operations.each do |operation| %>
+      <%= button_tag operation.description, type: "submit", name: "then", value: "operation:#{operation.key}", data: { raa_selection_target: "submit" } %>
+    <% end %>
+    <% if @bulk_destroy %><%= button_tag t("rails_ai_admin.resources.index.delete_selected"), type: "submit", name: "then", value: "destroy", class: "raa-danger", data: { raa_selection_target: "submit" } %><% end %>
+    <%= button_tag t("rails_ai_admin.resources.index.capture_selection"), type: "submit", name: nil, class: "raa-secondary", data: { raa_selection_target: "submit" } %>
   <% end %>
 <% end %>
 <%# The title column links to the record, around the field's own list display
@@ -85,9 +92,20 @@
     <% if row[:editable] %><%= link_to t("rails_ai_admin.resources.edit"), edit_resource_path(resource: @resource.key, id: row[:id], **navigation_params), aria: { label: t("rails_ai_admin.resources.edit_title", label: row[:label]) } %><% end %></td><% end %>
 </tr><% end %></tbody></table></div>
 <% if @rows.empty? && !@omitted_rows %><p><%= t("rails_ai_admin.resources.index.empty") %></p><% end %>
+<%# With an exact count the list shows numbered pages; otherwise Previous/Next. %>
+<% last_page = @page.count && !@page.count_capped ? [ [ (@page.count - 1).div(@page.page_size) + 1, 1 ].max, 1000 ].min : nil %>
+<% if @page.number > 1 || @page.has_next %>
 <nav class="raa-pagination" aria-label="<%= t("rails_ai_admin.resources.index.pagination") %>">
-  <% if @page.number > 1 %><%= link_to t("rails_ai_admin.resources.index.previous"), list_page_path(@page.number - 1) %><% end %>
-  <% if @page.has_next && @page.number < 1000 %><%= link_to t("rails_ai_admin.resources.index.next"), list_page_path(@page.number + 1) %><% end %>
+  <% if @page.number > 1 %><%= link_to t("rails_ai_admin.resources.index.previous"), list_page_path(@page.number - 1), rel: "prev" %><% end %>
+  <% if last_page %><ol class="raa-page-numbers">
+    <% admin_page_window(@page.number, last_page).each do |number| %>
+      <% if number.nil? %><li aria-hidden="true">…</li>
+      <% elsif number == @page.number %><li><span aria-current="page"><span class="raa-visually-hidden"><%= t("rails_ai_admin.resources.index.page") %> </span><%= number %></span></li>
+      <% else %><li><%= link_to list_page_path(number), aria: { label: t("rails_ai_admin.resources.index.page_number", number: number) } do %><%= number %><% end %></li><% end %>
+    <% end %>
+  </ol><% else %><span class="raa-page-current"><%= t("rails_ai_admin.resources.index.page_number", number: @page.number) %></span><% end %>
+  <% if @page.has_next && @page.number < 1000 %><%= link_to t("rails_ai_admin.resources.index.next"), list_page_path(@page.number + 1), rel: "next" %><% end %>
 </nav>
+<% end %>
 
 <% if @page.has_next && @page.number == 1000 %><p><%= t("rails_ai_admin.resources.index.page_limit") %></p><% end %>
