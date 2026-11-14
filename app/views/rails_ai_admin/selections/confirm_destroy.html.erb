@@ -1,10 +1,11 @@
 <p><%= link_to t("rails_ai_admin.actions.cancel"), list_return_path %></p>
 <% admin_title t("rails_ai_admin.selections.destroy.title"), @resource.label %>
 <h1><%= t("rails_ai_admin.selections.destroy.title") %></h1>
-<p><strong><%= t("rails_ai_admin.selections.destroy.question", count: @deletable.size) %></strong></p>
+<p><strong><%= t(@resource.soft_delete? ? "rails_ai_admin.selections.destroy.question_soft" : "rails_ai_admin.selections.destroy.question", count: @deletable.size) %></strong></p>
 <ul><% @deletable.each do |target| %><li><%= target.label %></li><% end %></ul>
 <% if @skipped.positive? %><p class="raa-notice" role="status"><%= t("rails_ai_admin.selections.destroy.skipped", count: @skipped) %></p><% end %>
 <p><%= t("rails_ai_admin.selections.destroy.each_note") %></p>
+<% if @resource.soft_delete? %><p><%= t("rails_ai_admin.deleted_records.destroy_note") %></p><% end %>
 <%= form_with url: destroy_selection_path(selection_ref: @selection.selection_ref), method: :post, local: true do |form| %>
   <%= hidden_field_tag :manifest_digest, @selection.manifest_digest, id: nil %>
   <%= return_navigation_fields %>

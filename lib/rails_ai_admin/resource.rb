@@ -63,14 +63,27 @@ module RailsAiAdmin
 
       def readonly? = @readonly == true
 
+      # Deleting sets this nullable timestamp column instead of removing the
+      # row. Records with a value leave every list, page, search, export and
+      # assistant answer, and a separate :restore grant brings them back.
+      def soft_delete(column = :read)
+        return @soft_delete if column == :read
+        unless column.is_a?(Symbol) && column.to_s.match?(Field::NAME) && column.to_s.length <= 63
+          raise ConfigurationError, "soft_delete takes a timestamp column name symbol"
+        end
+        @soft_delete = column.to_s.freeze
+      end
+
+      def soft_delete? = !@soft_delete.nil?
+
       def disable(*actions)
         @disabled_actions.concat(actions.map(&:to_sym))
       end
 
       def action_enabled?(action)
         action = action.to_sym
-        known = %i[index show create update destroy].include?(action) || @operations.key?(action)
-        known && !@disabled_actions.include?(action) && !(readonly? && (%i[create update destroy].include?(action) || @operations.key?(action)))
+        known = %i[index show create update destroy].include?(action) || @operations.key?(action) || action == :restore && soft_delete?
+        known && !@disabled_actions.include?(action) && !(readonly? && (%i[create update destroy restore].include?(action) || @operations.key?(action)))
       end
 
       # surface: true also allows reviewing a native member intent in an
@@ -186,6 +199,10 @@ module RailsAiAdmin
         raise ConfigurationError, "A resource must declare fields and a title" if fields.empty? || !title || !@fields.key?(title)
         raise ConfigurationError, "A resource cannot declare lock_version as a field" if @fields.key?(:lock_version)
         raise ConfigurationError, "A password field cannot be the title" if @fields[title].scalar_type == :password
+        if soft_delete? && @fields.values.any? { |field| field.column == soft_delete }
+          raise ConfigurationError, "The soft_delete column #{soft_delete} cannot also be a field"
+        end
+        raise ConfigurationError, "restore is the soft_delete action name" if @operations.key?(:restore)
         Fields::DependencyGraph.validate!(fields)
         index.validate!(fields)
         Presentation::Dashboard.validate!(self)

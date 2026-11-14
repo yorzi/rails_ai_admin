@@ -14,6 +14,8 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
     RailsAiAdmin::Selection.delete_all
     RailsAiAdmin::AuditEvent.delete_all
     Order.delete_all
+    Note.delete_all
+    RailsAiAdmin::SavedView.delete_all if RailsAiAdmin::SavedView.table_exists?
     Customer.delete_all
     User.delete_all
     Account.delete_all
@@ -446,6 +448,26 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
       assert RailsAiAdmin::TestKit.assert_named_scopes(context: context, resource: OrderAdmin, expected: expected)
       assert RailsAiAdmin::TestKit.assert_named_scopes(context: context, resource: CustomerAdmin, expected: [])
     end
+  end
+
+  def test_notes_soft_delete_and_restore_through_the_deleted_records_page
+    note = Note.create!(account: @account, body: "Call the supplier")
+    login
+    get "/staff/notes/#{note.id}/confirm_destroy"
+    assert_select "p", text: /moves to Deleted records/
+    delete "/staff/notes/#{note.id}", params: { authenticity_token: css_select("input[name=authenticity_token]").first["value"], intent_ref: css_select("input[name=intent_ref]").first["value"] }
+    assert_response :see_other
+    assert note.reload.discarded_at
+    get "/staff/notes"
+    refute_includes response.body, "Call the supplier"
+    assert_select "a[href='/staff/notes/deleted']", text: "Deleted records"
+    get "/staff/notes/deleted"
+    assert_response :success
+    assert_select "td", text: "Call the supplier"
+    post "/staff/notes/deleted/#{note.id}/restore", params: { authenticity_token: css_select("input[name=authenticity_token]").first["value"], expected_version: css_select("input[name=expected_version]").first["value"] }
+    assert_response :see_other
+    assert_nil note.reload.discarded_at
+    assert_equal "restore", RailsAiAdmin::AuditEvent.order(:id).last.operation
   end
 
   def test_order_filters_are_typed_role_granted_and_combine_with_scopes

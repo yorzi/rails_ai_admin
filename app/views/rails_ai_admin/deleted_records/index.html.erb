@@ -1,0 +1,28 @@
+<p><%= link_to list_return_label, list_return_path %></p>
+<% admin_title t("rails_ai_admin.deleted_records.title", label: @resource.label), @resource.label %>
+<h1><%= t("rails_ai_admin.deleted_records.title", label: @resource.label) %></h1>
+<p><%= t("rails_ai_admin.deleted_records.intro") %></p>
+<% if @records.empty? %>
+  <p><%= t("rails_ai_admin.deleted_records.empty") %></p>
+<% else %>
+<div class="raa-table-scroll" role="region" aria-label="<%= t("rails_ai_admin.deleted_records.title", label: @resource.label) %>" tabindex="0">
+<table><caption><%= t("rails_ai_admin.deleted_records.caption", label: @resource.label, page: @page) %></caption>
+<thead><tr><th scope="col"><%= t("rails_ai_admin.collection_jobs.record") %></th><th scope="col"><%= t("rails_ai_admin.deleted_records.deleted_at") %></th><th scope="col"><%= t("rails_ai_admin.resources.index.actions") %></th></tr></thead>
+<tbody><% @records.each do |row| %><tr>
+  <td class="raa-cell-title"><%= row[:label] %></td>
+  <td class="raa-cell-compact"><% if row[:deleted_at] %><%= tag.time(row[:deleted_at].in_time_zone(@context.time_zone).strftime("%Y-%m-%d %H:%M %Z"), datetime: row[:deleted_at].iso8601) %><% end %></td>
+  <td class="raa-row-actions"><% if row[:restorable] %>
+    <%= form_with url: restore_deleted_record_path(resource: @resource.key, id: row[:id]), method: :post, local: true, class: "raa-inline-form" do %>
+      <%= hidden_field_tag :expected_version, row[:version], id: nil %>
+      <%= button_tag t("rails_ai_admin.deleted_records.restore"), type: "submit", name: nil, class: "raa-secondary", aria: { label: t("rails_ai_admin.deleted_records.restore_named", label: row[:label]) } %>
+    <% end %>
+  <% end %></td>
+</tr><% end %></tbody></table></div>
+<% end %>
+<% if @page > 1 || @has_next %>
+<nav class="raa-pagination" aria-label="<%= t("rails_ai_admin.resources.index.pagination") %>">
+  <% if @page > 1 %><%= link_to t("rails_ai_admin.resources.index.previous"), deleted_records_path(resource: @resource.key, page: (@page == 2 ? nil : @page - 1)), rel: "prev" %><% end %>
+  <span class="raa-page-current"><%= t("rails_ai_admin.resources.index.page_number", number: @page) %></span>
+  <% if @has_next && @page < 1000 %><%= link_to t("rails_ai_admin.resources.index.next"), deleted_records_path(resource: @resource.key, page: @page + 1), rel: "next" %><% end %>
+</nav>
+<% end %>

@@ -340,6 +340,15 @@ module RailsAiAdmin
       end
       result << Check.new("filter_indexes:#{resource.key}", unindexed_filters.empty? ? :ok : :review,
         "Filterable declarations in no index: #{count_of(unindexed_filters, 'field')}#{named(unindexed_filters)}. Review query plans with the tenant scope; low-cardinality filters may not need one.")
+      if resource.soft_delete?
+        column = columns[resource.soft_delete]
+        valid = column && %i[datetime timestamp timestamptz].include?(column.type) && column.null
+        indexed = indexes.any? { |index| index.columns.is_a?(Array) && index.columns.include?(resource.soft_delete) }
+        result << Check.new("soft_delete:#{resource.key}", valid ? :review : :error,
+          valid ? "Deleting sets #{resource.soft_delete}; every admin list, page, search, export and assistant answer leaves those rows out, and restoring needs the separate restore grant. " \
+            "Index on #{resource.soft_delete}=#{indexed}. Host code outside the admin still sees them unless the model scopes them out."
+            : "soft_delete needs a nullable datetime column #{resource.soft_delete} on #{model.table_name}.")
+      end
       searchable = resource.fields.select { |field| field.options[:searchable] && !field.hidden? && !field.virtual? }
       if searchable.any?
         modes = searchable.map { |field| "#{field.name} (#{field.options[:searchable] == true ? :prefix : field.options[:searchable]})" }.join(", ")

@@ -5,7 +5,7 @@ module RailsAiAdmin
     # Optional Pundit integration using a separate explicit policy per resource.
     # The policy receives the complete admin Context as its user argument.
     class PunditAdapter < Adapter
-      ACTIONS = %i[index show create update destroy].freeze
+      ACTIONS = %i[index show create update destroy restore].freeze
       FIELD_METHODS = { read: :readable_fields, write: :writable_fields,
         search: :searchable_fields, sort: :sortable_fields, filter: :filterable_fields }.freeze
 

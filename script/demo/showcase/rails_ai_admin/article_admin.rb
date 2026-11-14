@@ -4,6 +4,8 @@ class ArticleAdmin < RailsAiAdmin::Resource
   key :articles
   title :title
   navigation group: "Content", icon: "document", order: 0
+  # Deleting keeps the row; admins restore it from Deleted records.
+  soft_delete :discarded_at
   fields do
     id :id, create: false
     text :title, required: true, nullable: false, searchable: :contains, sortable: true

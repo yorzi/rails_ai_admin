@@ -74,7 +74,8 @@
   <% end %>
   </details>
 <% end %>
-<% if navigation_state.any? %><p><%= link_to t("rails_ai_admin.resources.index.reset"), resources_path(resource: @resource.key) %></p><% end %>
+<% if navigation_state.any? || @deleted_records %><p class="raa-list-links"><% if navigation_state.any? %><%= link_to t("rails_ai_admin.resources.index.reset"), resources_path(resource: @resource.key) %><% end %>
+<% if @deleted_records %><%= link_to t("rails_ai_admin.deleted_records.link"), deleted_records_path(resource: @resource.key, **navigation_params) %><% end %></p><% end %>
 <% if @omitted_rows %><p class="raa-notice" role="status"><%= t("rails_ai_admin.resources.index.omitted_rows") %></p><% end %>
 <% if @page.count %><p class="raa-count"><%= @page.count_capped ? t("rails_ai_admin.resources.index.count_capped", count: @page.count, number: number_with_delimiter(@page.count)) : t("rails_ai_admin.resources.index.count", count: @page.count, number: number_with_delimiter(@page.count)) %></p><% end %>
 <% if @selectable %>

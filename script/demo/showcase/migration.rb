@@ -11,6 +11,7 @@ class CreateShowcase < ActiveRecord::Migration[8.1]
       t.time :opens_at
       t.json :settings
       t.string :password_digest
+      t.datetime :discarded_at, index: true
       t.timestamps
     end
     create_table :tags do |t|

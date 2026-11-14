@@ -128,6 +128,7 @@ en:
       destroy:
         title: Delete %{label}
         question_html: Delete %{label}? This runs the model's destroy callbacks and cannot be undone here.
+        question_soft_html: Delete %{label}?
         confirm: Confirm deletion
       saved: Changes saved.
       saved_with_warning: Changes saved, but a host callback failed. Review operation %{operation} before
@@ -229,6 +230,18 @@ en:
       origins:
         surface: From a review in Chat
         assistant: Proposed in Chat
+    deleted_records:
+      link: Deleted records
+      title: Deleted %{label}
+      intro: Deleted records are kept and hidden everywhere else. Restoring one puts it back in the list, and the audit log records who restored it.
+      empty: Nothing has been deleted.
+      caption: "Deleted %{label}, page %{page}"
+      deleted_at: Deleted at
+      restore: Restore
+      restore_named: Restore %{label}
+      restored: Restored the record.
+      conflict: The record changed after this page was opened. Check it and try again.
+      destroy_note: It moves to Deleted records, where people allowed to restore it can bring it back.
     saved_views:
       title: Saved views
       name: Name for the current view
@@ -261,6 +274,9 @@ en:
         question:
           one: Delete this record? This cannot be undone.
           other: Delete these %{count} records? This cannot be undone.
+        question_soft:
+          one: Delete this record?
+          other: Delete these %{count} records?
         skipped:
           one: 1 selected record cannot be deleted by you and will be kept.
           other: "%{count} selected records cannot be deleted by you and will be kept."

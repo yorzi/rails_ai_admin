@@ -256,7 +256,11 @@ module RailsAiAdmin
             # record: its version advances and a concurrent form conflicts.
             changed_lists = lists.map { |field| field.name.to_s }.reject { |name| before_lists.fetch(name) == values.fetch(name) }
             changed_fields |= changed_lists
-            persisted = definition.handler_class.new.perform(nil, record, values)
+            persisted = if run.operation == "destroy" && resource.soft_delete?
+              soft_delete(resource, record)
+            else
+              definition.handler_class.new.perform(nil, record, values)
+            end
             reject!("VALIDATION_FAILED", errors: { "base" => [ "could not be saved" ] }) unless persisted
             record.touch if run.operation == "update" && (changed_lists.any? || changed_files.any?)
           end
@@ -580,6 +584,13 @@ module RailsAiAdmin
         end.to_h
       rescue ArgumentError, ActiveRecord::ReadOnlyError
         raise ConfigurationError, "Preflight violated its pure typed preview contract", cause: nil
+      end
+
+      # Sets the timestamp with callbacks and the record version, but without
+      # validations: a record that no longer validates can still be deleted.
+      def soft_delete(resource, record)
+        record.public_send("#{resource.soft_delete}=", Time.current)
+        record.save!(validate: false)
       end
 
       def call_handler(definition, context, record, values)

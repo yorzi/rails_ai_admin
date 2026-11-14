@@ -109,7 +109,7 @@ end
 ```
 
 The CRUD action predicates are `index?`, `show?`, `create?`, `update?` and
-`destroy?`. Registered member operations use their own named predicate, such as
+`destroy?`, plus `restore?` for a resource that declares `soft_delete`. Registered member operations use their own named predicate, such as
 `triage?`. Missing predicates deny the action. Missing `readable_fields`,
 `writable_fields`, `searchable_fields`, `sortable_fields` or `filterable_fields` methods grant no fields;
 `permitted_attributes` does not implicitly supply these grants. DSL flags and

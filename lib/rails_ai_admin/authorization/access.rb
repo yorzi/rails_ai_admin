@@ -25,7 +25,18 @@ module RailsAiAdmin
         if relation.limit_value || relation.offset_value || relation.select_values.any? || relation.group_values.any? || !relation.having_clause.empty? || !relation.from_clause.empty?
           raise ConfigurationError, "Policy scope must be a complete filter relation without limit, offset, select, group, having or from"
         end
-        relation
+        return relation unless resource.soft_delete?
+        relation.where(resource.model_class.arel_table[resource.soft_delete].eq(nil))
+      end
+
+      # Soft-deleted records inside the same policy scope, newest first. Only
+      # the deleted-records page and restore read them.
+      def discarded_relation
+        raise AccessDenied unless resource.soft_delete?
+        scoped = @adapter.scope(context: context, resource: resource, relation: resource.model_class.all)
+        raise ConfigurationError, "Policy scope must return the resource's ActiveRecord relation" unless scoped.is_a?(ActiveRecord::Relation) && scoped.klass == resource.model_class
+        column = resource.model_class.arel_table[resource.soft_delete]
+        scoped.where(column.not_eq(nil)).reorder(column.desc, resource.model_class.arel_table[resource.model_class.primary_key].desc)
       end
 
       def find!(id, action: :show, lock: false)

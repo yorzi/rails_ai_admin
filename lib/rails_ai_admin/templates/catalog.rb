@@ -18,7 +18,7 @@ module RailsAiAdmin
         "audit_log" => [ "rails_ai_admin/audit/index.html.erb", %i[context log filters page actor_labels], [] ],
         "resource_import" => [ "rails_ai_admin/imports/new.html.erb", %i[context resource import report problem], [] ],
         "search" => [ "rails_ai_admin/search/index.html.erb", %i[context query sections], [] ],
-        "resource_index" => [ "rails_ai_admin/resources/index.html.erb", %i[context resource page columns rows searchable selectable exportable importable sortable_fields list_scopes current_scope filter_fields omitted_rows bulk_destroy bulk_operations saved_views], [] ],
+        "resource_index" => [ "rails_ai_admin/resources/index.html.erb", %i[context resource page columns rows searchable selectable exportable importable sortable_fields list_scopes current_scope filter_fields omitted_rows bulk_destroy bulk_operations saved_views deleted_records], [] ],
         "resource_show" => [ "rails_ai_admin/resources/show.html.erb", %i[context resource record values fields operations association_panels], [] ],
         "resource_history" => [ "rails_ai_admin/resources/history.html.erb", %i[context resource record history actor_labels], [] ],
         "resource_associations" => [ "rails_ai_admin/resources/_associations.html.erb", [], %i[panels] ],
@@ -44,6 +44,7 @@ module RailsAiAdmin
         "job_show" => [ "rails_ai_admin/collection_jobs/show.html.erb", %i[context resource job], [] ],
         "selection" => [ "rails_ai_admin/selections/show.html.erb", %i[context resource selection operations deletable], [] ],
         "selection_destroy" => [ "rails_ai_admin/selections/confirm_destroy.html.erb", %i[context resource selection deletable skipped], [] ],
+        "resource_deleted" => [ "rails_ai_admin/deleted_records/index.html.erb", %i[context resource records page has_next], [] ],
         "selection_destroy_result" => [ "rails_ai_admin/selections/destroyed.html.erb", %i[context resource selection deleted skipped failed], [] ]
       }.freeze
       ENTRIES = DEFINITIONS.map do |key, (path, assigns, locals)|
@@ -54,7 +55,7 @@ module RailsAiAdmin
         elsif key == "dashboard"
           4 # counts, widgets
         elsif key == "resource_index"
-          9 # bulk_destroy, bulk_operations, saved_views
+          9 # bulk_destroy, bulk_operations, saved_views, deleted_records
         elsif key == "resource_show"
           3
         elsif %w[resource_new resource_edit resource_form].include?(key)

@@ -27,6 +27,18 @@ module RailsAiAdmin
       name.to_s.match?(SENSITIVE) || Array(encrypted&.to_a).map(&:to_s).include?(name.to_s)
     end
 
+    # Conventional soft-delete timestamps (discard and paranoia gems).
+    SOFT_DELETE_COLUMNS = %w[discarded_at deleted_at].freeze
+
+    # The model's nullable soft-delete timestamp column name, or nil.
+    def self.soft_delete_column(model)
+      return unless model.is_a?(Class) && model < ActiveRecord::Base
+      columns = model.columns_hash
+      SOFT_DELETE_COLUMNS.find { |name| (column = columns[name]) && %i[datetime timestamp timestamptz].include?(column.type) && column.null }
+    rescue ActiveRecord::ActiveRecordError
+      nil
+    end
+
     def self.array?(column)
       column.respond_to?(:array) && column.array
     end
@@ -47,6 +59,8 @@ module RailsAiAdmin
       suggestions = columns.filter_map do |column|
         name = column.name
         next if name == @model.primary_key || name == "id"
+        # The resource declares it with soft_delete instead of as a field.
+        next if name == self.class.soft_delete_column(@model)
         if (reference = suggest_reference(references[name], column))
           next reference
         end

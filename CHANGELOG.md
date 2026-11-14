@@ -33,6 +33,13 @@
   against current grants whenever they are shown. They need the new
   `create_rails_ai_admin_saved_views` migration; `rails_ai_admin:doctor` reports
   whether it has run.
+- Add soft delete: `soft_delete :discarded_at` makes deleting set that
+  timestamp through the usual reviewed and audited delete. Deleted records leave
+  every admin list, page, search, export, selection and assistant answer, and a
+  Deleted records page lets people with the separate `restore` grant
+  (`restore?` in Pundit) bring one back with a version check and an audit
+  event. The resource generator declares `discarded_at` or `deleted_at` columns
+  this way, and doctor checks the column.
 - Show the new filters in the demo: contact and website on Articles, and order
   state on Orders.
 

@@ -295,6 +295,10 @@ module RailsAiAdmin
           lines << "  # notice an edit made in between. Add timestamps, then remove this line."
         end
         lines << "  readonly" if readonly?(plan)
+        if (column = SchemaSuggestions.soft_delete_column(plan.model)) && !readonly?(plan)
+          lines << "  # Deleting sets #{column}; restoring needs the separate :restore grant."
+          lines << "  soft_delete :#{column}"
+        end
         if create_disabled?(plan)
           name = required_passwords(plan).first
           lines << "  # A new #{plan.model_name.demodulize.underscore.humanize.downcase} needs a #{name.humanize.downcase}, which this resource leaves out."

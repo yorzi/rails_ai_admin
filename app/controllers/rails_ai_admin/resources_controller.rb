@@ -56,6 +56,7 @@ module RailsAiAdmin
       end
       # Offered when deleting is on; each record's own grant is checked on review.
       @bulk_destroy = @selectable && @resource.action_enabled?(:destroy)
+      @deleted_records = @resource.soft_delete? && allowed_action?(@resource, :restore)
       @bulk_operations = @selectable ? granted_collection_operations(@resource, @access) : []
       @importable = begin
         @access.authorize_import!

@@ -3,5 +3,5 @@ RailsAiAdmin.configure do |config|
   config.authentication_path = "/login"
   config.context_adapter = "AdminContext"
   config.authorization_adapter = "AdminPolicyAdapter"
-  config.resources = [ "CustomerAdmin", "CustomerDirectoryAdmin", "OrderAdmin" ]
+  config.resources = [ "CustomerAdmin", "CustomerDirectoryAdmin", "OrderAdmin", "NoteAdmin" ]
 end

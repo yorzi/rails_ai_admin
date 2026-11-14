@@ -33,6 +33,13 @@ class AdminPolicyAdapter < RailsAiAdmin::Authorization::Adapter
       when :filter then %i[customer state delivery_on expedited] + (context.actor.role == "admin" ? [ :total ] : [])
       else []
       end
+    elsif resource.key == :notes
+      case action
+      when :read then %i[id body created_at]
+      when :write then context.actor.role == "admin" ? %i[body] : []
+      when :search, :sort then %i[body created_at]
+      else []
+      end
     else
       customer_fields(context: context, action: action)
     end

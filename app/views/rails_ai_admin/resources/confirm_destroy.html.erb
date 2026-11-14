@@ -2,7 +2,8 @@
 <% admin_title heading, @resource.label %>
 <h1><%= heading %></h1>
 <%= render "errors" %>
-<p><%= t("rails_ai_admin.resources.destroy.question_html", label: tag.strong(record_label(@resource, @record))) %></p>
+<p><%= t(@resource.soft_delete? ? "rails_ai_admin.resources.destroy.question_soft_html" : "rails_ai_admin.resources.destroy.question_html", label: tag.strong(record_label(@resource, @record))) %></p>
+<% if @resource.soft_delete? %><p><%= t("rails_ai_admin.deleted_records.destroy_note") %></p><% end %>
 <%= form_with url: resource_path(resource: @resource.key, id: @record.id), method: :delete, local: true do |form| %>
   <%= return_navigation_fields %>
   <%= hidden_field_tag :intent_ref, @intent_ref %>

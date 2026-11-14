@@ -25,7 +25,7 @@ Until then the list works as before without the Saved views panel, and
 configuration change. Check these if they apply:
 
 * **Copied index template.** `resource_index` is now revision 9 and receives
-  `@bulk_destroy`, `@bulk_operations` and `@saved_views`. Doctor reports the copy for review.
+  `@bulk_destroy`, `@bulk_operations`, `@saved_views` and `@deleted_records`. Doctor reports the copy for review.
   Move it aside, run `bin/rails generate rails_ai_admin:override resource_index`
   (the generator never overwrites a host file) and reapply your changes, or
   your list keeps the old two-step **Capture selection** bar.

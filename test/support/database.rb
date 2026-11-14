@@ -45,6 +45,11 @@ end
 class FilterSample < ActiveRecord::Base
 end
 
+# Soft-delete fixture: deleting sets discarded_at.
+class Memo < ActiveRecord::Base
+  validates :name, presence: true
+end
+
 class Invoice < ActiveRecord::Base
   belongs_to :customer, optional: true
   validates :number, presence: true
@@ -110,6 +115,18 @@ module DatabaseHelpers
         end
       end
     end
+    unless Memo.table_exists?
+      ActiveRecord::Schema.define do
+        create_table :memos do |t|
+          t.integer :account_id, null: false
+          t.string :name
+          t.integer :points
+          t.datetime :discarded_at
+          t.integer :lock_version, null: false, default: 0
+          t.timestamps
+        end
+      end
+    end
     unless Invoice.table_exists?
       ActiveRecord::Schema.define do
         create_table :invoices do |t|
@@ -167,6 +184,7 @@ module DatabaseHelpers
     TestPolicy.granted_scopes = []
     TestPolicy.granted_filters = []
     FilterSample.delete_all
+    Memo.delete_all
     Payment.delete_all
     @customer = Customer.create!(account_id: 1, name: "Alice", secret: "never show")
     @other = Customer.create!(account_id: 2, name: "Other tenant")

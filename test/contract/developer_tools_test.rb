@@ -117,6 +117,21 @@ class DeveloperToolsTest < Minitest::Test
     end
   end
 
+  def test_generator_declares_a_conventional_soft_delete_column
+    assert_equal "discarded_at", RailsAiAdmin::SchemaSuggestions.soft_delete_column(Memo)
+    assert_nil RailsAiAdmin::SchemaSuggestions.soft_delete_column(Customer)
+    Dir.mktmpdir("raa-generator-", File.expand_path("../../tmp", __dir__)) do |directory|
+      generator = RailsAiAdmin::Generators::ResourceGenerator.new([ "Memo" ], [ "--no-register" ], destination_root: directory)
+      capture_io { generator.invoke_all }
+      source = File.read(File.join(directory, "app/rails_ai_admin/memo_admin.rb"))
+      assert_includes source, "  soft_delete :discarded_at\n"
+      refute_match(/^\s+\w+ :discarded_at/, source.sub("soft_delete :discarded_at", ""), "the column is not also a field")
+      readonly = RailsAiAdmin::Generators::ResourceGenerator.new([ "Memo" ], [ "--no-register", "--readonly", "--force" ], destination_root: directory)
+      capture_io { readonly.invoke_all }
+      refute_includes File.read(File.join(directory, "app/rails_ai_admin/memo_admin.rb")), "soft_delete"
+    end
+  end
+
   def test_generator_enables_suggested_fields_and_never_samples_records
     sql = []
     listener = ->(_name, _start, _finish, _id, payload) { sql << payload[:sql] }

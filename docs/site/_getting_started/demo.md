@@ -72,8 +72,9 @@ admin account already. Every account's password is `demo-password`.
 * **CSV**: on the Articles list, **Export CSV** downloads the current list;
   **Import CSV** checks and imports `tmp/demo/articles-import.csv`, which has one
   row that fails on purpose. See [CSV Export and Import]({% link _core_features/csv-export.md %}).
-* **Bulk delete**: tick a few articles and choose **Delete selected**; the review
-  page lists what will be deleted before anything changes.
+* **Bulk delete and restore**: tick a few articles and choose **Delete selected**;
+  the review page lists what will be deleted before anything changes. Articles
+  are soft-deleted, so **Deleted records** on the list brings them back.
 * **Filters**: on the Articles list, open **Filters** and enter `editor1` in
   **Contact contains**, or choose **Website is: Not empty**. On Orders, tick two
   states under **State is any of**, then keep the result with **Saved views**.
