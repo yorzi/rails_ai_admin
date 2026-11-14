@@ -34,24 +34,36 @@ runs on [RubyLLM](https://rubyllm.com) with the provider your host configures.
 
 ## Feature Comparison
 
-The table compares the latest release of each gem on RubyGems as of
-November 2026. Features that a gem offers only through a plugin or a paid
-add-on are marked as such.
+Comparison as of November 2026.
 
-| | Rails AI Admin | ActiveAdmin | Avo | Administrate | RailsAdmin | Madmin | Trestle |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| Latest version | 0.3.0 (Public Preview) | 3.5.2 (4.0 in beta) | 4.4.4 | 1.0.0 | 3.3.1 | 3.4.1 | 0.10.1 |
-| License | MIT | MIT | LGPL-3.0 or commercial | MIT | MIT | MIT | LGPL-3.0 |
-| Cost | Free | Free | Free Community plan, paid plans for more features | Free | Free | Free | Free |
-| Rails versions | 8.1 | 6.1 and later | 6.1 and later | 6.0 to 8.x | 6.0 to 8.x | 7.0 and later | 6.0 and later |
-| How you define pages | Resource classes | `ActiveAdmin.register` DSL | Resource classes | Generated dashboards and views | Initializer DSL | Generated resource classes | `Trestle.resource` DSL |
-| Models shown by default | Only registered ones | Only registered ones | Only generated ones | Only generated ones | All models | Only generated ones | Only registered ones |
-| Authorization | Required host policy, closed by default, with row, action and field grants | CanCanCan or Pundit adapter, optional | Pundit, paid add-on | Pundit concern, optional | CanCanCan or Pundit, optional | Your own controller code | Your own code; trestle-auth adds sign-in |
-| Audit log and record history | Built in | Through other gems | Enterprise plan | Through other gems | PaperTrail adapter | Through other gems | Through other gems |
-| AI chat | Built in, optional, free | No | Paid add-on | No | No | No | No |
-| AI changes need human confirmation | Yes | Not applicable | Yes | Not applicable | Not applicable | Not applicable | Not applicable |
-| MCP server | Built in, optional | No | Paid add-on | No | No | No | No |
-| Total downloads | New | 52 million | 3.8 million | 10 million | 13 million | 0.6 million | 1 million |
+| Gem | Rails | Default model exposure | Authorization | Audit and history | AI chat and MCP |
+| --- | --- | --- | --- | --- | --- |
+| **Rails AI Admin** | 8.1 | Registered only | Required host policy, default deny | Built in | Built in, optional |
+| ActiveAdmin | 6.1+ | Registered only | Optional CanCanCan or Pundit adapter | Other gems | None |
+| Avo | 6.1+ | Generated only | Pundit paid add-on | Enterprise plan | Paid add-ons |
+| Administrate | 6.0–8.x | Generated only | Optional Pundit concern | Other gems | None |
+| RailsAdmin | 6.0–8.x | All models | Optional CanCanCan or Pundit adapter | PaperTrail adapter | None |
+| Madmin | 7.0+ | Generated only | Host controller code | Other gems | None |
+| Trestle | 6.0+ | Registered only | Host application code | Other gems | None |
+
+Rails AI Admin policies grant access by row, action and field. Both Rails AI
+Admin and Avo require human confirmation for AI changes. Trestle can add sign-in
+through `trestle-auth`.
+
+### Setup, Licensing and Releases
+
+| Gem | Page setup | License | Cost | Release | Downloads |
+| --- | --- | --- | --- | --- | --- |
+| **Rails AI Admin** | Resource classes | MIT | Free | 0.3.0 | New |
+| ActiveAdmin | Registration DSL | MIT | Free | 3.5.2 | 52M |
+| Avo | Resource classes | LGPL-3.0 or commercial | Free and paid plans | 4.4.4 | 3.8M |
+| Administrate | Generated dashboards and views | MIT | Free | 1.0.0 | 10M |
+| RailsAdmin | Initializer DSL | MIT | Free | 3.3.1 | 13M |
+| Madmin | Generated resources | MIT | Free | 3.4.1 | 0.6M |
+| Trestle | Resource DSL | LGPL-3.0 | Free | 0.10.1 | 1M |
+
+ActiveAdmin uses `ActiveAdmin.register` for registration and also offers a
+4.0 beta. Trestle uses `Trestle.resource` for its resource DSL.
 
 Versions, licenses, Rails requirements and download counts come from each
 gem's RubyGems page. Avo's plans come from its pricing page and change over

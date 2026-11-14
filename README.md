@@ -33,14 +33,15 @@ Most Rails admin gems show your models first and add permissions on top. Rails
 AI Admin starts closed, and its optional assistant follows the same permissions
 and audited write path as the forms.
 
-| | Rails AI Admin | ActiveAdmin | Avo | Administrate | RailsAdmin | Madmin | Trestle |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| License | MIT | MIT | LGPL-3.0 or commercial | MIT | MIT | MIT | LGPL-3.0 |
-| Rails versions | 8.1 | 6.1+ | 6.1+ | 6.0 to 8.x | 6.0 to 8.x | 7.0+ | 6.0+ |
-| Models shown by default | Registered only | Registered only | Generated only | Generated only | All models | Generated only | Registered only |
-| Authorization | Required, closed by default | Optional adapter | Paid add-on | Optional | Optional adapter | Your own code | Your own code |
-| Audit log and history | Built in | Other gems | Enterprise plan | Other gems | PaperTrail adapter | Other gems | Other gems |
-| AI chat and MCP | Built in, free, optional | No | Paid add-ons | No | No | No | No |
+| Gem | Rails | Default model exposure | Authorization | Audit and history | AI chat and MCP | License |
+| --- | --- | --- | --- | --- | --- | --- |
+| **Rails AI Admin** | 8.1 | Registered only | Required, default deny | Built in | Built in, optional and free | MIT |
+| ActiveAdmin | 6.1+ | Registered only | Optional adapter | Other gems | None | MIT |
+| Avo | 6.1+ | Generated only | Paid add-on | Enterprise plan | Paid add-ons | LGPL-3.0 or commercial |
+| Administrate | 6.0–8.x | Generated only | Optional | Other gems | None | MIT |
+| RailsAdmin | 6.0–8.x | All models | Optional adapter | PaperTrail adapter | None | MIT |
+| Madmin | 7.0+ | Generated only | Host application | Other gems | None | MIT |
+| Trestle | 6.0+ | Registered only | Host application | Other gems | None | LGPL-3.0 |
 
 Choose another gem if you need Rails 7 or 8.0, an established plugin ecosystem,
 or an admin for every model without connecting sign-in and policies first. The
