@@ -7,6 +7,32 @@ module RailsAiAdmin
   # Reports support boundaries without probing credentials or calling providers.
   class Doctor
     Check = Data.define(:name, :status, :message)
+    # Summary order: what needs action first.
+    STATUS_ORDER = %i[error review unsupported closed ok].freeze
+
+    # One line counting checks by status, e.g. "Summary: 1 error, 4 to review, 9 ok."
+    def self.summary(checks)
+      counts = checks.group_by(&:status).transform_values(&:size)
+      parts = (STATUS_ORDER | counts.keys).filter_map do |status|
+        count = counts[status]
+        next unless count
+        case status
+        when :error then "#{count} #{count == 1 ? 'error' : 'errors'}"
+        when :review then "#{count} to review"
+        else "#{count} #{status}"
+        end
+      end
+      "Summary: #{parts.empty? ? 'no checks' : parts.join(', ')}."
+    end
+
+    # "errors" keeps errors; "review" keeps errors and checks to review.
+    def self.select(checks, only)
+      case only.to_s
+      when "errors" then checks.select { |check| check.status == :error }
+      when "review" then checks.select { |check| %i[error review].include?(check.status) }
+      else checks
+      end
+    end
 
     def initialize(configuration: RailsAiAdmin.configuration, registry: RailsAiAdmin.registry, application: Rails.application,
       operation_registry: RailsAiAdmin.operation_registry, work_registry: RailsAiAdmin.work_registry)

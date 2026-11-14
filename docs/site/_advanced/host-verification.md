@@ -21,7 +21,13 @@ After reading this guide, you will know:
 
 ```sh
 bin/rails rails_ai_admin:doctor
+bin/rails rails_ai_admin:doctor ONLY=review   # errors and checks to review
+bin/rails rails_ai_admin:doctor ONLY=errors   # errors only
 ```
+
+The last line counts the checks by status, such as
+`Summary: 2 to review, 1 closed, 9 ok.` `ONLY` narrows the lines above it, never
+the summary or the exit status.
 
 Doctor reports context/policy public interfaces, connection-pool and optimistic
 locking requirements, schema metadata, sensitive declarations and the default

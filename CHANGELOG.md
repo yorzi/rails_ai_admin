@@ -15,6 +15,8 @@
   selection**. A bulk delete with no deletable records returns to the selection
   with a notice instead of a 404, and Cancel on the delete review returns to the
   list.
+- `rails_ai_admin:doctor` ends with a summary line counting checks by status,
+  and `ONLY=review` or `ONLY=errors` hides the other lines.
 - The `resource_index` template contract is revision 9 and adds
   `bulk_destroy` and `bulk_operations`. Regenerate copied index overrides.
 - Show the new filters in the demo's Articles list.

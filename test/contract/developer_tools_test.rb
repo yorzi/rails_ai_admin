@@ -284,6 +284,17 @@ class DeveloperToolsTest < Minitest::Test
     refute_includes checks.map(&:message).join, @customer.secret
   end
 
+  def test_doctor_summary_counts_statuses_and_only_narrows_the_lines
+    check = ->(status) { RailsAiAdmin::Doctor::Check.new("x", status, "m") }
+    checks = [ check.(:ok), check.(:review), check.(:error), check.(:review), check.(:closed), check.(:ok) ]
+    assert_equal "Summary: 1 error, 2 to review, 1 closed, 2 ok.", RailsAiAdmin::Doctor.summary(checks)
+    assert_equal "Summary: 1 ok.", RailsAiAdmin::Doctor.summary([ check.(:ok) ])
+    assert_equal "Summary: no checks.", RailsAiAdmin::Doctor.summary([])
+    assert_equal [ :error ], RailsAiAdmin::Doctor.select(checks, "errors").map(&:status)
+    assert_equal %i[review error review], RailsAiAdmin::Doctor.select(checks, "review").map(&:status)
+    assert_equal checks, RailsAiAdmin::Doctor.select(checks, "")
+  end
+
   def test_doctor_recognizes_definitely_incompatible_signatures_and_field_types
     config = RailsAiAdmin::Configuration.new
     config.context_adapter = "NoArgumentContext"

@@ -1,11 +1,15 @@
 # frozen_string_literal: true
 
 namespace :rails_ai_admin do
-  desc "Report fail-closed installation and supported runtime boundaries"
+  desc "Report fail-closed installation and supported runtime boundaries (ONLY=errors or ONLY=review narrows the lines)"
   task doctor: :environment do
     require "rails_ai_admin/doctor"
+    only = ENV.fetch("ONLY", "")
+    abort "ONLY must be errors or review" unless [ "", "errors", "review" ].include?(only)
     checks = RailsAiAdmin::Doctor.new.checks
-    checks.each { |check| puts "[#{check.status}] #{check.name}: #{check.message}" }
+    shown = RailsAiAdmin::Doctor.select(checks, only)
+    shown.each { |check| puts "[#{check.status}] #{check.name}: #{check.message}" }
+    puts RailsAiAdmin::Doctor.summary(checks)
     abort "Resolve errors before enabling writes." if checks.any? { |check| check.status == :error }
   end
 
