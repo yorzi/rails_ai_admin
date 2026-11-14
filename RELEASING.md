@@ -2,7 +2,7 @@
 
 0.2.0 is the current Public Preview release. The owner authorized its publication
 on 2026-11-14 with “release 0.2.0”. The release commit opens `allowed_push_host`;
-the main branch has reopened as `0.2.1.dev` with publishing blocked.
+the main branch has reopened as `0.3.0.dev` with publishing blocked.
 
 ## Candidate checks
 

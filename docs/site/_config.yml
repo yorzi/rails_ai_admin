@@ -111,5 +111,5 @@ code_language: ruby
 # and {{ site.examples.NAME }}, so one edit here updates every page. Set
 # `released: true` and the new version in the commit you tag for a release.
 released: false
-version: "0.2.1.dev"
+version: "0.3.0.dev"
 examples: {}
