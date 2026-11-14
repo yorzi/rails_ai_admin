@@ -1,8 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 (2026-11-14)
 
-0.2.0 preparation. Not published; owner review is pending.
+Public Preview. Requires Ruby 3.3+ and Rails 8.1.4.1 or newer below 8.2.
 
 - Require Rails 8.1.4.1 or newer within 8.1; drop Rails 8.0. Ruby 3.3+
   remains supported. Rails 7 is not supported.

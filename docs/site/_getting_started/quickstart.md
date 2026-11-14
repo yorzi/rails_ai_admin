@@ -39,7 +39,7 @@ Unknown authentication systems receive a closed context to implement yourself.
 ## Install and Generate
 
 {% if site.docs_unreleased %}
-Use this checkout in the host Gemfile; 0.2.0 is not published:
+Use this development checkout in the host Gemfile:
 
 ```ruby
 gem "rails_ai_admin", path: "../rails_ai_admin"

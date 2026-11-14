@@ -1,5 +1,14 @@
 # Compatibility
 
+## 2026-11-14 — 0.2.0 release validation
+
+Local Ruby 4.0.9 / Rails 8.1.4.1 / SQLite: 569 tests, 5,343 assertions,
+zero failures, errors or skips. RuboCop checked 345 files with no offenses.
+Package metadata and release checks passed. Remote CI on the release commit
+provides the database, Ruby 3.3, packaged-host, recovery, asset, dependency and
+documentation checks; consult its GitHub Actions results separately.
+
+
 ## 2026-11-13 — 0.2.0 development candidate
 
 Requires Ruby >= 3.3 and Rails >= 8.1.4.1, < 8.2. Rails 7 and 8.0 are not

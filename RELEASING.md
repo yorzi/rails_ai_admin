@@ -1,8 +1,8 @@
 # Releasing
 
-0.1.1 is the latest published Public Preview. This branch prepares **0.2.0** as
-`0.2.0.dev`, with `released: false` and `allowed_push_host` blocked. Do not tag,
-publish a gem, create a GitHub release or deploy documentation before owner review.
+0.2.0 is the current Public Preview release. The owner authorized its publication
+on 2026-11-14 with “release 0.2.0”. The release commit opens `allowed_push_host`;
+future development builds must close it again.
 
 ## Candidate checks
 

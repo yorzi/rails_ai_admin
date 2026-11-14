@@ -11,9 +11,9 @@ description: Prepare an existing host for 0.2.0 and review earlier migration req
 {{ page.description }}
 {: .fs-6 .fw-300 }
 
-## Prepare for 0.2.0
+## Upgrade to 0.2.0
 
-0.2.0 is unreleased. Upgrade Rails to 8.1.4.1 or newer below 8.2 first;
+Upgrade Rails to 8.1.4.1 or newer below 8.2 first;
 Rails 7 and 8.0 are unsupported. Ruby 3.3+ remains supported.
 
 Existing resources and policies remain explicit. The installer preserves host

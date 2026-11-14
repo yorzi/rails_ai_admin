@@ -1,6 +1,6 @@
 source "https://rubygems.org"
 gem "rails", "8.1.4.1"
-gem "rails_ai_admin", "0.2.0.dev"
+gem "rails_ai_admin", "0.2.0"
 gem "devise", "~> 5.0.4"
 gem "pundit", "~> 2.5"
 gem "pg", "~> 1.6"
