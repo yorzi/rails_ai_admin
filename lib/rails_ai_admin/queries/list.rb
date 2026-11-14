@@ -131,7 +131,13 @@ module RailsAiAdmin
           direction = settings.default_direction
           sortable.find { |entry| entry.name == settings.default_sort }
         end
-        if field
+        if field&.scalar_type == :belongs_to
+          # The target title from the target's own policy relation; a target
+          # outside it sorts like an empty value.
+          titles, title_column = reference_titles(field)
+          relation = relation.joins(table.join(titles, Arel::Nodes::OuterJoin).on(titles[:raa_key].eq(table[field.column])).join_sources)
+          relation = relation.reorder(titles[title_column].public_send(direction).nulls_last).order(table[primary].asc)
+        elsif field
           # Empty values sort last in both directions on every database (RAA-028).
           relation = relation.reorder(table[field.column].public_send(direction).nulls_last)
           relation = relation.order(table[primary].asc) unless field.column == primary
@@ -170,11 +176,37 @@ module RailsAiAdmin
             when :contains then "%#{term}%"
             else "#{term}%"
             end
-            @resource.model_class.arel_table[field.column].matches(pattern, "\\")
+            column = @resource.model_class.arel_table[field.column]
+            if field.scalar_type == :belongs_to
+              column.in(reference_matches(field, pattern))
+            else
+              column.matches(pattern, "\\")
+            end
           end
           relation = relation.where(predicates.reduce(&:or))
         end
         [ relation, named ]
+      end
+
+      # A subquery of the target's policy relation: its key and title.
+      def reference_titles(field)
+        relation, model, title = reference_relation(field)
+        table = model.arel_table
+        [ relation.reselect(table[model.primary_key].as("raa_key"), table[title.column].as("raa_title")).arel.as("raa_reference_titles"), :raa_title ]
+      end
+
+      # Keys of target records in the target's policy relation whose title matches.
+      def reference_matches(field, pattern)
+        relation, model, title = reference_relation(field)
+        table = model.arel_table
+        relation.where(table[title.column].matches(pattern, "\\")).reselect(table[model.primary_key]).arel
+      end
+
+      def reference_relation(field)
+        target = Fields::Association.target(field)
+        access = Authorization::Access.new(@access.context, target)
+        title = target.fields.find { |candidate| candidate.name == target.title }
+        [ access.relation.unscope(:order, :limit, :offset), target.model_class, title ]
       end
 
       def apply_filters(relation, filters)

@@ -22,6 +22,11 @@
 - Add an `in` filter operator for `enum` and `select` fields: a group of
   checkboxes that matches any of the ticked choices. List links, record pages
   and exports keep the list.
+- Sort and search lists by a `belongs_to` reference: `belongs_to :customer,
+  sortable: true, searchable: :contains` orders and matches by the customer's
+  title. It needs the field's own grant plus the target title's sort or search
+  grant and index access, and reads titles only from the target's policy
+  relation; unavailable targets sort last and never match.
 - Show the new filters in the demo: contact and website on Articles, and order
   state on Orders.
 

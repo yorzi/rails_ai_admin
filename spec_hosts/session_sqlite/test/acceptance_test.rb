@@ -472,6 +472,14 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
     refute_includes response.body, "FILTER-SMALL"
     get "/staff/orders", params: { filter: { total: { gte: "ten" } } }
     assert_response :unprocessable_content
+    get "/staff/orders", params: { q: "FILTER", scope: "all", sort: "customer" }
+    assert_response :success
+    assert_select "th[aria-sort=ascending] a", text: "Customer"
+    customer = Customer.create!(account: @account, name: "Zelda Filterson")
+    Order.create!(account: @account, number: "BY-CUSTOMER", total: "1.00", customer: customer)
+    get "/staff/orders", params: { q: "Zelda", scope: "all" }
+    assert_includes response.body, "BY-CUSTOMER"
+    refute_includes response.body, "FILTER-EDGE"
     get "/staff/orders", params: { q: "FILTER", scope: "all", filter: { state: { in: %w[approved rejected] } } }
     assert_select "fieldset.raa-filter-choices input[type=checkbox][name='filter[state][in][]']", count: 3
     assert_includes response.body, "FILTER-EDGE"

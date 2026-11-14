@@ -50,7 +50,7 @@ class AssociationsContractTest < Minitest::Test
   end
 
   def test_belongs_to_options_are_closed_and_bounded
-    [ { searchable: :prefix }, { sortable: true }, { resource: "Customers" }, { resource: :"bad key" },
+    [ { resource: "Customers" }, { resource: :"bad key" },
       { foreign_key: "customer" }, { foreign_key: "customer_id; drop" }, { foreign_key: :customer_id } ].each do |options|
       assert_raises(RailsAiAdmin::ConfigurationError, options.inspect) { Field.new(:customer, type: :belongs_to, **options) }
     end

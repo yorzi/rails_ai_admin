@@ -25,6 +25,18 @@ module AssociationFixtures
     end
   end
 
+  # Invoices that sort and search by their customer's name.
+  class ReferenceQueryInvoiceAdmin < RailsAiAdmin::Resource
+    model "Invoice"
+    key :invoices
+    title :number
+    fields do
+      id :id
+      text :number, required: true, nullable: false, sortable: true, searchable: :exact
+      belongs_to :customer, sortable: true, searchable: :contains, filterable: true
+    end
+  end
+
   class Policy < RailsAiAdmin::Authorization::Adapter
     class_attribute :hidden_customers, default: []
     class_attribute :deny_customer_show, default: false
@@ -33,6 +45,8 @@ module AssociationFixtures
     class_attribute :customer_search, default: %i[name]
     class_attribute :invoice_read, default: %i[id number customer]
     class_attribute :invoice_filters, default: %i[customer]
+    class_attribute :invoice_sort, default: []
+    class_attribute :invoice_search, default: []
 
     def self.reset!
       self.hidden_customers = []
@@ -42,6 +56,8 @@ module AssociationFixtures
       self.customer_search = %i[name]
       self.invoice_read = %i[id number customer]
       self.invoice_filters = %i[customer]
+      self.invoice_sort = []
+      self.invoice_search = []
     end
 
     def scope(context:, resource:, relation:)
@@ -68,6 +84,8 @@ module AssociationFixtures
       when :read then invoice_read
       when :write then context.actor.id == 1 ? %i[number customer] : []
       when :filter then invoice_filters
+      when :sort then invoice_sort
+      when :search then invoice_search
       else []
       end
     end
@@ -75,10 +93,10 @@ module AssociationFixtures
 
   RESOURCES = %w[AssociationFixtures::CustomerAdmin AssociationFixtures::InvoiceAdmin].freeze
 
-  def with_association_resources
+  def with_association_resources(resources = RESOURCES)
     config = RailsAiAdmin.configuration.dup
     config.authorization_adapter = "AssociationFixtures::Policy"
-    registry = RailsAiAdmin::Registry.new(RESOURCES)
+    registry = RailsAiAdmin::Registry.new(resources)
     operations = RailsAiAdmin::Operations::Registry.new(registry.resources)
     RailsAiAdmin.stub(:configuration, config) do
       RailsAiAdmin.stub(:registry, registry) do

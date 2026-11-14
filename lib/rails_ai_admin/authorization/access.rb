@@ -270,11 +270,26 @@ module RailsAiAdmin
             (action != :write || field.writable?(operation || :update)) &&
             (action != :search || !field.virtual? && field.options[:searchable]) &&
             (action != :sort || !field.virtual? && field.options[:sortable]) &&
-            (action != :filter || !field.virtual? && field.filter_operators.any?)
+            (action != :filter || !field.virtual? && field.filter_operators.any?) &&
+            (!%i[search sort].include?(action) || field.scalar_type != :belongs_to || reference_title_granted?(field, action))
         end
         mask = presentation_mask(record, view) if view
         selected = selected.select { |field| mask.include?(field.name) } if mask
         action == :read ? Fields::DependencyGraph.readable(selected) : selected
+      end
+
+      # Searching or sorting by a reference reads the target's title, so the
+      # actor must be able to list the target and hold the same grant on its
+      # title there. A title that is itself a reference never qualifies.
+      def reference_title_granted?(field, action)
+        target = Fields::Association.target(field)
+        title = target.fields.find { |candidate| candidate.name == target.title }
+        return false if title.nil? || title.virtual? || Field::REFERENCE_TYPES.include?(title.scalar_type)
+        access = self.class.new(context, target)
+        access.authorize!(:index)
+        access.fields(action).include?(title)
+      rescue AccessDenied
+        false
       end
 
       def presentation_mask(record, view)

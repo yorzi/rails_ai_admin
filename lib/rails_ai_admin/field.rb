@@ -578,10 +578,8 @@ module RailsAiAdmin
           foreign_key.is_a?(String) && foreign_key.match?(NAME) && foreign_key.length <= 100 && foreign_key != name.to_s
         raise ConfigurationError, "belongs_to needs a registry key resource and a distinct foreign_key column name"
       end
-      # Association search, sort and labels-as-filters need registered joins (LIST-019).
-      if options[:searchable] || options[:sortable]
-        raise ConfigurationError, "belongs_to fields cannot search or sort yet; filter by the referenced record instead"
-      end
+      # belongs_to search and sort use the target resource's title, inside the
+      # target's policy relation and only under its own title grants.
     end
 
     # filterable: true selects type defaults; an Array narrows to allowed operators.

@@ -6,7 +6,7 @@ class OrderAdmin < RailsAiAdmin::Resource
   fields do
     id :id, create: false, tab: "Order", panel: "Context"
     text :number, required: true, nullable: false, max_length: 32, searchable: :prefix, sortable: true, tab: "Order", panel: "Commercial details"
-    belongs_to :customer, filterable: true, tab: "Order", panel: "Commercial details", help_text: "Choose a customer in this account."
+    belongs_to :customer, filterable: true, sortable: true, searchable: :prefix, tab: "Order", panel: "Commercial details", help_text: "Choose a customer in this account."
     decimal :total, required: true, nullable: false, filterable: true, tab: "Order", panel: "Commercial details", help_text: "An exact nonnegative amount with at most two fractional digits."
     select :state, choices: [ [ "Draft", "draft" ], [ "Approved", "approved" ], [ "Rejected", "rejected" ] ], filterable: [ :in ], readonly: true, create: false, edit: true, tab: "Order", panel: "Review"
     readonly :review_note, type: :textarea, create: false, edit: true, tab: "Order", panel: "Review"

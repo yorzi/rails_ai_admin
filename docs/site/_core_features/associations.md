@@ -2,7 +2,7 @@
 layout: default
 title: Associations
 nav_order: 12
-description: Show, choose and filter belongs_to references, edit many-to-many lists, and show a record's children, through each target resource's own grants.
+description: Show, choose, filter, sort and search belongs_to references, edit many-to-many lists, and show a record's children, through each target resource's own grants.
 ---
 
 # {{ page.title }}
@@ -15,6 +15,7 @@ After reading this guide, you will know:
 * How to declare a `belongs_to` field and what it stores.
 * How references are labelled, linked and loaded without per-row queries.
 * Which targets a form offers and a write accepts.
+* How to sort and search a list by the referenced record's title.
 * How to list a parent's children with `has_many` and `has_one`.
 * How to edit a many-to-many list with `references`.
 * What is not supported yet.
@@ -114,6 +115,38 @@ same key input and search box. The value narrows the already-authorized list; it
 ```text
 /admin/orders?filter[customer][eq]=42
 ```
+
+`filterable: %i[eq blank]` adds an Any / Empty / Not empty choice for orders
+with or without a customer.
+
+## Sorting and Searching by Reference
+
+A `belongs_to` field can sort and search by the target's title:
+
+```ruby
+belongs_to :customer, sortable: true, searchable: :contains
+```
+
+Sorting by Customer orders the list by each customer's name, and searching
+"ada" finds orders whose customer's name contains "ada". `searchable:` takes the
+same `:prefix`, `:contains` and `:exact` modes as other fields, applied to the
+target title.
+
+The title belongs to another resource, so both resources must agree:
+
+* The actor needs the `:sort` or `:search` grant on the `belongs_to` field here.
+* The actor must be allowed to list the target resource and hold the same grant
+  on its title there. With `CustomerAdmin` titled `name`, sorting orders by
+  customer needs `:sort` on `CustomerAdmin`'s `name`.
+* The target title must be a stored column, not a virtual field or another
+  reference.
+
+Without those grants the column header is not a link and the field is left out
+of search. Titles come from the target's own policy relation: an order whose
+customer the actor cannot see sorts like an order without a customer (last in
+both directions), and searching never matches it. Sorting adds one left join to
+a subquery of that relation, and searching one `IN` subquery, so index the
+target title column for large tables.
 
 ## Child Lists with has_many
 
@@ -240,8 +273,8 @@ target grants.
 
 ## Not Supported Yet
 
-* Association search, sort and label columns (LIST-019): `belongs_to` fields
-  cannot be `searchable` or `sortable`.
+* Sorting or searching by a reference's other columns, or across more than one
+  reference (`order.customer.account.name`).
 * Polymorphic associations, and editing a `has_one` child from its parent.
 * Nested child forms (use the panel's Add link instead), attach/detach/reparent policies and the dependent-destroy
   preview required by CRUD-021.
