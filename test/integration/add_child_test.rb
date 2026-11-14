@@ -26,8 +26,12 @@ class AddChildIntegrationTest < ActionDispatch::IntegrationTest
       assert_response :success
       assert_select "select[name='record[customer]'] option[selected][value='#{@customer.id}']"
       intent = css_select("input[name=intent_ref]").first["value"]
-      post "/backoffice/invoices", params: { intent_ref: intent, record: { number: "INV-NEW", customer: @customer.id.to_s } }
+      assert_select "input[type=hidden][name='back[resource]'][value=customers]"
+      assert_select "a[href='/backoffice/customers/#{@customer.id}']", text: "Cancel"
+      post "/backoffice/invoices", params: { intent_ref: intent, record: { number: "INV-NEW", customer: @customer.id.to_s },
+        back: { resource: "customers", id: @customer.id.to_s } }
       assert_response :see_other
+      assert_equal "/backoffice/customers/#{@customer.id}", URI(response.location).path, "saving returns to the parent"
       assert_equal @customer.id, Invoice.find_by!(number: "INV-NEW").customer_id
     end
   end
@@ -45,6 +49,40 @@ class AddChildIntegrationTest < ActionDispatch::IntegrationTest
     with_association_resources do
       get "/backoffice/customers/#{@customer.id}"
       assert_empty css_select("section.raa-association a").select { |node| node.text.start_with?("Add") }
+    end
+  end
+
+  def test_children_are_edited_and_deleted_from_the_parent_page
+    invoice = Invoice.create!(account_id: 1, number: "INV-1", customer: @customer)
+    with_association_resources do
+      get "/backoffice/customers/#{@customer.id}"
+      edit = css_select("section.raa-association a.raa-row-edit").first
+      assert_equal "Edit", edit.text
+      get edit["href"]
+      assert_response :success
+      assert_select "a[href='/backoffice/customers/#{@customer.id}']", text: "Cancel"
+      intent = css_select("input[name=intent_ref]").first["value"]
+      patch "/backoffice/invoices/#{invoice.id}", params: { intent_ref: intent, record: { number: "INV-1B", customer: @customer.id.to_s },
+        back: { resource: "customers", id: @customer.id.to_s } }
+      assert_response :see_other
+      assert_equal "/backoffice/customers/#{@customer.id}", URI(response.location).path
+      assert_equal "INV-1B", invoice.reload.number
+      # A back hint to something the actor cannot see falls back to the usual page.
+      get "/backoffice/invoices/#{invoice.id}/edit"
+      intent = css_select("input[name=intent_ref]").first["value"]
+      patch "/backoffice/invoices/#{invoice.id}", params: { intent_ref: intent, record: { number: "INV-1C", customer: @customer.id.to_s },
+        back: { resource: "customers", id: @other.id.to_s } }
+      assert_equal "/backoffice/invoices/#{invoice.id}", URI(response.location).path
+      [ { resource: "nope", id: "1" }, { resource: "customers", id: "01" }, { resource: "customers" } ].each do |back|
+        get "/backoffice/invoices/#{invoice.id}/edit", params: { back: back }
+        assert_response :success
+        assert_select "input[name='back[resource]']", count: 0, message: back.inspect
+      end
+    end
+    post "/test/sign_in/2"
+    with_association_resources do
+      get "/backoffice/customers/#{@customer.id}"
+      assert_select "section.raa-association a.raa-row-edit", count: 0, message: "readers get no Edit link"
     end
   end
 end

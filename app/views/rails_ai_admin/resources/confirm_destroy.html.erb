@@ -6,7 +6,8 @@
 <% if @resource.soft_delete? %><p><%= t("rails_ai_admin.deleted_records.destroy_note") %></p><% end %>
 <%= form_with url: resource_path(resource: @resource.key, id: @record.id), method: :delete, local: true do |form| %>
   <%= return_navigation_fields %>
+  <%= parent_return_fields %>
   <%= hidden_field_tag :intent_ref, @intent_ref %>
   <%= form.submit t("rails_ai_admin.resources.destroy.confirm"), class: "raa-danger", disabled: @needs_reload %>
-  <%= link_to t("rails_ai_admin.actions.cancel"), resource_path(resource: @resource.key, id: @record.id, **navigation_params) %>
+  <%= link_to t("rails_ai_admin.actions.cancel"), parent_return_path || resource_path(resource: @resource.key, id: @record.id, **navigation_params) %>
 <% end %>

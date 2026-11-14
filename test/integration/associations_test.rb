@@ -53,7 +53,7 @@ class AssociationsIntegrationTest < ActionDispatch::IntegrationTest
       get "/backoffice/customers/#{@customer.id}"
       assert_response :success
       assert_select "section.raa-association h2#raa-association-invoices", text: "Invoices"
-      assert_equal %w[INV-0 INV-1], css_select("section.raa-association li a").map(&:text)
+      assert_equal %w[INV-0 INV-1], css_select("section.raa-association li a:not(.raa-row-edit)").map(&:text)
       refute_includes response.body, "INV-BOB"
       view_all = css_select("section.raa-association a").find { |node| node.text == "View all in Invoices" }
       assert view_all

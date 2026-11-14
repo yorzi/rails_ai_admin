@@ -186,7 +186,7 @@ module RailsAiAdmin
         binding: { resource_key: @resource.key, operation: operation, target_id: params[:id] })
       discard_uploads unless result.success?
       if result.success?
-        target = operation == :destroy ? list_return_path : resource_path(resource: @resource.key, id: result.record_id, **navigation_params)
+        target = parent_return_path || (operation == :destroy ? list_return_path : resource_path(resource: @resource.key, id: result.record_id, **navigation_params))
         redirect_to target, status: :see_other, notice: result.warning ? t("rails_ai_admin.resources.saved_with_warning", operation: intent_id) : t("rails_ai_admin.resources.saved")
       elsif result.code == "NOT_FOUND"
         raise AccessDenied

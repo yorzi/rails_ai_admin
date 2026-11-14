@@ -17,7 +17,7 @@ module RailsAiAdmin
     prepend_before_action :secure_headers
     before_action :authenticate_admin
     after_action :notice_discarded_list_settings
-    helper_method :resource_navigation, :admin_csp_nonce, :list_page_path, :encoded_return_state, :navigation_state, :navigation_params, :list_return_path, :list_return_label, :return_state_discarded?, :return_navigation_fields, :list_state_fields, :visible_resources, :allowed_action?, :record_label, :collection_jobs_available?, :admin_associations, :assistant_available?, :searchable_resources, :audit_log_available?, :actor_labels, :assistant_for?
+    helper_method :resource_navigation, :admin_csp_nonce, :list_page_path, :encoded_return_state, :navigation_state, :navigation_params, :list_return_path, :list_return_label, :return_state_discarded?, :return_navigation_fields, :list_state_fields, :visible_resources, :allowed_action?, :record_label, :parent_return, :parent_return_params, :parent_return_fields, :collection_jobs_available?, :admin_associations, :assistant_available?, :searchable_resources, :audit_log_available?, :actor_labels, :assistant_for?
 
     rescue_from AccessDenied, with: :deny_access
     rescue_from ConfigurationError do
@@ -180,6 +180,38 @@ module RailsAiAdmin
         false
       end
     end
+
+    # back[resource] and back[id] name the parent record a child form was
+    # opened from, so saving or cancelling returns there. It is a hint like
+    # return_to: a registered resource and a canonical id, never authority;
+    # the parent page checks its own grants when it is shown.
+    ParentReturn = Data.define(:resource, :id)
+    def parent_return
+      return @parent_return if defined?(@parent_return)
+      raw = params[:back]
+      raw = raw.to_unsafe_h if raw.is_a?(ActionController::Parameters)
+      @parent_return = if raw.is_a?(Hash) && raw.keys.sort == %w[id resource] && raw.values.all?(String)
+        resource = RailsAiAdmin.registry.resources.find { |candidate| candidate.key.to_s == raw["resource"] }
+        resource && Authorization::Access.new(@context, resource).canonical_id?(raw["id"]) ? ParentReturn.new(resource, raw["id"].dup.freeze) : nil
+      end
+    end
+
+    def parent_return_params = parent_return ? { back: { resource: parent_return.resource.key.to_s, id: parent_return.id } } : {}
+
+    def parent_return_fields
+      return "".html_safe unless parent_return
+      helpers.safe_join([ helpers.hidden_field_tag("back[resource]", parent_return.resource.key.to_s, id: nil), helpers.hidden_field_tag("back[id]", parent_return.id, id: nil) ])
+    end
+
+    # The parent page when the actor may still see that record, else nil.
+    def parent_return_path
+      return unless parent_return
+      Authorization::Access.new(@context, parent_return.resource).find!(parent_return.id)
+      resource_path(resource: parent_return.resource.key, id: parent_return.id)
+    rescue AccessDenied
+      nil
+    end
+    helper_method :parent_return_path
 
     # Collection operations the actor may start now over a selection.
     def granted_collection_operations(resource, access)

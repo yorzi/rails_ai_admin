@@ -186,7 +186,7 @@ The panel reads children only through the child resource:
 The panel adds no write path. Creating, attaching or detaching children happens
 in the child resource's own forms and operations.
 
-## Adding a Child from Its Parent
+## Adding and Editing a Child from Its Parent
 
 When the actor may create a child and write its reference back to the parent, a
 `has_many` panel shows **Add invoice** (and a `has_one` panel shows **Add
@@ -198,6 +198,13 @@ is written until the person saves.
 A new form takes `prefill[...]` only for writable `belongs_to` fields and only a
 target the actor can currently see; anything else is ignored. Use it in your own
 links too, for example from a custom page.
+
+Each child the actor may update also gets an **Edit** link in the panel. Forms
+opened from a panel carry `back[resource]` and `back[id]`, so saving, deleting
+or cancelling returns to the parent page instead of the child's list. Like
+`return_to`, it is only a hint: it names a registered resource and a canonical
+key, and when the actor can no longer see that parent the form returns to its
+usual page. Add `back` to your own links in the same way.
 
 ## A Single Child with has_one
 
@@ -264,7 +271,7 @@ Two catalogued partials are overridable with `rails_ai_admin:override`:
 | Key | Locals |
 |---|---|
 | `field_reference` | `field`, `value`, `reference` (`id`, `label`, `resource_key`, `visible`; nil for a blank value) |
-| `resource_associations` | `panels` (each with `name`, `label`, `resource_key`, `rows`, `more`, `list_filter`) |
+| `resource_associations` | `panels` (each with `name`, `label`, `resource_key`, `rows`, `more`, `list_filter`, `back`; each row has `id`, `label`, `linked`, `editable`) |
 
 `resource_show` (revision 3) adds `association_panels`, and `field_form`
 (revision 2) renders the reference picker. Overrides must keep links and labels
@@ -276,5 +283,6 @@ target grants.
 * Sorting or searching by a reference's other columns, or across more than one
   reference (`order.customer.account.name`).
 * Polymorphic associations, and editing a `has_one` child from its parent.
-* Nested child forms (use the panel's Add link instead), attach/detach/reparent policies and the dependent-destroy
+* Editing children inside the parent's form in one save (nested forms); use
+  the panel's Add and Edit links, attach/detach/reparent policies and the dependent-destroy
   preview required by CRUD-021.

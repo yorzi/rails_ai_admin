@@ -108,7 +108,7 @@ class FlowRegressionsTest < ActionDispatch::IntegrationTest
     with_adapter("FlowRegressionsTest::ScopedPolicy", resources: resources) do
       get "/backoffice/customers/#{@customer.id}"
       assert_response :success
-      assert_equal %w[INV-1 D-2], css_select("section.raa-association li").map(&:text)
+      assert_equal %w[INV-1 D-2], css_select("section.raa-association li > :first-child").map(&:text)
       link = css_select("section.raa-association a").find { |node| node.text == "View all in Invoices" }
       query = Rack::Utils.parse_nested_query(URI(link["href"]).query)
       assert_equal({ "filter" => { "customer" => { "eq" => @customer.id.to_s } }, "scope" => "_none" }, query)

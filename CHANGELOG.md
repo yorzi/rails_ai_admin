@@ -30,6 +30,10 @@
 - Select every record a list matches, across its pages, with **All N
   matching records** in the bulk bar when 100 or fewer match; above that the
   bar asks to narrow the list. Each record is still checked when captured.
+- Edit children from the parent page: child panels show **Edit** for each
+  child the actor may update, and child forms opened from a panel (Add, Edit,
+  Delete) return to the parent after saving or cancelling through a
+  `back[resource]`/`back[id]` hint that never grants access.
 - Add saved views: each person can save a list's search, sort, tab and filters
   under a name, open it again from the list, replace it or delete it. Views are
   private to the person and tenant, keep no page number, and are rechecked

@@ -9,7 +9,7 @@ module RailsAiAdmin
       MAX_PANELS = 10
       MAX_LIMIT = 50
       NAME = /\A[a-z][a-z0-9_]*\z/
-      Row = Data.define(:id, :label, :linked)
+      Row = Data.define(:id, :label, :linked, :editable)
       # list_filter is the canonical list filter for "view all", present only
       # while the child's reference field carries a current filter grant.
       # list_params is the complete list state for that link: like the panel,
@@ -17,7 +17,7 @@ module RailsAiAdmin
       # unscoped_list is true when the child has a granted default list tab.
       # new_prefill is the prefill for the child's new form when the actor may
       # create a child with a writable reference back to this record.
-      Panel = Data.define(:name, :label, :resource_key, :rows, :more, :list_filter, :unscoped_list, :single, :new_prefill) do
+      Panel = Data.define(:name, :label, :resource_key, :rows, :more, :list_filter, :unscoped_list, :single, :new_prefill, :back) do
         def list_params
           return unless list_filter
           unscoped_list ? { filter: list_filter, scope: Queries::NamedScope::NONE } : { filter: list_filter }
@@ -67,11 +67,17 @@ module RailsAiAdmin
             rescue AccessDenied
               false
             end
-            Row.new(child_record.id.to_s.freeze, access.record_label(child_record, view: :index).freeze, linked)
+            editable = linked && begin
+              access.authorize!(:update, child_record)
+            rescue AccessDenied
+              false
+            end
+            Row.new(child_record.id.to_s.freeze, access.record_label(child_record, view: :index).freeze, linked, editable)
           end
           filter = access.fields(:filter).include?(field) ? { field.name.to_s => { "eq" => record.id.to_s } }.freeze : nil
           Panel.new(definition.name, definition.caption, child.key, rows.freeze, records.size > definition.limit, filter,
-            access.named_scopes.any?(&:default?), definition.single, creatable(access, field, record))
+            access.named_scopes.any?(&:default?), definition.single, creatable(access, field, record),
+            { "resource" => parent.key.to_s, "id" => record.id.to_s }.freeze)
         rescue AccessDenied
           nil
         end
