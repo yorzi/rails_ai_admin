@@ -266,13 +266,19 @@ module RailsAiAdmin
         expected
       end
 
-      def permission_fields(action, record, operation: nil, view: nil)
-        raise ConfigurationError, "Unknown presentation view" if view && !VIEWS.include?(view)
+      # The field names the policy grants for action, before declarations narrow them.
+      def granted_names(action, record = nil)
         names = @adapter.fields(context: context, resource: resource, action: action, record: record)
         unless names.is_a?(Array) && names.all? { |name| name.is_a?(String) || name.is_a?(Symbol) }
           raise ConfigurationError, "Policy fields must be an array of names"
         end
-        names = names.map(&:to_sym)
+        names.map(&:to_sym)
+      end
+      protected :granted_names
+
+      def permission_fields(action, record, operation: nil, view: nil)
+        raise ConfigurationError, "Unknown presentation view" if view && !VIEWS.include?(view)
+        names = granted_names(action, record)
         selected = resource.fields.select do |field|
           !field.hidden? && names.include?(field.name) &&
             # A password is write-only: no read grant can reveal it.
@@ -291,14 +297,17 @@ module RailsAiAdmin
 
       # Searching or sorting by a reference reads the target's title, so the
       # actor must be able to list the target and hold the same grant on its
-      # title there. A title that is itself a reference never qualifies.
+      # title there. A title that is itself a reference never qualifies, and
+      # only the title is checked: the target's own references are not, so a
+      # self-reference or a cycle of references cannot recurse.
       def reference_title_granted?(field, action)
         target = Fields::Association.target(field)
         title = target.fields.find { |candidate| candidate.name == target.title }
-        return false if title.nil? || title.virtual? || Field::REFERENCE_TYPES.include?(title.scalar_type)
+        return false if title.nil? || title.virtual? || title.hidden? || Field::REFERENCE_TYPES.include?(title.scalar_type)
+        return false unless title.options[action == :sort ? :sortable : :searchable]
         access = self.class.new(context, target)
         access.authorize!(:index)
-        access.fields(action).include?(title)
+        access.granted_names(action).include?(title.name)
       rescue AccessDenied
         false
       end

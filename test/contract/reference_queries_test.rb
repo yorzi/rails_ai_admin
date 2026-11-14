@@ -6,6 +6,17 @@ require "support/associations"
 require "minitest/mock"
 
 # Sorting and searching a list by the title of the record a belongs_to points to.
+class SelfReferenceCategoryAdmin < RailsAiAdmin::Resource
+  model "Category"
+  key :categories
+  title :name
+  fields do
+    id :id
+    text :name, sortable: true, searchable: :prefix
+    belongs_to :parent, resource: :categories, sortable: true, searchable: :prefix
+  end
+end
+
 class ReferenceQueriesTest < Minitest::Test
   include DatabaseHelpers
   include AssociationFixtures
@@ -105,5 +116,33 @@ class ReferenceQueriesTest < Minitest::Test
     assert_equal Invoice.where(number: %w[I-2 I-6 I-4]).order(:number).pluck(:id).sort, ids.sort
   ensure
     AssociationFixtures::Policy.class_eval { remove_method :export_records? if method_defined?(:export_records?, false) }
+  end
+
+  # A reference to its own resource (or a cycle of them) must not recurse
+  # while deciding whether the title may sort or search.
+  def test_a_self_reference_sorts_and_searches_by_its_parent_title
+    policy = Class.new(TestPolicy) do
+      def fields(context:, resource:, action:, record: nil)
+        resource.key == :categories ? %i[id name parent] : super
+      end
+    end
+    self.class.const_set(:CategoryPolicy, policy) unless self.class.const_defined?(:CategoryPolicy, false)
+    tools = Category.create!(account_id: 1, name: "Tools")
+    art = Category.create!(account_id: 1, name: "Art")
+    Category.create!(account_id: 1, name: "Hammers", parent: tools)
+    Category.create!(account_id: 1, name: "Paint", parent: art)
+    config = RailsAiAdmin.configuration.dup
+    config.authorization_adapter = "ReferenceQueriesTest::CategoryPolicy"
+    registry = RailsAiAdmin::Registry.new([ "SelfReferenceCategoryAdmin" ])
+    RailsAiAdmin.stub(:configuration, config) do
+      RailsAiAdmin.stub(:registry, registry) do
+        access = RailsAiAdmin::Authorization::Access.new(context, SelfReferenceCategoryAdmin)
+        assert_equal %i[name parent], access.fields(:sort).map(&:name)
+        assert_equal %i[name parent], access.fields(:search).map(&:name)
+        list = RailsAiAdmin::Queries::List.new(context, SelfReferenceCategoryAdmin)
+        assert_equal %w[Paint Hammers], list.call(sort: "parent").records.map(&:name).first(2), "Art's child, then Tools' child"
+        assert_equal %w[Hammers], list.call(search: "too").records.map(&:name).sort - %w[Tools]
+      end
+    end
   end
 end

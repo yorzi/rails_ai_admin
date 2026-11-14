@@ -45,6 +45,11 @@ end
 class FilterSample < ActiveRecord::Base
 end
 
+# Self-reference fixture: a category may have a parent category.
+class Category < ActiveRecord::Base
+  belongs_to :parent, class_name: "Category", optional: true
+end
+
 # Soft-delete fixture: deleting sets discarded_at.
 class Memo < ActiveRecord::Base
   validates :name, presence: true
@@ -111,6 +116,16 @@ module DatabaseHelpers
           t.date :due_on
           t.datetime :seen_at
           t.boolean :flagged, null: false, default: false
+          t.integer :lock_version, null: false, default: 0
+        end
+      end
+    end
+    unless Category.table_exists?
+      ActiveRecord::Schema.define do
+        create_table :categories do |t|
+          t.integer :account_id, null: false
+          t.string :name, null: false
+          t.references :parent
           t.integer :lock_version, null: false, default: 0
         end
       end
@@ -185,6 +200,7 @@ module DatabaseHelpers
     TestPolicy.granted_filters = []
     FilterSample.delete_all
     Memo.delete_all
+    Category.delete_all
     Payment.delete_all
     @customer = Customer.create!(account_id: 1, name: "Alice", secret: "never show")
     @other = Customer.create!(account_id: 2, name: "Other tenant")
