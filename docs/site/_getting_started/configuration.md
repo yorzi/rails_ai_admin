@@ -14,7 +14,8 @@ After reading this guide, you will know:
 
 * How to construct a fresh authenticated context.
 * How to scope records and grant actions and fields independently.
-* How to configure mounts and bounded form intents.
+* When to use the trusted-staff preset.
+* How to configure mounts, the signed-in header and sign-in redirects.
 
 ## Resolve an Authenticated Context
 
@@ -124,6 +125,13 @@ you use; each still needs the ordinary action and field grants.
 With the Pundit adapter, the same names are methods on each resource's policy
 (for example `def export_records? = user.actor.admin?`).
 
+## Use the Trusted-Staff Preset
+
+`RailsAiAdmin::Authorization::FullAccessAdapter` grants admitted actors every
+capability declared by registered resources. It applies no tenant scope or roles;
+subclass it to narrow those decisions. Assistant access remains denied. The
+installer selects it only with `--full-access`; existing policy files are preserved.
+
 ## Configure Before Boot
 
 ```ruby
@@ -180,9 +188,22 @@ routes or redirect to a guessed host sign-in page.
 
 ## Show the Signed-In User
 
-The header renders the empty partial `rails_ai_admin/shared/_session.html.erb`.
-Override it in the host (`app/views/rails_ai_admin/shared/_session.html.erb`) to
-show the current user's name and a sign-out button; `main_app` reaches host
+Configure the signed-in header in the initializer:
+
+```ruby
+config.actor_label = :email_address
+config.sign_out_path = "/session"
+config.sign_out_method = :delete
+```
+
+The label names a public actor method returning text. The sign-out route must be
+a fixed internal path; supported verbs are `:delete`, `:post` and `:get`. The
+installer writes these settings when it detects Rails authentication or Devise
+during a fresh install.
+
+To render something else, override the header partial
+`rails_ai_admin/shared/_session.html.erb` in the host
+(`app/views/rails_ai_admin/shared/_session.html.erb`); `main_app` reaches host
 routes and the admin `@context` is available. It is the `session_links` entry in
 the [Template Catalog]({% link _reference/template-catalog.md %}).
 
@@ -210,22 +231,3 @@ not provide persistent drafts, login routes or automatic write replay.
 * [Pundit and Devise]({% link _advanced/pundit-and-devise.md %}) connects explicit policies and host sessions.
 * [Host Verification]({% link _advanced/host-verification.md %}) checks your policy boundary.
 * [Operations]({% link _core_features/operations.md %}) covers intent expiry and execution-time authorization.
-
-## Trusted-Staff Preset and Header
-
-`RailsAiAdmin::Authorization::FullAccessAdapter` grants admitted actors every
-capability declared by registered resources. It applies no tenant scope or roles;
-subclass it to narrow those decisions. Assistant access remains denied. The
-installer selects it only with `--full-access`; existing policy files are preserved.
-
-Configure the optional signed-in header in the initializer:
-
-```ruby
-config.actor_label = :email_address
-config.sign_out_path = "/session"
-config.sign_out_method = :delete
-```
-
-The label names a public actor method returning text. The sign-out route must be
-a fixed internal path; supported verbs are `:delete`, `:post` and `:get`. Known
-authentication systems receive these settings during a fresh install.
