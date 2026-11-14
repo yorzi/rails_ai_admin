@@ -73,13 +73,14 @@ class SecurityRegressionsTest < ActionDispatch::IntegrationTest
   end
 
   def test_unwritable_and_framework_attributes_are_never_mass_assigned
+    unused_id = Customer.maximum(:id) + 1
     get "/backoffice/customers/#{@customer.id}/edit"
     intent = css_select("input[name=intent_ref]").first["value"]
     patch "/backoffice/customers/#{@customer.id}", params: { intent_ref: intent, record: { name: "Alice B",
-      secret: "overwritten", account_id: "2", id: "999", lock_version: "50", created_at: "2000-01-01" } }
+      secret: "overwritten", account_id: "2", id: unused_id.to_s, lock_version: "50", created_at: "2000-01-01" } }
     @customer.reload
     assert_equal [ "never show", 1, 0 ], [ @customer.secret, @customer.account_id, @customer.lock_version ]
-    refute Customer.exists?(999)
+    refute Customer.exists?(unused_id)
 
     get "/backoffice/customers/new"
     intent = css_select("input[name=intent_ref]").first["value"]
