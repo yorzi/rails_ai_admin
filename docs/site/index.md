@@ -77,7 +77,16 @@ through `lock_version` or `updated_at` and share the domain's connection pool.
 
 ## See It Running
 
-`bin/demo --assistant` serves a seeded admin on `127.0.0.1` with every feature
+![A searchable list of articles with scopes, filters, CSV export and import]({{ '/assets/images/screenshots/list.png' | relative_url }})
+
+Records are edited through typed forms. When the assistant proposes a change,
+a person reviews and confirms it in the conversation:
+
+![The edit form for an article]({{ '/assets/images/screenshots/form.png' | relative_url }})
+
+![An assistant conversation with a change to confirm or dismiss]({{ '/assets/images/screenshots/assistant.png' | relative_url }})
+
+The pictures come from the local demo. `bin/demo --assistant` serves a seeded admin on `127.0.0.1` with every feature
 turned on: uploads, rich text, imports, history, charts, search, and AI chat and
 MCP against an offline fake model. Open `http://127.0.0.1:3917/login` and click
 **Sign in as Admin**. See

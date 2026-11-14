@@ -8,6 +8,12 @@ questions about records and prepare changes for review.
 [Quickstart](https://rails-ai-admin.wangyaodi.com/quickstart/) ·
 [RubyGems](https://rubygems.org/gems/rails_ai_admin)
 
+![A searchable list of articles with scopes, filters, CSV export and import](docs/site/assets/images/screenshots/list.png)
+
+| Edit records through typed forms | Review a change the assistant proposes |
+| --- | --- |
+| ![The edit form for an article](docs/site/assets/images/screenshots/form.png) | ![An assistant conversation with a change to confirm or dismiss](docs/site/assets/images/screenshots/assistant.png) |
+
 ## What you can do
 
 - **Manage records.** Configure forms, associations, searchable lists, dashboards,
