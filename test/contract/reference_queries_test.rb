@@ -90,4 +90,20 @@ class ReferenceQueriesTest < Minitest::Test
     field = RailsAiAdmin::Field.new(:customer, type: :belongs_to, sortable: true, searchable: true)
     assert field.options[:sortable]
   end
+
+  def test_export_and_selection_ids_follow_the_reference_order
+    AssociationFixtures::Policy.class_eval { def export_records?(**) = true }
+    rows = with_association_resources(RESOURCES) do |registry|
+      result = RailsAiAdmin::Presentation::CsvExport.new(context, registry.fetch(:invoices)).call(sort: "customer")
+      result.body.lines.drop(1).map { |line| line.split(",")[1].delete("\"") }
+    end
+    assert_equal %w[I-2 I-6 I-4 I-1 I-3 I-5], rows
+    ids = with_association_resources(RESOURCES) do |registry|
+      model = Invoice
+      RailsAiAdmin::Queries::List.new(context, registry.fetch(:invoices)).relation(sort: "customer").limit(3).pluck(model.arel_table[:id])
+    end
+    assert_equal Invoice.where(number: %w[I-2 I-6 I-4]).order(:number).pluck(:id).sort, ids.sort
+  ensure
+    AssociationFixtures::Policy.class_eval { remove_method :export_records? if method_defined?(:export_records?, false) }
+  end
 end
