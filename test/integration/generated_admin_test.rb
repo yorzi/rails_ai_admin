@@ -13,6 +13,10 @@ module Generated
   end
 end
 
+class GeneratedMember < ActiveRecord::Base
+  has_secure_password
+end
+
 # The resource generator's output, registered as written and served under the
 # full-access preset: no hand-written resource or policy code.
 class GeneratedAdminTest < ActionDispatch::IntegrationTest
@@ -119,6 +123,57 @@ class GeneratedAdminTest < ActionDispatch::IntegrationTest
       assert_empty Dir[File.join(directory, "app/rails_ai_admin/**/*.rb")]
       assert_equal INITIALIZER, read(directory, "config/initializers/rails_ai_admin.rb")
     end
+  end
+
+  # has_secure_password with its validations on: a new record needs a
+  # password the resource leaves out, so the form would fail without saying why.
+  def test_a_required_password_turns_creating_off_until_the_field_is_enabled
+    ActiveRecord::Schema.define do
+      create_table :generated_members, force: true do |t|
+        t.string :email_address, null: false
+        t.string :password_digest, null: false
+        t.timestamps
+      end
+    end
+    GeneratedMember.reset_column_information
+    member = GeneratedMember.create!(email_address: "member@example.test", password: "synthetic-test-password")
+    with_initializer do |directory|
+      output = generate(directory, [ "GeneratedMember" ])
+      source = read(directory, "app/rails_ai_admin/generated_member_admin.rb")
+      assert_includes source, <<~RUBY.gsub(/^/, "  ")
+        title :email_address
+        # A new generated member needs a password, which this resource leaves out.
+        # Enable the password field below, then remove this line.
+        disable :create
+        fields do
+      RUBY
+      assert_includes source, "    # password :password\n"
+      assert_includes output, "Creating is off: GeneratedMember requires a password."
+      # Article keeps has_secure_password's validations off, so it stays creatable.
+      generate(directory, [ "Article" ])
+      refute_includes read(directory, "app/rails_ai_admin/article_admin.rb"), "disable :create"
+      # A readonly resource needs no second switch.
+      generate(directory, [ "GeneratedMember" ], [ "--readonly", "--force" ])
+      refute_includes read(directory, "app/rails_ai_admin/generated_member_admin.rb"), "disable :create"
+
+      Object.class_eval(source)
+      begin
+        with_essential_resources(resources: [ "GeneratedMemberAdmin" ], policy: "RailsAiAdmin::Authorization::FullAccessAdapter") do
+          get "/backoffice/generated_members"
+          assert_response :success
+          assert_select "a", text: "New generated member", count: 0
+          assert_select "td.raa-row-actions a", text: "Edit"
+          get "/backoffice/generated_members/new"
+          assert_response :not_found
+          get "/backoffice/generated_members/#{member.id}/edit"
+          assert_response :success
+        end
+      ensure
+        Object.send(:remove_const, :GeneratedMemberAdmin)
+      end
+    end
+  ensure
+    ActiveRecord::Base.connection.drop_table(:generated_members, if_exists: true)
   end
 
   def test_registration_keeps_existing_entries_and_is_skippable

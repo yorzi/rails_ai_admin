@@ -16,6 +16,9 @@
   schema-suggested fields, list settings, references and child panels. Sensitive
   columns and sign-in sessions are excluded from discovery; models without a
   record version remain readonly. `--readonly` and `--no-register` narrow setup.
+- Turn creating off in a generated resource whose model requires a
+  `has_secure_password` password, until the host enables the commented
+  write-only field. The form could otherwise only fail with "is invalid".
 - Link list titles, shorten row actions, compact timestamps, and collapse the
   resource menu on narrow screens.
 - Restrict automatic Devise admin-scope recognition to `admin` and `admin_user`,

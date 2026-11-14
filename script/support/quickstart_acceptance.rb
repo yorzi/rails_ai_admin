@@ -13,11 +13,20 @@ class QuickstartAcceptanceTest < ActionDispatch::IntegrationTest
     user = User.create!(email_address: "admin@example.test", password: "synthetic-test-password", admin: true)
     assert_equal %w[articles users], RailsAiAdmin.registry.resources.map { |resource| resource.key.to_s }.sort
     refute UserAdmin.fields.any? { |field| %i[admin password_digest].include?(field.name) }
+    # A user needs a password the generated resource leaves out, so creating
+    # one is off until the host enables the password field.
+    refute UserAdmin.action_enabled?(:create)
+    assert UserAdmin.action_enabled?(:update)
     get "/admin/articles"
     assert_equal "/session/new", URI.parse(response.location).path
     get "/session/new"
     post "/session", params: { authenticity_token: token, email_address: user.email_address, password: "synthetic-test-password" }
     assert_response :redirect
+    get "/admin/users"
+    assert_response :success
+    assert_select "a", text: "New user", count: 0
+    get "/admin/users/new"
+    assert_response :not_found
     get "/admin/articles/new"
     assert_response :success
     assert_select ".raa-actor", text: user.email_address

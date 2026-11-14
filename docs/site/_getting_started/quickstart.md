@@ -105,9 +105,25 @@ bin/rails server -b 127.0.0.1
 ```
 
 Check an anonymous visit, a signed-in non-admin, and your staff account. Edit a
-record and check its history. A generated User resource omits passwords; creating
-users who require a password needs an explicitly reviewed write-only password
-field. Keep resources readonly when callbacks have effects that cannot roll back.
+record and check its history. Keep resources readonly when callbacks have
+effects that cannot roll back.
+
+A generated User resource omits the password, and a new user needs one. The
+generator therefore turns creating off for that resource and leaves the field
+as a comment. To create users in the admin, enable the write-only field and
+remove the `disable :create` line in `app/rails_ai_admin/user_admin.rb`:
+
+```ruby
+class UserAdmin < RailsAiAdmin::Resource
+  # ...
+  fields do
+    # ...
+    password :password
+  end
+end
+```
+
+Admins can then set any user's password, so make that choice on purpose.
 Stop the local server when finished.
 
 The repository's `script/packaged_quickstart_smoke.rb` checks fresh Rails

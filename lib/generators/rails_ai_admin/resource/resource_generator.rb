@@ -63,6 +63,9 @@ module RailsAiAdmin
           if plan.available && !plan.versioned? && !options[:readonly]
             say "  #{plan.model_name} has no updated_at or lock_version column, so it is readonly here. Add timestamps to edit it in the admin."
           end
+          if create_disabled?(plan)
+            say "  Creating is off: #{plan.model_name} requires a #{required_passwords(plan).first}. Enable the commented password field in #{plan.target} to turn it on."
+          end
         end
         names = @registrable.map { |plan| "\"#{plan.constant}\"" }.join(", ")
         if @registered
@@ -187,6 +190,20 @@ module RailsAiAdmin
         end
       end
 
+      # Passwords the model insists on when a record is created:
+      # has_secure_password with its validations on. Its confirmation
+      # validator is what tells that apart from `validations: false`.
+      def required_passwords(plan)
+        return [] unless plan.model.respond_to?(:validators_on)
+        Array(plan.hints).select do |name|
+          plan.model.validators_on(name).any?(ActiveModel::Validations::ConfirmationValidator)
+        end
+      end
+
+      # Creating is switched off while a required password stays a comment:
+      # the form could only fail, without being able to say why.
+      def create_disabled?(plan) = !readonly?(plan) && required_passwords(plan).any?
+
       def association_model(model, name)
         model&.reflect_on_association(name.to_sym)&.klass&.name
       rescue NameError, ArgumentError
@@ -278,6 +295,12 @@ module RailsAiAdmin
           lines << "  # notice an edit made in between. Add timestamps, then remove this line."
         end
         lines << "  readonly" if readonly?(plan)
+        if create_disabled?(plan)
+          name = required_passwords(plan).first
+          lines << "  # A new #{plan.model_name.demodulize.underscore.humanize.downcase} needs a #{name.humanize.downcase}, which this resource leaves out."
+          lines << "  # Enable the #{name} field below, then remove this line."
+          lines << "  disable :create"
+        end
         lines.push("  fields do", *body, "  end")
         lines.concat(index_lines(plan))
         lines.concat(plan.panels.map { |panel| "  #{panel}" })
