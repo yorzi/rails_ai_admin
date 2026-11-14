@@ -1,8 +1,8 @@
 # Releasing
 
 The owner authorized publication of the 0.3.0 Public Preview on 2026-11-14.
-The release commit opens `allowed_push_host`. Future development builds must
-close it again.
+The release commit opens `allowed_push_host`. Development continues as
+`0.3.1.dev` with publishing blocked.
 
 ## Candidate checks
 

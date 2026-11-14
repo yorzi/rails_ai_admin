@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+No changes yet.
+
 ## 0.3.0 (2026-11-14)
 
 Everyday list work. Requires the new saved views migration
