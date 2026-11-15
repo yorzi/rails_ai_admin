@@ -33,9 +33,6 @@
           <%= form.submit t("rails_ai_admin.assistant.send"), data: { turbo_submits_with: t("rails_ai_admin.assistant.sending") } %>
         </div>
         <p class="raa-chat-shortcut" hidden data-raa-conversation-target="shortcut"><%= t("rails_ai_admin.assistant.shortcut") %></p>
-        <% if @spend %>
-          <p class="raa-chat-budget<%= " raa-chat-budget-reached" if @spend.exceeded? %>" id="raa-chat-budget"><%= assistant_spend_text(@spend) %></p>
-        <% end %>
       <% end %>
     </footer>
   <% else %>

@@ -49,4 +49,8 @@
       <% if @retryable %><%= button_to t("rails_ai_admin.assistant.try_again"), retry_assistant_conversation_path(chat_ref: @chat.ref), method: :post, class: "raa-secondary", form: { data: { turbo_frame: "_top" } } %><% end %>
     </div>
   <% end %>
+  <%# Inside the frame, so it refreshes with each reply. %>
+  <% if @spend %>
+    <p class="raa-chat-budget<%= " raa-chat-budget-reached" if @spend.exceeded? %>" id="raa-chat-budget"><%= assistant_spend_text(@spend) %></p>
+  <% end %>
 <% end %>

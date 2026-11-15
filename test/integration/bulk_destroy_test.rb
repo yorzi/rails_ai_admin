@@ -32,6 +32,8 @@ class BulkDestroyIntegrationTest < ActionDispatch::IntegrationTest
       get "#{path}/destroy"
       assert_response :success
       assert_select "h1", text: "Delete selected records"
+      # Turbo drops a 200 response to a form post; the partial-failure page is one.
+      assert_select "form[action='#{path}/destroy'][data-turbo=false]"
       assert_select "li", text: "First"
       assert_select "li", text: "Second"
       digest = css_select("input[name=manifest_digest]").first["value"]

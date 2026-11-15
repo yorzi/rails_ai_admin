@@ -251,6 +251,7 @@
 .raa .raa-chat-bulk > div { padding:.9rem 1rem; border:1px solid var(--raa-line); border-radius:var(--raa-radius); background:var(--raa-subtle); }
 .raa .raa-chat-bulk h2 { margin-top:0; font-size:1rem; }
 .raa .raa-muted { color:var(--raa-muted); }
+.raa .raa-bulk-review th[scope=row] { text-align:left; }
 .raa .raa-chat-role { display:block; color:var(--raa-muted); font-size:.8rem; font-weight:700; margin-bottom:.25rem; }
 .raa .raa-chat-text { white-space:pre-wrap; }
 .raa .raa-chat-activity { color:var(--raa-muted); font-size:.85rem; }

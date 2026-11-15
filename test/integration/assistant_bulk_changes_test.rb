@@ -110,6 +110,7 @@ class AssistantBulkChangesIntegrationTest < ActionDispatch::IntegrationTest
       assert_select "h1", text: "Review a change to Changeable customers"
       assert_select "tbody tr", count: 2
       assert_select "tbody tr", text: /Bob\s+4 → 0/
+      assert_select "form[action$='/bulk_change'][data-turbo=false]", 1, "the 200 result page must not be dropped by Turbo"
       assert_equal [ runs, audits ], [ RailsAiAdmin::OperationRun.count, RailsAiAdmin::AuditEvent.count ], "showing the review writes nothing"
 
       decide("confirm")

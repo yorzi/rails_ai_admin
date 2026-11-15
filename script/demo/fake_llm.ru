@@ -47,6 +47,7 @@ end
 def demo_review_reply(text)
   case text
   when /Nothing was changed\.\z/ then "The review was dismissed. No changes were made."
+  when /(\d+) of (\d+) records were updated\./ then "#{Regexp.last_match(1)} of #{Regexp.last_match(2)} records were updated. Open the list to see them."
   when /The change was applied\.\z/, /The record was created with id [^\n]+\.\z/
     "The confirmed change was applied. The review card shows the outcome."
   else "The review finished. Check the card for the outcome."

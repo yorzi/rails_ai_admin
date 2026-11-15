@@ -44,6 +44,10 @@ class AssistantBudgetIntegrationTest < ActionDispatch::IntegrationTest
       assert_select ".raa-chat-budget:not(.raa-chat-budget-reached)",
         text: "Assistant use in the last 24 hours: 1,500 of 2,000 tokens · US$0.0123 of US$1.00. " \
           "The cost of 1 request is not known, so the real cost can be higher."
+      # The polled transcript frame carries it, so it updates after each reply.
+      get "/backoffice/assistant/conversations/#{chat.ref}", headers: { "Turbo-Frame" => "raa_assistant_transcript" }
+      assert_select "turbo-frame#raa_assistant_transcript .raa-chat-budget", text: /1,500 of 2,000 tokens/
+      get "/backoffice/assistant/conversations/#{chat.ref}"
 
       spend!(chat, cost: BigDecimal("1.5"), tokens: 10)
       key = css_select("input[name=admission_key]").first["value"]

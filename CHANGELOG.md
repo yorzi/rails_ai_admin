@@ -51,6 +51,14 @@
   limit now opens the new conversation with the question kept and the reason
   shown, instead of an access error.
 
+### Fixed
+
+- The bulk delete review form now submits without Turbo. When some selected
+  records could not be deleted, its result page (a 200 response) was dropped by
+  Turbo, so the person saw the review again instead of what was not deleted. A
+  host that copied the `selection_destroy` template should add
+  `data: { turbo: false }` to its form.
+
 ### Evidence
 
 - Add recorded real-provider tests: seven conversations with real models
