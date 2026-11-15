@@ -122,6 +122,10 @@ module RecordedProviderHelpers
   def with_recorded_assistant(model: RecordedProvider::PRIMARY, &block)
     skip "set OPENROUTER_API_KEY to record" if RecordedProvider::RECORD && ENV["OPENROUTER_API_KEY"].blank?
     RubyLLM::ActiveRecord::Model.find_or_create_by!(model_id: model, provider: "openrouter") { |row| row.name = model }
+    # RubyLLM caches its registry per process and reads the ruby_llm_models
+    # table instead of its bundled list once the table has rows; a fresh
+    # database (as on CI) gains this row only now.
+    RubyLLM.models.load_from_store if RubyLLM.config.model_registry_store
     with_assistant(resources: AssistantEval::RESOURCES, policy: "AssistantEval::Policy", adapter: "RecordedProvider::Assistant", model: model) do
       config = RailsAiAdmin.configuration
       config.assistant_provider = "openrouter"
