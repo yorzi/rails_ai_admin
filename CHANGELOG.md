@@ -2,7 +2,19 @@
 
 ## Unreleased
 
-No changes yet.
+### Assistant
+
+- Add assistant spending limits per person and tenant over any 24 hours:
+  `config.assistant_daily_token_limit` (every token bucket together) and
+  `config.assistant_daily_cost_limit` (US dollars), both read from RubyLLM's
+  usage ledger and unset by default. A message over a limit is refused before
+  any provider call with its text kept, a running turn stops before its next
+  provider request (`BUDGET_EXCEEDED`), and a continuation after a confirmed
+  review is still admitted but stops the same way. The conversation page shows
+  the use so far, and says when some requests have no known cost.
+- A question asked from a record or list page over the message or spending
+  limit now opens the new conversation with the question kept and the reason
+  shown, instead of an access error.
 
 ## 0.3.0 (2026-11-14)
 

@@ -32,6 +32,14 @@ module RailsAiAdmin
       # Messages one actor may send the assistant in any 24 hours; nil removes
       # the limit. Each message can cost several provider calls.
       :assistant_daily_message_limit,
+      # Spend per actor and tenant in any 24 hours, from RubyLLM's usage
+      # ledger: every token bucket together, and the known cost in US dollars.
+      # nil (the default) sets no limit.
+      :assistant_daily_token_limit, :assistant_daily_cost_limit,
+      # How long a conversation is kept after its last message; nil (the
+      # default) keeps conversations until a person archives them and the host
+      # deletes them. rails_ai_admin:assistant:prune applies it.
+      :assistant_retention,
       # Stream replies into the transcript (true by default); turn off for a
       # provider endpoint that cannot stream.
       :assistant_streaming,
@@ -77,6 +85,9 @@ module RailsAiAdmin
       @assistant_provider = nil
       @assistant_protocol = nil
       @assistant_daily_message_limit = 100
+      @assistant_daily_token_limit = nil
+      @assistant_daily_cost_limit = nil
+      @assistant_retention = nil
       @assistant_streaming = true
       @export_limit = 10_000
       @import_limit = 500
@@ -166,6 +177,11 @@ module RailsAiAdmin
 
     private
 
+    def cost_limit?(value)
+      (value.is_a?(Integer) || value.is_a?(BigDecimal) || value.is_a?(Rational) || value.is_a?(Float) && value.finite?) &&
+        value.positive? && value <= 1_000_000
+    end
+
     PROVIDER_NAME = /\A[a-z][a-z0-9_]{0,39}\z/
 
     def validate_assistant!
@@ -185,6 +201,16 @@ module RailsAiAdmin
       end
       unless assistant_daily_message_limit.nil? || assistant_daily_message_limit.is_a?(Integer) && assistant_daily_message_limit.between?(1, 100_000)
         raise ConfigurationError, "assistant_daily_message_limit must be nil or a whole number from 1 to 100000"
+      end
+      unless assistant_daily_token_limit.nil? || assistant_daily_token_limit.is_a?(Integer) && assistant_daily_token_limit.between?(1, 10_000_000_000)
+        raise ConfigurationError, "assistant_daily_token_limit must be nil or a whole number from 1 to 10000000000"
+      end
+      unless assistant_daily_cost_limit.nil? || cost_limit?(assistant_daily_cost_limit)
+        raise ConfigurationError, "assistant_daily_cost_limit must be nil or an amount in US dollars above 0 and up to 1000000"
+      end
+      self.assistant_daily_cost_limit = BigDecimal(assistant_daily_cost_limit.to_s).freeze unless assistant_daily_cost_limit.nil?
+      unless assistant_retention.nil? || assistant_retention.is_a?(ActiveSupport::Duration) && assistant_retention.between?(1.day, 3660.days)
+        raise ConfigurationError, "assistant_retention must be nil or a duration from 1 day to 10 years, such as 90.days"
       end
       [ assistant_provider, assistant_protocol ].each do |value|
         raise ConfigurationError, "assistant_provider and assistant_protocol must be short lowercase names" unless value.nil? || value.is_a?(String) && value.match?(PROVIDER_NAME)

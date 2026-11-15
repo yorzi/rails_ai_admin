@@ -561,6 +561,16 @@ en:
       try_again: Try again
       retrying: Retrying (%{attempt} of %{attempts})…
       invalid_message: Write a message of up to %{count} characters.
+      budget_exceeded: >-
+        You have reached this administration's assistant spending limit for the last 24 hours. Your message
+        was not sent; try again later.
+      spend:
+        used: "Assistant use in the last 24 hours: %{amounts}."
+        tokens: "%{used} of %{limit} tokens"
+        cost: "%{used} of %{limit}"
+        unpriced:
+          one: The cost of 1 request is not known, so the real cost can be higher.
+          other: The cost of %{count} requests is not known, so the real cost can be higher.
       rate_limited:
         one: >-
           You have sent %{count} message to the assistant in the last 24 hours, which is this administration's
@@ -576,6 +586,8 @@ en:
         assistant_failed: The assistant could not finish. Your message is saved; try again.
         attempts_exhausted: The assistant stopped after several attempts. Your message is saved; try again.
         step_limit: The assistant stopped before finishing this request. Try a narrower question.
+        budget_exceeded: The assistant stopped because you reached the assistant spending limit for the
+          last 24 hours. Try again later.
         authorization_revoked: Your access changed, so this request was not answered.
         not_allowed: No resources are available to the assistant for your account.
         cancelled: Stopped.

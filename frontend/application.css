@@ -275,6 +275,8 @@
 .raa .raa-chat-input input[type="submit"] { flex:none; max-inline-size:45%; white-space:normal; }
 .raa .raa-conversation-composer > p { margin:0; }
 .raa .raa-chat-shortcut { font-size:.75rem; color:var(--raa-muted); }
+.raa .raa-chat-budget { font-size:.75rem; color:var(--raa-muted); margin:.25rem 0 0; }
+.raa .raa-chat-budget-reached { color:var(--raa-danger); font-weight:600; }
 .raa .raa-chat-latest { position:absolute; inset-block-end:calc(100% + .55rem); inset-inline-end:clamp(.8rem,3vw,2rem); box-shadow:var(--raa-shadow); }
 .raa .raa-conversation-closed { padding:0 1.25rem 1.25rem; }
 .raa .raa-conversation:has(.raa-conversation-closed) { block-size:auto; }

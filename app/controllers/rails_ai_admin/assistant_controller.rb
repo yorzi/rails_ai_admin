@@ -14,6 +14,7 @@ module RailsAiAdmin
       "ATTEMPTS_EXHAUSTED" => "The assistant stopped after several attempts. Your message is saved; try again.",
       "STEP_LIMIT" => "The assistant stopped before finishing this request. Try a narrower question.",
       "AUTHORIZATION_REVOKED" => "Your access changed, so this request was not answered.",
+      "BUDGET_EXCEEDED" => "The assistant stopped because you reached today's assistant spending limit. Try again later.",
       "NOT_ALLOWED" => "No resources are available to the assistant for your account.",
       "CANCELLED" => "Stopped."
     }.freeze
@@ -31,12 +32,18 @@ module RailsAiAdmin
     def create
       question = params[:content]
       raise AccessDenied, "INVALID_QUERY" unless question.nil? || question.is_a?(String)
-      chat = Assistant.create_chat!(@context)
+      @chat = Assistant.create_chat!(@context)
       if question.present?
         content = [ page_context_line, question.strip ].compact.join("\n\n").first(Assistant::Coordinator::MAX_CONTENT)
-        Assistant::Coordinator.admit!(chat, kind: "message", content: content, admission_key: "message:#{SecureRandom.uuid}")
+        begin
+          Assistant::Coordinator.admit!(@chat, kind: "message", content: content, admission_key: "message:#{SecureRandom.uuid}")
+        rescue AccessDenied => error
+          raise unless REFUSALS.include?(error.code)
+          # The new, empty conversation keeps the question for a later try.
+          return refuse_message(error.code, question)
+        end
       end
-      redirect_to assistant_conversation_path(chat_ref: chat.ref), status: :see_other
+      redirect_to assistant_conversation_path(chat_ref: @chat.ref), status: :see_other
     rescue ::RubyLLM::ModelNotFoundError, ::RubyLLM::ModelRegistryError
       admin_status(:unavailable)
     end
@@ -56,16 +63,8 @@ module RailsAiAdmin
       Assistant::Coordinator.admit!(@chat, kind: "message", content: params[:content], admission_key: params[:admission_key])
       redirect_to assistant_conversation_path(chat_ref: @chat.ref), status: :see_other
     rescue AccessDenied => error
-      raise unless %w[INVALID_QUERY RATE_LIMITED].include?(error.code)
-      prepare_transcript
-      @admission_key = params[:admission_key].is_a?(String) && params[:admission_key].match?(Assistant::Coordinator::ADMISSION_KEY) ? params[:admission_key] : "message:#{SecureRandom.uuid}"
-      @draft = params[:content].is_a?(String) ? params[:content].first(Assistant::Coordinator::MAX_CONTENT + 1) : ""
-      if error.code == "RATE_LIMITED"
-        @message_error = t("rails_ai_admin.assistant.rate_limited", count: RailsAiAdmin.configuration.assistant_daily_message_limit)
-        return render :show, status: :too_many_requests
-      end
-      @message_error = t("rails_ai_admin.assistant.invalid_message", count: Assistant::Coordinator::MAX_CONTENT)
-      render :show, status: :unprocessable_content
+      raise unless error.code == "INVALID_QUERY" || REFUSALS.include?(error.code)
+      refuse_message(error.code, params[:content])
     end
 
     # Stops waiting turns now and asks a running one to stop at its next
@@ -99,6 +98,26 @@ module RailsAiAdmin
     end
 
     private
+
+    # Admission refusals shown on the conversation page with the text kept.
+    REFUSALS = %w[RATE_LIMITED BUDGET_EXCEEDED].freeze
+
+    def refuse_message(code, content)
+      prepare_transcript
+      @admission_key = params[:admission_key].is_a?(String) && params[:admission_key].match?(Assistant::Coordinator::ADMISSION_KEY) ? params[:admission_key] : "message:#{SecureRandom.uuid}"
+      @draft = content.is_a?(String) ? content.first(Assistant::Coordinator::MAX_CONTENT + 1) : ""
+      case code
+      when "RATE_LIMITED"
+        @message_error = t("rails_ai_admin.assistant.rate_limited", count: RailsAiAdmin.configuration.assistant_daily_message_limit)
+        render :show, status: :too_many_requests
+      when "BUDGET_EXCEEDED"
+        @message_error = t("rails_ai_admin.assistant.budget_exceeded")
+        render :show, status: :too_many_requests
+      else
+        @message_error = t("rails_ai_admin.assistant.invalid_message", count: Assistant::Coordinator::MAX_CONTENT)
+        render :show, status: :unprocessable_content
+      end
+    end
 
     # Names the page only when the actor may show it to the assistant now. The
     # line is data for the model and grants nothing; tools check again.
@@ -159,6 +178,7 @@ module RailsAiAdmin
       @failure_message = code && t(code.downcase, scope: %i[rails_ai_admin assistant failures], default: FAILURES.fetch(code))
       @retryable = @current && @failure&.status == "failed" && RETRYABLE.include?(@failure.error_code)
       @surface_scope = Integrations::ToolViews.scope_for(@context) if RailsAiAdmin.configuration.surfaces
+      @spend = Assistant::Budget.spend(actor_ref: @chat.actor_ref, tenant_ref: @chat.tenant_ref) if @current && Assistant::Budget.limited?
     end
   end
 end

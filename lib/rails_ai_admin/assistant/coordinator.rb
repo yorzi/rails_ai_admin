@@ -31,6 +31,7 @@ module RailsAiAdmin
       DRAFT_LIMIT = 16_000
       Fenced = Class.new(StandardError)
       StepLimit = Class.new(StandardError)
+      BudgetExceeded = Class.new(StandardError)
 
       # Only the worker's admin messages are guarded. Product chat models and
       # actual provider usage accounting retain their own persistence rules.
@@ -79,6 +80,9 @@ module RailsAiAdmin
           existing = Turn.find_by(chat_id: locked.id, admission_key: admission_key)
           next existing if existing && existing.admission_key == admission_key
           raise AccessDenied, "RATE_LIMITED" if kind == "message" && over_daily_limit?(locked)
+          # A continuation is admitted inside the human's confirmation and must
+          # never fail it; its turn stops before the provider call instead.
+          raise AccessDenied, "BUDGET_EXCEEDED" if kind == "message" && Budget.exceeded?(locked)
           sequence = Turn.where(chat_id: locked.id).maximum(:sequence).to_i + 1
           created = Turn.create!(id: SecureRandom.uuid, chat_id: locked.id, sequence: sequence, kind: kind,
             admission_key: admission_key, content: text, status: "queued")
@@ -89,8 +93,8 @@ module RailsAiAdmin
         turn
       end
 
-      # The smallest spend control (roadmap "budgets"): human messages per
-      # actor and tenant in a rolling 24 hours. Continuations are not counted.
+      # Human messages per actor and tenant in a rolling 24 hours, beside the
+      # token and cost limits in Budget. Continuations are not counted.
       def self.over_daily_limit?(chat)
         limit = RailsAiAdmin.configuration.assistant_daily_message_limit
         return false if limit.nil?
@@ -167,15 +171,20 @@ module RailsAiAdmin
           admit_message!(claim, chat, turn)
           Runtime.configure(chat, session, llm)
           steps = 0
+          last = nil
           ::RubyLLM.with_owner(chat) do
             loop do
               renew!(claim)
               break if chat.complete?
               raise ConfigurationError, "Assistant tools must not wait for approval" if chat.waiting?
               raise StepLimit if (steps += 1) > MAX_STEPS
+              # A step after a tool-call response runs those tools and calls no
+              # provider, so the round always finishes; only a request stops.
+              tools_pending = last.respond_to?(:tool_call?) && last.tool_call?
+              raise BudgetExceeded if !tools_pending && Budget.exceeded?(chat)
               stream = DraftStream.new(self, claim)
               begin
-                if RailsAiAdmin.configuration.assistant_streaming
+                last = if RailsAiAdmin.configuration.assistant_streaming
                   chat.step { |chunk| stream << chunk.content }
                 else
                   chat.step
@@ -191,6 +200,8 @@ module RailsAiAdmin
         nil
       rescue StepLimit
         finish(claim, "failed", "STEP_LIMIT")
+      rescue BudgetExceeded
+        finish(claim, "failed", "BUDGET_EXCEEDED")
       rescue ::RubyLLM::CancelledError
         finish(claim, "cancelled", "CANCELLED")
       rescue ::RubyLLM::ConfigurationError, ::RubyLLM::ModelNotFoundError, ::RubyLLM::UnauthorizedError,
