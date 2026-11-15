@@ -15,7 +15,10 @@ After reading this guide, you will know:
 * How to install and enable admin Chat without touching your product's RubyLLM setup.
 * Which grants expose resources to the model and which checks still apply.
 * How a proposed change reaches the database exactly once.
-* How to let it propose creates, updates and deletes, and ask about a page.
+* How to let it propose creates, updates and deletes, one change for many
+  records, and ask about a page.
+* How it calculates totals, and how to limit its spending and keep
+  conversations only as long as you need.
 * How it compares with other Rails admins' AI features.
 * How turns recover after a crash, and what still needs real-provider checks.
 
@@ -106,6 +109,68 @@ confirmed review are not counted. Change or remove the limit deliberately:
 config.assistant_daily_message_limit = 300  # or nil for no limit
 ```
 
+## Limit Spending
+
+A message can cost several provider requests. Two optional limits cap what each
+person spends in any 24 hours, per tenant, using RubyLLM's usage ledger
+(`ruby_llm_usages`): every provider attempt of that person's admin
+conversations, including retries and failed requests.
+
+```ruby
+config.assistant_daily_token_limit = 500_000  # every token bucket together
+config.assistant_daily_cost_limit = 1.00      # US dollars
+```
+
+Both are unset by default. When a limit is reached:
+
+* A new message is refused before any provider call, with its text kept in the
+  box and the reason shown.
+* A running turn stops before its next provider request and reports that the
+  spending limit was reached. Tools the model already asked for still run, so
+  the request that crosses a limit finishes; a turn can therefore end a little
+  above it.
+* A continuation after a confirmed review is still admitted, because the
+  confirmation must never fail, but it stops the same way before calling the
+  provider.
+
+The token limit counts input, output, cache-read, cache-write and thinking
+tokens. That matters: OpenRouter reports most of a repeated prompt as cached
+tokens, so counting plain input tokens would see a small fraction of the use.
+The cost limit uses the cost the provider reported, or RubyLLM's model pricing.
+A request whose cost neither knows is counted as zero, and the conversation page
+says how many such requests there were; set a token limit as well when your
+model has no known pricing.
+
+The conversation page shows the use so far whenever a limit is set, for
+example "Assistant use in the last 24 hours: 1,500 of 500,000 tokens ·
+US$0.0123 of US$1.00."
+
+## Keep Conversations Only As Long As Needed
+
+Conversations are kept until someone deletes them unless you set a retention
+period, then schedule the prune task daily:
+
+```ruby
+config.assistant_retention = 90.days  # from 1 day to 10 years
+```
+
+```sh
+bin/rails rails_ai_admin:assistant:prune
+```
+
+It deletes conversations that had no new message for that long, with their
+turns, messages, tool calls, queued messages and chat files. It keeps:
+
+* RubyLLM's usage rows, without the chat and message ids, as the record of what
+  was spent;
+* conversations with a queued or running turn, and conversations with usage
+  inside the 24-hour budget window, so today's spending stays counted;
+* review Surfaces, which belong to rails_tool_views: use its own
+  `RailsToolViews.purge_closed` lifecycle for them.
+
+`bin/rails rails_ai_admin:doctor` reports the message, token and cost limits
+and the retention in effect.
+
 Assistant turns run in Active Job on the `rails_ai_admin` queue (see
 `config.queue_name`). A retryable failure schedules its own delayed retry, so a
 host without a scheduler still retries. Use a persistent queue and schedule
@@ -147,10 +212,12 @@ not open. Another tenant's record and a missing record return the same
 | `describe_resource` | Readable fields, searchable fields with their match mode (`prefix`, `contains`, `exact`), filterable and sortable fields, granted list scopes, and member operations that can be proposed |
 | `search_records` | Up to 20 records through the shared list query, independent of the native page size. It searches every record the actor may see unless the model passes a granted `scope`; a resource's default list tab never applies silently. Accepts `sort` and `direction`. Every result reports `applied_scope`, `applied_sort` and how many records were `omitted` because their `show` check failed. When `has_more` is true, pass `next_offset` as `offset`, including after byte truncation. At 1,000 records, `limit_reached` asks for a narrower query |
 | `count_records` | The number of records matching the same query, filters and scope, capped like the index count (`capped: true` above it) |
+| `aggregate_records` | A count, sum, average, minimum or maximum over the same query, filters and scope, optionally grouped by a category field (see [Calculate Totals](#calculate-totals)) |
 | `get_record` | One record's readable fields |
 | `record_history` | The latest 20 audited changes to one record: time, change, field labels under current grants, who and through what. Needs the `view_history?` grant; values are never returned because they are never recorded |
 | `propose_change` | A review Surface for a native create, update or delete, when the resource declares it with `assistant_changes` (only with `config.surfaces`) |
 | `propose_operation` | A review Surface for one declared member operation (only with `config.surfaces`) |
+| `propose_bulk_change` | One review that sets the same values on up to 100 records, when a resource declares `bulk_update` (see [Change Many Records in One Review](#change-many-records-in-one-review)) |
 
 Field values are typed JSON: null is `null`, booleans and integers keep their
 JSON types, decimals are exact strings padded to their scale, dates and times
@@ -159,10 +226,86 @@ reference is `{id, label, resource}`, with `resource: null` when the actor
 cannot open the target. A registered field type is sent as its formatted text,
 because its formatter may redact. Files are sent as name, type and size, rich
 text as plain text, and a `references` list as `{id, label, resource}` items.
-Passwords never reach a tool result. The instructions carry `PROMPT_VERSION` 3.
+Passwords never reach a tool result. The instructions carry `PROMPT_VERSION` 4.
 
 Results are bounded JSON (16 KB). Errors carry only a fixed code such as
-`NOT_FOUND`, `INVALID_QUERY` or `CONFLICT`, never a stack trace or SQL.
+`NOT_FOUND`, `INVALID_QUERY`, `CONFLICT`, `TOO_MANY` or `LIMIT_REACHED`, never a
+stack trace or SQL.
+
+## Calculate Totals
+
+Fields opt in to aggregates:
+
+```ruby
+fields do
+  integer :points, aggregatable: true
+  decimal :total, aggregatable: true
+  date :delivery_on, aggregatable: true   # minimum and maximum only
+  select :state, choices: STATES, filterable: [ :in ]
+end
+```
+
+`aggregate_records` then answers questions such as "What is the total of all
+draft orders?" or "How many points do active and inactive customers hold?":
+
+* `sum` and `average` take integer and decimal fields; `minimum` and `maximum`
+  also take date and datetime fields; `count` takes none. Computed fields and
+  registered field types cannot be aggregatable, because a registered type's
+  formatter may deliberately redact what a raw sum would reveal.
+* The field still needs the person's read grant. Declare `aggregatable` only on
+  fields whose read grant does not depend on the record, since an aggregate
+  reads the resource-level grant.
+* `group_by` takes a boolean, enum, select or `belongs_to` field the person may
+  filter by: filtering by each value would show the same counts. At most 25
+  groups are returned, largest first, with `groups_truncated` when there are
+  more. A reference group is labelled through the target's own grants.
+* It covers the same records as `count_records`: the policy relation, the
+  optional search, filters and granted scope. It runs over the relation's
+  primary keys, so a join in a policy scope cannot count a record twice.
+* Decimal results are exact strings rounded to the field's scale; an average
+  has two more places. `describe_resource` lists the aggregatable fields with
+  their functions and the `group_by` fields.
+
+## Change Many Records in One Review
+
+A request such as "set the points of every inactive customer to 5" should be one
+review, not twelve. A resource opts in on top of single updates:
+
+```ruby
+assistant_changes :update, :bulk_update
+```
+
+The person also needs your policy's `select_records?` grant, as for the list's
+own bulk actions. `describe_resource` then lists `bulk_update` with the writable
+fields and `max_records: 100`. When the model calls `propose_bulk_change` with
+the values and either record ids or the same query, filters and scope as
+`search_records`:
+
+1. The admin captures a fixed selection of the matching records (more than 100
+   is refused with `TOO_MANY`), checks each one with the native update's pure
+   preview (scope, update grant, version, every value) and writes nothing else.
+2. The conversation shows one card, "A change to 4 records in Customers", that
+   opens the review page. MCP clients receive a `review_url` instead.
+3. The review page writes nothing. It lists every record with each field's
+   before → after under the person's current read grants, and the records that
+   will be skipped, with the reason.
+4. **Update N records** updates each record as the person through the native
+   update operation, each in its own transaction with a version check and an
+   audit event with origin `assistant`. A record that fails does not stop the
+   others. If any selected record changed after the proposal, the whole review
+   is out of date and nothing is written. **Dismiss** changes nothing.
+5. Either way, the conversation hears the outcome once, for example "4 of 4
+   records were updated."
+
+The proposed values travel to the review page in a token encrypted with your
+application's `secret_key_base` that expires with the selection
+(`config.intent_ttl`). They never appear in a URL or a log as text, and the
+token grants nothing: another person's, an altered or an expired token is
+`NOT_FOUND`.
+
+One reply can also prepare at most three single-record reviews. Further
+`propose_change` or `propose_operation` calls in the same reply return
+`LIMIT_REACHED`, so a model cannot queue a review for every record.
 
 ## Follow a Proposal
 
@@ -294,12 +437,17 @@ or a provider, so it cannot prove that credentials work.
 
 ## Current Limits
 
-The assistant has been verified with RubyLLM's real OpenAI provider and tool
-loop against offline fixtures, in the engine suite and in a packaged
-Devise/Pundit/PostgreSQL host with a browser check. The same host has run the
-full flow once each against OpenAI, Anthropic and Google models through
-RubyLLM's OpenRouter provider. Native OpenAI and Anthropic APIs, provider
-failures against a live service and repeated runs are not verified yet.
+The engine suite replays real conversations recorded on 2026-11-15 through
+RubyLLM's OpenRouter provider: totals with real usage and cost feeding the
+budget, another tenant's record and injected instructions staying out, one bulk
+review, and a reviewed update with `openai/gpt-6-luna`,
+`anthropic/claude-haiku-5.5` and `google/gemini-3.8-flash`. The recorded
+evaluation run of `openai/gpt-6-luna` passes all 27 questions. On every replay
+the admin's tools, grants, usage accounting and review flows run for real; only
+the models' replies come from the recording, so a replay shows that this
+engine still handles those replies correctly, not that a model answers the same
+way today. Native OpenAI and Anthropic APIs, provider failures against a live
+service and repeated live runs are not verified yet.
 
 `search_records` matches its query as one contiguous phrase with each field's
 match mode, like the index search box: a live model that searched for
@@ -307,10 +455,9 @@ match mode, like the index search box: a live model that searched for
 `describe_resource` now tells the model each field's mode. Some models also answer in Markdown,
 which the transcript shows as literal characters.
 
-Cost budgets beyond the message limit, selection context, proposals that change
-several records at once, undo, aggregates other than counting, host-overridable
-instructions and chat retention are not available yet. Streaming is saved and
-polled, not pushed over WebSockets.
+Selection context, undo of a confirmed change, bulk changes over more than 100
+records, host-overridable instructions and grouping by date periods are not
+available yet. Streaming is saved and polled, not pushed over WebSockets.
 
 ## How It Compares
 
@@ -330,9 +477,9 @@ streaming and an MCP server, which this engine has too). What this engine does d
 | Provider credentials | Built per admin Context; your global RubyLLM settings are never read or changed | Global configuration |
 | Database | SQLite and PostgreSQL | Often PostgreSQL only |
 | Outside agents | An MCP server under revocable personal tokens, with the same grants and reviewed writes | Separate integration or none |
-| Evidence | A 23-question evaluation set replayed offline in the test suite, with prompt-injection and cross-tenant cases | Rarely published |
+| Evidence | Real OpenRouter conversations with OpenAI, Anthropic and Google models, recorded and replayed in the test suite, and a 27-question evaluation set with prompt-injection and cross-tenant cases | Rarely published |
 
-If you need bulk AI edits, AI imports or undo today, an add-on such as Avo's
-covers more ground; if you need every AI-suggested change to be a reviewed,
-audited, version-checked write under your existing policies, this engine is built
-for that.
+If you need AI imports or undo today, an add-on such as Avo's covers more
+ground; if you need every AI-suggested change, including one across many
+records, to be a reviewed, audited, version-checked write under your existing
+policies, this engine is built for that.

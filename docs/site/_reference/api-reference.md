@@ -38,6 +38,8 @@ The [RDoc reference]({{ '/api/' | relative_url }}) opens on `RailsAiAdmin` and h
 | Recover admitted collection items | `Collections::Dispatcher` |
 | Read current collection job receipts | `Collections::Queries` |
 | Opt in to admin Chat or MCP | `config.assistant`, `config.mcp`, `Resource.assistant_changes` |
+| Limit and prune assistant use | `config.assistant_daily_token_limit`, `config.assistant_daily_cost_limit`, `config.assistant_retention`, `Assistant::Budget`, `Assistant::Retention` |
+| Review an assistant bulk change | `Operations::BulkChange`, `Field#aggregatable?` |
 | Verify host boundaries | `TestKit`, `Doctor` |
 
 Use [Configuration]({% link _getting_started/configuration.md %}) and

@@ -1,7 +1,8 @@
 ---
 layout: default
 title: What's New in 0.3
-nav_order: 6
+parent: Release History
+nav_order: 3
 description: Find and act on records faster with richer filters, reference sorting, saved views, one-step bulk actions, soft delete and child editing from the parent page.
 ---
 

@@ -1,6 +1,6 @@
 # Roadmap
 
-Rails AI Admin is a Public Preview. 0.3.0 was released on 2026-11-14. See [CHANGELOG.md](CHANGELOG.md) for changes and
+Rails AI Admin is a Public Preview. 0.3.0 was released on 2026-11-14; 0.4.0 is in development. See [CHANGELOG.md](CHANGELOG.md) for changes and
 [COMPATIBILITY.md](COMPATIBILITY.md) for version-specific validation evidence.
 
 ## 0.2.0: simpler setup (released)
@@ -28,6 +28,19 @@ read-only demo is a future task, not part of this release's claim.
 - Editing children from the parent page, returning there after saving.
 - A doctor summary line and a problems-only mode.
 
+## 0.4.0: AI that earns the name (in development)
+
+- Per-person token and cost limits over any 24 hours, from RubyLLM's usage
+  ledger, shown on the conversation page.
+- Conversation retention with a prune task that keeps the spending record.
+- Totals, averages, extremes and per-group results under field grants.
+- One reviewed change across up to 100 records, applied record by record as the
+  person; at most three single reviews per reply.
+- Real conversations with OpenAI, Anthropic and Google models through
+  OpenRouter, recorded and replayed in the test suite, and a 27-question
+  evaluation set recorded the same way.
+- `bin/demo --openrouter` for the demo on real models.
+
 ## Next candidates
 
 Prioritize from actual host use rather than a fixed release calendar:
@@ -35,9 +48,11 @@ Prioritize from actual host use rather than a fixed release calendar:
 - OR filters and filters across more than one association.
 - Child forms that save with the parent, polymorphic references and separately
   controlled attachment changes.
-- Bulk operations over more than 100 records as an asynchronous job.
-- Assistant token/cost budgets, conversation retention and aggregate queries.
-- Current native-provider checks, more locales and additional policy adapters.
+- Bulk operations and bulk changes over more than 100 records as an
+  asynchronous job; undo of a confirmed change.
+- Grouping aggregates by date period and host-supplied assistant instructions.
+- Native OpenAI and Anthropic API checks, more locales and additional policy
+  adapters.
 
 No date or version is committed for these candidates. Beta and 1.0 require broader
 host validation, stable contracts and evidence beyond the local test suite.

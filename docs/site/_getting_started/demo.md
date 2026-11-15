@@ -35,6 +35,7 @@ Other options:
 | Command | Shows |
 |---|---|
 | `bin/demo` | Everything except AI chat and MCP |
+| `bin/demo --openrouter` | Everything, with admin Chat on real models through OpenRouter instead of the fake model (see below) |
 | `bin/demo --plain` | Only the packaged customers and orders |
 | `bin/demo --port 4000` | Use port 4000 and a separate host in `tmp/demo-4000`. The fake model uses the next port |
 | `bin/demo --setup-only` | Prepares `tmp/demo` without serving it |
@@ -102,6 +103,9 @@ messages and choose **Jump to latest** to return to the current reply.
 | `history of articles 1` | The article's audited changes |
 | `search articles for upgrading` | The assistant streams a summary and the conversation links the matching articles |
 | `count customers` | A count of customers visible to the signed-in administrator |
+| `sum orders total by state` | Order totals per state from `aggregate_records`, under the admin's read and filter grants |
+| `average articles views` | The average views of the visible articles |
+| `set customers points to 50 for Bulk` | One review card for the 30 "Bulk Customer" records; its review page lists every before → after, and **Update 30 records** updates each one with its own audit event |
 | `award 5 points to 1` | A review for the customers' custom operation |
 
 Try the search first. Then submit the title change, check the before and after
@@ -111,6 +115,29 @@ history to see the audited update.
 
 You can also start a chat from an article page with **Ask the assistant about
 this record**. The first message includes a `Context:` line naming the page.
+
+Below the message box, the conversation shows the admin's use in the last 24
+hours against the demo's limit of 500,000 tokens. Conversations quiet for 30
+days are deleted by `bin/rails rails_ai_admin:assistant:prune` inside
+`tmp/demo`.
+
+### Real Models
+
+`bin/demo --openrouter` uses real models through RubyLLM's OpenRouter provider
+instead of the fake one. Put the key in the environment of the shell that starts
+the demo, for example from an env file, never on the command line:
+
+```sh
+set -a; . ./.env.openrouter; set +a   # OPENROUTER_API_KEY=...
+bin/demo --openrouter
+```
+
+The key is read when each turn runs and is never written to `tmp/demo`. The
+model is `openai/gpt-6-luna` unless `RAA_DEMO_MODEL` names another. Every message
+costs real money, capped by a daily limit of US$0.25 per person. Ask in plain
+words, for example "What is the total of all draft orders?" or "Set the points of
+every Bulk Customer to 50". Without the key, the assistant says it is unavailable
+and the rest of the admin works as usual.
 
 **MCP access** in the menu issues a personal access token and shows the exact
 `claude mcp add` command for `http://127.0.0.1:3917/staff/mcp`. An agent
@@ -125,5 +152,7 @@ The demo's policy is the packaged host's `AdminPolicyAdapter` plus a
 `ShowcasePolicy` module prepended to it (`tmp/demo/app/rails_ai_admin`). Read it
 next to [Configuration]({% link _getting_started/configuration.md %}): each
 feature above appears only because a method there returns `true` for the admin
-role, and the articles resource opts in to AI proposals with
-`assistant_changes :create, :update, :destroy`.
+role. The articles resource opts in to AI proposals with
+`assistant_changes :create, :update, :destroy, :bulk_update`, customers with
+`assistant_changes :update, :bulk_update`, and customer points, article views and
+order totals with `aggregatable: true`.

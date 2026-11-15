@@ -79,14 +79,17 @@ server-sent event stream; `GET` and `DELETE` return 405.
 
 Agents get the same tools as admin Chat, bound to the token owner:
 `list_resources`, `describe_resource`, `search_records`, `count_records`,
-`get_record`, `record_history`, and, with `config.surfaces`, `propose_change`
-and `propose_operation`. Each call checks the resource's `assistant?` grant and
+`aggregate_records`, `get_record`, `record_history`, with `config.surfaces`
+`propose_change` and `propose_operation`, and `propose_bulk_change` when a
+resource declares `assistant_changes :bulk_update`. Each call checks the resource's `assistant?` grant and
 the owner's current index, show, field, history and operation grants, as the
 pages do. Results are the same bounded, typed JSON; passwords and unreadable
 fields never appear.
 
 Agents cannot change data. `propose_change` and `propose_operation` save an
-unconfirmed intent and return `review_url`. The owner opens that link while
+unconfirmed intent and return `review_url`; `propose_bulk_change` returns the
+`review_url` of one review for up to 100 records, which expires with its
+selection. The owner opens that link while
 signed in to the admin, sees the review with before → after values, and only
 their **Confirm and execute** writes it, through the Operation Runner with a
 version check and an audit event. Give the link to the person, or ask the agent

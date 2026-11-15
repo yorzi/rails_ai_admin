@@ -23,9 +23,12 @@ questions about records and prepare changes for review.
   policies to decide who can see records, fields, and actions. Track changes
   with record history and an audit log.
 - **Ask questions and review changes in chat.** The optional assistant searches
-  records using the signed-in admin's permissions. When it proposes a change,
-  a review card shows the details before a person confirms it. An optional MCP
-  endpoint exposes the same permission-checked tools.
+  records and calculates totals using the signed-in admin's permissions. When it
+  proposes a change, for one record or up to 100 at once, a review shows the
+  details before a person confirms it. Per-person token and cost limits and a
+  retention period keep it in check, and an optional MCP endpoint exposes the
+  same permission-checked tools. Its tests replay conversations recorded with
+  real OpenAI, Anthropic and Google models through OpenRouter.
 
 ## How it compares
 
@@ -87,7 +90,8 @@ bin/demo --assistant
 Open `http://127.0.0.1:3917/login`, choose **Sign in as Admin**, then select
 **Assistant → New conversation**. Try `search articles for upgrading`, followed
 by `set articles 1 title to Hello` to see a change review. The demo uses seeded
-data and an offline model. Follow the [demo walkthrough](https://rails-ai-admin.wangyaodi.com/demo/)
+data and an offline model; `bin/demo --openrouter` uses real models with an
+`OPENROUTER_API_KEY` from your environment. Follow the [demo walkthrough](https://rails-ai-admin.wangyaodi.com/demo/)
 for more examples.
 
 [MIT License](LICENSE) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
