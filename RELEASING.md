@@ -31,11 +31,15 @@ Ruby dependency advisories and npm advisories. Record executed combinations in
 candidate check accepts a closed publishing gate and never publishes.
 
 Before approval, review generated resource exposure, tenant policies and the
-upgrade guide. A human screen-reader pass, independent host trial and current live
-provider checks remain open. Offline provider tests do not replace live evidence.
-Nested child forms that save with the parent, polymorphic references, bulk actions
-over more than 100 records, separate attach/detach grants, conversation retention
-and token/cost budgets remain outside the 0.3.0 candidate.
+upgrade guide. A human screen-reader pass, independent host trial, native OpenAI and Anthropic
+API checks and repeated live runs remain open. The recorded OpenRouter replays in
+`test/cassettes/openrouter` are evidence that the engine handles those model
+replies, not of how a model answers today; if the assistant's instructions or
+tools changed since the manifest's recording date, record them again first
+(`test/support/recorded_provider.rb`). Nested child forms that save with the
+parent, polymorphic references, bulk actions and bulk changes over more than 100
+records, undo of a confirmed change and separate attach/detach grants remain
+outside the 0.4.0 candidate.
 
 ## After owner approval
 
