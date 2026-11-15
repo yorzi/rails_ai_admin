@@ -62,7 +62,7 @@ class McpIntegrationTest < ActionDispatch::IntegrationTest
         headers: { "Content-Type" => "application/json", "Authorization" => "Bearer #{token}" }
       assert_response :accepted
       tools = rpc(token, "tools/list").dig("result", "tools")
-      assert_equal %w[list_resources describe_resource search_records count_records get_record record_history propose_operation propose_change], tools.map { |tool| tool["name"] }
+      assert_equal %w[list_resources describe_resource search_records count_records aggregate_records get_record record_history propose_operation propose_change], tools.map { |tool| tool["name"] }
       assert tools.all? { |tool| tool["inputSchema"]["type"] == "object" }
 
       result, data = call_tool(token, "search_records", { resource: "changeable_customers" })

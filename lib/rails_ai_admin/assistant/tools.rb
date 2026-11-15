@@ -224,6 +224,11 @@ module RailsAiAdmin
           "search" => access.fields(:search).map { |field| { "field" => field.name.to_s, "match" => (field.options[:searchable] == true ? :prefix : field.options[:searchable]).to_s } },
           "filters" => access.fields(:filter).map { |field| { "field" => field.name.to_s, "operators" => field.filter_operators.map(&:to_s) } },
           "sort" => access.fields(:sort).map { |field| field.name.to_s },
+          # aggregate_records: measured fields and their functions, and the
+          # categories results can be grouped by (filter grant required).
+          "aggregates" => access.fields(:read).select { |field| field.aggregatable? && !field.virtual? }
+            .map { |field| { "field" => field.name.to_s, "functions" => field.aggregate_functions.map(&:to_s) } },
+          "group_by" => access.fields(:filter).select { |field| Field::GROUP_TYPES.include?(field.scalar_type) }.map { |field| field.name.to_s },
           # Search and count apply no list tab unless one is named (RAA-007).
           "scopes" => access.named_scopes.map { |definition| { "name" => definition.name.to_s, "label" => definition.label, "default_in_ui" => definition.default? } }
         }
@@ -343,6 +348,72 @@ module RailsAiAdmin
         resource = @session.resource(resource)
         result = Queries::List.new(@session.context, resource).count(search: query.presence, filters: wire_filters(filters), scope: list_scope(scope))
         { "resource" => resource.key.to_s, "applied_scope" => result.scope, "count" => result.count, "capped" => result.capped }
+      end
+    end
+
+    # Sums, averages, minimums, maximums and counts, optionally per group, so
+    # "what is the total" never means paging. Same grants, filters and scope
+    # rule as search; the measured field must be declared aggregatable.
+    class AggregateRecords < Tool
+      description "Calculate count, sum, average, minimum or maximum over one resource's records, optionally grouped by a " \
+        "category field, with the same optional text, typed filters and list scope as search_records. describe_resource " \
+        "lists the aggregatable fields and the group_by fields. Every record you may see is included unless you pass scope."
+      parameters({ "type" => "object", "required" => %w[resource function], "additionalProperties" => false,
+        "properties" => {
+          "resource" => { "type" => "string" },
+          "function" => { "type" => "string", "enum" => Queries::List::AGGREGATE_FUNCTIONS },
+          "field" => { "type" => "string", "description" => "An aggregatable field from describe_resource; omit for count" },
+          "group_by" => { "type" => "string", "description" => "Optional group_by field from describe_resource" },
+          "query" => { "type" => "string", "maxLength" => 200 },
+          "filters" => { "type" => "object", "description" => "Field name to {operator: value}, as for search_records",
+            "additionalProperties" => { "type" => "object", "additionalProperties" => FILTER_VALUE_SCHEMA } },
+          "scope" => { "type" => "string", "description" => "Optional scope name from describe_resource" }
+        } })
+
+      def self.tool_name = "aggregate_records"
+
+      private
+
+      def perform(tool_call:, resource:, function:, field: nil, group_by: nil, query: nil, filters: nil, scope: nil)
+        resource = @session.resource(resource)
+        raise AccessDenied, "INVALID_QUERY" unless function.is_a?(String) && (field.nil? || field.is_a?(String)) && (group_by.nil? || group_by.is_a?(String))
+        result = Queries::List.new(@session.context, resource).aggregate(function: function, field: field, group_by: group_by,
+          search: query.presence, filters: wire_filters(filters), scope: list_scope(scope))
+        references = reference_resolver(@session.access(resource))
+        if result.group_by&.scalar_type == :belongs_to
+          references.prime(result.group_by, result.groups.filter_map { |group| group.key&.to_s })
+        end
+        entry = { "resource" => resource.key.to_s, "applied_scope" => result.scope, "function" => function,
+          "field" => result.field&.name&.to_s, "count" => result.count }
+        entry["value"] = measure(result.field, function, result.value) if result.field
+        if result.group_by
+          entry["group_by"] = result.group_by.name.to_s
+          entry["groups"] = result.groups.map do |group|
+            item = { "group" => typed(result.group_by, group.key, references), "count" => group.count }
+            item["value"] = measure(result.field, function, group.value) if result.field
+            item
+          end
+          entry["groups_truncated"] = result.groups_truncated
+        end
+        entry
+      end
+
+      # Exact decimal strings rounded to the field's scale (an average gets two
+      # more places); dates and times are ISO 8601.
+      def measure(field, function, value)
+        return nil if value.nil?
+        if function == "average"
+          places = (field.scalar_type == :decimal ? field.decimal_limits[:scale].to_i : 0) + 2
+          whole, fraction = value.round(places).to_s("F").split(".")
+          return "#{whole}.#{fraction.to_s.ljust(places, '0')}"
+        end
+        case field.scalar_type
+        when :integer then value
+        when :decimal
+          scale = field.decimal_limits[:scale]
+          field.format_decimal(scale ? value.round(scale) : value)
+        else typed(field, value, nil)
+        end
       end
     end
 
@@ -475,6 +546,6 @@ module RailsAiAdmin
       end
     end
 
-    TOOLS = [ ListResources, DescribeResource, SearchRecords, CountRecords, GetRecord, RecordHistory ].freeze
+    TOOLS = [ ListResources, DescribeResource, SearchRecords, CountRecords, AggregateRecords, GetRecord, RecordHistory ].freeze
   end
 end

@@ -70,6 +70,44 @@ module RailsAiAdmin
         CountResult.new([ total, COUNT_LIMIT ].min, total > COUNT_LIMIT, named&.name&.to_s)
       end
 
+      # Counts and aggregates over the same search, scope and filters as the
+      # list. field must be declared aggregatable and readable; group_by must
+      # be a boolean, choice or belongs_to field the actor may filter by, since
+      # filtering by each value would show the same counts. Aggregates run over
+      # the primary keys of the policy relation, so a join in a policy scope
+      # cannot count a record twice. Values are type cast but not formatted.
+      AGGREGATE_FUNCTIONS = %w[count sum average minimum maximum].freeze
+      MAX_GROUPS = 25
+      Aggregate = Data.define(:function, :field, :group_by, :count, :value, :groups, :groups_truncated, :scope)
+      Group = Data.define(:key, :count, :value)
+      def aggregate(function:, field: nil, group_by: nil, search: nil, scope: nil, filters: nil)
+        @access.authorize!(:index)
+        raise AccessDenied, "INVALID_QUERY" unless AGGREGATE_FUNCTIONS.include?(function)
+        measure = function == "count" ? nil : aggregate_field(field, function)
+        raise AccessDenied, "INVALID_QUERY" if function == "count" && !field.nil?
+        grouping = group_by.nil? ? nil : group_field(group_by)
+        relation, named = filtered_relation(search: search, scope: scope, filters: filters)
+        model = @resource.model_class
+        primary = model.primary_key
+        base = model.unscoped.where(primary => relation.except(:order).reselect(model.arel_table[primary]))
+        table = model.arel_table
+        expressions = [ Arel.star.count ]
+        expressions << table[measure.column].public_send(AREL_AGGREGATES.fetch(function)) if measure
+        count, raw = base.pick(*expressions)
+        groups, truncated = [], false
+        if grouping
+          column = table[grouping.column]
+          rows = base.group(column).order(Arel.star.count.desc, column.asc.nulls_last).limit(MAX_GROUPS + 1).pluck(column, *expressions)
+          truncated = rows.size > MAX_GROUPS
+          groups = rows.first(MAX_GROUPS).map do |key, group_count, group_raw|
+            Group.new(cast(grouping, key), group_count.to_i, measure ? aggregate_value(measure, function, group_raw) : nil)
+          end
+        end
+        Aggregate.new(function, measure, grouping, count.to_i, measure ? aggregate_value(measure, function, raw) : nil, groups, truncated, named&.name&.to_s)
+      end
+
+      AREL_AGGREGATES = { "sum" => :sum, "average" => :average, "minimum" => :minimum, "maximum" => :maximum }.freeze
+
       # Coerces each wire value through the field's scalar contract. Values are
       # bound by Arel; no operator, column or SQL text comes from the request.
       # contains keeps the stripped text itself; blank is "true" or "false";
@@ -118,6 +156,36 @@ module RailsAiAdmin
       end
 
       private
+
+      def aggregate_field(name, function)
+        raise AccessDenied, "INVALID_QUERY" unless name.is_a?(String) && name.match?(Field::NAME)
+        field = @access.fields(:read).find { |candidate| candidate.name.to_s == name && !candidate.virtual? }
+        raise AccessDenied, "INVALID_QUERY" unless field&.aggregate_functions&.include?(function.to_sym)
+        field
+      end
+
+      def group_field(name)
+        raise AccessDenied, "INVALID_QUERY" unless name.is_a?(String) && name.match?(Field::NAME)
+        field = @access.fields(:filter).find { |candidate| candidate.name.to_s == name }
+        raise AccessDenied, "INVALID_QUERY" unless field && Field::GROUP_TYPES.include?(field.scalar_type)
+        field
+      end
+
+      # Database results arrive as the adapter returns them (SQLite sums
+      # decimals as floats); each is cast through the column's type.
+      def cast(field, raw)
+        return nil if raw.nil?
+        @resource.model_class.type_for_attribute(field.column).deserialize(raw)
+      end
+
+      def aggregate_value(field, function, raw)
+        return nil if raw.nil?
+        case function
+        when "average" then BigDecimal(raw.to_s)
+        when "sum" then field.scalar_type == :integer ? BigDecimal(raw.to_s).to_i : BigDecimal(raw.to_s)
+        else cast(field, raw)
+        end
+      end
 
       def sorted(relation, sort, direction)
         settings = @resource.index

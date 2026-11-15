@@ -4,6 +4,16 @@
 
 ### Assistant
 
+- Add an `aggregate_records` assistant tool (also offered over MCP): count,
+  sum, average, minimum or maximum over the same search, filters and list
+  scope as `search_records`, optionally grouped by a boolean, enum, select or
+  `belongs_to` field. A field opts in with `aggregatable: true` (integer and
+  decimal for every function, date and datetime for minimum and maximum; not
+  computed or registered field types) and still needs the actor's read grant;
+  grouping needs the group field's filter grant. Aggregates run over the
+  policy relation's primary keys, so a join in a policy scope cannot count a
+  record twice, and return at most 25 groups. `describe_resource` lists the
+  aggregatable and group-by fields; the instructions are `PROMPT_VERSION` 4.
 - Add assistant spending limits per person and tenant over any 24 hours:
   `config.assistant_daily_token_limit` (every token bucket together) and
   `config.assistant_daily_cost_limit` (US dollars), both read from RubyLLM's

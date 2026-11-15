@@ -33,7 +33,7 @@ module RailsAiAdmin
     TIME_OF_DAY = /\A([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d)(?:\.\d{1,6})?)?\z/
     # A practical address check (Rails' own URI::MailTo pattern), not delivery proof.
     EMAIL = URI::MailTo::EMAIL_REGEXP
-    OPTIONS = %i[readonly required nullable values max_length searchable sortable filterable create edit label choices index show hidden help_text tab panel resource foreign_key precision scale accept max_size max_files].freeze
+    OPTIONS = %i[readonly required nullable values max_length searchable sortable filterable aggregatable create edit label choices index show hidden help_text tab panel resource foreign_key precision scale accept max_size max_files].freeze
     # A belongs_to value is the target's opaque primary-key text, never a record.
     REFERENCE = /\A[A-Za-z0-9][A-Za-z0-9_-]{0,99}\z/
     NAME = /\A[a-z][a-z0-9_]*\z/
@@ -53,6 +53,12 @@ module RailsAiAdmin
     FILTER_OPERATORS = %i[eq in gte lte contains blank].freeze
     MAX_IN_VALUES = 20
     RANGE_TYPES = %i[integer decimal date datetime].freeze
+    # aggregatable: sums and averages need numbers; minimum and maximum also
+    # take dates and times.
+    NUMERIC_TYPES = %i[integer decimal].freeze
+    AGGREGATE_FUNCTIONS = %i[sum average minimum maximum].freeze
+    # Categories an aggregate can be grouped by, each a bounded set of values.
+    GROUP_TYPES = %i[boolean enum select belongs_to].freeze
     # Text that partial matching makes sense for; ids stay exact.
     CONTAINS_TYPES = %i[text textarea email url].freeze
     # Fixed choice lists, where "any of" is a set of checkboxes.
@@ -114,6 +120,13 @@ module RailsAiAdmin
     end
 
     def virtual? = !@computation.nil?
+    def aggregatable? = options[:aggregatable] == true
+
+    # The functions this field may be aggregated with when declared aggregatable.
+    def aggregate_functions
+      return [].freeze unless aggregatable?
+      NUMERIC_TYPES.include?(scalar_type) ? AGGREGATE_FUNCTIONS : %i[minimum maximum].freeze
+    end
     def plugin? = !@plugin.nil?
 
     def compute(values, time_zone:)
@@ -502,8 +515,8 @@ module RailsAiAdmin
       end
       @dependencies = dependencies.map(&:to_sym).freeze
       raise ConfigurationError, "Computed dependencies must be distinct" unless @dependencies.uniq.size == @dependencies.size
-      if options.any? { |key, value| %i[readonly].include?(key) && value != true || %i[searchable sortable filterable].include?(key) && value != false }
-        raise ConfigurationError, "Virtual fields are readonly and cannot search, sort or filter"
+      if options.any? { |key, value| %i[readonly].include?(key) && value != true || %i[searchable sortable filterable aggregatable].include?(key) && value != false }
+        raise ConfigurationError, "Virtual fields are readonly and cannot search, sort, filter or aggregate"
       end
       @computation = Fields::Computation::Definition.new(String.new(handler).freeze)
       @computation_metadata = immutable_copy(@computation.metadata)
@@ -547,6 +560,13 @@ module RailsAiAdmin
       end
       if scalar_type == :time && (options[:searchable] || options[:filterable])
         raise ConfigurationError, "time fields can sort but cannot search or filter"
+      end
+      unless options[:aggregatable].nil? || [ true, false ].include?(options[:aggregatable])
+        raise ConfigurationError, "Field aggregatable must be true or false"
+      end
+      if options[:aggregatable] && (!RANGE_TYPES.include?(scalar_type) || plugin?)
+        # A registered type's formatter may redact, so its raw values are never summed.
+        raise ConfigurationError, "Only integer, decimal, date and datetime fields can be aggregatable, and not registered field types"
       end
       if !FILE_TYPES.include?(scalar_type) && (options.key?(:accept) || options.key?(:max_size))
         raise ConfigurationError, "accept and max_size are file options"
