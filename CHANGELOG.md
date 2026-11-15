@@ -14,6 +14,24 @@
   policy relation's primary keys, so a join in a policy scope cannot count a
   record twice, and return at most 25 groups. `describe_resource` lists the
   aggregatable and group-by fields; the instructions are `PROMPT_VERSION` 4.
+- Add bulk change proposals: a resource that declares
+  `assistant_changes :update, :bulk_update` lets the assistant call
+  `propose_bulk_change` to set the same values on up to 100 records, named by
+  ids or by the same query, filters and scope as `search_records`. It needs the
+  person's selection grant, captures a fixed selection and shows one review
+  card in the conversation (MCP clients get a `review_url`). The review page
+  writes nothing and lists each record's before → after; records the person
+  cannot update are listed as skipped. Confirming updates each record as the
+  person through the native update operation, each with its own grant check,
+  version check, transaction and audit event (origin `assistant`); a record
+  changed since the proposal makes the review out of date instead of being
+  overwritten. Confirming or dismissing tells the conversation once. The
+  proposed values travel in an encrypted token that expires with the
+  selection, so they never appear in a URL or log as text.
+- One assistant reply prepares at most three single-record reviews; further
+  proposals in the same reply are refused with `LIMIT_REACHED`, so a request
+  such as "set every customer's points to 0" no longer queues a review per
+  record until the step limit.
 - Add assistant spending limits per person and tenant over any 24 hours:
   `config.assistant_daily_token_limit` (every token bucket together) and
   `config.assistant_daily_cost_limit` (US dollars), both read from RubyLLM's

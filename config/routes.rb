@@ -19,6 +19,9 @@ RailsAiAdmin::Engine.routes.draw do
     post "assistant/conversations/:chat_ref/cancel", to: "assistant#cancel", as: :cancel_assistant_conversation
     post "assistant/conversations/:chat_ref/retry", to: "assistant#retry_turn", as: :retry_assistant_conversation
     post "assistant/conversations/:chat_ref/archive", to: "assistant#archive", as: :archive_assistant_conversation
+    # Reviews of an assistant's bulk change; the page writes nothing.
+    get "selections/:selection_ref/bulk_change", to: "bulk_changes#show", as: :bulk_change
+    post "selections/:selection_ref/bulk_change", to: "bulk_changes#create", as: :apply_bulk_change
   end
   # Drawn only for hosts that opt in; MCP builds on the assistant setup.
   if RailsAiAdmin.configuration.mcp

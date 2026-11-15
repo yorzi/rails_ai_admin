@@ -21,6 +21,16 @@ module RailsAiAdmin
         Coordinator.admit!(chat, kind: "continuation", content: content(review, outcome, decision), admission_key: "intent:#{review.run.id}")
       end
 
+      # A server-written outcome of a review that is not a Surface (a bulk
+      # change). Like admit!, a closed or foreign chat is skipped.
+      def admit_outcome!(context:, context_ref:, admission_key:, content:)
+        match = context_ref.is_a?(String) && context_ref.match(CHAT_REFERENCE)
+        return unless match
+        chat = Chat.owned(context, match[1])
+        return unless chat&.current_for?(context)
+        Coordinator.admit!(chat, kind: "continuation", content: content.truncate(Coordinator::MAX_CONTENT), admission_key: admission_key)
+      end
+
       # Server-written summary of the committed outcome; no Surface input text.
       def content(review, outcome, decision = "confirmed")
         subject = "#{review.resource.label.singularize} \"#{Integrations::ToolViews.subject(review)}\""

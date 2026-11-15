@@ -8,8 +8,22 @@ module RailsAiAdmin
     # and a fence that stops a worker whose lease was reassigned.
     # conversation is the server-owned reference of a session without a chat
     # (an MCP client); its proposals become reviews opened by URL.
-    Session = ::Data.define(:context, :chat, :fence, :conversation) do
-      def initialize(context:, chat:, fence:, conversation: nil) = super
+    # Reviews proposed during one turn (or one MCP request). A model asked to
+    # change every record would otherwise queue a review per record.
+    # Only prepared reviews count; a refused proposal does not.
+    class ProposalTally
+      LIMIT = 3
+
+      def initialize
+        @count = 0
+      end
+
+      def full? = @count >= LIMIT
+      def record! = @count += 1
+    end
+
+    Session = ::Data.define(:context, :chat, :fence, :conversation, :tally) do
+      def initialize(context:, chat:, fence:, conversation: nil, tally: ProposalTally.new) = super
       # Registered resources this actor may currently expose to the model.
       def resources
         RailsAiAdmin.registry.resources.select { |resource| exposed?(resource) }
@@ -48,7 +62,10 @@ module RailsAiAdmin
         "INVALID_QUERY" => "The request was not valid for this resource.",
         "CONFLICT" => "The record changed. Fetch it again before proposing a change.",
         "VALIDATION_FAILED" => "The proposed input is not valid.",
-        "UNAVAILABLE" => "This capability is not available."
+        "UNAVAILABLE" => "This capability is not available.",
+        "LIMIT_REACHED" => "At most #{ProposalTally::LIMIT} reviews can be proposed in one reply. Ask the user to review these first; " \
+          "for the same change on many records, use propose_bulk_change when describe_resource lists bulk_update.",
+        "TOO_MANY" => "More than #{Selections::Builder::LIMIT} records match. Ask the user to narrow the request."
       }.freeze
 
       def initialize(session)
@@ -242,7 +259,7 @@ module RailsAiAdmin
       # Native changes this resource lets the assistant propose, with the
       # fields the user may set on create or update (never passwords or files).
       def changes(resource, access)
-        %w[create update destroy].filter_map do |action|
+        entries = %w[create update destroy].filter_map do |action|
           next unless resource.assistant_change?(action)
           entry = { "action" => action }
           unless action == "destroy"
@@ -252,6 +269,17 @@ module RailsAiAdmin
           end
           entry
         end
+        if resource.assistant_change?(:bulk_update) && bulk_granted?(access)
+          update = entries.find { |entry| entry["action"] == "update" }
+          entries << { "action" => "bulk_update", "fields" => update ? update["fields"] : [], "max_records" => Selections::Builder::LIMIT }
+        end
+        entries
+      end
+
+      def bulk_granted?(access)
+        access.authorize_selection!
+      rescue AccessDenied
+        false
       end
 
       def field_entry(field)
@@ -460,6 +488,7 @@ module RailsAiAdmin
         tool_views = Assistant.tool_views
         replay = @session.chat && tool_views.assistant_surface(@session.context, @session.chat, tool_call.id)
         return acknowledgment(replay) if replay
+        return failure("LIMIT_REACHED") if @session.tally.full?
         record = @session.access(resource).find!(id, action: definition.key)
         proposal = Operations::Runner.new.preflight(context: @session.context, resource: resource, operation: definition.key,
           target_id: record.id, expected_version: RecordVersion.of(record), input: input, origin: :assistant)
@@ -467,7 +496,9 @@ module RailsAiAdmin
           return failure(proposal.code == "VALIDATION_FAILED" ? "VALIDATION_FAILED" : proposal.code == "CONFLICT" ? "CONFLICT" : "UNAVAILABLE",
             "fields" => proposal.errors.keys.map(&:to_s))
         end
-        acknowledgment(present_review(tool_views, resource, definition, record, proposal, tool_call))
+        surface = present_review(tool_views, resource, definition, record, proposal, tool_call)
+        @session.tally.record!
+        acknowledgment(surface)
       end
     end
 
@@ -503,6 +534,7 @@ module RailsAiAdmin
         tool_views = Assistant.tool_views
         replay = @session.chat && tool_views.assistant_surface(@session.context, @session.chat, tool_call.id)
         return acknowledgment(replay) if replay
+        return failure("LIMIT_REACHED") if @session.tally.full?
         access = @session.access(resource)
         record = action == "create" ? access.relation.new : access.find!(id, action: action.to_sym)
         definition = RailsAiAdmin.operation_registry.fetch(resource, action)
@@ -515,7 +547,76 @@ module RailsAiAdmin
           return failure(proposal.code == "VALIDATION_FAILED" ? "VALIDATION_FAILED" : proposal.code == "CONFLICT" ? "CONFLICT" : "UNAVAILABLE",
             "fields" => proposal.errors.to_h.transform_values { |messages| Array(messages).first(3) })
         end
-        acknowledgment(present_review(tool_views, resource, definition, record, proposal, tool_call))
+        surface = present_review(tool_views, resource, definition, record, proposal, tool_call)
+        @session.tally.record!
+        acknowledgment(surface)
+      end
+    end
+
+    # Prepares one review that sets the same values on up to 100 records of a
+    # fixed selection. Nothing changes until the person confirms that review;
+    # each record is then updated as that person, on its own, through the
+    # shared Runner (Operations::BulkChange).
+    class ProposeBulkChange < Tool
+      description "Propose setting the same field values on several records (up to 100) as one review. It does not change " \
+        "data: the user reviews every record and confirms or dismisses it. Name the records with ids, or with the same query, " \
+        "filters and scope as search_records. describe_resource lists bulk_update when it is allowed."
+      parameters({ "type" => "object", "required" => %w[resource values], "additionalProperties" => false,
+        "properties" => {
+          "resource" => { "type" => "string" },
+          "values" => { "type" => "object", "description" => "Field names and the new value for every record, typed as describe_resource reports" },
+          "ids" => { "type" => "array", "maxItems" => Selections::Builder::LIMIT, "items" => { "type" => "string", "maxLength" => 100 },
+            "description" => "Record ids; leave out to use query, filters and scope instead" },
+          "query" => { "type" => "string", "maxLength" => 200 },
+          "filters" => { "type" => "object", "description" => "Field name to {operator: value}, as for search_records",
+            "additionalProperties" => { "type" => "object", "additionalProperties" => FILTER_VALUE_SCHEMA } },
+          "scope" => { "type" => "string", "description" => "Optional scope name from describe_resource" }
+        } })
+
+      def self.tool_name = "propose_bulk_change"
+
+      private
+
+      def perform(tool_call:, resource:, values:, ids: nil, query: nil, filters: nil, scope: nil)
+        raise AccessDenied, "INVALID_QUERY" unless values.is_a?(Hash) && values.any? && values.size <= 50
+        unless ids.nil? || ids.is_a?(Array) && ids.size.between?(1, Selections::Builder::LIMIT) && ids.all? { |id| id.is_a?(String) && id.match?(Field::REFERENCE) }
+          raise AccessDenied, "INVALID_QUERY"
+        end
+        raise AccessDenied, "INVALID_QUERY" if ids && !(query.nil? && filters.nil? && scope.nil?)
+        resource = @session.resource(resource)
+        raise AccessDenied unless resource.assistant_change?(:bulk_update)
+        by_name = resource.fields.index_by { |field| field.name.to_s }
+        raise AccessDenied, "INVALID_QUERY" if values.keys.any? { |name| ProposeChange::UNSUPPORTED.include?(by_name[name.to_s]&.scalar_type) }
+        return failure("LIMIT_REACHED") if @session.tally.full?
+        target_ids = ids || matching_ids(resource, query, filters, scope)
+        return failure("TOO_MANY") if target_ids.size > Selections::Builder::LIMIT
+        return failure("NOT_FOUND") if target_ids.empty?
+        selection = Selections::Builder.new.capture(context: @session.context, resource: resource, target_ids: target_ids.uniq)
+        return failure("NOT_FOUND") if selection.targets.empty?
+        values = values.transform_keys(&:to_s)
+        access = @session.access(resource)
+        model = resource.model_class
+        records = access.relation.where(model.primary_key => selection.targets.map(&:id)).index_by { |record| record.id.to_s }
+        items = Operations::BulkChange.plan(context: @session.context, resource: resource, selection: selection, records: records, values: values)
+        ready = items.count { |item| item.code.nil? }
+        if ready.zero?
+          code = items.map(&:code).find { |candidate| %w[VALIDATION_FAILED CONFLICT].include?(candidate) } || "NOT_FOUND"
+          return failure(code)
+        end
+        context_ref = @session.chat ? @session.chat.context_reference : @session.conversation
+        token = Operations::BulkChange.encode(context: @session.context, selection: selection, resource: resource, values: values, context_ref: context_ref)
+        @session.tally.record!
+        message = @session.chat ? "One review for #{ready} records is shown to the user. Nothing has changed yet; a later message reports the result." :
+          "A review for #{ready} records is waiting in the admin. Nothing has changed until the user opens review_url and confirms it."
+        { "status" => "awaiting_human_confirmation", "resource" => resource.key.to_s, "selection" => selection.selection_ref,
+          "bulk_change" => token, "records" => ready, "skipped" => items.size - ready, "message" => message }
+      end
+
+      # The same records search_records would page through, one past the limit.
+      def matching_ids(resource, query, filters, scope)
+        model = resource.model_class
+        Queries::List.new(@session.context, resource).relation(search: query.presence, filters: wire_filters(filters), scope: list_scope(scope))
+          .limit(Selections::Builder::LIMIT + 1).pluck(model.arel_table[model.primary_key]).map(&:to_s)
       end
     end
 
@@ -547,5 +648,13 @@ module RailsAiAdmin
     end
 
     TOOLS = [ ListResources, DescribeResource, SearchRecords, CountRecords, AggregateRecords, GetRecord, RecordHistory ].freeze
+
+    # Proposal tools offered with the read tools: single reviews need
+    # Surfaces; bulk reviews need a resource that declares bulk_update.
+    def self.proposal_tools
+      tools = RailsAiAdmin.configuration.surfaces ? [ ProposeOperation, ProposeChange ] : []
+      tools << ProposeBulkChange if RailsAiAdmin.registry.resources.any? { |resource| resource.assistant_change?(:bulk_update) }
+      tools
+    end
   end
 end

@@ -10,7 +10,9 @@ module RailsAiAdmin
     class Transcript
       MESSAGE_LIMIT = 200
       LINK_LIMIT = 20
-      Entry = ::Data.define(:kind, :text, :links, :surface_id, :at)
+      # review is set for a bulk change card: its selection, token and size.
+      Entry = ::Data.define(:kind, :text, :links, :surface_id, :at, :review)
+      BulkReview = ::Data.define(:selection_ref, :token, :records, :resource_label)
       Link = ::Data.define(:resource_key, :id, :label)
       ACTIVITY = {
         "list_resources" => "Listed the available resources",
@@ -21,6 +23,7 @@ module RailsAiAdmin
         "get_record" => "Opened a record in %<resource>s",
         "propose_operation" => "Prepared a review in %<resource>s",
         "propose_change" => "Prepared a review in %<resource>s",
+        "propose_bulk_change" => "Prepared one review for several records in %<resource>s",
         "record_history" => "Read a record's history in %<resource>s"
       }.freeze
       # The line for a call whose stored result is an error (RAA-018).
@@ -33,11 +36,13 @@ module RailsAiAdmin
         "get_record" => "Tried to open a record in %<resource>s",
         "propose_operation" => "Tried to prepare a review in %<resource>s",
         "propose_change" => "Tried to prepare a review in %<resource>s",
+        "propose_bulk_change" => "Tried to prepare a review of several records in %<resource>s",
         "record_history" => "Tried to read a record's history in %<resource>s"
       }.freeze
       FAILURE_REASONS = {
         "NOT_FOUND" => "not available", "INVALID_QUERY" => "the request was not valid", "CONFLICT" => "the record changed",
-        "VALIDATION_FAILED" => "the input was not valid", "UNAVAILABLE" => "not available"
+        "VALIDATION_FAILED" => "the input was not valid", "UNAVAILABLE" => "not available",
+        "LIMIT_REACHED" => "too many reviews in one reply", "TOO_MANY" => "too many records"
       }.freeze
 
       def initialize(context, chat)
@@ -70,12 +75,12 @@ module RailsAiAdmin
       # so a sent message shows at once instead of after the provider call.
       def waiting
         @chat.turns.where(status: Turn::ACTIVE, user_message_id: nil).reorder(:sequence).map do |turn|
-          Entry.new(turn.kind == "continuation" ? :continuation : :user, turn.content, [], nil, turn.created_at)
+          Entry.new(turn.kind == "continuation" ? :continuation : :user, turn.content, [], nil, turn.created_at, nil)
         end
       end
 
-      def entry(kind, text, message, links: [], surface_id: nil)
-        Entry.new(kind, text.to_s, links, surface_id, message.created_at)
+      def entry(kind, text, message, links: [], surface_id: nil, review: nil)
+        Entry.new(kind, text.to_s, links, surface_id, message.created_at, review)
       end
 
       # Derived from the stored result, so a failed call never reads as done.
@@ -113,6 +118,11 @@ module RailsAiAdmin
         return [] unless data.is_a?(Hash)
         if data["surface"].is_a?(String) && %w[propose_operation propose_change].include?(message.ruby_llm_parent_tool_call&.name)
           return [ entry(:surface, nil, message, surface_id: data["surface"]) ]
+        end
+        if message.ruby_llm_parent_tool_call&.name == "propose_bulk_change" && data["bulk_change"].is_a?(String) && data["selection"].is_a?(String)
+          resource = exposed(data["resource"])
+          return [] unless resource && data["records"].is_a?(Integer)
+          return [ entry(:bulk_review, nil, message, review: BulkReview.new(data["selection"], data["bulk_change"], data["records"], resource.label)) ]
         end
         links = record_links(data["resource"], data["records"])
         links.empty? ? [] : [ entry(:records, nil, message, links: links) ]

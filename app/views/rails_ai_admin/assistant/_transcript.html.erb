@@ -20,6 +20,13 @@
         <li class="raa-chat-records"><span class="raa-chat-role"><%= t("rails_ai_admin.assistant.roles.records") %></span>
           <ul><% entry.links.each do |link| %><li><%= link_to link.label, resource_path(resource: link.resource_key, id: link.id), data: { turbo_frame: "_top" } %></li><% end %></ul>
         </li>
+      <% when :bulk_review %>
+        <li class="raa-chat-surface raa-chat-bulk"><div>
+          <h2><%= t("rails_ai_admin.assistant.bulk_review.title", count: entry.review.records, label: entry.review.resource_label) %></h2>
+          <p><%= t("rails_ai_admin.assistant.bulk_review.note") %></p>
+          <p><%= link_to t("rails_ai_admin.assistant.bulk_review.open", count: entry.review.records),
+            bulk_change_path(selection_ref: entry.review.selection_ref, change: entry.review.token), data: { turbo_frame: "_top" } %></p>
+        </div></li>
       <% when :surface %>
         <li class="raa-chat-surface"><%= admin_assistant_surface(entry.surface_id, scope: @surface_scope) if @surface_scope %></li>
       <% end %>

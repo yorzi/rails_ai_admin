@@ -1,0 +1,37 @@
+<p><%= link_to t("rails_ai_admin.bulk_changes.back"), return_path %></p>
+<% admin_title t("rails_ai_admin.bulk_changes.title", label: @resource.label), @resource.label %>
+<h1><%= t("rails_ai_admin.bulk_changes.title", label: @resource.label) %></h1>
+<p><%= t("rails_ai_admin.bulk_changes.intro") %></p>
+<p><strong><%= t("rails_ai_admin.bulk_changes.question", count: @ready.size) %></strong></p>
+<% if @ready.any? %>
+  <div class="raa-table-scroll"><table>
+    <caption class="raa-visually-hidden"><%= t("rails_ai_admin.bulk_changes.caption", count: @ready.size) %></caption>
+    <thead><tr><th scope="col"><%= t("rails_ai_admin.collection_jobs.record") %></th>
+      <% @fields.each do |field| %><th scope="col"><%= field.label %></th><% end %></tr></thead>
+    <tbody><% @ready.each do |item| %><tr>
+      <th scope="row"><%= link_to item.target.label, resource_path(resource: @resource.key, id: item.target.id) %></th>
+      <% @fields.each do |field| %><td>
+        <% if (change = item.changes[field.name.to_s]) %>
+          <%= admin_field_value(field, change[0], view: :index, record_id: item.target.id) %> → <%= admin_field_value(field, change[1], view: :index, record_id: item.target.id) %>
+        <% else %>
+          <span class="raa-muted"><%= t("rails_ai_admin.bulk_changes.hidden_value") %></span>
+        <% end %>
+      </td><% end %>
+    </tr><% end %></tbody>
+  </table></div>
+<% end %>
+<% if @skipped.any? %>
+  <h2><%= t("rails_ai_admin.bulk_changes.skipped", count: @skipped.size) %></h2>
+  <ul><% @skipped.each do |item| %><li><%= item.target.label %>: <%= admin_outcome(item.code) %></li><% end %></ul>
+<% end %>
+<p><%= t("rails_ai_admin.bulk_changes.each_note") %></p>
+<%= form_with url: apply_bulk_change_path(selection_ref: @selection.selection_ref), method: :post, local: true do |form| %>
+  <%= hidden_field_tag :change, params[:change], id: nil %>
+  <div class="raa-actions">
+    <% if @ready.any? %>
+      <%= form.button t("rails_ai_admin.bulk_changes.submit", count: @ready.size), name: "decision", value: "confirm", type: "submit",
+        data: { turbo_submits_with: t("rails_ai_admin.bulk_changes.updating") } %>
+    <% end %>
+    <%= form.button t("rails_ai_admin.bulk_changes.dismiss"), name: "decision", value: "dismiss", type: "submit", class: "raa-secondary" %>
+  </div>
+<% end %>

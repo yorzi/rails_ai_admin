@@ -132,11 +132,20 @@ module RailsAiAdmin
       def assistant_changes(*actions)
         return @assistant_changes if actions.empty?
         actions = actions.map { |action| action.to_s.to_sym }
-        raise ConfigurationError, "assistant_changes accepts :create, :update and :destroy" unless (actions - %i[create update destroy]).empty?
-        @assistant_changes = (@assistant_changes | actions).freeze
+        unless (actions - %i[create update destroy bulk_update]).empty?
+          raise ConfigurationError, "assistant_changes accepts :create, :update, :destroy and :bulk_update"
+        end
+        changes = @assistant_changes | actions
+        # One reviewed update of many records builds on single updates.
+        raise ConfigurationError, "assistant_changes :bulk_update also needs :update" if changes.include?(:bulk_update) && !changes.include?(:update)
+        @assistant_changes = changes.freeze
       end
 
-      def assistant_change?(action) = @assistant_changes.include?(action.to_s.to_sym) && action_enabled?(action)
+      def assistant_change?(action)
+        action = action.to_s.to_sym
+        return @assistant_changes.include?(:bulk_update) && assistant_change?(:update) if action == :bulk_update
+        @assistant_changes.include?(action) && action_enabled?(action)
+      end
 
       def operation_declarations = @operations
       def surface_operation?(key) = @surface_operations.include?(key.to_sym)

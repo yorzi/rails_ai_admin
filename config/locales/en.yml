@@ -245,6 +245,37 @@ en:
       restored: Restored the record.
       conflict: The record changed after this page was opened. Check it and try again.
       destroy_note: It moves to Deleted records, where people allowed to restore it can bring it back.
+    bulk_changes:
+      title: Review a change to %{label}
+      intro: >-
+        The assistant proposed this change. Nothing has changed yet. Confirming updates each record below as you, with
+        your current permissions.
+      question:
+        one: Update this record?
+        other: Update these %{count} records?
+      caption:
+        one: The proposed change to 1 record
+        other: The proposed change to %{count} records
+      hidden_value: Changes a value you cannot see
+      skipped:
+        one: 1 selected record will not be changed
+        other: "%{count} selected records will not be changed"
+      each_note: >-
+        Each record is updated on its own with a version check and recorded in the audit; a record that cannot be
+        updated does not stop the others. A record that changed after the proposal makes this review out of date.
+      submit:
+        one: Update 1 record
+        other: Update %{count} records
+      updating: Updating…
+      dismiss: Dismiss
+      dismissed: Dismissed the proposed change. Nothing was changed.
+      back: Back
+      result_title: Change applied
+      updated:
+        one: Updated 1 record.
+        other: Updated %{count} records.
+      not_updated: Not updated
+      open_list: Open %{label}
     saved_views:
       title: Saved views
       save_current: Save this view
@@ -561,6 +592,14 @@ en:
       try_again: Try again
       retrying: Retrying (%{attempt} of %{attempts})…
       invalid_message: Write a message of up to %{count} characters.
+      bulk_review:
+        title:
+          one: A change to 1 record in %{label}
+          other: A change to %{count} records in %{label}
+        note: Nothing has changed. Open the review to see every record before you confirm or dismiss it.
+        open:
+          one: Review the change
+          other: Review the change to %{count} records
       budget_exceeded: >-
         You have reached this administration's assistant spending limit for the last 24 hours. Your message
         was not sent; try again later.

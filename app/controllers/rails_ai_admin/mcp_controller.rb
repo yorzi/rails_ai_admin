@@ -20,7 +20,8 @@ module RailsAiAdmin
       end
       return render(json: rpc_error(nil, -32600, "Batches are not supported"), status: :bad_request) if message.is_a?(Array)
       server = Mcp::Server.new(context: context, token: token,
-        review_url: ->(surface_id) { admin_surface_url(surface_id: surface_id) })
+        review_url: ->(surface_id) { admin_surface_url(surface_id: surface_id) },
+        bulk_review_url: ->(selection_ref, change) { bulk_change_url(selection_ref: selection_ref, change: change) })
       status, body = if RailsAiAdmin.configuration.surfaces
         Integrations::ToolViews.with_context(context) { server.handle(message) }
       else
