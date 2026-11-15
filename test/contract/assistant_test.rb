@@ -386,6 +386,15 @@ class AssistantContractTest < ActiveSupport::TestCase
       TestAssistant.available = false
       check = RailsAiAdmin::Doctor.new.assistant_check
       assert_equal :review, check.status, check.message
+      assert_includes check.message, "Each person may use 100 messages in any 24 hours. Conversations are kept until deleted"
+      config = RailsAiAdmin.configuration
+      config.assistant_daily_message_limit = nil
+      assert_includes RailsAiAdmin::Doctor.new.assistant_check.message, "No assistant message, token or cost limit is set."
+      config.assistant_daily_token_limit = 200_000
+      config.assistant_daily_cost_limit = BigDecimal("2.5")
+      config.assistant_retention = 90.days
+      assert_includes RailsAiAdmin::Doctor.new.assistant_check.message,
+        "Each person may use 200000 tokens, US$2.5 in any 24 hours. Conversations are deleted 90 days after their last message"
       assert_empty LLMFixture.requests
     end
     check = RailsAiAdmin::Doctor.new(configuration: RailsAiAdmin::Configuration.new).assistant_check

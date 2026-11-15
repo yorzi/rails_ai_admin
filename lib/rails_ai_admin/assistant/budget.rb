@@ -44,8 +44,8 @@ module RailsAiAdmin
           token_limit: config.assistant_daily_token_limit, cost_limit: config.assistant_daily_cost_limit)
       end
 
-      # Usage rows owned by the actor's admin chats. RubyLLM keeps the owner
-      # when a chat is deleted, so pruning never runs inside the window.
+      # Usage rows owned by the actor's admin chats. Retention never deletes a
+      # chat with usage inside the window, so today's spend stays counted.
       def usages(actor_ref:, tenant_ref:, since:)
         chats = Chat.where(actor_ref: actor_ref, tenant_ref: tenant_ref).select(:id)
         usage = ::RubyLLM::ActiveRecord::Usage

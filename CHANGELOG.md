@@ -12,6 +12,13 @@
   provider request (`BUDGET_EXCEEDED`), and a continuation after a confirmed
   review is still admitted but stops the same way. The conversation page shows
   the use so far, and says when some requests have no known cost.
+- Add conversation retention: with `config.assistant_retention = 90.days`,
+  `bin/rails rails_ai_admin:assistant:prune` deletes conversations that had no
+  message for that long, with their turns, messages and tool calls. It keeps
+  RubyLLM's usage rows as the spend ledger, skips conversations with an active
+  turn or with spend inside the 24-hour budget window, and leaves review
+  Surfaces to rails_tool_views' own purge. Doctor reports the limits and
+  retention in effect.
 - A question asked from a record or list page over the message or spending
   limit now opens the new conversation with the question kept and the reason
   shown, instead of an access error.

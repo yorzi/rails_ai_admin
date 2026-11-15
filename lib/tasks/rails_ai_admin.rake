@@ -46,6 +46,13 @@ namespace :rails_ai_admin do
       require "rails_ai_admin/assistant"
       puts "Visited #{RailsAiAdmin::Assistant::Coordinator.new.scan_pending!(inline: true)} assistant chats."
     end
+
+    desc "Delete assistant conversations with no message for config.assistant_retention; schedule it daily"
+    task prune: :environment do
+      require "rails_ai_admin/assistant"
+      abort "rails_ai_admin:assistant:prune: set config.assistant_retention first (for example 90.days)" if RailsAiAdmin.configuration.assistant_retention.nil?
+      puts "Deleted #{RailsAiAdmin::Assistant::Retention.new.call.chats} assistant conversations."
+    end
   end
 
   namespace :work do

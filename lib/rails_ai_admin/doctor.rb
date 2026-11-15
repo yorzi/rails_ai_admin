@@ -93,9 +93,25 @@ module RailsAiAdmin
         return Check.new("assistant", :error, "Assistant turns run in jobs; the context adapter must define resolve_job.")
       end
       Check.new("assistant", :review, "Model #{@configuration.assistant_model}; tools apply each actor's current grants and the independent assistant? grant. " \
-        "Schedule rails_ai_admin:assistant:scan, keep provider credentials in the adapter's own RubyLLM::Context, and verify real-provider behavior separately.")
+        "Schedule rails_ai_admin:assistant:scan, keep provider credentials in the adapter's own RubyLLM::Context, and verify real-provider behavior separately. " \
+        "#{assistant_limits}")
     rescue NameError, ConfigurationError => error
       Check.new("assistant", :error, "Assistant configuration failed (#{error.class.name}).")
+    end
+
+    # The spending and retention settings, so an unlimited setup is a choice.
+    def assistant_limits
+      config = @configuration
+      limits = [ ("#{config.assistant_daily_message_limit} messages" if config.assistant_daily_message_limit),
+        ("#{config.assistant_daily_token_limit} tokens" if config.assistant_daily_token_limit),
+        ("US$#{config.assistant_daily_cost_limit.to_s('F')}" if config.assistant_daily_cost_limit) ].compact
+      spend = limits.any? ? "Each person may use #{limits.join(', ')} in any 24 hours." : "No assistant message, token or cost limit is set."
+      kept = if config.assistant_retention
+        "Conversations are deleted #{config.assistant_retention.inspect} after their last message by rails_ai_admin:assistant:prune; schedule it daily."
+      else
+        "Conversations are kept until deleted (config.assistant_retention is not set)."
+      end
+      "#{spend} #{kept}"
     end
 
     def checks
