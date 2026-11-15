@@ -6,8 +6,9 @@
 #   "list resources", "describe customers", "search customers for ada",
 #   "count customers", "get customers 3", "award 5 points to 3",
 #   "set articles 1 title to Hello", "create articles with title Draft",
-#   "delete articles 2", "history of articles 1"; a page's "Context:" line
-#   opens that record.
+#   "delete articles 2", "history of articles 1", "sum orders total by state",
+#   "average articles views", "set customers points to 50 for Bulk" (one bulk
+#   review); a page's "Context:" line opens that record.
 # Summarize tool results and review outcomes for the browser walkthrough.
 require "json"
 require "securerandom"
@@ -16,7 +17,12 @@ def demo_tool_reply(text)
   result = JSON.parse(text)
   return result.fetch("message") if result["error"]
   if result["status"] == "awaiting_human_confirmation"
+    return "I prepared one review for #{result['records']} records. Open it to check each record before you confirm." if result["records"]
     return "I prepared a review in this conversation. Check the proposed changes and confirm when you are ready."
+  end
+  if result.key?("function")
+    groups = Array(result["groups"]).map { |group| "#{group['group'].is_a?(Hash) ? group['group']['label'] : group['group'].inspect}: #{group['value'] || group['count']}" }
+    return "The #{result['function']} of #{result['field'] || 'records'} is #{result['value'] || result['count']}#{groups.any? ? " (#{groups.join(', ')})" : ''}."
   end
   if result["records"].is_a?(Array)
     count = result["records"].size
@@ -57,6 +63,11 @@ run lambda { |env|
   message =
     if last["role"] == "tool" then { role: "assistant", content: demo_tool_reply(text) }
     elsif text.start_with?("Review result: ") then { role: "assistant", content: demo_review_reply(text) }
+    elsif (match = text.match(/set (\w+) (\w+) to (\S+) for (.+)/i))
+      tool.("propose_bulk_change", { resource: match[1], values: { match[2] => match[3] }, query: match[4].strip })
+    elsif (match = text.match(/sum (\w+) (\w+)(?: by (\w+))?/i))
+      tool.("aggregate_records", { resource: match[1], function: "sum", field: match[2], group_by: match[3] }.compact)
+    elsif (match = text.match(/average (\w+) (\w+)/i)) then tool.("aggregate_records", { resource: match[1], function: "average", field: match[2] })
     elsif (match = text.match(/set (\w+) (\S+) (\w+) to (.+)/i)) then tool.("propose_change", { resource: match[1], action: "update", id: match[2], values: { match[3] => match[4].strip } })
     elsif (match = text.match(/create (\w+) with (\w+) (.+)/i)) then tool.("propose_change", { resource: match[1], action: "create", values: { match[2] => match[3].strip } })
     elsif (match = text.match(/delete (\w+) (\S+)/i)) then tool.("propose_change", { resource: match[1], action: "destroy", id: match[2] })
@@ -68,7 +79,7 @@ run lambda { |env|
     elsif text =~ /count (\w+)/i then tool.("count_records", { resource: $1 })
     elsif text =~ /get (\w+) (\S+)/i then tool.("get_record", { resource: $1, id: $2 })
     elsif (match = text.match(/award (\d+) points to (\S+)/i)) then tool.("propose_operation", { resource: "customers", id: match[2], operation: "award_points", input: { amount: match[1].to_i } })
-    else { role: "assistant", content: "This is the offline demo provider. Try \"search articles for upgrading\", \"set articles 1 title to Hello\", \"history of articles 1\" or \"award 5 points to 1\"." }
+    else { role: "assistant", content: "This is the offline demo provider. Try \"search articles for upgrading\", \"sum orders total by state\", \"set customers points to 50 for Bulk\", \"set articles 1 title to Hello\" or \"award 5 points to 1\"." }
     end
   finish = message[:tool_calls] ? "tool_calls" : "stop"
   usage = { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 }

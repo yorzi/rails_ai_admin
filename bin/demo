@@ -8,6 +8,12 @@
 #   bin/demo                  serve http://127.0.0.1:3917/staff; Ctrl-C stops it
 #   bin/demo --assistant      also turn on admin Chat against an offline fake
 #                             provider (no key, no network)
+#   bin/demo --openrouter     turn on admin Chat against real models through
+#                             OpenRouter; reads OPENROUTER_API_KEY from the
+#                             environment when the server runs (never written
+#                             to a file) and RAA_DEMO_MODEL (default
+#                             openai/gpt-6-luna). Each message costs real money,
+#                             capped by the demo's spending limit
 #   bin/demo --plain          only the packaged host's customers and orders;
 #                             without it the demo adds articles with every field
 #                             type, uploads, rich text, tags, imports and charts
@@ -20,10 +26,11 @@ require "optparse"
 
 DEFAULT_PORT = 3917
 
-options = { port: DEFAULT_PORT, assistant: false, showcase: true, serve: true }
+options = { port: DEFAULT_PORT, assistant: false, openrouter: false, showcase: true, serve: true }
 OptionParser.new do |parser|
-  parser.banner = "Usage: bin/demo [--assistant] [--plain] [--port PORT] [--setup-only]"
+  parser.banner = "Usage: bin/demo [--assistant | --openrouter] [--plain] [--port PORT] [--setup-only]"
   parser.on("--assistant", "Enable admin Chat with an offline fake provider") { options[:assistant] = true }
+  parser.on("--openrouter", "Enable admin Chat with real models through OpenRouter (OPENROUTER_API_KEY)") { options[:assistant] = options[:openrouter] = true }
   parser.on("--plain", "Only the packaged customers and orders, without the showcase") { options[:showcase] = false }
   parser.on("--showcase", "The default; kept for older instructions") { options[:showcase] = true }
   parser.on("--port PORT", Integer, "Port on 127.0.0.1 (default 3917)") { |port| options[:port] = port }
@@ -87,21 +94,46 @@ if options[:assistant]
   File.write(File.join(TARGET, "Gemfile"), %(gem "ruby_llm", "2.2.0"\ngem "rails_tool_views", "1.0.2"\n), mode: "a")
   # rails_tool_views controllers inherit the host's ApplicationController.
   File.write(File.join(TARGET, "app/controllers/application_controller.rb"), "class ApplicationController < ActionController::Base\nend\n")
-  File.write(File.join(TARGET, "app/rails_ai_admin/admin_assistant.rb"), <<~RUBY)
-    # Points admin Chat at the offline fake provider started by bin/demo.
-    class AdminAssistant
-      def llm_context(context:)
-        RubyLLM.context do |config|
-          config.openai_api_key = "offline-demo"
-          config.openai_api_base = "http://127.0.0.1:#{options[:port] + 1}/v1"
-          config.request_timeout = 5
-          config.max_retries = 0
+  if options[:openrouter]
+    File.write(File.join(TARGET, "app/rails_ai_admin/admin_assistant.rb"), <<~RUBY)
+      # Points admin Chat at real models through OpenRouter. The key is read
+      # from the server's environment on each turn and never stored; without
+      # it the assistant says it is unavailable.
+      class AdminAssistant
+        def llm_context(context:)
+          key = ENV["OPENROUTER_API_KEY"]
+          return if key.nil? || key.empty?
+
+          RubyLLM.context do |config|
+            config.openrouter_api_key = key
+            config.request_timeout = 90
+            config.max_retries = 1
+          end
         end
       end
-    end
-  RUBY
+    RUBY
+  else
+    File.write(File.join(TARGET, "app/rails_ai_admin/admin_assistant.rb"), <<~RUBY)
+      # Points admin Chat at the offline fake provider started by bin/demo.
+      class AdminAssistant
+        def llm_context(context:)
+          RubyLLM.context do |config|
+            config.openai_api_key = "offline-demo"
+            config.openai_api_base = "http://127.0.0.1:#{options[:port] + 1}/v1"
+            config.request_timeout = 5
+            config.max_retries = 0
+          end
+        end
+      end
+    RUBY
+  end
   edit("app/rails_ai_admin/customer_admin.rb", %(operation :award_points, handler: "AwardCustomerPoints"),
-    %(operation :award_points, handler: "AwardCustomerPoints", surface: true, assistant: true))
+    %(operation :award_points, handler: "AwardCustomerPoints", surface: true, assistant: true\n  # The assistant may propose single and bulk updates for review.\n  assistant_changes :update, :bulk_update))
+  # Totals the assistant may calculate (aggregate_records).
+  edit("app/rails_ai_admin/customer_admin.rb", %(integer :points, tab: "Account", panel: "Rewards"),
+    %(integer :points, aggregatable: true, tab: "Account", panel: "Rewards"))
+  edit("app/rails_ai_admin/order_admin.rb", %(decimal :total, required: true, nullable: false, filterable: true,),
+    %(decimal :total, required: true, nullable: false, filterable: true, aggregatable: true,))
   edit("app/rails_ai_admin/admin_policy_adapter.rb", "class AdminPolicyAdapter < RailsAiAdmin::Authorization::Adapter\n",
     "class AdminPolicyAdapter < RailsAiAdmin::Authorization::Adapter\n  def assistant?(context:, resource:) = %i[customers orders].include?(resource.key)\n\n")
   edit("config/initializers/rails_ai_admin.rb", "  config.resources =", <<~RUBY.gsub(/^/, "  ") + "  config.resources =")
@@ -109,9 +141,14 @@ if options[:assistant]
     config.assistant = true
     config.mcp = true
     config.assistant_adapter = "AdminAssistant"
-    config.assistant_model = "gpt-4.1-mini"
-    config.assistant_provider = "openai"
-    config.assistant_protocol = "chat_completions"
+    config.assistant_model = #{options[:openrouter] ? 'ENV.fetch("RAA_DEMO_MODEL", "openai/gpt-6-luna")' : '"gpt-4.1-mini"'}
+    config.assistant_provider = #{options[:openrouter] ? '"openrouter"' : '"openai"'}
+    #{options[:openrouter] ? "# OpenRouter speaks chat completions; no protocol to choose." : 'config.assistant_protocol = "chat_completions"'}
+    # Spending per person in any 24 hours, shown on each conversation page.
+    config.assistant_daily_token_limit = 500_000
+    #{options[:openrouter] ? "config.assistant_daily_cost_limit = 0.25 # US dollars" : "# The fake provider reports no cost, so only tokens are limited."}
+    # rails_ai_admin:assistant:prune deletes conversations quiet this long.
+    config.assistant_retention = 30.days
   RUBY
 end
 
@@ -162,9 +199,15 @@ puts <<~TEXT
 TEXT
 puts "  Import:   #{admin}/articles/imports/new with #{DISPLAY_TARGET}/articles-import.csv" if options[:showcase]
 if options[:assistant]
-  prompts = options[:showcase] ? '"search articles for upgrading", "set articles 1 title to Hello", then "history of articles 1"' :
-    '"count customers", or "award 5 points to 1"'
+  prompts = if options[:openrouter]
+    '"What is the total of all draft orders?", "Set the points of every Bulk Customer to 50", or "Who changed article 1?"'
+  elsif options[:showcase]
+    '"search articles for upgrading", "sum orders total by state", "set customers points to 50 for Bulk", then "history of articles 1"'
+  else
+    '"count customers", "sum customers points", or "award 5 points to 1"'
+  end
   puts "  Chat:     #{admin}/assistant → New conversation. Try #{prompts}."
+  puts "  Model:    #{ENV.fetch('RAA_DEMO_MODEL', 'openai/gpt-6-luna')} through OpenRouter; set OPENROUTER_API_KEY before starting" if options[:openrouter]
 end
 exit unless options[:serve]
 
@@ -183,13 +226,13 @@ stop = lambda do
 end
 %w[INT TERM].each { |signal| trap(signal) { stop.call; exit } }
 Bundler.with_unbundled_env do
-  if options[:assistant]
+  if options[:assistant] && !options[:openrouter]
     pids << Process.spawn(ENV_VARS, "bundle", "exec", "puma", "--quiet", "-b", "tcp://127.0.0.1:#{options[:port] + 1}",
       File.join(ASSETS, "fake_llm.ru"), chdir: TARGET, out: File.join(TARGET, "log/fake_llm.log"), err: [ :child, :out ])
   end
   pids << Process.spawn(ENV_VARS, "bundle", "exec", "puma", "-b", "tcp://127.0.0.1:#{options[:port]}", "config.ru", chdir: TARGET)
 end
-puts "\nServing on 127.0.0.1 only. Press Ctrl-C to stop#{options[:assistant] ? ' both servers' : ''}."
+puts "\nServing on 127.0.0.1 only. Press Ctrl-C to stop#{options[:assistant] && !options[:openrouter] ? ' both servers' : ''}."
 begin
   Process.wait(pids.last)
 ensure

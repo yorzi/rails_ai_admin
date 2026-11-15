@@ -9,7 +9,7 @@ class ArticleAdmin < RailsAiAdmin::Resource
   fields do
     id :id, create: false
     text :title, required: true, nullable: false, searchable: :contains, sortable: true
-    integer :views, filterable: true, sortable: true
+    integer :views, filterable: true, sortable: true, aggregatable: true
     email :contact, searchable: true, filterable: %i[contains blank]
     url :website, filterable: [ :blank ]
     time :opens_at, sortable: true
@@ -39,6 +39,7 @@ class ArticleAdmin < RailsAiAdmin::Resource
     trend :created_at, days: 30, label: "Articles written"
   end
   has_one :summary, resource: :summaries
-  # With bin/demo --assistant, admin Chat may propose these for review.
-  assistant_changes :create, :update, :destroy
+  # With bin/demo --assistant, admin Chat may propose these for review,
+  # including one reviewed update of many articles.
+  assistant_changes :create, :update, :destroy, :bulk_update
 end
