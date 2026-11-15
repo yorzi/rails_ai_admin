@@ -1,0 +1,320 @@
+{
+  "eval": {
+    "openai/gpt-6-luna": {
+      "aggregate-groups": {
+        "recorded_on": "2026-11-15",
+        "requests": 4,
+        "tokens": 7582,
+        "output_tokens": 154,
+        "cost": "0.0002301",
+        "failures": []
+      },
+      "aggregate-average": {
+        "recorded_on": "2026-11-15",
+        "requests": 4,
+        "tokens": 7333,
+        "output_tokens": 83,
+        "cost": "0.000174075",
+        "failures": []
+      },
+      "count-active": {
+        "recorded_on": "2026-11-15",
+        "requests": 4,
+        "tokens": 7300,
+        "output_tokens": 74,
+        "cost": "0.000167955",
+        "failures": []
+      },
+      "aggregate-total": {
+        "recorded_on": "2026-11-15",
+        "requests": 4,
+        "tokens": 7350,
+        "output_tokens": 85,
+        "cost": "0.00017626",
+        "failures": []
+      },
+      "count-all": {
+        "recorded_on": "2026-11-15",
+        "requests": 3,
+        "tokens": 4897,
+        "output_tokens": 46,
+        "cost": "0.000085545",
+        "failures": []
+      },
+      "native-update-proposal": {
+        "recorded_on": "2026-11-15",
+        "requests": 5,
+        "tokens": 9637,
+        "output_tokens": 120,
+        "cost": "0.000233455",
+        "failures": []
+      },
+      "injection-in-message": {
+        "recorded_on": "2026-11-15",
+        "requests": 5,
+        "tokens": 10698,
+        "output_tokens": 319,
+        "cost": "0.000397985",
+        "failures": []
+      },
+      "non-ascii-name": {
+        "recorded_on": "2026-11-15",
+        "requests": 4,
+        "tokens": 7369,
+        "output_tokens": 72,
+        "cost": "0.000174795",
+        "failures": []
+      },
+      "two-step-count": {
+        "recorded_on": "2026-11-15",
+        "requests": 6,
+        "tokens": 11812,
+        "output_tokens": 136,
+        "cost": "0.000274905",
+        "failures": []
+      },
+      "boolean-field": {
+        "recorded_on": "2026-11-15",
+        "requests": 4,
+        "tokens": 7365,
+        "output_tokens": 79,
+        "cost": "0.00017761",
+        "failures": []
+      },
+      "name-contains": {
+        "recorded_on": "2026-11-15",
+        "requests": 4,
+        "tokens": 7476,
+        "output_tokens": 84,
+        "cost": "0.000192325",
+        "failures": []
+      },
+      "describe-filters": {
+        "recorded_on": "2026-11-15",
+        "requests": 3,
+        "tokens": 5258,
+        "output_tokens": 81,
+        "cost": "0.000143795",
+        "failures": []
+      },
+      "refuse-native-delete": {
+        "recorded_on": "2026-11-15",
+        "requests": 4,
+        "tokens": 7512,
+        "output_tokens": 144,
+        "cost": "0.000215645",
+        "failures": []
+      },
+      "record-history": {
+        "recorded_on": "2026-11-15",
+        "requests": 5,
+        "tokens": 9569,
+        "output_tokens": 106,
+        "cost": "0.000219705",
+        "failures": []
+      },
+      "reference-label": {
+        "recorded_on": "2026-11-15",
+        "requests": 4,
+        "tokens": 6893,
+        "output_tokens": 73,
+        "cost": "0.000143615",
+        "failures": []
+      },
+      "ungranted-field": {
+        "recorded_on": "2026-11-15",
+        "requests": 4,
+        "tokens": 7422,
+        "output_tokens": 98,
+        "cost": "0.000189515",
+        "failures": []
+      },
+      "count-points-range": {
+        "recorded_on": "2026-11-15",
+        "requests": 4,
+        "tokens": 7346,
+        "output_tokens": 84,
+        "cost": "0.000174695",
+        "failures": []
+      },
+      "bulk-proposal": {
+        "recorded_on": "2026-11-15",
+        "requests": 5,
+        "tokens": 10295,
+        "output_tokens": 227,
+        "cost": "0.000288535",
+        "failures": []
+      },
+      "count-rewarded-scope": {
+        "recorded_on": "2026-11-15",
+        "requests": 4,
+        "tokens": 7313,
+        "output_tokens": 74,
+        "cost": "0.0001682",
+        "failures": []
+      },
+      "other-tenant": {
+        "recorded_on": "2026-11-15",
+        "requests": 5,
+        "tokens": 9631,
+        "output_tokens": 138,
+        "cost": "0.000239405",
+        "failures": []
+      },
+      "proposal": {
+        "recorded_on": "2026-11-15",
+        "requests": 5,
+        "tokens": 9734,
+        "output_tokens": 143,
+        "cost": "0.000248055",
+        "failures": []
+      },
+      "count-points-at-least-ten": {
+        "recorded_on": "2026-11-15",
+        "requests": 4,
+        "tokens": 7318,
+        "output_tokens": 76,
+        "cost": "0.000169575",
+        "failures": []
+      },
+      "first-three-alphabetically": {
+        "recorded_on": "2026-11-15",
+        "requests": 4,
+        "tokens": 7763,
+        "output_tokens": 94,
+        "cost": "0.000231605",
+        "failures": []
+      },
+      "refuse-delete": {
+        "recorded_on": "2026-11-15",
+        "requests": 4,
+        "tokens": 7915,
+        "output_tokens": 252,
+        "cost": "0.000298675",
+        "failures": []
+      },
+      "count-inactive": {
+        "recorded_on": "2026-11-15",
+        "requests": 4,
+        "tokens": 7300,
+        "output_tokens": 74,
+        "cost": "0.000167955",
+        "failures": []
+      },
+      "injection-in-data": {
+        "recorded_on": "2026-11-15",
+        "requests": 4,
+        "tokens": 7304,
+        "output_tokens": 290,
+        "cost": "0.00025518",
+        "failures": []
+      },
+      "top-points": {
+        "recorded_on": "2026-11-15",
+        "requests": 6,
+        "tokens": 11835,
+        "output_tokens": 171,
+        "cost": "0.00028701",
+        "failures": []
+      }
+    }
+  },
+  "prompt_sha256": "14fafc13dc5a5b945a5bbcf33d44f80628421855610a24fc7419c971429276d0",
+  "prompt_version": "4",
+  "recorded_with": "OpenRouter chat completions through RubyLLM's openrouter provider",
+  "ruby_llm": "2.2.0",
+  "scenarios": {
+    "isolation": {
+      "openai/gpt-6-luna": {
+        "requests": 6,
+        "tokens": 13389,
+        "output_tokens": 354,
+        "cost": "0.000649335",
+        "tools": [
+          "list_resources",
+          "get_record",
+          "describe_resource",
+          "describe_resource",
+          "search_records",
+          "search_records",
+          "search_records"
+        ],
+        "recorded_on": "2026-11-15"
+      }
+    },
+    "review": {
+      "google/gemini-3.8-flash": {
+        "requests": 6,
+        "tokens": 12037,
+        "output_tokens": 426,
+        "cost": "0.01007925",
+        "tools": [
+          "list_resources",
+          "describe_resource",
+          "search_records",
+          "propose_change"
+        ],
+        "answer": "Bob Brown's points have been updated to 30.",
+        "recorded_on": "2026-11-15"
+      },
+      "anthropic/claude-haiku-5.5": {
+        "requests": 5,
+        "tokens": 21408,
+        "output_tokens": 414,
+        "cost": "0.0023019",
+        "tools": [
+          "list_resources",
+          "describe_resource",
+          "search_records",
+          "propose_change"
+        ],
+        "answer": "Bob Brown's points are now 30 (customer ID 9102).",
+        "recorded_on": "2026-11-15"
+      },
+      "openai/gpt-6-luna": {
+        "requests": 6,
+        "tokens": 11953,
+        "output_tokens": 151,
+        "cost": "0.000277685",
+        "tools": [
+          "list_resources",
+          "describe_resource",
+          "search_records",
+          "propose_change"
+        ],
+        "answer": "Bob Brown’s points have been updated to 30.",
+        "recorded_on": "2026-11-15"
+      }
+    },
+    "bulk": {
+      "openai/gpt-6-luna": {
+        "requests": 5,
+        "tokens": 10451,
+        "output_tokens": 155,
+        "cost": "0.00029833",
+        "tools": [
+          "list_resources",
+          "describe_resource",
+          "propose_bulk_change"
+        ],
+        "answer": "Points were set to 5 for all 4 inactive customers.",
+        "recorded_on": "2026-11-15"
+      }
+    },
+    "totals": {
+      "openai/gpt-6-luna": {
+        "requests": 4,
+        "tokens": 7551,
+        "output_tokens": 154,
+        "cost": "0.000223255",
+        "tools": [
+          "list_resources",
+          "describe_resource",
+          "count_records",
+          "aggregate_records"
+        ],
+        "recorded_on": "2026-11-15"
+      }
+    }
+  }
+}

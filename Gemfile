@@ -17,6 +17,8 @@ gem "ruby_llm", ">= 2.2.0", "< 3", require: false
 gem "rubocop-rails-omakase", "~> 1.1"
 gem "capybara", "~> 3.40"
 gem "webmock", "~> 3.0"
+# Recorded real-provider HTTP for the OpenRouter tests (test/cassettes).
+gem "vcr", "~> 6.4"
 gem "bcrypt", "~> 3.1", require: false
 gem "importmap-rails", "~> 2.2", require: false
 gem "puma", "~> 8.0", require: false

@@ -51,6 +51,25 @@
   limit now opens the new conversation with the question kept and the reason
   shown, instead of an access error.
 
+### Evidence
+
+- Add recorded real-provider tests: seven conversations with real models
+  through RubyLLM's OpenRouter provider (`openai/gpt-6-luna` for totals,
+  tenant isolation with injected instructions and a bulk review;
+  `openai/gpt-6-luna`, `anthropic/claude-haiku-5.5` and
+  `google/gemini-3.8-flash` for a reviewed update), and the evaluation set
+  answered by `openai/gpt-6-luna`. Their HTTP traffic is stored in
+  `test/cassettes/openrouter` (no key or authorization header) and replayed
+  offline in the suite: the admin tools, grants, usage accounting, budgets
+  and review flows run for real on every replay, and every replayed request
+  must have the recorded shape. A manifest pins the instructions' SHA-256 and
+  each recording's tokens and cost; the whole recording cost about US$0.02.
+- The evaluation set has 27 questions (new: totals, averages, per-group
+  totals and a bulk change). The recorded run passes all 27 after the grader
+  learned typographic apostrophes and three correct phrasings it had refused
+  (each reviewed by hand). The first real run also exposed the per-record
+  review loop that bulk changes and the three-review cap now prevent.
+
 ## 0.3.0 (2026-11-14)
 
 Everyday list work. Requires the new saved views migration
