@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+No changes yet.
+
 ## 0.4.0 (2026-11-15)
 
 The assistant earns its name: totals, one reviewed change for many records,
