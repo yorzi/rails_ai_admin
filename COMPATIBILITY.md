@@ -1,5 +1,30 @@
 # Compatibility
 
+## 2026-11-15 — 0.4.0 development candidate
+
+Requires Ruby >= 3.3 and Rails >= 8.1.4.1, < 8.2, as in 0.3.0. The package is
+`0.4.0.dev`; publishing is blocked pending owner review. Results are local; remote
+CI on the pushed commit must be checked separately.
+
+| Check | Executed result |
+| --- | --- |
+| Ruby 3.3.5 and 4.0.9 × SQLite and PostgreSQL 17.12, Rails 8.1.4.1 | All four combinations: 668 tests / 6,229 assertions, zero failures, errors or skips, run without `OPENROUTER_API_KEY` |
+| Recorded real-provider tests | 35 tests replay HTTP recorded on 2026-11-15 through RubyLLM 2.2.0's OpenRouter provider: 7 scenarios (`openai/gpt-6-luna`; the reviewed update also with `anthropic/claude-haiku-5.5` and `google/gemini-3.8-flash`) and the 27-question evaluation set on `openai/gpt-6-luna`. Recording cost about US$0.02 |
+| Evaluation results | First real run (23 questions): 19 passed. Three misses were correct answers the grader refused (typographic apostrophes, other wording); one was a real loop of one review per customer until the step limit. After bulk changes, the three-review cap and a wider grader, the recorded run of all 27 questions passes; each widened phrase was checked against the recorded answer |
+| Fresh packaged Rails authentication quickstart | Passed: generated authentication, registration, CRUD, revocation and rerun preservation |
+| Packaged session / SQLite | 18 / 377; 19 / 450 with every catalogued template overridden; reload and production eager boot passed |
+| Packaged Devise / Pundit / PostgreSQL | 28 / 453 on Propshaft and on Sprockets; production eager load passed |
+| Recovery | Development reload, crash/replay, outbox death/retry/reconciliation and collection worker recovery passed against synthetic effects |
+| Browser | Local `bin/demo --assistant`: totals grouped by order state, the spend line refreshing after each reply, a bulk review card, the review page for 30 customers and its result page. The walkthrough found two defects, both fixed with regression tests: the spend line did not refresh until a reload, and Turbo dropped the 200 result page of a bulk change (also the bulk delete partial-failure page). `bin/demo --openrouter` was set up but not browsed |
+| Static checks | RuboCop: 370 files, no offenses; reproducible frontend build passed |
+| Dependencies | bundle-audit flagged Puma 8.0.2 (development and demo only), updated to 8.1.0; then no vulnerabilities in the main and docs bundles. npm audit: 0 vulnerabilities |
+| Documentation | Jekyll build serves tagged 0.3.0 at `/` and the 0.4 guides at `/next/`; `docs.py check` reports no errors (two expected warnings for the `.dev` version) |
+
+Recorded replays show that this engine handles those model replies; they do not
+show how a model answers today. Native OpenAI and Anthropic APIs, repeated live
+runs, `bin/demo --openrouter` in a browser, human screen-reader validation and an
+independent host trial remain open.
+
 ## 2026-11-14 — 0.3.0 release validation
 
 Local Ruby 4.0.9 / Rails 8.1.4.1 / SQLite passed 602 tests and 5,689 assertions.
