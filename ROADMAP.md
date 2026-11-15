@@ -1,6 +1,6 @@
 # Roadmap
 
-Rails AI Admin is a Public Preview. 0.3.0 was released on 2026-11-14; 0.4.0 is in development. See [CHANGELOG.md](CHANGELOG.md) for changes and
+Rails AI Admin is a Public Preview. 0.4.0 was released on 2026-11-15. See [CHANGELOG.md](CHANGELOG.md) for changes and
 [COMPATIBILITY.md](COMPATIBILITY.md) for version-specific validation evidence.
 
 ## 0.2.0: simpler setup (released)
@@ -28,7 +28,7 @@ read-only demo is a future task, not part of this release's claim.
 - Editing children from the parent page, returning there after saving.
 - A doctor summary line and a problems-only mode.
 
-## 0.4.0: AI that earns the name (in development)
+## 0.4.0: AI that earns the name (released)
 
 - Per-person token and cost limits over any 24 hours, from RubyLLM's usage
   ledger, shown on the conversation page.

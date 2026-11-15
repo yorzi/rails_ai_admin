@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 (2026-11-15)
+
+The assistant earns its name: totals, one reviewed change for many records,
+spending limits, retention and tests recorded with real models. No migration
+is required; every new capability is opt-in. See the upgrade guide.
 
 ### Assistant
 

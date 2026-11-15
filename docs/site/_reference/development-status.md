@@ -8,7 +8,7 @@ description: Current release scope, compatibility and remaining validation.
 
 # {{ page.title }}
 
-0.3.0 is the current Public Preview. See the [release history]({% link _reference/release-history.md %}) and
+0.4.0 is the current Public Preview. See the [release history]({% link _reference/release-history.md %}) and
 [upgrade guide]({% link _reference/upgrading.md %}).
 
 0.2.0 focuses on Rails 8.1+ and simpler setup: generated authentication for Rails
@@ -22,7 +22,7 @@ views, one-step bulk actions with "all matching" up to 100 records, soft delete
 with restore, and editing children from the parent page.
 [What's New in 0.3]({% link _reference/whats-new-in-0-3.md %}) describes it.
 
-The 0.4.0 development line (unreleased) adds assistant spending limits per
+0.4.0 adds assistant spending limits per
 person, conversation retention, totals and averages under field grants, one
 reviewed change across up to 100 records, and real-provider conversations
 recorded through OpenRouter and replayed in the test suite.

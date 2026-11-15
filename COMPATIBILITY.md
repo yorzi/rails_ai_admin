@@ -1,5 +1,14 @@
 # Compatibility
 
+## 2026-11-15 — 0.4.0 release validation
+
+Local Ruby 4.0.9 / Rails 8.1.4.1 passed 668 tests and 6,229 assertions on SQLite
+and on PostgreSQL 17.12, without a provider key. RuboCop checked 370 files with no
+offenses. The packaged quickstart and session/SQLite smokes passed against the
+0.4.0 package. Remote CI on the release commit and tag provides the Ruby 3.3,
+packaged-host, recovery, asset, dependency and documentation checks; consult its
+GitHub Actions results separately.
+
 ## 2026-11-15 — 0.4.0 development candidate
 
 Requires Ruby >= 3.3 and Rails >= 8.1.4.1, < 8.2, as in 0.3.0. The package is

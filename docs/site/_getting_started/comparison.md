@@ -54,7 +54,7 @@ through `trestle-auth`.
 
 | Gem | Page setup | License | Cost | Release | Downloads |
 | --- | --- | --- | --- | --- | --- |
-| **Rails AI Admin** | Resource classes | MIT | Free | 0.3.0 | New |
+| **Rails AI Admin** | Resource classes | MIT | Free | 0.4.0 | New |
 | ActiveAdmin | Registration DSL | MIT | Free | 3.5.2 | 52M |
 | Avo | Resource classes | LGPL-3.0 or commercial | Free and paid plans | 4.4.4 | 3.8M |
 | Administrate | Generated dashboards and views | MIT | Free | 1.0.0 | 10M |
