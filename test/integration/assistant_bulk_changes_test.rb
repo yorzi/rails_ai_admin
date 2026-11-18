@@ -42,11 +42,17 @@ class AssistantBulkChangesIntegrationTest < ActionDispatch::IntegrationTest
   class Policy < AssistantPolicy
     class_attribute :selectable, default: true
     class_attribute :locked_names, default: []
+    class_attribute :join_duplicates, default: false
 
     def select_records?(context:, resource:) = selectable
     def allowed?(context:, action:, resource:, record: nil)
       return false if action.to_sym == :update && record && locked_names.include?(record.name)
       super
+    end
+
+    def scope(...)
+      scoped = super
+      join_duplicates ? scoped.joins("INNER JOIN customers copies ON copies.account_id = customers.account_id") : scoped
     end
   end
 
@@ -57,6 +63,7 @@ class AssistantBulkChangesIntegrationTest < ActionDispatch::IntegrationTest
     reset_assistant
     Policy.selectable = true
     Policy.locked_names = []
+    Policy.join_duplicates = false
     TestPolicy.granted_filters = %i[points active]
     @bob = Customer.create!(account_id: 1, name: "Bob", points: 4)
     @cara = Customer.create!(account_id: 1, name: "Cara", points: 9)
@@ -89,7 +96,40 @@ class AssistantBulkChangesIntegrationTest < ActionDispatch::IntegrationTest
 
   def decide(decision)
     form = css_select("form[action$='/bulk_change']").first
-    post form["action"], params: { change: form.css("input[name=change]").first["value"], decision: decision }
+    fields = form.css("input[type=hidden]").to_h { |input| [ input["name"], input["value"] ] }
+    post form["action"], params: fields.merge("decision" => decision)
+  end
+
+  def test_confirmation_does_not_add_records_that_became_writable_after_review
+    with_bulk do
+      Policy.locked_names = [ "Cara" ]
+      chat = start_chat
+      propose(chat, { resource: "changeable_customers", values: { points: 1 }, ids: [ @bob.id.to_s, @cara.id.to_s ] })
+      get review_link(chat)
+      assert_select "tbody tr", count: 1
+
+      Policy.locked_names = []
+      decide("confirm")
+      assert_response :conflict
+      assert_equal [ 4, 9 ], [ @bob.reload.points, @cara.reload.points ]
+      assert_empty RailsAiAdmin::OperationRun.all
+    end
+  end
+
+  def test_confirmation_can_only_be_used_once_even_when_the_update_is_a_no_op
+    with_bulk do
+      chat = start_chat
+      propose(chat, { resource: "changeable_customers", values: { points: @bob.points }, ids: [ @bob.id.to_s ] })
+      get review_link(chat)
+      form = css_select("form[action$='/bulk_change']").first
+      fields = form.css("input[type=hidden]").to_h { |input| [ input["name"], input["value"] ] }
+      post form["action"], params: fields.merge("decision" => "confirm")
+      assert_response :success
+      assert_equal @bob.lock_version, Customer.find(@bob.id).lock_version
+      post form["action"], params: fields.merge("decision" => "confirm")
+      assert_response :conflict
+      assert_equal 1, RailsAiAdmin::AuditEvent.where(operation: "update", status: "succeeded").count
+    end
   end
 
   def test_one_review_updates_each_record_as_the_person_and_tells_the_chat_once
@@ -144,6 +184,19 @@ class AssistantBulkChangesIntegrationTest < ActionDispatch::IntegrationTest
       assert_select "h2", text: "1 selected record will not be changed"
       decide("confirm")
       assert_equal [ 1, 9 ], [ @bob.reload.points, @cara.reload.points ]
+      assert_select "tbody tr", text: /Cara/
+      assert_includes chat.turns.find_by!(kind: "continuation").content, "1 of 2 records were updated."
+    end
+  end
+
+  def test_submission_requires_an_explicit_decision
+    with_bulk do
+      chat = start_chat
+      propose(chat, { resource: "changeable_customers", values: { name: "Same" }, ids: [ @bob.id.to_s, @cara.id.to_s ] })
+      get review_link(chat)
+      decide(nil)
+      assert_response :unprocessable_content
+      assert_equal %w[Bob Cara], [ @bob.reload.name, @cara.reload.name ]
     end
   end
 
@@ -157,6 +210,12 @@ class AssistantBulkChangesIntegrationTest < ActionDispatch::IntegrationTest
       assert_redirected_to "/backoffice/assistant/conversations/#{chat.ref}"
       assert_equal %w[Bob Cara], [ @bob.reload.name, @cara.reload.name ]
       assert_includes chat.turns.find_by!(kind: "continuation").content, "the user dismissed"
+      path, query = link.split("?")
+      get link
+      assert_response :conflict
+      post path, params: { change: Rack::Utils.parse_query(query).fetch("change"), decision: "confirm" }
+      assert_response :conflict
+      assert_equal %w[Bob Cara], [ @bob.reload.name, @cara.reload.name ]
 
       other = start_chat
       propose(other, { resource: "changeable_customers", values: { name: "Same" }, ids: [ @bob.id.to_s, @cara.id.to_s ] })
@@ -165,6 +224,21 @@ class AssistantBulkChangesIntegrationTest < ActionDispatch::IntegrationTest
       get link
       assert_response :conflict
       assert_equal %w[Bob Cara], [ @bob.reload.name, @cara.reload.name ]
+    end
+  end
+
+  def test_joined_policy_counts_distinct_records_before_enforcing_the_cap
+    with_bulk do
+      Policy.join_duplicates = true
+      Customer.insert_all!(Array.new(101) { { name: "Fixture", account_id: 1 } })
+      chat = start_chat
+      result = propose(chat, { resource: "changeable_customers", values: { points: 1 }, filters: { points: { gte: "1" } } })
+      assert_equal [ "awaiting_human_confirmation", 2 ], result.values_at("status", "records")
+      get review_link(chat)
+      assert_select "tbody tr", count: 2
+      decide("confirm")
+      assert_equal [ 1, 1 ], [ @bob.reload.points, @cara.reload.points ]
+      assert_equal 2, RailsAiAdmin::AuditEvent.where(operation: "update", status: "succeeded").count
     end
   end
 

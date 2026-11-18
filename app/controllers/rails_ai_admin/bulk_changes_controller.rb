@@ -10,18 +10,24 @@ module RailsAiAdmin
   class BulkChangesController < ApplicationController
     def show
       load_plan
+      @review_signature = Operations::BulkChange.sign_review(@selection, params[:change], @ready) if @ready.any?
     end
 
     def create
+      decision = params[:decision]
+      raise AccessDenied, "INVALID_QUERY" unless Operations::BulkChange::DECISIONS.include?(decision)
       load_plan
-      decision = params[:decision] == "dismiss" ? "dismissed" : "confirmed"
-      if decision == "dismissed"
+      if decision == "confirm"
+        Operations::BulkChange.verify_review!(params[:review_signature], params[:change], @ready)
+        raise AccessDenied if @ready.empty?
+      end
+      Operations::BulkChange.decide!(@selection, decision)
+      if decision == "dismiss"
         continue_chat("dismissed", "Nothing was changed.")
         return redirect_to(return_path, status: :see_other, notice: t("rails_ai_admin.bulk_changes.dismissed"))
       end
-      raise AccessDenied if @ready.empty?
       runner = Operations::Runner.new
-      @outcomes = @ready.map do |item|
+      outcomes = @ready.map do |item|
         code = begin
           intent = runner.prepare(context: @context, resource: @resource, operation: :update, target_id: item.target.id,
             expected_version: item.target.expected_version, input: @proposal.values, origin: :assistant)
@@ -31,10 +37,10 @@ module RailsAiAdmin
         end
         [ item.target, code ]
       end
-      @updated = @outcomes.count { |_, code| code == "OK" }
-      @failed = @outcomes.reject { |_, code| code == "OK" }
-      not_updated = @failed.map(&:last).tally.map { |code, count| "#{count} #{code}" }
-      outcome = "#{@updated} of #{@outcomes.size} records were updated." + (not_updated.any? ? " Not updated: #{not_updated.join(', ')}." : "")
+      @updated = outcomes.count { |_, code| code == "OK" }
+      @not_updated = outcomes.reject { |_, code| code == "OK" } + @skipped.map { |item| [ item.target, item.code ] }
+      reasons = @not_updated.map(&:last).tally.map { |code, count| "#{count} #{code}" }
+      outcome = "#{@updated} of #{@items.size} records were updated." + (reasons.any? ? " Not updated: #{reasons.join(', ')}." : "")
       continue_chat("confirmed", outcome)
       render :result
     end
@@ -52,6 +58,7 @@ module RailsAiAdmin
         manifest_digest: @proposal.manifest_digest) { |record| records[record.id.to_s] = record }
       @resource = RailsAiAdmin.registry.fetch(@selection.resource_key)
       raise AccessDenied unless @resource.key.to_s == @proposal.resource_key && @resource.assistant_change?(:bulk_update)
+      Operations::BulkChange.ensure_open!(@selection)
       @items = Operations::BulkChange.plan(context: @context, resource: @resource, selection: @selection, records: records, values: @proposal.values)
       @ready = @items.select { |item| item.code.nil? }
       @skipped = @items.reject { |item| item.code.nil? }

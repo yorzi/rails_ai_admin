@@ -15,7 +15,9 @@ module RailsAiAdmin
     # selection manifest, every record and every value.
     module BulkChange
       PURPOSE = "rails_ai_admin/bulk_change"
+      REVIEW_PURPOSE = "rails_ai_admin/bulk_change_review"
       MAX_TOKEN = 16_384
+      DECISIONS = %w[confirm dismiss].freeze
       Proposal = ::Data.define(:selection_ref, :manifest_digest, :resource_key, :values, :context_ref)
       # code is nil when the actor may apply the values to this record now.
       # changes maps readable field names to [before, after]; hidden counts
@@ -23,6 +25,10 @@ module RailsAiAdmin
       Item = ::Data.define(:target, :record, :changes, :hidden, :code)
 
       module_function
+
+      def available?
+        Selection.table_exists? && Selection.column_names.include?("bulk_change_decision")
+      end
 
       def encode(context:, selection:, resource:, values:, context_ref: nil)
         payload = { "s" => selection.selection_ref, "d" => selection.manifest_digest, "r" => resource.key.to_s, "v" => values,
@@ -43,6 +49,41 @@ module RailsAiAdmin
       rescue ActiveSupport::MessageEncryptor::InvalidMessage, ActiveSupport::MessageVerifier::InvalidSignature, JSON::ParserError, ArgumentError, TypeError
         raise AccessDenied
       end
+
+      def ensure_open!(selection)
+        raise ConfigurationError, "Bulk changes require the bulk change decision migration" unless available?
+        raise AccessDenied, "CONFLICT" unless pending_selection(selection).exists?
+      end
+
+      # Bind approval to the records shown as ready, even when their grants
+      # change without a record-version change between GET and POST.
+      def sign_review(selection, token, items)
+        review_verifier.generate(review_digest(token, items), expires_at: selection.expires_at, purpose: REVIEW_PURPOSE)
+      end
+
+      def verify_review!(signature, token, items)
+        raise AccessDenied, "INVALID_QUERY" unless signature.is_a?(String) && signature.bytesize.between?(1, 1024)
+        unless review_verifier.verified(signature, purpose: REVIEW_PURPOSE) == review_digest(token, items)
+          raise AccessDenied, "CONFLICT"
+        end
+      end
+
+      def review_digest(token, items) = InputSchema.digest(token: token, ids: items.map { |item| item.target.id })
+      def review_verifier = ::Rails.application.message_verifier(REVIEW_PURPOSE)
+      private_class_method :review_digest, :review_verifier
+
+      # Claim the first decision before any member writes. The comparison and
+      # update are atomic on both supported databases, including for no-op updates.
+      def decide!(selection, decision)
+        raise AccessDenied, "INVALID_QUERY" unless DECISIONS.include?(decision)
+        raise AccessDenied, "CONFLICT" unless pending_selection(selection).update_all(bulk_change_decision: decision) == 1
+      end
+
+      def pending_selection(selection)
+        Selection.where(id: selection.selection_ref, manifest_digest: selection.manifest_digest, bulk_change_decision: nil)
+          .where(Selection.arel_table[:expires_at].gt(Time.current))
+      end
+      private_class_method :pending_selection
 
       # For each selected record, whether the actor may apply the values now
       # and what visibly changes. Runner#preview writes nothing; it checks the

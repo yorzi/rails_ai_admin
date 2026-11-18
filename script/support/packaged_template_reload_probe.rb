@@ -17,26 +17,30 @@ begin
   original = header + '<span data-raa-reload-override="before"></span>' + lines.join
   source.write(original)
   owned_digest = Digest::SHA256.file(source).hexdigest
-  actor = StaffUser.order(:id).first!
-  tenant = actor.tenants.order(:id).first!
-  record_id = SupportTicket.where(tenant_id: tenant.id).order(:id).first!.id
-  browser = ActionDispatch::Integration::Session.new(Rails.application)
-  browser.get "/staff_users/sign_in"
-  csrf = Nokogiri::HTML(browser.response.body).at_css("input[name=authenticity_token]")&.[]("value")
-  raise "Fixture login token missing" unless csrf
-  browser.post "/staff_users/sign_in", params: { authenticity_token: csrf, staff_user: { email: actor.email, password: "synthetic-fixture-password" } }
-  raise "Fixture login failed" unless browser.response.status == 303
-  browser.get "/operations/tickets/#{record_id}"
-  raise "Initial host override was not used" unless browser.response.status == 200 && browser.response.body.include?('data-raa-reload-override="before"')
-  before_controller = RailsAiAdmin::ResourcesController
-  source.write(original.sub('data-raa-reload-override="before"', 'data-raa-reload-override="after"'))
-  owned_digest = Digest::SHA256.file(source).hexdigest
-  Rails.application.reloader.reload!
-  raise "Controller was not reloaded" if RailsAiAdmin::ResourcesController.equal?(before_controller)
-  browser.get "/operations/tickets/#{record_id}"
-  raise "Changed override did not reload" unless browser.response.status == 200 && browser.response.body.include?('data-raa-reload-override="after"') && !browser.response.body.include?('data-raa-reload-override="before"')
-  check = RailsAiAdmin::Templates::Inspector.new(root: Rails.root).checks.find { |entry| entry.key == "resource_show" }
-  raise "Host edit changed its upstream baseline unexpectedly" unless check&.code == "CURRENT"
+  StaffUser.transaction do
+    actor = StaffUser.create!(email: "template-reload-#{SecureRandom.hex(6)}@example.test", password: "synthetic-fixture-password", role: "admin")
+    tenant = Tenant.create!(name: "Template reload tenant")
+    actor.tenant_memberships.create!(tenant: tenant)
+    record_id = SupportTicket.create!(tenant: tenant, subject: "Template reload ticket").id
+    browser = ActionDispatch::Integration::Session.new(Rails.application)
+    browser.get "/staff_users/sign_in"
+    csrf = Nokogiri::HTML(browser.response.body).at_css("input[name=authenticity_token]")&.[]("value")
+    raise "Fixture login token missing" unless csrf
+    browser.post "/staff_users/sign_in", params: { authenticity_token: csrf, staff_user: { email: actor.email, password: "synthetic-fixture-password" } }
+    raise "Fixture login failed" unless browser.response.status == 303
+    browser.get "/operations/tickets/#{record_id}"
+    raise "Initial host override was not used" unless browser.response.status == 200 && browser.response.body.include?('data-raa-reload-override="before"')
+    before_controller = RailsAiAdmin::ResourcesController
+    source.write(original.sub('data-raa-reload-override="before"', 'data-raa-reload-override="after"'))
+    owned_digest = Digest::SHA256.file(source).hexdigest
+    Rails.application.reloader.reload!
+    raise "Controller was not reloaded" if RailsAiAdmin::ResourcesController.equal?(before_controller)
+    browser.get "/operations/tickets/#{record_id}"
+    raise "Changed override did not reload" unless browser.response.status == 200 && browser.response.body.include?('data-raa-reload-override="after"') && !browser.response.body.include?('data-raa-reload-override="before"')
+    check = RailsAiAdmin::Templates::Inspector.new(root: Rails.root).checks.find { |entry| entry.key == "resource_show" }
+    raise "Host edit changed its upstream baseline unexpectedly" unless check&.code == "CURRENT"
+    raise ActiveRecord::Rollback
+  end
   puts "Actual development template reload passed: host precedence, fresh controller, changed body and preserved source baseline"
 ensure
   if source.file?

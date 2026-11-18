@@ -5,7 +5,14 @@ require "support/application"
 require "minitest/mock"
 
 class NativeSelectionPolicy < TestPolicy
+  class_attribute :join_duplicates, default: false
+
   def select_records?(context:, resource:) = context.actor.id == 1
+
+  def scope(...)
+    scoped = super
+    join_duplicates ? scoped.joins("INNER JOIN customers copies ON copies.account_id = customers.account_id") : scoped
+  end
 end
 
 class NativeSelectionsTest < ActionDispatch::IntegrationTest
@@ -45,6 +52,28 @@ class NativeSelectionsTest < ActionDispatch::IntegrationTest
       refute_includes response.body, "Changed confidential label"
       assert_equal 1, RailsAiAdmin::SelectionItem.count
     end
+  end
+
+  def test_selecting_all_matches_counts_distinct_records_under_a_joined_policy
+    NativeSelectionPolicy.join_duplicates = true
+    matches = 26.times.map { |index| Customer.create!(name: "Match #{index}", account_id: 1) }
+    Customer.create!(name: "Match outside tenant", account_id: 2)
+    with_policy do
+      query = RailsAiAdmin::Queries::List.new(context, TestResource)
+      assert_equal 26, query.count(search: "Match").count
+      assert_equal matches.first(25).map(&:id), query.call(search: "Match").records.map(&:id)
+      assert_equal [ matches.last.id ], query.call(search: "Match", page: "2").records.map(&:id)
+
+      get "/backoffice/customers", params: { q: "Match" }
+      assert_select "input#raa-all-matching[data-count='26']"
+      post "/backoffice/customers/selections", params: { all_matching: "1", return_to: { q: "Match" } }
+      assert_response :see_other
+      follow_redirect!
+      assert_includes response.body, "26 fixed targets"
+      assert_equal matches.map(&:id).sort, RailsAiAdmin::SelectionItem.pluck(:target_id).map(&:to_i).sort
+    end
+  ensure
+    NativeSelectionPolicy.join_duplicates = false
   end
 
   def test_no_implicit_grant_and_no_cross_actor_or_tenant_access

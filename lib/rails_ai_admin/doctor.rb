@@ -252,6 +252,9 @@ module RailsAiAdmin
 
     def selection_check
       installed = [ Selection, SelectionItem, BatchItem ].all?(&:table_exists?)
+      if installed && @registry.resources.any? { |resource| resource.assistant_change?(:bulk_update) } && !Operations::BulkChange.available?
+        return Check.new("selections", :error, "Bulk change reviews require the latest engine migrations. Run rails_ai_admin:install --skip and db:migrate.")
+      end
       Check.new("selections", installed ? :review : :error,
         "Fixed selection tables installed=#{installed}; at most 100 targets with lock_version or updated_at in one pool. Separate select_records? grant, current scope/show/fields and expiry apply. Selection alone is not approval; collection admission/leases require current host policies and persistent queue scans.")
     rescue ActiveRecord::ActiveRecordError

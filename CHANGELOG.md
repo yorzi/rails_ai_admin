@@ -2,7 +2,14 @@
 
 ## Unreleased
 
-No changes yet.
+- Bulk change reviews require an explicit confirmation or dismissal. The
+  first decision closes the review, and a confirmation checks that the set of
+  writable records still matches the review page. Results include every record
+  that was skipped or failed. Copy the new engine migration with
+  `bin/rails generate rails_ai_admin:install --skip`, then run `bin/rails db:migrate`.
+- Lists, counts and bulk selections use distinct records when a policy scope
+  joins multiple rows per record. Pagination and the 100-record limit now count
+  each record once.
 
 ## 0.4.0 (2026-11-15)
 

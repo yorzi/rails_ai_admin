@@ -28,6 +28,7 @@
 <%# The result page renders with 200, which Turbo would drop after a form post. %>
 <%= form_with url: apply_bulk_change_path(selection_ref: @selection.selection_ref), method: :post, local: true, data: { turbo: false } do |form| %>
   <%= hidden_field_tag :change, params[:change], id: nil %>
+  <%= hidden_field_tag :review_signature, @review_signature, id: nil if @review_signature %>
   <div class="raa-actions">
     <% if @ready.any? %>
       <%= form.button t("rails_ai_admin.bulk_changes.submit", count: @ready.size), name: "decision", value: "confirm", type: "submit",

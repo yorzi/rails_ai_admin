@@ -66,7 +66,7 @@ module RailsAiAdmin
       def count(search: nil, scope: nil, filters: nil)
         @access.authorize!(:index)
         relation, named = filtered_relation(search: search, scope: scope, filters: filters)
-        total = relation.except(:order).limit(COUNT_LIMIT + 1).count
+        total = unique_records(relation).except(:order).limit(COUNT_LIMIT + 1).count
         CountResult.new([ total, COUNT_LIMIT ].min, total > COUNT_LIMIT, named&.name&.to_s)
       end
 
@@ -188,6 +188,7 @@ module RailsAiAdmin
       end
 
       def sorted(relation, sort, direction)
+        relation = unique_records(relation)
         settings = @resource.index
         table = @resource.model_class.arel_table
         primary = @resource.model_class.primary_key
@@ -213,6 +214,19 @@ module RailsAiAdmin
           relation = relation.reorder(table[primary].asc)
         end
         [ relation, field, direction ]
+      end
+
+      # A policy join can return several rows for one record. Paginate and
+      # count the authorized keys before sorting or projecting model columns.
+      # Using IDs also avoids DISTINCT on PostgreSQL JSON columns.
+      def unique_records(relation)
+        return relation unless relation.joins_values.any? || relation.left_outer_joins_values.any? || relation.eager_loading? || relation.distinct_value
+        model = relation.klass
+        key = model.primary_key
+        ids = relation.reorder(nil).reselect(model.arel_table[key])
+        records = model.unscoped.where(key => ids).readonly(relation.readonly_value).strict_loading(relation.strict_loading_value)
+        preloads = relation.preload_values | relation.includes_values | relation.eager_load_values
+        preloads.any? ? records.preload(*preloads) : records
       end
 
       def filtered_relation(search:, scope:, filters:)

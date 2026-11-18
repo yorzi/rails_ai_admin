@@ -585,13 +585,14 @@ module RailsAiAdmin
         raise AccessDenied, "INVALID_QUERY" if ids && !(query.nil? && filters.nil? && scope.nil?)
         resource = @session.resource(resource)
         raise AccessDenied unless resource.assistant_change?(:bulk_update)
+        return failure("UNAVAILABLE") unless Operations::BulkChange.available?
         by_name = resource.fields.index_by { |field| field.name.to_s }
         raise AccessDenied, "INVALID_QUERY" if values.keys.any? { |name| ProposeChange::UNSUPPORTED.include?(by_name[name.to_s]&.scalar_type) }
         return failure("LIMIT_REACHED") if @session.tally.full?
         target_ids = ids || matching_ids(resource, query, filters, scope)
         return failure("TOO_MANY") if target_ids.size > Selections::Builder::LIMIT
         return failure("NOT_FOUND") if target_ids.empty?
-        selection = Selections::Builder.new.capture(context: @session.context, resource: resource, target_ids: target_ids.uniq)
+        selection = Selections::Builder.new.capture(context: @session.context, resource: resource, target_ids: target_ids)
         return failure("NOT_FOUND") if selection.targets.empty?
         values = values.transform_keys(&:to_s)
         access = @session.access(resource)
