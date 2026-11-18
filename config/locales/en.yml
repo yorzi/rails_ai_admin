@@ -151,6 +151,7 @@ en:
       too_many: The file has more than %{limit} rows. Split it into smaller files.
       empty: The file needs a header row and at least one data row.
       no_columns: No column matches a field you can fill. Use the template's header row.
+      ambiguous_column: A column matches more than one field. Use the template's header row or the exact field names.
       not_utf8: The file is not UTF-8 text.
       unclosed_quote: A quoted cell is never closed.
       invalid_quote: The file contains invalid quotation marks. Double any quotation mark inside a quoted cell.

@@ -16,6 +16,8 @@
   reads multibyte UTF-8 text in a single pass.
 - Rejected forms clean up newly uploaded files even when a later input fails
   before the save starts.
+- CSV templates use exact field names where a label is ambiguous. Imports
+  report ambiguous headers before writing any rows.
 
 ## 0.4.0 (2026-11-15)
 

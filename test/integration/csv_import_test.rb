@@ -35,6 +35,17 @@ class CsvImportIntegrationTest < ActionDispatch::IntegrationTest
     end
   end
 
+  class AliasedArticleAdmin < RailsAiAdmin::Resource
+    model "Article"
+    key :articles
+    title :title
+    fields do
+      id :id
+      text :title, label: "Views", required: true
+      integer :views, label: "View count"
+    end
+  end
+
   def setup
     reset_database
     reset_essentials
@@ -143,6 +154,29 @@ class CsvImportIntegrationTest < ActionDispatch::IntegrationTest
       post "/backoffice/articles/imports", params: { mode: "import", file: csv(%(Title,Views\r"中文 ""引号"", 示例",2\r"无换行结尾",3)) }
       assert_response :success
       assert_equal [ [ %(中文 "引号", 示例), 2 ], [ "无换行结尾", 3 ] ], Article.where.not(id: @article.id).order(:id).pluck(:title, :views)
+    end
+  end
+
+  def test_template_distinguishes_labels_that_overlap_field_names
+    with_essential_resources(resources: [ AliasedArticleAdmin.name ]) do
+      get "/backoffice/articles/imports/template"
+      assert_includes response.body, %("title","View count")
+      post "/backoffice/articles/imports", params: { mode: "import", file: csv(response.body + "New article,7\r\n") }
+      assert_response :success
+      assert_equal [ "New article", 7 ], Article.where.not(id: @article.id).pick(:title, :views)
+    end
+  end
+
+  def test_ambiguous_headers_do_not_import_into_an_arbitrary_field
+    with_essential_resources(resources: [ AliasedArticleAdmin.name ]) do
+      post "/backoffice/articles/imports", params: { mode: "import", file: csv("title,Views\nNew article,5\n") }
+      assert_response :unprocessable_content
+      assert_select "p[role=alert]", text: /A column matches more than one field/
+      assert_equal [ "First" ], Article.pluck(:title)
+
+      post "/backoffice/articles/imports", params: { mode: "import", file: csv("title,views\nNew article,5\n") }
+      assert_response :success
+      assert_equal [ "New article", 5 ], Article.where.not(id: @article.id).pick(:title, :views)
     end
   end
 

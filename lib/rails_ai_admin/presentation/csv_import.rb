@@ -31,7 +31,13 @@ module RailsAiAdmin
         @fields ||= @access.fields(:write, @access.relation.new, operation: :create).select { |field| TYPES.include?(field.scalar_type) && !field.plugin? }
       end
 
-      def template = "﻿#{fields.map { |field| %("#{field.label.gsub('"', '""')}") }.join(',')}\r\n"
+      def template
+        headers = fields.map do |field|
+          header = matching_fields(field.label) == [ field ] ? field.label : field.name.to_s
+          %("#{header.gsub('"', '""')}")
+        end
+        "﻿#{headers.join(',')}\r\n"
+      end
 
       def call(text, write:)
         @access.authorize_import!
@@ -68,16 +74,26 @@ module RailsAiAdmin
         RowResult.new(number, error.code, {}, nil)
       end
 
-      # Header cells match a field's label or name, ignoring case and spaces.
+      # An exact field name can disambiguate colliding normalized labels.
       def map_columns(header)
-        names = fields.flat_map { |field| [ [ key(field.label), field ], [ key(field.name.to_s), field ] ] }.to_h
         used = {}
         header.each_with_index.each_with_object({}) do |(cell, position), mapping|
-          field = names[key(cell.to_s)]
+          matches = matching_fields(cell.to_s)
+          raise Invalid, I18n.t("rails_ai_admin.imports.ambiguous_column") if matches.size > 1
+          field = matches.first
           next unless field && !used[field.name]
           used[field.name] = true
           mapping[position] = field
         end
+      end
+
+      def matching_fields(header)
+        @field_names ||= fields.index_by { |field| field.name.to_s }
+        exact = @field_names[header.strip]
+        return [ exact ] if exact
+        @header_aliases ||= fields.flat_map { |field| [ [ key(field.label), field ], [ key(field.name.to_s), field ] ] }
+          .group_by(&:first).transform_values { |aliases| aliases.map(&:last).uniq }
+        @header_aliases.fetch(key(header), [])
       end
 
       def key(text) = text.to_s.unicode_normalize(:nfkc).downcase.gsub(/[\s_]+/, " ").strip
