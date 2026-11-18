@@ -12,6 +12,8 @@
   each record once.
 - CSV import checks apply the host model's validations and the create policy
   to the populated row, before creating any records or audit events.
+- CSV import rejects malformed quotation marks before writing any rows and
+  reads multibyte UTF-8 text in a single pass.
 
 ## 0.4.0 (2026-11-15)
 

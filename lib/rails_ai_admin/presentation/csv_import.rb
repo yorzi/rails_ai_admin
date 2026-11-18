@@ -100,38 +100,44 @@ module RailsAiAdmin
       def parse(text)
         raise Invalid, I18n.t("rails_ai_admin.imports.not_utf8") unless text.valid_encoding?
         rows, row, cell = [], [], +""
-        quoted = false
-        index = 0
-        while index < text.length
-          char = text[index]
-          if quoted
+        state = :unquoted
+        skip_lf = false
+        text.each_char do |char|
+          if skip_lf
+            skip_lf = false
+            next if char == "\n"
+          end
+          if state == :quoted
             if char == '"'
-              if text[index + 1] == '"'
-                cell << '"'
-                index += 1
-              else
-                quoted = false
-              end
+              state = :after_quote
             else
               cell << char
             end
-          elsif char == '"' && cell.empty?
-            quoted = true
-          elsif char == ","
+            next
+          end
+
+          case char
+          when '"'
+            raise Invalid, I18n.t("rails_ai_admin.imports.invalid_quote") if state == :unquoted && !cell.empty?
+            cell << char if state == :after_quote
+            state = :quoted
+          when ","
             row << cell
             cell = +""
-          elsif char == "\n" || char == "\r"
-            index += 1 if char == "\r" && text[index + 1] == "\n"
+            state = :unquoted
+          when "\n", "\r"
             row << cell
             rows << row unless row.all?(&:empty?)
             row, cell = [], +""
             raise Invalid, I18n.t("rails_ai_admin.imports.too_many", limit: @limit) if rows.size > @limit + 1
+            state = :unquoted
+            skip_lf = char == "\r"
           else
+            raise Invalid, I18n.t("rails_ai_admin.imports.invalid_quote") if state == :after_quote
             cell << char
           end
-          index += 1
         end
-        raise Invalid, I18n.t("rails_ai_admin.imports.unclosed_quote") if quoted
+        raise Invalid, I18n.t("rails_ai_admin.imports.unclosed_quote") if state == :quoted
         row << cell
         rows << row unless row.all?(&:empty?)
         rows

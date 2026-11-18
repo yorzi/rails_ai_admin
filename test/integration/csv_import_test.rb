@@ -125,6 +125,27 @@ class CsvImportIntegrationTest < ActionDispatch::IntegrationTest
     end
   end
 
+  def test_malformed_quoting_rejects_the_whole_file_before_creating_any_rows
+    with_essential_resources do
+      [ %q("Quoted"suffix), %q(Unquoted"quote) ].each do |title|
+        post "/backoffice/articles/imports", params: { mode: "import", file: csv("Title,Views\r\nValid,1\r\n#{title},2\r\n") }
+        assert_response :unprocessable_content
+        assert_select "p[role=alert]", text: /invalid quotation marks/
+        assert_equal [ "First" ], Article.pluck(:title)
+        assert_empty RailsAiAdmin::OperationRun.all
+        assert_empty RailsAiAdmin::AuditEvent.all
+      end
+    end
+  end
+
+  def test_utf8_quoted_cells_and_carriage_return_line_endings
+    with_essential_resources do
+      post "/backoffice/articles/imports", params: { mode: "import", file: csv(%(Title,Views\r"中文 ""引号"", 示例",2\r"无换行结尾",3)) }
+      assert_response :success
+      assert_equal [ [ %(中文 "引号", 示例), 2 ], [ "无换行结尾", 3 ] ], Article.where.not(id: @article.id).order(:id).pluck(:title, :views)
+    end
+  end
+
   def test_import_needs_its_grant_and_the_create_grant
     EssentialFixtures::Policy.export = false
     with_essential_resources do

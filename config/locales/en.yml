@@ -153,6 +153,7 @@ en:
       no_columns: No column matches a field you can fill. Use the template's header row.
       not_utf8: The file is not UTF-8 text.
       unclosed_quote: A quoted cell is never closed.
+      invalid_quote: The file contains invalid quotation marks. Double any quotation mark inside a quoted cell.
       check_title: Check results
       result_title: Import results
       ready:
