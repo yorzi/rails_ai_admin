@@ -10,7 +10,9 @@ Rails quickstart, the session/SQLite host, the Devise/Pundit/PostgreSQL host on
 Propshaft and Sprockets, and process-loss recovery. GitHub Actions passed both
 the [CI run](https://github.com/yorzi/rails_ai_admin/actions/runs/44211677460) and
 the [dependency security run](https://github.com/yorzi/rails_ai_admin/actions/runs/44211677367)
-on this base. The release commit and tag have separate CI runs.
+on this base. The [release commit CI](https://github.com/yorzi/rails_ai_admin/actions/runs/44214154306)
+and [signed tag CI](https://github.com/yorzi/rails_ai_admin/actions/runs/44214777890)
+passed for `bccc3b3`.
 
 ## 2026-11-15 — 0.4.0 release validation
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+No changes yet.
+
 ## 0.4.1 (2026-11-18)
 
 This Public Preview patch fixes bulk reviews, joined lists, CSV imports and

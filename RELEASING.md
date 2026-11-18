@@ -1,7 +1,8 @@
 # Releasing
 
 The owner authorized publication of the 0.4.1 Public Preview on 2026-11-18.
-The release commit opens `allowed_push_host`. Development builds block publishing.
+The release commit opens `allowed_push_host`. Development continues as
+`0.4.2.dev` with publishing blocked.
 
 ## Candidate checks
 
@@ -56,10 +57,13 @@ outside the 0.4.1 release.
    Enable publishing only with owner approval; the workflow uses RubyGems Trusted
    Publishing and the protected `release` environment.
 5. Create the GitHub release with notes and the digest. Publishing the GitHub
-   release triggers **Publish documentation**. Verify the live version, install
-   command, `/next/` and API reference after deployment.
+   release triggers **Publish documentation**.
 6. Reopen development with the next `.dev` version, `released: false`, an
    `Unreleased` changelog and the blocked push host.
+7. Dispatch **Publish documentation** from `main` to refresh `/next/` after
+   reopening development. This also publishes the tagged stable guides when
+   the Pages environment allows only `main`. Verify the live install command,
+   `/next/` and both API references.
 
 Never publish from a dirty checkout, an unreviewed tag or a package whose digest
 differs from the reviewed build. A green check is evidence, not owner approval.
