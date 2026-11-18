@@ -110,8 +110,7 @@ open.
 
 ## Try It in the Demo
 
-`bin/demo --assistant` covers totals ("sum orders total by state") and bulk
-reviews ("set customers points to 50 for Bulk") with the offline fake provider.
+`bin/demo` covers totals ("sum orders total by state") and bulk reviews ("set customers points to 50 for Bulk") with the offline fake provider.
 `bin/demo --openrouter` runs the same demo against real models, reading
 `OPENROUTER_API_KEY` from the environment, under a US$0.25 daily limit. See
 [Run the Demo]({% link _getting_started/demo.md %}).

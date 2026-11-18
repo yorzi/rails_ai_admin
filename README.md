@@ -85,14 +85,9 @@ From a clone of this repository:
 
 ```sh
 bundle install
-bin/demo --assistant
+bin/demo
 ```
 
-Open `http://127.0.0.1:3917/login`, choose **Sign in as Admin**, then select
-**Assistant → New conversation**. Try `search articles for upgrading`, followed
-by `set articles 1 title to Hello` to see a change review. The demo uses seeded
-data and an offline model; `bin/demo --openrouter` uses real models with an
-`OPENROUTER_API_KEY` from your environment. Follow the [demo walkthrough](https://rails-ai-admin.wangyaodi.com/demo/)
-for more examples.
+Open `http://127.0.0.1:3917/login` and choose **Sign in as Admin**. Explore the dashboard and Articles, then ask the offline **Assistant** `set articles 1 title to Hello`. Review and confirm the change, then find it in **Audit log**. No API key is needed. Follow the [demo walkthrough](https://rails-ai-admin.wangyaodi.com/next/demo/) to try CSV, bulk reviews, permissions and MCP in the same demo.
 
 [MIT License](LICENSE) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)

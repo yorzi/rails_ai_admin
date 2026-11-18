@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # An offline stand-in for an OpenAI-compatible chat completions API, used by
-# `bin/demo --assistant`. It never calls a real provider. Phrases in the last
+# `bin/demo`. It never calls a real provider. Phrases in the last
 # user message choose a tool call:
 #   "list resources", "describe customers", "search customers for ada",
 #   "count customers", "get customers 3", "award 5 points to 3",

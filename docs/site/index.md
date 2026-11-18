@@ -86,11 +86,7 @@ a person reviews and confirms it in the conversation:
 
 ![An assistant conversation with a change to confirm or dismiss]({{ '/assets/images/screenshots/assistant.png' | relative_url }})
 
-The pictures come from the local demo. `bin/demo --assistant` serves a seeded admin on `127.0.0.1` with every feature
-turned on: uploads, rich text, imports, history, charts, search, and AI chat and
-MCP against an offline fake model. Open `http://127.0.0.1:3917/login` and click
-**Sign in as Admin**. See
-[Try the Demo]({% link _getting_started/demo.md %}).
+The pictures come from `bin/demo`, a single local admin with seeded data, an offline assistant and MCP access. Open `http://127.0.0.1:3917/login`, choose **Sign in as Admin**, and follow [Try the Demo]({% link _getting_started/demo.md %}).
 
 ## Choose Your Next Step
 

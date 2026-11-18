@@ -12,7 +12,7 @@ customers = names.map.with_index { |name, i| Customer.create!(account: a, name: 
 Customer.create!(account: b, name: "Other tenant customer")
 45.times do |i|
   Order.create!(account: a, number: format("ORD-%04d", i), customer: customers[i % customers.size], total: (i * 13.37).round(2),
-    delivery_on: (i % 7 == 0 ? nil : Date.new(2026, 11, 1) + i), expedited: i % 3 == 0, state: %w[draft draft approved rejected][i % 4],
+     delivery_on: (i % 7 == 0 ? nil : Date.current - 29 + i % 30), expedited: i % 3 == 0, state: %w[draft draft approved rejected][i % 4],
     secret_payment_token: "tok_#{i}")
 end
 Order.create!(account: b, number: "ORD-B-1", total: 5)

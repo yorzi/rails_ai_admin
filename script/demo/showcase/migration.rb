@@ -1,4 +1,4 @@
-# Showcase tables for bin/demo --showcase: articles with every everyday field
+# Content tables for bin/demo: articles with every everyday field
 # type, tags for many-to-many editing and a one-to-one summary.
 class CreateShowcase < ActiveRecord::Migration[8.1]
   def change
