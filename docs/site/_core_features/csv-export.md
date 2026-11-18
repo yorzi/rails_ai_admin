@@ -75,21 +75,25 @@ A separate default-deny grant, `import_records?(context:, resource:)` (Pundit:
 **Import CSV** button. The import page lists the columns it understands and offers
 a template with that header row.
 
-Columns are the fields the actor may write on create, matched by label or name,
-ignoring case. Unknown columns are reported and ignored. Text, numbers, dates,
-times, email, URL, select, enum, JSON, rich text and `belongs_to` keys can be
-imported; files, passwords and `references` lists cannot. Cells are read the way
-export writes them: `Yes`/`No` (or `true`/`false`, `1`/`0`) for booleans, labels
-or values for select fields, ISO dates and times. An empty cell leaves the field
-to its default. A file exported from the same list therefore imports back,
-except that `belongs_to` columns need the target's key rather than its label.
+Use the template for the fields the actor may write on create. The importer
+accepts an exact field name or an unambiguous label. When a header matches
+multiple fields, the template uses the exact field name. Unknown columns are
+reported and ignored.
 
-**Check file** validates every row (types, required values, references the actor
-can see) and writes nothing. **Import** then creates one record per valid row
-through the native create operation: each row has its own policy check, model
-validations, transaction and audit event, so one bad row never stops the others.
-The results list every row that was not created and why.
+Supported values include text, numbers, dates, times, email, URLs, select and
+enum values, JSON, rich text and `belongs_to` keys. For booleans, use `Yes` or
+`No`, `true` or `false`, or `1` or `0`. Select fields accept their labels or
+values. Dates and times use ISO format. An empty cell leaves the field at its
+default. When reusing an export, copy the writable columns into the template
+and supply target keys for any `belongs_to` columns.
 
-The file must be UTF-8 CSV (a byte order mark is fine) of at most 2 MB, with
-quoted cells per RFC 4180. `config.import_limit` bounds the data rows (default
-500, at most 5,000); import runs in the request, so keep files small.
+**Check file** runs type checks, reference checks, create policy and model
+validations against the current data without saving records. **Import** creates
+rows through the native create operation. Each row has its own validation,
+transaction and audit event. Save callbacks and database constraints apply
+during import. The report shows the first 100 row failures.
+
+Upload UTF-8 CSV of at most 2 MB. Quote cells containing commas or line breaks
+and double any quotation mark inside a quoted cell. The whole file is parsed
+before import begins. `config.import_limit` bounds the data rows (default 500,
+at most 5,000).

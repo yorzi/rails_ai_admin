@@ -1,5 +1,17 @@
 # Compatibility
 
+## 2026-11-18 (0.4.1 release base)
+
+The release base `dfa8669` passed 680 tests and 6,322 assertions with zero
+failures, errors or skips in all four Ruby 3.3.5 and 4.0.9 combinations with
+SQLite and PostgreSQL 17. The suite ran on Rails 8.1.4.1 with offline provider
+replays. Local checks also passed for RuboCop, frontend assets, the packaged
+Rails quickstart, the session/SQLite host, the Devise/Pundit/PostgreSQL host on
+Propshaft and Sprockets, and process-loss recovery. GitHub Actions passed both
+the [CI run](https://github.com/yorzi/rails_ai_admin/actions/runs/44211677460) and
+the [dependency security run](https://github.com/yorzi/rails_ai_admin/actions/runs/44211677367)
+on this base. The release commit and tag have separate CI runs.
+
 ## 2026-11-15 — 0.4.0 release validation
 
 Local Ruby 4.0.9 / Rails 8.1.4.1 passed 668 tests and 6,229 assertions on SQLite

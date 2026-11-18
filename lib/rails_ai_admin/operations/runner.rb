@@ -147,7 +147,7 @@ module RailsAiAdmin
 
       # A CSV check runs the create policy and model validations on the filled
       # record. It never issues an intent or runs save callbacks.
-      def validate_create(context:, resource:, input:)
+      def validate_create(context:, resource:, input:) # :nodoc:
         definition = RailsAiAdmin.operation_registry.fetch(resource, :create)
         access = Authorization::Access.new(context, resource)
         ensure_connection!(resource, definition)

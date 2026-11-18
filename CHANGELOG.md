@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.4.1 (2026-11-18)
+
+This Public Preview patch fixes bulk reviews, joined lists, CSV imports and
+attachment cleanup. Existing hosts need the new engine migration.
 
 - Bulk change reviews require an explicit confirmation or dismissal. The
   first decision closes the review, and a confirmation checks that the set of

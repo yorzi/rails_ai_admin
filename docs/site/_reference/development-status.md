@@ -8,7 +8,7 @@ description: Current release scope, compatibility and remaining validation.
 
 # {{ page.title }}
 
-0.4.0 is the current Public Preview. See the [release history]({% link _reference/release-history.md %}) and
+0.4.1 is the current Public Preview. See the [release history]({% link _reference/release-history.md %}) and
 [upgrade guide]({% link _reference/upgrading.md %}).
 
 0.2.0 focuses on Rails 8.1+ and simpler setup: generated authentication for Rails
@@ -27,6 +27,10 @@ person, conversation retention, totals and averages under field grants, one
 reviewed change across up to 100 records, and real-provider conversations
 recorded through OpenRouter and replayed in the test suite.
 [What's New in 0.4]({% link _getting_started/whats-new-in-0-4.md %}) describes it.
+
+0.4.1 fixes bulk review decisions, list counts with joined policy scopes, CSV
+imports and attachment cleanup. Existing installations need the migration in
+the [upgrade guide]({% link _reference/upgrading.md %}).
 
 The engine already includes conventional CRUD, typed fields, associations, CSV
 import/export, audit/history, dashboards and optional reviewed assistant changes.

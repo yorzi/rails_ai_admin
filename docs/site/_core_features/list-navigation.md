@@ -90,6 +90,9 @@ pages (the first, the last and two either side of the current page, marked with
 number. A list that fits on one page shows no pagination. No link goes beyond
 page 1000.
 
+When a policy scope joins related rows, each authorized record appears once
+in the list and counts once for pagination and bulk selection.
+
 ## Recover an Empty HTML Page Once
 
 Lists normally fetch 25 rows plus one to detect a next page, with a stable primary

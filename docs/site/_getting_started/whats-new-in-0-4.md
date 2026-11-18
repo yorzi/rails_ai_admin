@@ -120,8 +120,8 @@ reviews ("set customers points to 50 for Bulk") with the offline fake provider.
 
 0.4.0 adds no migration. The new behavior is opt-in: `aggregatable: true`,
 `assistant_changes :bulk_update`, the two spending limits and the retention
-period. The [upgrade guide]({% link _reference/upgrading.md %}) lists what to
-check.
+period. For the 0.4.1 fixes and the required migration, see the
+[upgrade guide]({% link _reference/upgrading.md %}).
 
 ## Public Preview Limits
 

@@ -19,7 +19,7 @@ Gem::Specification.new do |spec|
   spec.metadata["changelog_uri"] = "#{spec.homepage}/blob/main/CHANGELOG.md"
   spec.metadata["bug_tracker_uri"] = "#{spec.homepage}/issues"
   spec.metadata["documentation_uri"] = "https://rails-ai-admin.wangyaodi.com/"
-  spec.metadata["allowed_push_host"] = "https://unreleased.invalid"
+  spec.metadata["allowed_push_host"] = "https://rubygems.org"
 
   spec.add_dependency "base64", "~> 0.3"
   # Rails 8.1 from its patched 8.1.4.1 release. The upper bound moves when a

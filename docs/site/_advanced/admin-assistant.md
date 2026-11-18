@@ -289,13 +289,15 @@ the values and either record ids or the same query, filters and scope as
 3. The review page writes nothing. It lists every record with each field's
    before → after under the person's current read grants, and the records that
    will be skipped, with the reason.
-4. **Update N records** updates each record as the person through the native
-   update operation, each in its own transaction with a version check and an
-   audit event with origin `assistant`. A record that fails does not stop the
-   others. If any selected record changed after the proposal, the whole review
-   is out of date and nothing is written. **Dismiss** changes nothing.
-5. Either way, the conversation hears the outcome once, for example "4 of 4
-   records were updated."
+4. Choose **Update N records** or **Dismiss**. The first accepted decision
+   closes the review. If a selected record changed after the proposal, or
+   the set of writable records changed since you opened the page, open a
+   fresh review before confirming.
+5. Confirmation uses the native update operation for each record. Each update
+   has its own transaction, version check and audit event with origin
+   `assistant`. The result and the conversation include skipped or failed
+   records. If execution is interrupted, completed updates stay committed.
+   Start a new review for the remaining records.
 
 The proposed values travel to the review page in a token encrypted with your
 application's `secret_key_base` that expires with the selection

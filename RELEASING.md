@@ -1,8 +1,7 @@
 # Releasing
 
-The owner authorized publication of the 0.4.0 Public Preview on 2026-11-15 with
-"release 0.4.0". The release commit opens `allowed_push_host`. Development continues as
-`0.4.1.dev` with publishing blocked.
+The owner authorized publication of the 0.4.1 Public Preview on 2026-11-18.
+The release commit opens `allowed_push_host`. Development builds block publishing.
 
 ## Candidate checks
 
@@ -39,7 +38,7 @@ tools changed since the manifest's recording date, record them again first
 (`test/support/recorded_provider.rb`). Nested child forms that save with the
 parent, polymorphic references, bulk actions and bulk changes over more than 100
 records, undo of a confirmed change and separate attach/detach grants remain
-outside the 0.4.0 candidate.
+outside the 0.4.1 release.
 
 ## After owner approval
 
