@@ -14,6 +14,8 @@
   to the populated row, before creating any records or audit events.
 - CSV import rejects malformed quotation marks before writing any rows and
   reads multibyte UTF-8 text in a single pass.
+- Rejected forms clean up newly uploaded files even when a later input fails
+  before the save starts.
 
 ## 0.4.0 (2026-11-15)
 

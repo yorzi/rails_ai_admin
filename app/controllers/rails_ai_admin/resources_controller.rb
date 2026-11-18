@@ -184,7 +184,6 @@ module RailsAiAdmin
       result = runner.execute(context: @context, intent_ref: intent_id, input: input,
         human_confirmed: true, origin: :ui,
         binding: { resource_key: @resource.key, operation: operation, target_id: params[:id] })
-      discard_uploads unless result.success?
       if result.success?
         target = parent_return_path || (operation == :destroy ? list_return_path : resource_path(resource: @resource.key, id: result.record_id, **navigation_params))
         redirect_to target, status: :see_other, notice: result.warning ? t("rails_ai_admin.resources.saved_with_warning", operation: intent_id) : t("rails_ai_admin.resources.saved")
@@ -207,6 +206,8 @@ module RailsAiAdmin
       end
     rescue ActiveRecord::RecordNotFound
       raise AccessDenied
+    ensure
+      discard_uploads
     end
 
     # A chosen file becomes a new blob before the write, and only for a file
@@ -271,7 +272,8 @@ module RailsAiAdmin
       end
     end
 
-    # A refused write keeps no new upload; the person chooses the file again.
+    # Purge unattached blobs from this submission, including when a later input
+    # is rejected before the runner is called.
     def discard_uploads
       Array(@uploaded_blobs).each { |blob| blob.purge_later unless blob.attachments.exists? }
     end

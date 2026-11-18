@@ -8,6 +8,7 @@ class FileFieldsIntegrationTest < ActionDispatch::IntegrationTest
   self.use_transactional_tests = false
   include DatabaseHelpers
   include AttachmentFixtures
+  include ActiveJob::TestHelper
 
   def setup
     reset_database
@@ -112,6 +113,24 @@ class FileFieldsIntegrationTest < ActionDispatch::IntegrationTest
       assert_response :success
       get "/backoffice/documents/#{@document.id}/edit"
       assert_response :not_found
+    end
+  end
+
+  def test_a_rejected_submission_purges_new_uploads_and_keeps_existing_attachments
+    @document.contract.attach(io: StringIO.new(PDF), filename: "existing.pdf", content_type: "application/pdf")
+    existing_blob = @document.contract.blob
+    with_document_resources do
+      assert_no_changes -> { ActiveStorage::Blob.pluck(:id) }, from: [ existing_blob.id ] do
+        perform_enqueued_jobs(only: ActiveStorage::PurgeJob) do
+          submit({ title: "Handbook", cover: upload(PNG, "new.png", "image/png"), photos: [ upload(PNG, "new-photo.png", "image/png") ] },
+            remove_files: [ "undeclared_field" ])
+        end
+      end
+      assert_response :unprocessable_content
+      assert_equal existing_blob.id, @document.reload.contract.blob.id
+      refute @document.cover.attached?
+      refute @document.photos.attached?
+      assert_empty RailsAiAdmin::AuditEvent.all
     end
   end
 
