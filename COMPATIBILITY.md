@@ -1,5 +1,11 @@
 # Compatibility
 
+## 2026-11-18 — Unified offline demo
+
+On Ruby 4.0.9, Rails 8.1.4.1, SQLite and Chromium 159, `script/demo/screenshots.cjs` passed against a fresh `bin/demo`. The browser covered global search, filters, saved views, CSV export/check/import, rich text and file updates, stale edits, soft delete and restore, single and bulk assistant reviews, record history and audit, a member action and a queued collection action, MCP read/proposal/revocation, and role and tenant separation. The SQLite suite passed 680 tests and 6,322 assertions. OpenRouter setup completed without a key, but no live requests were made.
+
+Known browser observation: when Turbo first navigates to an article edit form, Chromium can reject Trix's dynamically inserted styles under the admin's CSP and show the link dialog prematurely. A full page load hides it as expected. The cause has not been isolated to an upstream component; the screenshot tour enters the edit form with a full navigation.
+
 ## 2026-11-18 (0.4.1 release base)
 
 The release base `dfa8669` passed 680 tests and 6,322 assertions with zero

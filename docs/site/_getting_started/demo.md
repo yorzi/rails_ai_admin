@@ -31,9 +31,13 @@ Open [http://127.0.0.1:3917/login](http://127.0.0.1:3917/login) and choose **Sig
 
 Start on **Overview** for resource counts, metrics and charts. Search for `upgrading` in the header to see [global search]({% link _core_features/dashboard.md %}), or open **Articles** for a single resource.
 
-On **Articles**, try the **Popular** list tab or **Filters → Contact contains** with `editor1`. Use **Save this view** to keep that filter, or **Export CSV** to download the filtered list. Reset the list, open **Article 1: Getting started**, then choose **Edit**. Change **Views** to `42` and save. This form also shows uploads, rich text, JSON, tags and a write-only password. The record page links to its associated summary. For a customer picker, open a draft **Order** and choose **Edit**.
+![The admin overview with article and order metrics and an article trend chart]({{ '/assets/images/screenshots/overview.png' | relative_url }})
 
-![The article edit form showing a file upload, gallery and rich text editor]({{ '/assets/images/screenshots/form.png' | relative_url }})
+On **Articles**, try the **Popular** list tab or **Filters → Contact contains** with `editor1`. Use **Save this view** to keep that filter, or **Export CSV** to download the filtered list. Reset the list, open **Article 1: Getting started**, then choose **Edit**. Change **Views** to `42` and save. The **Content** tab has a rich text editor, a cover upload and a gallery. **Publishing** has JSON, tags and a write-only password. The record page links to its associated summary. For a customer picker, open a draft **Order** and choose **Edit**.
+
+![The article edit form showing the Content tab with a rich text editor, cover upload and gallery]({{ '/assets/images/screenshots/form.png' | relative_url }})
+
+If the link dialog is already open when you first enter the editor, reload the edit page before entering changes.
 
 ## 2. Review an Assistant Change
 
@@ -48,12 +52,17 @@ Open **Assistant → New conversation**. The offline model recognizes the exact 
 
 ![An assistant conversation with a proposed article title change and confirmation controls]({{ '/assets/images/screenshots/assistant.png' | relative_url }})
 
-After confirming the title change, open the article's **History** to see its old and new values, or ask `history of articles 1` in Chat. Open **Audit log** to see the actor, record and outcome across changes and exports. The conversation also shows token usage over the last 24 hours against the demo's limit.
+![A bulk review preview showing customer points before and after the proposed update]({{ '/assets/images/screenshots/bulk-review.png' | relative_url }})
+
+After confirming the title change, open the article's **History** to see which field changed and that the update came from a review in Chat. The history does not store field values. Open **Audit log** to see the actor, record and outcome across changes and exports. The conversation shows token usage over the last 24 hours against the demo's limit.
+
+![Article history showing an update from Chat and an earlier edit through the form]({{ '/assets/images/screenshots/history.png' | relative_url }})
 
 ## 3. Try More in the Same Demo
 
 * **Import and restore:** In **Articles → Import CSV**, select `tmp/demo/articles-import.csv`. **Check file** previews the rows without writing; **Import** creates the two valid articles and reports the invalid row. Back on the list, select two articles, choose **Delete selected**, and confirm. Open **Deleted records** to restore them. See [CSV Export and Import]({% link _core_features/csv-export.md %}).
 * **Custom actions:** Open a draft **Order** to use its **Review order** action. In **Customers**, select two customers, choose **Award points to selected customers**, then review and queue it. Refresh the job page to see each customer's outcome. This is a [queued collection operation]({% link _core_features/collection-operations.md %}), not the synchronous assistant bulk review. The demo runs these jobs in the web process; it is not a production queue setup.
+* **Concurrent edits:** Open the same article's edit form in two tabs. Change a value and save in the first tab, then try to save a different value from the second. The second save stops rather than overwriting the first.
 * **Permissions:** Sign out and choose **Viewer**. It sees Tenant A records but has no edit, audit or assistant controls. Sign in as **Other tenant** to see Tenant B's customer and order instead of Tenant A's data. Both comparisons use the same app and policy.
 * **MCP:** As Admin, open **MCP access**, issue a demo token and connect to `http://127.0.0.1:3917/staff/mcp` as described in the [MCP Server guide]({% link _advanced/mcp-server.md %}). Start with `list_resources` or `count_records` on `articles`. A write proposal returns a browser review URL, not a completed write. Revoke the token when done.
 

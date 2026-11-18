@@ -13,8 +13,9 @@ a = Account.find_by!(name: "Tenant A")
 tags = %w[Guide Release Security Rails Ruby].map { |name| Tag.create!(account: a, name: name) }
 palette = [ [ 21, 94, 117 ], [ 173, 37, 48 ], [ 217, 119, 6 ], [ 22, 101, 52 ], [ 91, 33, 182 ] ]
 topics = [ "Getting started", "Upgrading", "Policies", "Uploads", "Search" ]
-18.times do |i|
-  written = (i * 37 % 29).days.ago - (1 + i % 8).hours
+days_ago = [ 0, 1, 1, 2, 4, 4, 4, 6, 8, 10, 10, 13, 15, 18, 19, 19, 23, 27 ]
+days_ago.each_with_index do |days, i|
+  written = days.days.ago - (1 + i % 8).hours
   article = Article.create!(account: a, title: "Article #{i + 1}: #{topics[i % 5]}",
     views: (i * 23) % 120, contact: "editor#{i}@example.test", website: "https://example.test/articles/#{i + 1}",
     opens_at: format("%02d:%02d", 8 + (i % 8), (i * 15) % 60), settings: { "featured" => i.even?, "slots" => [ i, i + 1 ] },

@@ -7,23 +7,23 @@ class ArticleAdmin < RailsAiAdmin::Resource
   # Deleting keeps the row; admins restore it from Deleted records.
   soft_delete :discarded_at
   fields do
-    id :id, create: false
-    text :title, required: true, nullable: false, searchable: :contains, sortable: true
-    integer :views, filterable: true, sortable: true, aggregatable: true
-    email :contact, searchable: true, filterable: %i[contains blank]
-    url :website, filterable: [ :blank ]
-    time :opens_at, sortable: true
-    file :cover, accept: %w[image/png image/jpeg image/webp image/gif], max_size: 2 * 1024 * 1024
-    files :gallery, accept: %w[image/*], max_size: 2 * 1024 * 1024, max_files: 6
-    rich_text :body
-    json :settings
-    references :tags
-    password :password, help_text: "An editor password for this article (demo of a write-only field)."
-    readonly :created_at, type: :datetime, create: false, sortable: true, filterable: true
-    readonly :updated_at, type: :datetime, create: false
+    id :id, create: false, tab: "Details"
+    text :title, required: true, nullable: false, searchable: :contains, sortable: true, tab: "Details"
+    integer :views, filterable: true, sortable: true, aggregatable: true, tab: "Details"
+    email :contact, searchable: true, filterable: %i[contains blank], tab: "Details"
+    url :website, filterable: [ :blank ], tab: "Details"
+    time :opens_at, sortable: true, tab: "Details"
+    readonly :created_at, type: :datetime, create: false, sortable: true, filterable: true, tab: "Details"
+    readonly :updated_at, type: :datetime, create: false, tab: "Details"
+    rich_text :body, tab: "Content"
+    file :cover, accept: %w[image/png image/jpeg image/webp image/gif], max_size: 2 * 1024 * 1024, tab: "Content"
+    files :gallery, accept: %w[image/*], max_size: 2 * 1024 * 1024, max_files: 6, tab: "Content"
+    json :settings, tab: "Publishing"
+    references :tags, tab: "Publishing"
+    password :password, tab: "Publishing", help_text: "An editor password for this article (demo of a write-only field)."
   end
   index do
-    columns :id, :title, :views, :contact, :opens_at, :cover, :created_at
+    columns :id, :title, :views, :contact, :created_at
     default_sort :created_at, :desc
     count :exact
   end

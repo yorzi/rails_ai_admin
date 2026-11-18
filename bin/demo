@@ -29,7 +29,8 @@ ASSETS = File.join(ROOT, "script/demo")
 TARGET = File.join(ROOT, "tmp", options[:port] == DEFAULT_PORT ? "demo" : "demo-#{options[:port]}")
 DISPLAY_TARGET = TARGET.delete_prefix("#{ROOT}/")
 ENV_VARS = { "BUNDLE_GEMFILE" => File.join(TARGET, "Gemfile"), "BUNDLE_PATH" => File.join(ROOT, "vendor/bundle"),
-  "BUNDLE_APP_CONFIG" => File.join(TARGET, ".bundle"), "RAILS_ENV" => "development",
+  # An inherited DATABASE_URL would override the demo's disposable SQLite database.
+  "BUNDLE_APP_CONFIG" => File.join(TARGET, ".bundle"), "RAILS_ENV" => "development", "DATABASE_URL" => nil,
   "RAA_DEMO_PROVIDER" => options[:openrouter] ? "openrouter" : "offline", "RAA_DEMO_PORT" => options[:port].to_s }.freeze
 BUNDLE = [ RbConfig.ruby, "-S", "bundle" ].freeze
 

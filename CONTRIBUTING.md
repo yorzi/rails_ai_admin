@@ -23,3 +23,15 @@ Contributions are provided under the project's MIT license; no CLA is required.
 Local research, issue/PR drafts and one-off reports belong in ignored `drafts/`.
 Do not stage that directory. Commit coherent, verified milestones using your Git
 identity. Stop all task-owned services before finishing.
+
+## Refresh the demo screenshots
+
+From the repository root, install Playwright in the ignored `tmp` directory. It is only needed to run the browser tour and does not change the gem's dependencies.
+
+```sh
+npm install --prefix tmp/demo-browser --no-save --no-package-lock playwright@1.65.1
+tmp/demo-browser/node_modules/.bin/playwright install chromium
+bin/demo --port 3957
+```
+
+In a second terminal run `node script/demo/screenshots.cjs 3957`. The script writes to `tmp/demo-screenshots` only after the tour passes. It edits sample records, so restart the offline demo before each run. Inspect the images, then copy the six PNGs to `docs/site/assets/images/screenshots/`. Press Ctrl-C in the first terminal to stop both demo servers.
