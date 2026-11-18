@@ -10,6 +10,8 @@
 - Lists, counts and bulk selections use distinct records when a policy scope
   joins multiple rows per record. Pagination and the 100-record limit now count
   each record once.
+- CSV import checks apply the host model's validations and the create policy
+  to the populated row, before creating any records or audit events.
 
 ## 0.4.0 (2026-11-15)
 

@@ -145,6 +145,25 @@ module RailsAiAdmin
         Result.new(code: "OPERATION_FAILED")
       end
 
+      # A CSV check runs the create policy and model validations on the filled
+      # record. It never issues an intent or runs save callbacks.
+      def validate_create(context:, resource:, input:)
+        definition = RailsAiAdmin.operation_registry.fetch(resource, :create)
+        access = Authorization::Access.new(context, resource)
+        ensure_connection!(resource, definition)
+        ActiveRecord::Base.while_preventing_writes do
+          record = access.relation.new
+          access.authorize!(:create, record)
+          values = coerce!(access, record, definition, input)
+          allowed = assign_create!(access, record, values)
+          record.valid? ? Result.new(code: "OK") : invalid_model_result(record, field_names_by_column(resource), allowed)
+        end
+      rescue Rejection => error
+        error.result
+      rescue ActiveRecord::ReadOnlyError
+        Result.new(code: "OPERATION_FAILED")
+      end
+
       # Reauthorizes and consumes a human event atomically with the domain write.
       # human_confirmed comes only from a trusted HTTP/Surface adapter, never from
       # an assistant tool parameter. Origin is audit metadata, not authority.
@@ -191,12 +210,7 @@ module RailsAiAdmin
             access.authorize!(run.operation, record)
           end
           values = coerce!(access, record, definition, input, replay: run.status == "succeeded")
-          if run.operation == "create"
-            record.assign_attributes(column_attributes(resource, values))
-            access.authorize!(:create, record)
-            writable = access.fields(:write, record, operation: :create).map { |field| field.name.to_s }
-            reject!("NOT_FOUND") unless (values.keys - writable).empty?
-          end
+          assign_create!(access, record, values) if run.operation == "create"
           digest = InputSchema.digest(values)
           if run.input_digest && run.input_digest != digest
             reject!(run.status == "succeeded" ? "IDEMPOTENCY_CONFLICT" : "APPROVAL_INVALIDATED")
@@ -297,9 +311,8 @@ module RailsAiAdmin
             access&.fields(:write, error.record, operation: run.operation)&.map { |field| field.name.to_s } || []
           end
           names = definition&.custom? || !access ? {} : field_names_by_column(access.resource)
-          errors = validation_errors(error.record.errors, names, allowed)
           audit_failure(context, run, "VALIDATION_FAILED", origin) unless admission
-          Result.new(code: "VALIDATION_FAILED", errors: errors.presence || { "base" => [ Field.error_message(:invalid, "is invalid") ] })
+          invalid_model_result(error.record, names, allowed)
         when ActiveRecord::RecordNotDestroyed
           if run&.operation == "destroy" && !definition&.custom?
             # dependent: :restrict_with_error (or a before_destroy abort) says
@@ -366,6 +379,11 @@ module RailsAiAdmin
       # The host model's own messages for fields this actor may write, and its
       # base messages (RAA-011). config.validation_messages = :generic keeps
       # the earlier "is invalid" for every field instead.
+      def invalid_model_result(record, names, allowed)
+        errors = validation_errors(record.errors, names, allowed)
+        Result.new(code: "VALIDATION_FAILED", errors: errors.presence || { "base" => [ Field.error_message(:invalid, "is invalid") ] })
+      end
+
       def validation_errors(model_errors, names, allowed)
         generic = RailsAiAdmin.configuration.validation_messages == :generic
         errors = model_errors.attribute_names.each_with_object({}) do |attribute, result|
@@ -463,6 +481,14 @@ module RailsAiAdmin
         reject!(replay ? "IDEMPOTENCY_CONFLICT" : "VALIDATION_FAILED", errors: replay ? {} : result.errors) unless result.valid?
         check_references!(access, record, fields, result.values) unless replay
         retain_hidden_references(access, record, fields, result.values)
+      end
+
+      def assign_create!(access, record, values)
+        record.assign_attributes(column_attributes(access.resource, values))
+        access.authorize!(:create, record)
+        writable = access.fields(:write, record, operation: :create).map { |field| field.name.to_s }
+        reject!("NOT_FOUND") unless (values.keys - writable).empty?
+        writable
       end
 
       def stored_references(record, field)

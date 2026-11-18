@@ -57,14 +57,13 @@ module RailsAiAdmin
       private
 
       def run_row(runner, number, input, write)
-        if write
+        result = if write
           intent = runner.prepare(context: @context, resource: @resource, operation: :create)
-          result = runner.execute(context: @context, intent_ref: intent.id, input: input, human_confirmed: true, origin: :ui)
-          RowResult.new(number, result.code, result.errors || {}, result.success? ? result.record_id : nil)
+          runner.execute(context: @context, intent_ref: intent.id, input: input, human_confirmed: true, origin: :ui)
         else
-          result = runner.preview(context: @context, resource: @resource, operation: :create, input: input)
-          result.is_a?(Operations::Result) ? RowResult.new(number, result.code, result.errors || {}, nil) : RowResult.new(number, "OK", {}, nil)
+          runner.validate_create(context: @context, resource: @resource, input: input)
         end
+        RowResult.new(number, result.code, result.errors, result.record_id)
       rescue AccessDenied => error
         RowResult.new(number, error.code, {}, nil)
       end

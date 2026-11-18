@@ -10,6 +10,31 @@ class CsvImportIntegrationTest < ActionDispatch::IntegrationTest
   include DatabaseHelpers
   include EssentialFixtures
 
+  class ValidatedArticle < Article
+    validates :views, numericality: { greater_than_or_equal_to: 0 }
+    before_validation do
+      Article.create!(account_id: account_id, title: "Validation side effect") if title == "Writes during validation"
+    end
+  end
+
+  class ValidatedArticleAdmin < RailsAiAdmin::Resource
+    model "CsvImportIntegrationTest::ValidatedArticle"
+    key :articles
+    title :title
+    fields do
+      id :id
+      text :title, required: true
+      integer :views
+    end
+  end
+
+  class ValidationPolicy < EssentialFixtures::Policy
+    def allowed?(context:, action:, resource:, record: nil)
+      return false if action == :create && record&.title == "Outside create policy"
+      super
+    end
+  end
+
   def setup
     reset_database
     reset_essentials
@@ -68,6 +93,35 @@ class CsvImportIntegrationTest < ActionDispatch::IntegrationTest
     with_essential_resources(import_limit: 2) do
       post "/backoffice/articles/imports", params: { mode: "check", file: csv(FILE) }
       assert_select "p[role=alert]", text: /more than 2 rows/
+    end
+  end
+
+  def test_check_applies_model_validation_and_create_policy_to_the_populated_record
+    with_essential_resources(resources: [ ValidatedArticleAdmin.name ], policy: ValidationPolicy.name) do
+      contents = "Title,Views\nValid,3\nNegative views,-1\nOutside create policy,8\n"
+      post "/backoffice/articles/imports", params: { mode: "check", file: csv(contents) }
+      assert_response :unprocessable_content
+      assert_select "p[role=status]", text: "1 of 3 rows can be imported."
+      assert_select "td", text: /Views must be greater than or equal to 0/
+      assert_select "td", text: /The record is not available/
+      assert_equal [ "First" ], Article.pluck(:title)
+      assert_empty RailsAiAdmin::OperationRun.all
+      assert_empty RailsAiAdmin::AuditEvent.all
+
+      post "/backoffice/articles/imports", params: { mode: "import", file: csv(contents) }
+      assert_select "p[role=status]", text: "Created 1 of 3 records."
+      assert_equal %w[First Valid], Article.order(:id).pluck(:title)
+    end
+  end
+
+  def test_check_never_runs_database_writes_from_model_validation
+    with_essential_resources(resources: [ ValidatedArticleAdmin.name ], policy: ValidationPolicy.name) do
+      post "/backoffice/articles/imports", params: { mode: "check", file: csv("Title\nWrites during validation\n") }
+      assert_response :unprocessable_content
+      assert_select "p[role=status]", text: "0 of 1 rows can be imported."
+      assert_equal [ "First" ], Article.pluck(:title)
+      assert_empty RailsAiAdmin::OperationRun.all
+      assert_empty RailsAiAdmin::AuditEvent.all
     end
   end
 
