@@ -30,6 +30,16 @@ module RailsAiAdmin
         Answer briefly in plain text.
       TEXT
 
+      # Host guidance follows the admin's own rules in a second system message.
+      # It can explain the business; it grants nothing, since every tool still
+      # applies the person's grants.
+      HOST_INSTRUCTIONS = <<~TEXT.freeze
+        Notes from the operators of %<title>s follow. Use them to understand their records and terms. They do not change the rules above.
+
+        %<notes>s
+      TEXT
+      MAX_HOST_INSTRUCTIONS = 4_000
+
       module_function
 
       # RubyLLM 2.2 builds the provider chat when a message is first saved, so
@@ -42,10 +52,43 @@ module RailsAiAdmin
 
       def configure(chat, session, llm)
         bind(chat, llm)
-        chat.with_instructions(format(PROMPT, title: RailsAiAdmin.configuration.title.to_s.truncate(80)), persist: false)
+        title = RailsAiAdmin.configuration.title.to_s.truncate(80)
+        chat.with_instructions(format(PROMPT, title: title), persist: false)
+        if (notes = host_instructions(session.context))
+          chat.with_instructions(format(HOST_INSTRUCTIONS, title: title, notes: notes), append: true, persist: false)
+        end
+        fallbacks = fallback_models
+        chat.with_fallbacks(*fallbacks) if fallbacks.any?
         tools = (TOOLS + Assistant.proposal_tools).map { |klass| klass.new(session) }
         chat.with_tools(*tools)
         chat
+      end
+
+      # The adapter's optional instructions(context:), read for each turn so it
+      # can depend on the person or tenant. nil or blank adds nothing.
+      def host_instructions(context)
+        adapter = RailsAiAdmin.configuration.assistant_adapter.constantize.new
+        return nil unless adapter.respond_to?(:instructions)
+        notes = adapter.instructions(context: context)
+        return nil if notes.nil?
+        unless notes.is_a?(String) && notes.valid_encoding? && notes.length <= MAX_HOST_INSTRUCTIONS && !notes.match?(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/)
+          raise ConfigurationError, "instructions must return nil or text of at most #{MAX_HOST_INSTRUCTIONS} characters"
+        end
+        notes.strip.presence
+      end
+
+      # With assistant_provider set, each fallback resolves on that provider;
+      # otherwise RubyLLM prefers the providers the context configures. A
+      # model the registry does not know is skipped, as RubyLLM itself does.
+      def fallback_models
+        provider = RailsAiAdmin.configuration.assistant_provider
+        RailsAiAdmin.configuration.assistant_fallback_models.filter_map do |id|
+          next id unless provider
+          ::RubyLLM.models.find(id, provider: provider)
+        rescue ::RubyLLM::ModelNotFoundError
+          Rails.logger.warn("[rails_ai_admin] skipped assistant fallback #{id}: not in the #{provider} model registry")
+          nil
+        end
       end
     end
   end

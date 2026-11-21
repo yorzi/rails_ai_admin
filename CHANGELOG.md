@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- The assistant adapter may define `instructions(context:)` to explain the
+  business to the model. The text follows the admin's own rules as a second
+  system message on every turn, is never saved, and grants nothing.
+- `config.assistant_fallback_models` lists up to three models RubyLLM tries
+  when the assistant model is rate limited, overloaded or unreachable. The
+  doctor names them.
 - `aggregate_records` groups by calendar period: pass a date or datetime field
   the person may filter by as `group_by`, with `period` set to `day`, `week`,
   `month` or `year`. Periods run oldest first in the person's time zone,

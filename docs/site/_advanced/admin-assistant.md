@@ -109,6 +109,56 @@ confirmed review are not counted. Change or remove the limit deliberately:
 config.assistant_daily_message_limit = 300  # or nil for no limit
 ```
 
+## Tell It About Your Business
+
+The model knows your field names, not what they mean to your team. Add an
+optional `instructions(context:)` method to the adapter to explain terms,
+conventions and where things live:
+
+```ruby
+class AdminAssistant
+  def llm_context(context:) = ...
+
+  def instructions(context:)
+    <<~TEXT
+      A VIP customer has at least 100 points.
+      Orders ship from the Berlin warehouse; delivery_on is the promised date.
+    TEXT
+  end
+end
+```
+
+The admin calls it for every turn, so the text can depend on the person or the
+tenant and changes apply to the next message of an open conversation. It is
+sent as a second system message after the admin's own rules, introduced as notes
+from the operators that do not change those rules. Return `nil` or blank text to
+add nothing. Text must be at most 4,000 characters without control characters
+other than tabs and line breaks; anything else fails the turn with a
+configuration error. The notes are never saved in the conversation.
+
+Instructions explain; they never grant. Every tool still applies the person's
+grants, and every change still waits for a confirmed review, so text such as
+"you may delete orders" has no effect on what the assistant can do.
+
+## Fall Back to Another Model
+
+When the model is rate limited, overloaded or unreachable, RubyLLM can retry the
+same request on other models before the turn fails:
+
+```ruby
+config.assistant_fallback_models = %w[gpt-4.1-nano]   # up to three
+```
+
+A fallback answers only the request that failed and the rest of that reply's
+tool rounds; the next message starts on `assistant_model` again. Rejected
+requests, missing credentials and content filters never fall back. With
+`assistant_provider` set, each fallback must exist on that provider in RubyLLM's
+model registry; one that does not is skipped with a log line. Otherwise RubyLLM
+prefers the providers your context configures. Every attempt is recorded in the
+usage ledger, so spending limits include them. When every model fails, the turn
+is retried later as described in [Recover From Failures](#recover-from-failures).
+`rails_ai_admin:doctor` lists the fallbacks.
+
 ## Limit Spending
 
 A message can cost several provider requests. Two optional limits cap what each
@@ -418,7 +468,7 @@ Customers (not available)", never as done.
 
 | Situation | Result |
 | --- | --- |
-| Provider timeout or server error | Retried up to three times with a delayed job the worker schedules itself; the chat shows "Retrying (2 of 3)". The message is not repeated. The scan only recovers a lost job |
+| Provider timeout or server error | Fallback models, when configured, are tried first within the same request. Then retried up to three times with a delayed job the worker schedules itself; the chat shows "Retrying (2 of 3)". The message is not repeated. The scan only recovers a lost job |
 | A request ends without an answer | Before the next message, the assistant records "I could not answer the previous message." so the model does not read two messages as one request |
 | Credentials, model or request rejected | Stops with a message and **Try again** |
 | Worker dies after the answer was saved | The next claim finishes the turn without calling the provider again |
@@ -466,9 +516,10 @@ match mode, like the index search box: a live model that searched for
 `describe_resource` now tells the model each field's mode. Some models also answer in Markdown,
 which the transcript shows as literal characters.
 
-Selection context, undo of a confirmed change, bulk changes over more than 100
-records, host-overridable instructions and grouping by date periods are not
-available yet. Streaming is saved and polled, not pushed over WebSockets.
+Host instructions, fallback models and grouping by date period have tests
+against a scripted provider but no recorded or live provider run yet. Selection
+context, undo of a confirmed change and bulk changes over more than 100 records
+are not available yet. Streaming is saved and polled, not pushed over WebSockets.
 
 ## How It Compares
 

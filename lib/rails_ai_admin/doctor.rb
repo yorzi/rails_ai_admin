@@ -92,7 +92,9 @@ module RailsAiAdmin
       unless job.is_a?(Class) && job.method_defined?(:resolve_job)
         return Check.new("assistant", :error, "Assistant turns run in jobs; the context adapter must define resolve_job.")
       end
-      Check.new("assistant", :review, "Model #{@configuration.assistant_model}; tools apply each actor's current grants and the independent assistant? grant. " \
+      fallbacks = @configuration.assistant_fallback_models
+      model = "Model #{@configuration.assistant_model}#{" (fallbacks #{fallbacks.join(', ')})" if fallbacks.any?}"
+      Check.new("assistant", :review, "#{model}; tools apply each actor's current grants and the independent assistant? grant. " \
         "Schedule rails_ai_admin:assistant:scan, keep provider credentials in the adapter's own RubyLLM::Context, and verify real-provider behavior separately. " \
         "#{assistant_limits}")
     rescue NameError, ConfigurationError => error

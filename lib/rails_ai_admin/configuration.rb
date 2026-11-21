@@ -29,6 +29,9 @@ module RailsAiAdmin
       # builds a RubyLLM::Context per admin Context; global RubyLLM settings
       # are never read for credentials or changed.
       :assistant, :assistant_adapter, :assistant_model, :assistant_provider, :assistant_protocol,
+      # Up to three models RubyLLM tries in order when the assistant_model
+      # request fails with a rate limit, overload, server or connection error.
+      :assistant_fallback_models,
       # Messages one actor may send the assistant in any 24 hours; nil removes
       # the limit. Each message can cost several provider calls.
       :assistant_daily_message_limit,
@@ -84,6 +87,7 @@ module RailsAiAdmin
       @assistant_model = nil
       @assistant_provider = nil
       @assistant_protocol = nil
+      @assistant_fallback_models = []
       @assistant_daily_message_limit = 100
       @assistant_daily_token_limit = nil
       @assistant_daily_cost_limit = nil
@@ -159,6 +163,7 @@ module RailsAiAdmin
       context_adapter&.freeze
       authorization_adapter.freeze
       [ assistant_adapter, assistant_model, assistant_provider, assistant_protocol ].each { |value| value&.freeze }
+      assistant_fallback_models.each(&:freeze).freeze
       freeze
     end
 
@@ -183,6 +188,7 @@ module RailsAiAdmin
     end
 
     PROVIDER_NAME = /\A[a-z][a-z0-9_]{0,39}\z/
+    MODEL_ID = %r{\A[A-Za-z0-9][A-Za-z0-9._:/-]{0,99}\z}
 
     def validate_assistant!
       raise ConfigurationError, "assistant must be boolean" unless [ true, false ].include?(assistant)
@@ -196,8 +202,13 @@ module RailsAiAdmin
       unless assistant_adapter.is_a?(String) && assistant_adapter.match?(/\A[A-Z]\w*(?:::[A-Z]\w*)*\z/)
         raise ConfigurationError, "assistant_adapter must be a constant name string"
       end
-      unless assistant_model.is_a?(String) && assistant_model.match?(/\A[A-Za-z0-9][A-Za-z0-9._:\/-]{0,99}\z/)
+      unless assistant_model.is_a?(String) && assistant_model.match?(MODEL_ID)
         raise ConfigurationError, "assistant_model must name one model"
+      end
+      models = assistant_fallback_models
+      unless models.is_a?(Array) && models.size <= 3 && models.all? { |id| id.is_a?(String) && id.match?(MODEL_ID) } &&
+          models.uniq.size == models.size && !models.include?(assistant_model)
+        raise ConfigurationError, "assistant_fallback_models must list at most three other model ids"
       end
       unless assistant_daily_message_limit.nil? || assistant_daily_message_limit.is_a?(Integer) && assistant_daily_message_limit.between?(1, 100_000)
         raise ConfigurationError, "assistant_daily_message_limit must be nil or a whole number from 1 to 100000"
