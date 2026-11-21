@@ -7,7 +7,9 @@ module RailsAiAdmin
     def assistant_spend_text(spend)
       parts = []
       if spend.token_limit
-        parts << t("rails_ai_admin.assistant.spend.tokens", used: number_with_delimiter(spend.tokens), limit: number_with_delimiter(spend.token_limit))
+        tokens = t("rails_ai_admin.assistant.spend.tokens", used: number_with_delimiter(spend.tokens), limit: number_with_delimiter(spend.token_limit))
+        tokens = "#{tokens} #{t('rails_ai_admin.assistant.spend.cached', count: number_with_delimiter(spend.cached))}" if spend.cached.positive?
+        parts << tokens
       end
       if spend.cost_limit
         parts << t("rails_ai_admin.assistant.spend.cost", used: assistant_dollars(spend.cost), limit: assistant_dollars(spend.cost_limit))

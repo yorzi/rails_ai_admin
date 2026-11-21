@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- The assistant asks the provider to cache its instructions and tool
+  definitions, which every request repeats. Anthropic models, directly or
+  through OpenRouter, bill them at the cache-read price after the first
+  request; the spend line shows tokens read from the cache. Set
+  `config.assistant_prompt_caching = false` for a compatible server that
+  rejects unknown fields.
 - The assistant adapter may define `instructions(context:)` to explain the
   business to the model. The text follows the admin's own rules as a second
   system message on every turn, is never saved, and grants nothing.

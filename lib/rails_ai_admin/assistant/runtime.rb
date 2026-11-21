@@ -53,10 +53,15 @@ module RailsAiAdmin
       def configure(chat, session, llm)
         bind(chat, llm)
         title = RailsAiAdmin.configuration.title.to_s.truncate(80)
-        chat.with_instructions(format(PROMPT, title: title), persist: false)
-        if (notes = host_instructions(session.context))
-          chat.with_instructions(format(HOST_INSTRUCTIONS, title: title, notes: notes), append: true, persist: false)
+        caching = RailsAiAdmin.configuration.assistant_prompt_caching
+        notes = host_instructions(session.context)
+        # The cache boundary follows the last instructions, so the provider
+        # reuses tools and instructions across a reply's tool rounds and turns.
+        chat.with_instructions(format(PROMPT, title: title), persist: false, cache_until_here: caching && notes.nil?)
+        if notes
+          chat.with_instructions(format(HOST_INSTRUCTIONS, title: title, notes: notes), append: true, persist: false, cache_until_here: caching)
         end
+        chat.with_caching(caching)
         fallbacks = fallback_models
         chat.with_fallbacks(*fallbacks) if fallbacks.any?
         tools = (TOOLS + Assistant.proposal_tools).map { |klass| klass.new(session) }

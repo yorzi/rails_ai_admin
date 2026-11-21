@@ -608,6 +608,7 @@ en:
       spend:
         used: "Assistant use in the last 24 hours: %{amounts}."
         tokens: "%{used} of %{limit} tokens"
+        cached: "(%{count} read from the prompt cache)"
         cost: "%{used} of %{limit}"
         unpriced:
           one: The cost of 1 request is not known, so the real cost can be higher.

@@ -159,6 +159,25 @@ usage ledger, so spending limits include them. When every model fails, the turn
 is retried later as described in [Recover From Failures](#recover-from-failures).
 `rails_ai_admin:doctor` lists the fallbacks.
 
+## Cache the Repeated Prompt
+
+Every request in a conversation repeats the same instructions and tool
+definitions, often several times in one reply while the model calls tools. The
+assistant asks the provider to cache them, ending the cached part after your
+operator notes:
+
+```ruby
+config.assistant_prompt_caching = true   # the default; false sends no cache hints
+```
+
+Anthropic models, directly or through OpenRouter, then bill the repeated part at
+their cache-read price after the first request. OpenAI caches long prompts on
+its own and receives an explicit breakpoint. The conversation's spend line shows
+how many tokens were read from the cache; they still count toward
+`assistant_daily_token_limit`, while the cost reflects the provider's lower
+price. Set it to `false` if you point the `openai` provider at a compatible
+server that rejects fields it does not know.
+
 ## Limit Spending
 
 A message can cost several provider requests. Two optional limits cap what each

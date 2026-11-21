@@ -48,6 +48,12 @@ class AssistantBudgetIntegrationTest < ActionDispatch::IntegrationTest
       get "/backoffice/assistant/conversations/#{chat.ref}", headers: { "Turbo-Frame" => "raa_assistant_transcript" }
       assert_select "turbo-frame#raa_assistant_transcript .raa-chat-budget", text: /1,500 of 2,000 tokens/
       get "/backoffice/assistant/conversations/#{chat.ref}"
+      # Cached reads count toward the limit and are named.
+      RubyLLM::ActiveRecord::Usage.create!(chat: chat, owner: chat, operation: "chat", provider: "anthropic", model: "claude-haiku-5-5",
+        status: "succeeded", input_tokens: 0, cache_read_tokens: 1_000, total_cost: BigDecimal("0"))
+      get "/backoffice/assistant/conversations/#{chat.ref}"
+      assert_select ".raa-chat-budget", text: /2,500 of 2,000 tokens \(1,000 read from the prompt cache\) · /
+      RubyLLM::ActiveRecord::Usage.where(cache_read_tokens: 1_000).delete_all
 
       spend!(chat, cost: BigDecimal("1.5"), tokens: 10)
       key = css_select("input[name=admission_key]").first["value"]

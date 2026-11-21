@@ -27,7 +27,10 @@ class AssistantHostSettingsTest < ActiveSupport::TestCase
   # OpenAI's chat completions name instructions "developer" messages.
   INSTRUCTION_ROLES = %w[system developer].freeze
 
-  def systems(request) = request["messages"].select { |message| INSTRUCTION_ROLES.include?(message["role"]) }.map { |message| message["content"].to_s }
+  # A cache boundary turns the content into text blocks.
+  def text(content) = content.is_a?(Array) ? content.map { |block| block["text"] }.join : content.to_s
+
+  def systems(request) = request["messages"].select { |message| INSTRUCTION_ROLES.include?(message["role"]) }.map { |message| text(message["content"]) }
 
   def test_host_instructions_follow_the_admin_rules_for_each_turn_without_being_saved
     with_assistant(adapter: "AssistantHostSettingsTest::InstructedAssistant") do
@@ -125,6 +128,61 @@ class AssistantHostSettingsTest < ActiveSupport::TestCase
     end
   end
 
+  # OpenRouter takes Anthropic-style cache controls; the fixture answers in
+  # the OpenAI format both share.
+  class OpenRouterAssistant
+    def llm_context(context:)
+      RubyLLM.context do |config|
+        config.openrouter_api_key = "test-only-key"
+        config.max_retries = 0
+      end
+    end
+
+    def instructions(context:) = "Notes."
+  end
+
+  def openrouter_turn(caching:)
+    RubyLLM::ActiveRecord::Model.find_or_create_by!(model_id: "anthropic/claude-haiku-5.5", provider: "openrouter") { |model| model.name = "Haiku" }
+    RubyLLM.models.load_from_store
+    stub_request(:post, "https://openrouter.ai/api/v1/chat/completions").to_return { |request| LLMFixture.respond(request) }
+    with_assistant(adapter: "AssistantHostSettingsTest::OpenRouterAssistant", model: "anthropic/claude-haiku-5.5") do
+      config = RailsAiAdmin.configuration
+      config.instance_variable_set(:@assistant_provider, "openrouter")
+      config.instance_variable_set(:@assistant_protocol, nil)
+      config.instance_variable_set(:@assistant_prompt_caching, caching)
+      chat = new_chat
+      admit(chat, "Hello")
+      LLMFixture.reply("Hi.")
+      drain(chat)
+      LLMFixture.requests.last
+    end
+  ensure
+    reset_assistant
+    RubyLLM::ActiveRecord::Model.where(provider: "openrouter").delete_all
+    RubyLLM.models.load_from_store
+  end
+
+  def cache_marks(request)
+    request["messages"].each_with_index.filter_map do |message, index|
+      content = message["content"]
+      [ index, content.last["cache_control"] ] if content.is_a?(Array) && content.last.is_a?(Hash) && content.last["cache_control"]
+    end
+  end
+
+  def test_prompt_caching_marks_the_end_of_the_instructions
+    request = openrouter_turn(caching: true)
+    assert_equal({ "type" => "ephemeral" }, request["cache_control"])
+    assert_equal [ [ 1, { "type" => "ephemeral" } ] ], cache_marks(request), "one boundary, after the operator notes"
+    assert_equal %w[developer developer user], request["messages"].map { |message| message["role"] }
+    assert_equal "Notes.", request["messages"][1]["content"].last["text"].lines.last.strip
+  end
+
+  def test_prompt_caching_can_be_turned_off
+    request = openrouter_turn(caching: false)
+    assert_nil request["cache_control"]
+    assert_empty cache_marks(request)
+  end
+
   def test_fallback_models_configuration
     [ [ "gpt-4.1-nano" ], %w[a b c], [] ].each do |models|
       config = assistant_configuration
@@ -136,5 +194,9 @@ class AssistantHostSettingsTest < ActiveSupport::TestCase
       config.assistant_fallback_models = models
       assert_raises(RailsAiAdmin::ConfigurationError, models.inspect) { config.send(:validate_assistant!) }
     end
+    assert assistant_configuration.assistant_prompt_caching, "caching is on by default"
+    config = assistant_configuration
+    config.assistant_prompt_caching = "yes"
+    assert_raises(RailsAiAdmin::ConfigurationError) { config.send(:validate_assistant!) }
   end
 end

@@ -32,6 +32,10 @@ module RailsAiAdmin
       # Up to three models RubyLLM tries in order when the assistant_model
       # request fails with a rate limit, overload, server or connection error.
       :assistant_fallback_models,
+      # Ask the provider to cache the instructions and tool definitions every
+      # request repeats (true by default). Anthropic-style providers then bill
+      # repeated input at their cache-read price; OpenAI caches on its own.
+      :assistant_prompt_caching,
       # Messages one actor may send the assistant in any 24 hours; nil removes
       # the limit. Each message can cost several provider calls.
       :assistant_daily_message_limit,
@@ -88,6 +92,7 @@ module RailsAiAdmin
       @assistant_provider = nil
       @assistant_protocol = nil
       @assistant_fallback_models = []
+      @assistant_prompt_caching = true
       @assistant_daily_message_limit = 100
       @assistant_daily_token_limit = nil
       @assistant_daily_cost_limit = nil
@@ -205,6 +210,7 @@ module RailsAiAdmin
       unless assistant_model.is_a?(String) && assistant_model.match?(MODEL_ID)
         raise ConfigurationError, "assistant_model must name one model"
       end
+      raise ConfigurationError, "assistant_prompt_caching must be boolean" unless [ true, false ].include?(assistant_prompt_caching)
       models = assistant_fallback_models
       unless models.is_a?(Array) && models.size <= 3 && models.all? { |id| id.is_a?(String) && id.match?(MODEL_ID) } &&
           models.uniq.size == models.size && !models.include?(assistant_model)

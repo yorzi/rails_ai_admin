@@ -14,7 +14,8 @@ module RailsAiAdmin
       # tokens sums every token bucket; cost is the known US dollar total and
       # unpriced counts attempts whose cost the provider and the model
       # registry could not price, so cost can be lower than the real spend.
-      Spend = ::Data.define(:tokens, :cost, :requests, :unpriced, :token_limit, :cost_limit) do
+      # cached is the part of tokens read from the provider's prompt cache.
+      Spend = ::Data.define(:tokens, :cost, :requests, :unpriced, :token_limit, :cost_limit, :cached) do
         def limited? = !token_limit.nil? || !cost_limit.nil?
         def tokens_exceeded? = !token_limit.nil? && tokens >= token_limit
         def cost_exceeded? = !cost_limit.nil? && cost >= cost_limit
@@ -41,7 +42,8 @@ module RailsAiAdmin
         cost = requests.to_i.zero? ? BigDecimal("0") : BigDecimal(usages.sum(:total_cost).to_s)
         unpriced = requests.to_i.zero? ? 0 : usages.where(total_cost: nil).count
         Spend.new(tokens: buckets.sum(&:to_i), cost: cost, requests: requests.to_i, unpriced: unpriced,
-          token_limit: config.assistant_daily_token_limit, cost_limit: config.assistant_daily_cost_limit)
+          token_limit: config.assistant_daily_token_limit, cost_limit: config.assistant_daily_cost_limit,
+          cached: buckets[TOKEN_COLUMNS.index(:cache_read_tokens)].to_i)
       end
 
       # Usage rows owned by the actor's admin chats. Retention never deletes a
