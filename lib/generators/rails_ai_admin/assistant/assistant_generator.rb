@@ -16,9 +16,12 @@ module RailsAiAdmin
         copy_engine_migrations("db/assistant_migrate")
         target = "app/rails_ai_admin/admin_assistant.rb"
         template "admin_assistant.rb", target unless File.exist?(File.join(destination_root, target))
+        questions = "config/rails_ai_admin/assistant_eval.yml"
+        copy_file "assistant_eval.yml", questions unless File.exist?(File.join(destination_root, questions))
         say "The assistant stays unavailable: AdminAssistant#llm_context returns nil, and no resource grants assistant?."
         say "Add ruby_llm (#{Configuration::OPTIONAL_GEMS.fetch('ruby_llm').fetch(:requirement).join(', ')}) to the Gemfile, run db:migrate, then set config.assistant = true, config.assistant_adapter = \"AdminAssistant\" and config.assistant_model."
-        say "Schedule rails_ai_admin:assistant:scan to recover lost jobs. Guide: #{GUIDES}/_advanced/admin-assistant.md"
+        say "Schedule rails_ai_admin:assistant:scan to recover lost jobs. Before rollout, edit #{questions} and run rails_ai_admin:assistant:eval."
+        say "Guide: #{GUIDES}/_advanced/admin-assistant.md"
       end
     end
   end

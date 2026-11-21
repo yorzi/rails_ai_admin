@@ -47,6 +47,26 @@ namespace :rails_ai_admin do
       puts "Visited #{RailsAiAdmin::Assistant::Coordinator.new.scan_pending!(inline: true)} assistant chats."
     end
 
+    desc "Ask the questions in FILE as ACTOR in TENANT and check the answers (real provider calls; see the assistant guide)"
+    task eval: :environment do
+      require "rails_ai_admin/assistant"
+      usage = "Usage: bin/rails rails_ai_admin:assistant:eval ACTOR=<actor ref> TENANT=<tenant ref> " \
+        "[FILE=config/rails_ai_admin/assistant_eval.yml] [ONLY=case,case] [GRADER=model|none] [REPORT=tmp/eval.json]"
+      actor, tenant = ENV["ACTOR"].to_s, ENV["TENANT"].to_s
+      abort usage if actor.empty? || tenant.empty?
+      adapter = RailsAiAdmin.configuration.context_adapter&.safe_constantize&.new
+      abort "rails_ai_admin:assistant:eval: the context adapter must define resolve_job" unless adapter.respond_to?(:resolve_job)
+      context = adapter.resolve_job(actor_ref: actor, tenant_ref: tenant, security_version: nil)
+      abort "rails_ai_admin:assistant:eval: #{actor} in #{tenant} is not a current admin person" unless context.is_a?(RailsAiAdmin::Context)
+      grader = ENV["GRADER"] == "none" ? false : ENV["GRADER"].presence
+      file = Rails.root.join(ENV.fetch("FILE", "config/rails_ai_admin/assistant_eval.yml")).to_s
+      evaluation = RailsAiAdmin::Assistant::Evaluation.for(context, dataset: file, grader: grader)
+      report = evaluation.run(only: ENV["ONLY"].presence&.split(","))
+      puts RailsAiAdmin::Assistant::Evaluation.summary(report)
+      report.save(ENV["REPORT"]) if ENV["REPORT"].present?
+      exit 1 unless report.passed?
+    end
+
     desc "Delete assistant conversations with no message for config.assistant_retention; schedule it daily"
     task prune: :environment do
       require "rails_ai_admin/assistant"

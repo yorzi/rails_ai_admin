@@ -509,6 +509,52 @@ load. The instructions tell the model to treat record values and tool results
 as data, not instructions. That reduces prompt-injection risk; the grants and
 the human confirmation are the actual controls.
 
+## Check It Before Rollout
+
+The doctor proves the wiring, not the answers. Before giving the assistant to
+staff, ask it the questions they will ask, as one of them. The assistant
+generator writes `config/rails_ai_admin/assistant_eval.yml` with two examples;
+replace them with your own:
+
+```yaml
+cases:
+  - name: vip-count
+    inputs: How many VIP customers do we have?
+    expected_output: There are 4 VIP customers.
+    metadata:
+      tools: [count_records]
+      answer_includes: ["4"]
+  - name: refund-is-a-review
+    inputs: Refund order ORD-0042.
+    expected_output: It prepared a refund for review and did not refund the order itself.
+    metadata:
+      tools: [propose_operation]
+```
+
+Run it as a person and tenant your context adapter's `resolve_job` accepts:
+
+```sh
+bin/rails rails_ai_admin:assistant:eval ACTOR=raa:actor:User:1 TENANT=raa:tenant:Account:1
+```
+
+Each case opens a new conversation for that person and runs the question
+through your model, their grants and your operator notes, exactly as the page
+would. `tools`, `tools_absent` and `answer_includes` are checked in Ruby. When
+every case has an `expected_output`, a model also judges whether the answer
+means the same, using your adapter's provider context and `assistant_model`;
+set `GRADER=<model>` to use another model or `GRADER=none` to run only the
+checks. Give every case an `expected_output` or none.
+
+The task prints one line per case and the total cost, writes the full report
+with `REPORT=tmp/assistant_eval.json`, and exits with status 1 when a case fails,
+so it can run in CI against a staging database. `ONLY=vip-count` runs selected
+cases and `FILE=` reads another file. Reviews the model proposes are never
+confirmed, so no record changes, but every case is a real provider request and
+counts toward that person's limits. The conversations are archived afterwards.
+From Ruby, `RailsAiAdmin::Assistant::Evaluation.for(context, dataset:)` returns
+a [RubyLLM evaluation](https://rubyllm.com/evaluations/) class whose `run`
+returns the report.
+
 ## Check the Installation
 
 `bin/rails rails_ai_admin:doctor` reports the assistant tables, the adapter's
@@ -535,8 +581,9 @@ match mode, like the index search box: a live model that searched for
 `describe_resource` now tells the model each field's mode. Some models also answer in Markdown,
 which the transcript shows as literal characters.
 
-Host instructions, fallback models and grouping by date period have tests
-against a scripted provider but no recorded or live provider run yet. Selection
+Host instructions, fallback models, prompt caching, grouping by date period
+and the evaluation task have tests against a scripted provider but no recorded
+or live provider run yet. Selection
 context, undo of a confirmed change and bulk changes over more than 100 records
 are not available yet. Streaming is saved and polled, not pushed over WebSockets.
 

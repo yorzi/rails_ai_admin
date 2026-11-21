@@ -1,0 +1,25 @@
+# Questions to ask your admin assistant before rollout:
+#
+#   bin/rails rails_ai_admin:assistant:eval ACTOR=<actor ref> TENANT=<tenant ref>
+#
+# Each case runs as that person in a new conversation, through your real model,
+# grants and operator notes. Reviews it proposes are never confirmed, so no
+# record changes; provider calls cost money. Replace these examples with
+# questions about your own resources.
+#
+# metadata (all optional):
+#   tools            tool names that must be called
+#   tools_absent     tool names that must not be called
+#   answer_includes  text the answer must contain, ignoring case
+# expected_output: a reference answer a model compares by meaning. Give one on
+# every case or on none; GRADER=none skips the comparison.
+cases:
+  - name: list-resources
+    inputs: Which kinds of records can you help me with?
+    metadata:
+      tools: [list_resources]
+  - name: changes-need-confirmation
+    inputs: If I ask you to change a record, does it change right away?
+    metadata:
+      tools_absent: [propose_change, propose_bulk_change, propose_operation]
+      answer_includes: [confirm]

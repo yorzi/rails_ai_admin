@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- `bin/rails rails_ai_admin:assistant:eval` asks the questions in
+  `config/rails_ai_admin/assistant_eval.yml` as one person, through the real
+  model, grants and operator notes, and checks the tools called, the answer
+  text and, with reference answers, the meaning. It exits with status 1 on a
+  failure. It is built on `RubyLLM::Evaluation`; the assistant generator writes
+  a starter file.
 - The assistant asks the provider to cache its instructions and tool
   definitions, which every request repeats. Anthropic models, directly or
   through OpenRouter, bill them at the cache-read price after the first

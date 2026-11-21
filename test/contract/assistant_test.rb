@@ -426,6 +426,13 @@ class AssistantContractTest < ActiveSupport::TestCase
       adapter = File.read(File.join(directory, "app/rails_ai_admin/admin_assistant.rb"))
       assert_match(/def llm_context\(context:\)\n    nil\n/, adapter)
       refute_match(/RubyLLM\.configure/, adapter)
+      assert_match(/# def instructions\(context:\)/, adapter)
+      questions = File.join(directory, "config/rails_ai_admin/assistant_eval.yml")
+      cases = RubyLLM::Evaluation.cases(dataset: questions)
+      assert_equal %w[list-resources changes-need-confirmation], cases.map(&:name)
+      File.write(questions, "cases: []\n")
+      capture_io { RailsAiAdmin::Generators::AssistantGenerator.new([], {}, destination_root: directory).invoke_all }
+      assert_equal "cases: []\n", File.read(questions), "a rerun keeps the host's questions"
     end
   end
 end

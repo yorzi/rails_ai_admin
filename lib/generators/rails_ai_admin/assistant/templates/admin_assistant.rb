@@ -15,4 +15,10 @@ class AdminAssistant
     #   config.max_retries = 1
     # end
   end
+
+  # Optional notes the model reads after the admin's own rules, for terms and
+  # conventions your field names do not explain. They grant nothing.
+  # def instructions(context:)
+  #   "A VIP customer has at least 100 points."
+  # end
 end
