@@ -19,8 +19,8 @@ class AggregatesTest < ActiveSupport::TestCase
       text :label, filterable: [ :eq ]
       enum :kind, values: %w[standard priority rush], filterable: %i[eq in]
       decimal :amount, aggregatable: true, filterable: %i[gte lte]
-      date :due_on, aggregatable: true
-      datetime :seen_at, aggregatable: true
+      date :due_on, aggregatable: true, filterable: %i[gte lte]
+      datetime :seen_at, aggregatable: true, filterable: %i[gte lte]
       boolean :flagged, filterable: true
       integer :account_id, aggregatable: true, readonly: true
     end
@@ -142,6 +142,73 @@ class AggregatesTest < ActiveSupport::TestCase
     end
   end
 
+  def zoned(time_zone, **options)
+    zone = RailsAiAdmin::Context.new(actor: TestActor.new(1), tenant: TestTenant.new(1), security_version: "1", time_zone: time_zone)
+    RailsAiAdmin::Queries::List.new(zone, SampleAdmin).aggregate(**options)
+  end
+
+  def periods(result) = result.groups.map { |group| [ group.key, group.count, group.value ] }
+
+  def test_periods_run_oldest_first_with_empty_periods_and_undated_records
+    Policy.filter = Policy.filter.merge(agg_samples: %i[kind due_on seen_at])
+    with_resources do
+      months = aggregate(function: "sum", field: "amount", group_by: "due_on", period: "month")
+      assert_equal [ [ Date.new(2026, 10, 1), 1, BigDecimal("100") ], [ Date.new(2026, 11, 1), 2, BigDecimal("14.75") ], [ nil, 1, nil ] ], periods(months)
+      assert_equal [ "month", 4, BigDecimal("114.75") ], [ months.period, months.count, months.value ]
+      refute months.groups_truncated
+      weeks = aggregate(function: "count", group_by: "due_on", period: "week", filters: { "due_on" => { "gte" => "2026-10-01" } })
+      # Mondays from 5 October to 16 November; Sunday 1 November is in the week of 26 October.
+      assert_equal [ [ "2026-10-05", 1 ], [ "2026-10-12", 0 ], [ "2026-10-19", 0 ], [ "2026-10-26", 1 ], [ "2026-11-02", 0 ], [ "2026-11-09", 0 ],
+        [ "2026-11-16", 1 ] ], weeks.groups.map { |group| [ group.key.iso8601, group.count ] }
+      assert_equal [ [ Date.new(2026, 1, 1), 3, nil ] ], periods(aggregate(function: "count", group_by: "due_on", period: "year",
+        filters: { "due_on" => { "gte" => "2026-01-01" } }))
+      none = aggregate(function: "count", group_by: "due_on", period: "day", filters: { "kind" => { "eq" => "rush" } })
+      assert_equal [ [ nil, 1, nil ] ], periods(none), "only undated records leave just the undated group"
+    end
+  end
+
+  def test_datetime_periods_split_at_midnight_in_the_actors_time_zone
+    Policy.filter = Policy.filter.merge(agg_samples: %i[seen_at])
+    sample("E", amount: "1", seen_at: "2026-11-03T23:30:00Z")
+    with_resources do
+      utc = zoned("UTC", function: "count", group_by: "seen_at", period: "day", filters: { "seen_at" => { "gte" => "2026-11-02T00:00:00Z" } })
+      assert_equal [ [ Date.new(2026, 11, 3), 2 ] ], utc.groups.map { |group| [ group.key, group.count ] }
+      # 23:30 UTC is 08:30 the next morning in Tokyo; 18:30 UTC is 03:30.
+      tokyo = zoned("Tokyo", function: "count", group_by: "seen_at", period: "day", filters: { "seen_at" => { "gte" => "2026-11-02T00:00:00Z" } })
+      assert_equal [ [ Date.new(2026, 11, 4), 2 ] ], tokyo.groups.map { |group| [ group.key, group.count ] }
+      # 18:30 UTC is 10:30 in Los Angeles, 23:30 UTC is 15:30: both on the 3rd.
+      pacific = zoned("Pacific Time (US & Canada)", function: "count", group_by: "seen_at", period: "day")
+      assert_equal [ Date.new(2026, 11, 1), 1 ], [ pacific.groups.first.key, pacific.groups.first.count ]
+      assert_equal [ Date.new(2026, 11, 3), 2 ], [ pacific.groups[2].key, pacific.groups[2].count ]
+    end
+  end
+
+  def test_periods_are_bounded_to_the_latest
+    Policy.filter = Policy.filter.merge(agg_samples: %i[due_on])
+    with_resources do
+      result = aggregate(function: "count", group_by: "due_on", period: "day")
+      days = result.groups.first(25)
+      assert_equal 26, result.groups.size, "25 days, then the undated group"
+      assert result.groups_truncated
+      assert_equal [ Date.new(2026, 10, 27), Date.new(2026, 11, 20) ], [ days.first.key, days.last.key ]
+      assert_equal [ nil, 1 ], [ result.groups.last.key, result.groups.last.count ]
+      assert_equal 4, result.count, "the total still covers every record"
+      assert_equal 2, days.sum(&:count), "the October record falls before the returned days"
+    end
+  end
+
+  def test_periods_need_a_granted_date_field_and_a_known_period
+    with_resources do
+      assert_invalid(function: "count", group_by: "due_on", period: "month") # no filter grant
+      Policy.filter = Policy.filter.merge(agg_samples: %i[kind due_on])
+      assert_invalid(function: "count", group_by: "due_on") # a date is not a category
+      assert_invalid(function: "count", group_by: "kind", period: "month")
+      assert_invalid(function: "count", group_by: "due_on", period: "quarter")
+      assert_invalid(function: "count", period: "month")
+      assert_equal 3, aggregate(function: "count", group_by: "due_on", period: "month").groups.size
+    end
+  end
+
   def test_a_joined_policy_scope_never_counts_a_record_twice
     with_resources do
       @customer.update!(points: 10)
@@ -201,6 +268,7 @@ class AggregatesTest < ActiveSupport::TestCase
       assert_equal [ { "field" => "amount", "functions" => %w[sum average minimum maximum] }, { "field" => "due_on", "functions" => %w[minimum maximum] },
         { "field" => "seen_at", "functions" => %w[minimum maximum] } ], described["aggregates"]
       assert_equal %w[kind flagged], described["group_by"]
+      assert_equal [], described["group_by_period"], "dates need the filter grant to group"
       assert_equal({ "resource" => "agg_samples", "applied_scope" => nil, "function" => "sum", "field" => "amount", "count" => 4, "value" => "114.75",
         "group_by" => "kind", "groups" => [ { "group" => "standard", "count" => 2, "value" => "14.75" },
           { "group" => "priority", "count" => 1, "value" => "100.00" },
@@ -215,6 +283,29 @@ class AggregatesTest < ActiveSupport::TestCase
       activity = RailsAiAdmin::Assistant::Transcript.new(context, chat).entries.select { |entry| entry.kind == :activity }.map(&:text)
       assert_includes activity, "Calculated totals in Agg samples"
       assert_includes activity, "Tried to calculate totals in Agg samples (the request was not valid)"
+    end
+  end
+
+  def test_the_tool_returns_periods_as_first_days_with_the_time_zone_for_datetimes
+    Policy.filter = Policy.filter.merge(agg_samples: %i[due_on seen_at])
+    with_resources do
+      chat = new_chat
+      admit(chat, "Total amount per month?")
+      LLMFixture.tool("describe_resource", { resource: "agg_samples" })
+      LLMFixture.tool("aggregate_records", { resource: "agg_samples", function: "sum", field: "amount", group_by: "due_on", period: "month" })
+      LLMFixture.tool("aggregate_records", { resource: "agg_samples", function: "count", group_by: "seen_at", period: "week" })
+      LLMFixture.tool("aggregate_records", { resource: "agg_samples", function: "count", group_by: "kind", period: "week" })
+      LLMFixture.reply("Done.")
+      drain(chat)
+      described, months, weeks, invalid = chat.messages.where(role: "tool").order(:id).map { |message| JSON.parse(message.content) }
+      assert_equal %w[due_on seen_at], described["group_by_period"]
+      assert_equal({ "resource" => "agg_samples", "applied_scope" => nil, "function" => "sum", "field" => "amount", "count" => 4, "value" => "114.75",
+        "group_by" => "due_on", "period" => "month", "groups" => [ { "group" => "2026-10-01", "count" => 1, "value" => "100.00" },
+          { "group" => "2026-11-01", "count" => 2, "value" => "14.75" }, { "group" => nil, "count" => 1, "value" => nil } ],
+        "groups_truncated" => false }, months)
+      assert_equal [ "week", "UTC", [ [ "2026-10-26", 1 ], [ "2026-11-02", 1 ], [ nil, 2 ] ] ],
+        [ weeks["period"], weeks["time_zone"], weeks["groups"].map { |group| [ group["group"], group["count"] ] } ]
+      assert_equal "INVALID_QUERY", invalid["error"]
     end
   end
 

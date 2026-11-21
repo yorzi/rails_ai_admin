@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- `aggregate_records` groups by calendar period: pass a date or datetime field
+  the person may filter by as `group_by`, with `period` set to `day`, `week`,
+  `month` or `year`. Periods run oldest first in the person's time zone,
+  include periods without records, and stop at the latest 25.
+  `describe_resource` lists these fields as `group_by_period`. The offline demo
+  answers `sum orders total by week of delivery_on`.
 - The default layout loads Trix in its head whenever a resource has a
   `rich_text` field. Opening an editor through a Turbo visit no longer shows
   the link dialog open, with Trix styles refused by the page's style policy.

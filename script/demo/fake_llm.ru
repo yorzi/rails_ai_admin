@@ -7,8 +7,9 @@
 #   "count customers", "get customers 3", "award 5 points to 3",
 #   "set articles 1 title to Hello", "create articles with title Draft",
 #   "delete articles 2", "history of articles 1", "sum orders total by state",
-#   "average articles views", "set customers points to 50 for Bulk" (one bulk
-#   review); a page's "Context:" line opens that record.
+#   "sum orders total by week of delivery_on" (any of day, week, month or
+#   year), "average articles views", "set customers points to 50 for Bulk"
+#   (one bulk review); a page's "Context:" line opens that record.
 # Summarize tool results and review outcomes for the browser walkthrough.
 require "json"
 require "securerandom"
@@ -21,7 +22,13 @@ def demo_tool_reply(text)
     return "I prepared a review in this conversation. Check the proposed changes and confirm when you are ready."
   end
   if result.key?("function")
-    groups = Array(result["groups"]).map { |group| "#{group['group'].is_a?(Hash) ? group['group']['label'] : group['group'].inspect}: #{group['value'] || group['count']}" }
+    groups = Array(result["groups"]).map do |group|
+      label = if result["period"] then group["group"] ? "#{result['period']} of #{group['group']}" : "no date"
+      elsif group["group"].is_a?(Hash) then group["group"]["label"]
+      else group["group"].inspect
+      end
+      "#{label}: #{group['value'] || group['count']}"
+    end
     return "The #{result['function']} of #{result['field'] || 'records'} is #{result['value'] || result['count']}#{groups.any? ? " (#{groups.join(', ')})" : ''}."
   end
   if result["records"].is_a?(Array)
@@ -66,6 +73,8 @@ run lambda { |env|
     elsif text.start_with?("Review result: ") then { role: "assistant", content: demo_review_reply(text) }
     elsif (match = text.match(/set (\w+) (\w+) to (\S+) for (.+)/i))
       tool.("propose_bulk_change", { resource: match[1], values: { match[2] => match[3] }, query: match[4].strip })
+    elsif (match = text.match(/sum (\w+) (\w+) by (day|week|month|year) of (\w+)/i))
+      tool.("aggregate_records", { resource: match[1], function: "sum", field: match[2], group_by: match[4], period: match[3].downcase })
     elsif (match = text.match(/sum (\w+) (\w+)(?: by (\w+))?/i))
       tool.("aggregate_records", { resource: match[1], function: "sum", field: match[2], group_by: match[3] }.compact)
     elsif (match = text.match(/average (\w+) (\w+)/i)) then tool.("aggregate_records", { resource: match[1], function: "average", field: match[2] })

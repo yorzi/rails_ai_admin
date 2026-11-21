@@ -45,6 +45,7 @@ Open **Assistant → New conversation**. The offline model recognizes the exact 
 |---|---|
 | `search articles for upgrading` | The results link to the matching records. |
 | `sum orders total by state` | The assistant reports a total for each visible order state. |
+| `sum orders total by week of delivery_on` | Weekly totals, oldest first, with empty weeks and undated orders shown. |
 | `set articles 1 title to Hello` | The card shows before and after. Choose **Confirm and execute** to save, or **Dismiss** to leave the article unchanged. |
 | `set customers points to 50 for Bulk` | One review lists all 30 matching customers. Open it to inspect each change and choose **Update 30 records** to apply it. |
 

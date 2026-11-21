@@ -59,6 +59,8 @@ module RailsAiAdmin
     AGGREGATE_FUNCTIONS = %i[sum average minimum maximum].freeze
     # Categories an aggregate can be grouped by, each a bounded set of values.
     GROUP_TYPES = %i[boolean enum select belongs_to].freeze
+    # Fields aggregates can group into calendar periods.
+    PERIOD_TYPES = %i[date datetime].freeze
     # Text that partial matching makes sense for; ids stay exact.
     CONTAINS_TYPES = %i[text textarea email url].freeze
     # Fixed choice lists, where "any of" is a set of checkboxes.

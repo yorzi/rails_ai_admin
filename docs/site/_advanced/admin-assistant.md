@@ -259,12 +259,21 @@ draft orders?" or "How many points do active and inactive customers hold?":
   filter by: filtering by each value would show the same counts. At most 25
   groups are returned, largest first, with `groups_truncated` when there are
   more. A reference group is labelled through the target's own grants.
+* With `period` (`day`, `week`, `month` or `year`), `group_by` takes a date or
+  datetime field the person may filter by instead, answering "What was the total
+  per week of delivery?". Groups are calendar periods, oldest first, from the
+  earliest to the latest dated record, and periods without records count zero.
+  Each group is the period's first day; weeks start on Monday. Datetimes are
+  split at midnight in the person's time zone, which the result names. At most
+  the latest 25 periods are returned, with `groups_truncated` when earlier ones
+  are left out; filter the field by date to choose another range. Records
+  without a date form a last group with an empty key.
 * It covers the same records as `count_records`: the policy relation, the
   optional search, filters and granted scope. It runs over the relation's
   primary keys, so a join in a policy scope cannot count a record twice.
 * Decimal results are exact strings rounded to the field's scale; an average
   has two more places. `describe_resource` lists the aggregatable fields with
-  their functions and the `group_by` fields.
+  their functions, the `group_by` fields and the `group_by_period` fields.
 
 ## Change Many Records in One Review
 

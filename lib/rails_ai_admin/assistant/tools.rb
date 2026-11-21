@@ -246,6 +246,8 @@ module RailsAiAdmin
           "aggregates" => access.fields(:read).select { |field| field.aggregatable? && !field.virtual? }
             .map { |field| { "field" => field.name.to_s, "functions" => field.aggregate_functions.map(&:to_s) } },
           "group_by" => access.fields(:filter).select { |field| Field::GROUP_TYPES.include?(field.scalar_type) }.map { |field| field.name.to_s },
+          # Date and datetime fields aggregate_records can group by period.
+          "group_by_period" => access.fields(:filter).select { |field| Field::PERIOD_TYPES.include?(field.scalar_type) }.map { |field| field.name.to_s },
           # Search and count apply no list tab unless one is named (RAA-007).
           "scopes" => access.named_scopes.map { |definition| { "name" => definition.name.to_s, "label" => definition.label, "default_in_ui" => definition.default? } }
         }
@@ -384,14 +386,17 @@ module RailsAiAdmin
     # rule as search; the measured field must be declared aggregatable.
     class AggregateRecords < Tool
       description "Calculate count, sum, average, minimum or maximum over one resource's records, optionally grouped by a " \
-        "category field, with the same optional text, typed filters and list scope as search_records. describe_resource " \
-        "lists the aggregatable fields and the group_by fields. Every record you may see is included unless you pass scope."
+        "category field, with the same optional text, typed filters and list scope as search_records. For totals per day, " \
+        "week, month or year, pass a group_by_period field as group_by with period; groups are oldest first in the user's " \
+        "time zone, weeks start on Monday, and each group is the period's first day. describe_resource lists the " \
+        "aggregatable, group_by and group_by_period fields. Every record you may see is included unless you pass scope."
       parameters({ "type" => "object", "required" => %w[resource function], "additionalProperties" => false,
         "properties" => {
           "resource" => { "type" => "string" },
           "function" => { "type" => "string", "enum" => Queries::List::AGGREGATE_FUNCTIONS },
           "field" => { "type" => "string", "description" => "An aggregatable field from describe_resource; omit for count" },
-          "group_by" => { "type" => "string", "description" => "Optional group_by field from describe_resource" },
+          "group_by" => { "type" => "string", "description" => "Optional group_by field, or a group_by_period field with period" },
+          "period" => { "type" => "string", "enum" => Queries::List::PERIODS, "description" => "Calendar period for a group_by_period field" },
           "query" => { "type" => "string", "maxLength" => 200 },
           "filters" => { "type" => "object", "description" => "Field name to {operator: value}, as for search_records",
             "additionalProperties" => { "type" => "object", "additionalProperties" => FILTER_VALUE_SCHEMA } },
@@ -402,11 +407,13 @@ module RailsAiAdmin
 
       private
 
-      def perform(tool_call:, resource:, function:, field: nil, group_by: nil, query: nil, filters: nil, scope: nil)
+      def perform(tool_call:, resource:, function:, field: nil, group_by: nil, period: nil, query: nil, filters: nil, scope: nil)
         resource = @session.resource(resource)
-        raise AccessDenied, "INVALID_QUERY" unless function.is_a?(String) && (field.nil? || field.is_a?(String)) && (group_by.nil? || group_by.is_a?(String))
+        unless function.is_a?(String) && [ field, group_by, period ].all? { |value| value.nil? || value.is_a?(String) }
+          raise AccessDenied, "INVALID_QUERY"
+        end
         result = Queries::List.new(@session.context, resource).aggregate(function: function, field: field, group_by: group_by,
-          search: query.presence, filters: wire_filters(filters), scope: list_scope(scope))
+          period: period, search: query.presence, filters: wire_filters(filters), scope: list_scope(scope))
         references = reference_resolver(@session.access(resource))
         if result.group_by&.scalar_type == :belongs_to
           references.prime(result.group_by, result.groups.filter_map { |group| group.key&.to_s })
@@ -416,8 +423,13 @@ module RailsAiAdmin
         entry["value"] = measure(result.field, function, result.value) if result.field
         if result.group_by
           entry["group_by"] = result.group_by.name.to_s
+          if result.period
+            entry["period"] = result.period
+            entry["time_zone"] = @session.context.time_zone if result.group_by.scalar_type == :datetime
+          end
           entry["groups"] = result.groups.map do |group|
-            item = { "group" => typed(result.group_by, group.key, references), "count" => group.count }
+            key = result.period ? group.key&.iso8601 : typed(result.group_by, group.key, references)
+            item = { "group" => key, "count" => group.count }
             item["value"] = measure(result.field, function, group.value) if result.field
             item
           end

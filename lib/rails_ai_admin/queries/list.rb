@@ -76,16 +76,20 @@ module RailsAiAdmin
       # filtering by each value would show the same counts. Aggregates run over
       # the primary keys of the policy relation, so a join in a policy scope
       # cannot count a record twice. Values are type cast but not formatted.
+      # With period, group_by is a date or datetime field the actor may filter
+      # by, and groups are calendar periods in the actor's time zone.
       AGGREGATE_FUNCTIONS = %w[count sum average minimum maximum].freeze
+      PERIODS = %w[day week month year].freeze
       MAX_GROUPS = 25
-      Aggregate = Data.define(:function, :field, :group_by, :count, :value, :groups, :groups_truncated, :scope)
+      Aggregate = Data.define(:function, :field, :group_by, :count, :value, :groups, :groups_truncated, :scope, :period)
       Group = Data.define(:key, :count, :value)
-      def aggregate(function:, field: nil, group_by: nil, search: nil, scope: nil, filters: nil)
+      def aggregate(function:, field: nil, group_by: nil, period: nil, search: nil, scope: nil, filters: nil)
         @access.authorize!(:index)
         raise AccessDenied, "INVALID_QUERY" unless AGGREGATE_FUNCTIONS.include?(function)
+        raise AccessDenied, "INVALID_QUERY" unless period.nil? || PERIODS.include?(period) && !group_by.nil?
         measure = function == "count" ? nil : aggregate_field(field, function)
         raise AccessDenied, "INVALID_QUERY" if function == "count" && !field.nil?
-        grouping = group_by.nil? ? nil : group_field(group_by)
+        grouping = group_by.nil? ? nil : group_field(group_by, period: !period.nil?)
         relation, named = filtered_relation(search: search, scope: scope, filters: filters)
         model = @resource.model_class
         primary = model.primary_key
@@ -95,7 +99,9 @@ module RailsAiAdmin
         expressions << table[measure.column].public_send(AREL_AGGREGATES.fetch(function)) if measure
         count, raw = base.pick(*expressions)
         groups, truncated = [], false
-        if grouping
+        if grouping && period
+          groups, truncated = period_groups(base, table[grouping.column], grouping, period, expressions, measure, function)
+        elsif grouping
           column = table[grouping.column]
           rows = base.group(column).order(Arel.star.count.desc, column.asc.nulls_last).limit(MAX_GROUPS + 1).pluck(column, *expressions)
           truncated = rows.size > MAX_GROUPS
@@ -103,7 +109,8 @@ module RailsAiAdmin
             Group.new(cast(grouping, key), group_count.to_i, measure ? aggregate_value(measure, function, group_raw) : nil)
           end
         end
-        Aggregate.new(function, measure, grouping, count.to_i, measure ? aggregate_value(measure, function, raw) : nil, groups, truncated, named&.name&.to_s)
+        Aggregate.new(function, measure, grouping, count.to_i, measure ? aggregate_value(measure, function, raw) : nil, groups, truncated,
+          named&.name&.to_s, period)
       end
 
       AREL_AGGREGATES = { "sum" => :sum, "average" => :average, "minimum" => :minimum, "maximum" => :maximum }.freeze
@@ -164,11 +171,64 @@ module RailsAiAdmin
         field
       end
 
-      def group_field(name)
+      def group_field(name, period: false)
         raise AccessDenied, "INVALID_QUERY" unless name.is_a?(String) && name.match?(Field::NAME)
         field = @access.fields(:filter).find { |candidate| candidate.name.to_s == name }
-        raise AccessDenied, "INVALID_QUERY" unless field && Field::GROUP_TYPES.include?(field.scalar_type)
+        raise AccessDenied, "INVALID_QUERY" unless field && (period ? Field::PERIOD_TYPES : Field::GROUP_TYPES).include?(field.scalar_type)
         field
+      end
+
+      # Calendar periods, oldest first, ending with the latest dated record's
+      # period; periods without records count zero. Each record falls in one
+      # period through a CASE over bound boundaries, so SQLite and PostgreSQL
+      # agree and datetimes split at midnight in the actor's time zone. Past
+      # MAX_GROUPS periods only the latest are returned. Records without a
+      # date form a final group whose key is nil, beyond that limit.
+      def period_groups(base, column, field, period, expressions, measure, function)
+        zone = ActiveSupport::TimeZone[@access.context.time_zone]
+        first, last = base.pick(column.minimum, column.maximum).map { |raw| cast(field, raw) }
+        starts = []
+        if last
+          day = ->(value) { field.scalar_type == :datetime ? value.in_time_zone(zone).to_date : value }
+          oldest = period_start(day.call(first), period)
+          start = period_start(day.call(last), period)
+          while start >= oldest && starts.size <= MAX_GROUPS
+            starts.unshift(start)
+            start = period_advance(start, period, -1)
+          end
+        end
+        truncated = starts.size > MAX_GROUPS
+        starts = starts.last(MAX_GROUPS)
+        edge = ->(date) { field.scalar_type == :datetime ? zone.local(date.year, date.month, date.day) : date }
+        bucket = Arel::Nodes::Case.new.when(column.eq(nil)).then(Arel::Nodes.build_quoted(-1))
+        starts.each_with_index do |start, index|
+          range = column.gteq(edge.call(start)).and(column.lt(edge.call(period_advance(start, period, 1))))
+          bucket = bucket.when(range).then(Arel::Nodes.build_quoted(index))
+        end
+        # Records before the returned periods fall to -2 and are left out.
+        bucket = bucket.else(Arel::Nodes.build_quoted(-2))
+        rows = base.group(bucket).pluck(bucket, *expressions).to_h { |index, *values| [ index.to_i, values ] }
+        groups = starts.each_with_index.map do |start, index|
+          group_count, group_raw = rows.fetch(index, [ 0, nil ])
+          Group.new(start, group_count.to_i, measure ? aggregate_value(measure, function, group_raw) : nil)
+        end
+        if (undated = rows[-1])
+          groups << Group.new(nil, undated[0].to_i, measure ? aggregate_value(measure, function, undated[1]) : nil)
+        end
+        [ groups, truncated ]
+      end
+
+      def period_start(date, period)
+        case period
+        when "day" then date
+        when "week" then date.beginning_of_week(:monday)
+        when "month" then date.beginning_of_month
+        else date.beginning_of_year
+        end
+      end
+
+      def period_advance(date, period, steps)
+        date.advance({ "day" => :days, "week" => :weeks, "month" => :months, "year" => :years }.fetch(period) => steps)
       end
 
       # Database results arrive as the adapter returns them (SQLite sums
