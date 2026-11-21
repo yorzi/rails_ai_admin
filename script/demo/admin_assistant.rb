@@ -20,4 +20,12 @@ class AdminAssistant
       end
     end
   end
+
+  # Operator notes the model reads after the admin's own rules on each turn.
+  def instructions(context:)
+    <<~TEXT
+      This is a demo store with sample data. An order's delivery_on is its promised delivery day; orders without one are not scheduled yet.
+      Customers named "Bulk Customer" exist to try changes across many records at once.
+    TEXT
+  end
 end
