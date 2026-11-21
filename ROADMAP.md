@@ -41,6 +41,18 @@ read-only demo is a future task, not part of this release's claim.
   evaluation set recorded the same way.
 - `bin/demo --openrouter` for the demo on real models.
 
+## In development on main
+
+Unreleased; see the Unreleased section of [CHANGELOG.md](CHANGELOG.md).
+
+- Totals per day, week, month or year in the person's time zone.
+- Host instructions for the assistant from the adapter, read for every turn.
+- Fallback models for rate limits, overloads and outages, through RubyLLM.
+- Rich text editors opened through Turbo navigation keep their styles.
+
+These have tests against a scripted provider. Recorded and live provider runs
+for them are still to come.
+
 ## Next candidates
 
 Prioritize from actual host use rather than a fixed release calendar:
@@ -50,7 +62,10 @@ Prioritize from actual host use rather than a fixed release calendar:
   controlled attachment changes.
 - Bulk operations and bulk changes over more than 100 records as an
   asynchronous job; undo of a confirmed change.
-- Grouping aggregates by date period and host-supplied assistant instructions.
+- Prompt caching for the assistant's instructions and tools, with cached
+  tokens shown in the spending record.
+- An evaluation task hosts can run against their own resources and
+  instructions before rollout.
 - Native OpenAI and Anthropic API checks, more locales and additional policy
   adapters.
 
