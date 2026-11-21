@@ -21,6 +21,6 @@ gem "webmock", "~> 3.0"
 gem "vcr", "~> 6.4"
 gem "bcrypt", "~> 3.1", require: false
 gem "importmap-rails", "~> 2.2", require: false
-gem "puma", "~> 8.0", require: false
+gem "puma", "~> 8.1", require: false
 gem "devise", "~> 5.0.4", require: false
 gem "jsbundling-rails", "~> 1.3", require: false
