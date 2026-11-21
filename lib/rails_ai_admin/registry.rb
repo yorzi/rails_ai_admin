@@ -32,9 +32,14 @@ module RailsAiAdmin
           end
         end
       end
+      @rich_text = @entries.each_value.any? { |resource| resource.fields.any? { |field| field.scalar_type == :rich_text } }
       @entries.freeze
       freeze
     end
+
+    # Whether any resource edits rich text, so layouts can load Trix on the
+    # first full page instead of only on the edit page reached through Turbo.
+    def rich_text? = @rich_text
 
     def fetch(key)
       @entries.fetch(key.to_s) { raise AccessDenied }

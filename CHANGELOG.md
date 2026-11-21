@@ -2,7 +2,13 @@
 
 ## Unreleased
 
-No changes yet.
+- The default layout loads Trix in its head whenever a resource has a
+  `rich_text` field. Opening an editor through a Turbo visit no longer shows
+  the link dialog open, with Trix styles refused by the page's style policy.
+  Layout overrides move to contract 5. Add `<%= admin_rich_text_assets %>` to
+  an overridden layout's head; until then, Trix keeps loading beside each editor.
+- `bin/demo` follows the supported RubyLLM range instead of pinning 2.2.0, so
+  the demo runs the release the checkout was tested with.
 
 ## 0.4.1 (2026-11-18)
 

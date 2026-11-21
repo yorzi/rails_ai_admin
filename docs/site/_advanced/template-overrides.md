@@ -108,7 +108,7 @@ Navigation-aware templates also receive immutable `@list_navigation`; it carries
 only normalized list hints, not routing or record authority. Keep registered
 navigation helpers, hidden return fields, the recovery encoded return-state/discarded data
 and discard notices instead of routing from raw return_to. resource_index receives
-sortable_fields for permitted sort headers. The layout is revision 3; index/
+sortable_fields for permitted sort headers. The layout is revision 5; index/
 show/destroy, member and collection form/review/failure, selection and job-show
 context contracts are revision 2. See [List Navigation]({% link _core_features/list-navigation.md %}) for
 the exact helper and query/header boundaries.
@@ -139,6 +139,13 @@ asset helpers, one document shell and `yield`. Host custom layouts loading the
 prebuilt Turbo bundle need meta[name=csp-nonce] populated by the public
 admin_csp_nonce helper; it matches the response header and authorizes Turbo's
 progress-bar style without unsafe-inline.
+
+Keep `<%= admin_rich_text_assets %>` in the layout's head. When a resource has a
+`rich_text` field, it loads Trix on every admin page, so Trix installs its styles
+under the first page's policy. Trix loaded first on an edit page reached by a Turbo
+visit reads that page's new nonce, which the browser does not enforce, so its styles
+are refused and the link dialog shows open. A layout without the helper still gets
+Trix beside each editor, with that limitation.
 
 Use normal Rails form helpers and keep CSRF, endpoint/method and server-issued
 intent bindings. Retain `intent_ref`, applicable `expected_version`, reviewed

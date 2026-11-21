@@ -37,8 +37,6 @@ On **Articles**, try the **Popular** list tab or **Filters → Contact contains*
 
 ![The article edit form showing the Content tab with a rich text editor, cover upload and gallery]({{ '/assets/images/screenshots/form.png' | relative_url }})
 
-If the link dialog is already open when you first enter the editor, reload the edit page before entering changes.
-
 ## 2. Review an Assistant Change
 
 Open **Assistant → New conversation**. The offline model recognizes the exact phrases below and streams a reply.

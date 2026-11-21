@@ -13,6 +13,7 @@
   <%= csrf_meta_tags %>
   <%= stylesheet_link_tag "rails_ai_admin", "data-turbo-track": "reload" %>
   <%= javascript_include_tag "rails_ai_admin", type: "module", "data-turbo-track": "reload", defer: true, preload_links_header: false %>
+  <%= admin_rich_text_assets %>
 </head>
 <body class="raa" data-raa-messages="<%= t("rails_ai_admin.script").to_json %>">
   <a class="raa-skip" href="#raa-main"><%= t("rails_ai_admin.layout.skip") %></a>

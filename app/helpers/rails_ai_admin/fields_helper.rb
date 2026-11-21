@@ -101,15 +101,37 @@ module RailsAiAdmin
         alt: value.filename, class: "raa-file-preview", loading: "lazy"), link ])
     end
 
-    # Trix, from the host's Action Text assets, edits a hidden input. The
-    # label and descriptions point at the editor; file attachments are refused.
+    # Trix, from the host's Action Text assets, for the layout's head. Trix
+    # installs its styles once, with the csp-nonce of the page it boots on. A
+    # Turbo visit keeps the first page's policy but brings a new nonce, so Trix
+    # first loaded on an edit page reached that way has its styles refused and
+    # shows the link dialog open. Loading it on every page avoids that.
+    def admin_rich_text_assets
+      return "".html_safe unless RailsAiAdmin.registry.rich_text?
+      safe_join([ stylesheet_link_tag("trix"), javascript_include_tag("trix", defer: true) ])
+    end
+
+    # Trix edits a hidden input. The label and descriptions point at the
+    # editor; file attachments are refused. A layout override that predates
+    # admin_rich_text_assets still gets the assets beside the editor.
     def admin_rich_text_input(form, field, value, input_options)
       id = form.field_id(field.name)
       editor = content_tag("trix-editor", "", id: id, input: "#{id}--value", class: "raa-rich-text-editor",
         aria: input_options[:aria].merge(required: input_options[:required], labelledby: "#{id}--label"), data: { controller: "raa-rich-text",
         action: "trix-file-accept->raa-rich-text#refuse trix-change->raa-rich-text#change" })
-      safe_join([ stylesheet_link_tag("trix"), javascript_include_tag("trix", defer: true),
-        hidden_field_tag(form.field_name(field.name), value, id: "#{id}--value"), editor ])
+      assets = admin_layout_loads_rich_text? ? [] : [ stylesheet_link_tag("trix"), javascript_include_tag("trix", defer: true) ]
+      safe_join([ *assets, hidden_field_tag(form.field_name(field.name), value, id: "#{id}--value"), editor ])
+    end
+
+    # The view renders before its layout, so ask the layout's source. Loading
+    # Trix twice would run it again on each Turbo visit and add two styles the
+    # page's policy refuses.
+    def admin_layout_loads_rich_text?
+      return @raa_layout_loads_rich_text if defined?(@raa_layout_loads_rich_text)
+      layout = lookup_context.find_template("layouts/rails_ai_admin/application")
+      @raa_layout_loads_rich_text = layout.source.include?("admin_rich_text_assets")
+    rescue ActionView::MissingTemplate
+      @raa_layout_loads_rich_text = false
     end
 
     # Several files: a count in lists, a gallery of previews and links on

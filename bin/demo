@@ -100,7 +100,9 @@ edit("app/rails_ai_admin/order_admin.rb", "  operation :review_order", <<~RUBY.g
   end
 RUBY
 
-File.write(File.join(TARGET, "Gemfile"), %(gem "ruby_llm", "2.2.0"\ngem "rails_tool_views", "1.0.2"\n), mode: "a")
+# Follow the gem's supported range, so the demo resolves the RubyLLM the
+# checkout was tested with instead of an older pinned release.
+File.write(File.join(TARGET, "Gemfile"), %(gem "ruby_llm", ">= 2.2.0", "< 3"\ngem "rails_tool_views", "1.0.2"\n), mode: "a")
 # rails_tool_views controllers inherit the host's ApplicationController.
 File.write(File.join(TARGET, "app/controllers/application_controller.rb"), "class ApplicationController < ActionController::Base\nend\n")
 FileUtils.cp(File.join(ASSETS, "admin_assistant.rb"), File.join(TARGET, "app/rails_ai_admin"))

@@ -51,7 +51,7 @@ module RailsAiAdmin
         navigation = %w[layout resource_index resource_show resource_history resource_new resource_edit resource_form resource_destroy operation_form operation_confirmation operation_failure collection_form collection_confirmation collection_failure job_show selection selection_destroy selection_destroy_result].include?(key)
         assigns += [ :list_navigation ] if navigation
         revision = if key == "layout"
-          4 # page titles, environment label and the session_links slot (RAA-024)
+          5 # 4: page titles, environment label, session_links (RAA-024); 5: admin_rich_text_assets
         elsif key == "dashboard"
           4 # counts, widgets
         elsif key == "resource_index"

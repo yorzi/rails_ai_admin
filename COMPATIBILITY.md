@@ -1,5 +1,9 @@
 # Compatibility
 
+## 2026-11-21 — Trix after Turbo navigation
+
+On Ruby 4.0.9, Rails 8.1.4.1, RubyLLM 2.2.3, turbo-rails 2.0.23, Trix 2.1.19 and Chromium 159, a browser probe against `bin/demo` opened the article editor two ways: Turbo clicks from the overview, and a full page load. Before the change, the Turbo route applied 0 of 2 Trix styles, logged 4 style-policy errors and showed the link dialog open. With Trix loaded in the layout head, both routes applied 2 of 2 styles with no policy errors; the link dialog stayed hidden until the link tool was clicked, and an edit saved through Turbo. This resolves the observation recorded on 2026-11-18. The same probe injected an inline script into a Turbo-loaded list ([hotwired/turbo#1476](https://github.com/hotwired/turbo/issues/1476)). Turbo copied the `csp-nonce` onto it, but the admin's `script-src 'self'` carries no nonce, so the script did not run.
+
 ## 2026-11-18 — Unified offline demo
 
 On Ruby 4.0.9, Rails 8.1.4.1, SQLite and Chromium 159, `script/demo/screenshots.cjs` passed against a fresh `bin/demo`. The browser covered global search, filters, saved views, CSV export/check/import, rich text and file updates, stale edits, soft delete and restore, single and bulk assistant reviews, record history and audit, a member action and a queued collection action, MCP read/proposal/revocation, and role and tenant separation. The SQLite suite passed 680 tests and 6,322 assertions. OpenRouter setup completed without a key, but no live requests were made.
