@@ -227,7 +227,7 @@
     - { reply: "No changes to Alice Adams have been recorded." }
   expect:
     tools: [record_history]
-    answer_any: ["no changes", "no change", "no admin changes", "not been changed", "no recorded", "hasn't been", "has not been", "is empty", "none"]
+    answer_any: ["no changes", "no change", "no admin change", "no audited change", "not been changed", "no recorded", "hasn't been", "has not been", "is empty", "none"]
 
 - id: refuse-native-delete
   question: Delete Ken Robinson.

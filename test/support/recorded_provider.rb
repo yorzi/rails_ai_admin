@@ -83,6 +83,14 @@ module RecordedProvider
     end
   end
 
+  # The same provider settings with operator notes, the host's own
+  # vocabulary the admin's rules do not know (Adapter#instructions).
+  class BriefedAssistant < Assistant
+    NOTES = "A gold customer is an active customer with at least 20 points."
+
+    def instructions(context:) = NOTES
+  end
+
   # Any change to the instructions' wording, not only a version bump, needs
   # new recordings.
   def self.prompt_digest = Digest::SHA256.hexdigest(RailsAiAdmin::Assistant::Runtime::PROMPT)
@@ -114,19 +122,21 @@ module RecordedProvider
     usages = RubyLLM::ActiveRecord::Usage.where(owner: chat)
     # Every bucket: OpenRouter's prompt tokens are mostly cache reads and writes.
     tokens = RailsAiAdmin::Assistant::Budget::TOKEN_COLUMNS.sum { |column| usages.sum(column) }
-    { "requests" => usages.count, "tokens" => tokens, "output_tokens" => usages.sum(:output_tokens), "cost" => usages.sum(:total_cost).to_s("F") }
+    { "requests" => usages.count, "tokens" => tokens, "output_tokens" => usages.sum(:output_tokens),
+      "cache_read_tokens" => usages.sum(:cache_read_tokens), "cache_write_tokens" => usages.sum(:cache_write_tokens),
+      "cost" => usages.sum(:total_cost).to_s("F") }
   end
 end
 
 module RecordedProviderHelpers
-  def with_recorded_assistant(model: RecordedProvider::PRIMARY, &block)
+  def with_recorded_assistant(model: RecordedProvider::PRIMARY, adapter: "RecordedProvider::Assistant", &block)
     skip "set OPENROUTER_API_KEY to record" if RecordedProvider::RECORD && ENV["OPENROUTER_API_KEY"].blank?
     RubyLLM::ActiveRecord::Model.find_or_create_by!(model_id: model, provider: "openrouter") { |row| row.name = model }
     # RubyLLM caches its registry per process and reads the ruby_llm_models
     # table instead of its bundled list once the table has rows; a fresh
     # database (as on CI) gains this row only now.
     RubyLLM.models.load_from_store if RubyLLM.config.model_registry_store
-    with_assistant(resources: AssistantEval::RESOURCES, policy: "AssistantEval::Policy", adapter: "RecordedProvider::Assistant", model: model) do
+    with_assistant(resources: AssistantEval::RESOURCES, policy: "AssistantEval::Policy", adapter: adapter, model: model) do
       config = RailsAiAdmin.configuration
       config.assistant_provider = "openrouter"
       config.assistant_protocol = nil
@@ -139,6 +149,9 @@ module RecordedProviderHelpers
     unless RecordedProvider::RECORD || File.exist?(File.join(RecordedProvider::CASSETTES, "#{path}.yml"))
       flunk "Missing cassette #{path}.yml; record it with RAA_RECORD=1 (see test/support/recorded_provider.rb)"
     end
+    # VCR's :all keeps old interactions that no new request matches, so a
+    # recording starts from an empty cassette.
+    FileUtils.rm_f(File.join(RecordedProvider::CASSETTES, "#{path}.yml")) if RecordedProvider::RECORD
     VCR.use_cassette(path, &block)
   end
 end

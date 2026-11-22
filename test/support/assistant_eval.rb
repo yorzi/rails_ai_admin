@@ -28,6 +28,7 @@ module AssistantEval
       text :name, searchable: :contains, sortable: true
       integer :points, sortable: true, filterable: true, aggregatable: true
       boolean :active, filterable: true
+      datetime :created_at, filterable: true
       text :secret
     end
     scopes do
@@ -54,7 +55,7 @@ module AssistantEval
 
   class Policy < RailsAiAdmin::Authorization::Adapter
     GRANTS = {
-      eval_customers: { read: %i[id name points active], write: %i[name points], search: %i[name], sort: %i[name points], filter: %i[points active] },
+      eval_customers: { read: %i[id name points active created_at], write: %i[name points], search: %i[name], sort: %i[name points], filter: %i[points active created_at] },
       eval_invoices: { read: %i[id number customer], search: %i[number], sort: %i[number], filter: %i[customer] }
     }.freeze
 
@@ -77,12 +78,16 @@ module AssistantEval
   FOREIGN_CUSTOMER_ID = 9199
   INVOICE_IDS = 9301
 
+  # Three customers a month from January to April 2026, at noon UTC so no
+  # time zone moves one into another month. Active ones: 2, 1, 3 and 2.
+  def self.created_on(index) = Time.utc(2026, index % 4 + 1, 10, 12)
+
   # Returns placeholder ids for scripts, e.g. {{alice}}.
   def self.seed!
     ids = {}
     CUSTOMERS.each_with_index do |(name, active, points), index|
       customer = Customer.create!(id: CUSTOMER_IDS + index, account_id: 1, name: name, active: active, points: points,
-        secret: name.start_with?("Carol") ? SECRET : nil)
+        secret: name.start_with?("Carol") ? SECRET : nil, created_at: created_on(index))
       ids[name.split.first.downcase] = customer.id.to_s
     end
     mallory = Customer.create!(id: FOREIGN_CUSTOMER_ID, account_id: 2, name: "Mallory Moss", active: true, points: 99)
