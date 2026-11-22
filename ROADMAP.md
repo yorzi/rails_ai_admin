@@ -1,6 +1,6 @@
 # Roadmap
 
-Rails AI Admin is a Public Preview. 0.4.1 was released on 2026-11-18; 0.5.0 is in development. See [CHANGELOG.md](CHANGELOG.md) for changes and
+Rails AI Admin is a Public Preview. See the [0.5.0 changelog](CHANGELOG.md#050-2026-11-22) for changes and
 [COMPATIBILITY.md](COMPATIBILITY.md) for version-specific validation evidence.
 
 ## 0.2.0: simpler setup (released)
@@ -41,9 +41,7 @@ read-only demo is a future task, not part of this release's claim.
   evaluation set recorded the same way.
 - `bin/demo --openrouter` for the demo on real models.
 
-## 0.5.0: an assistant you can run in production (in development)
-
-Unreleased; see the Unreleased section of [CHANGELOG.md](CHANGELOG.md).
+## 0.5.0: assistant configuration, evaluation and operational hardening (released)
 
 - Operator notes from the adapter, read for every turn, that explain terms
   without granting anything.
@@ -53,6 +51,10 @@ Unreleased; see the Unreleased section of [CHANGELOG.md](CHANGELOG.md).
 - `rails_ai_admin:assistant:eval` to check the assistant on a host's own
   questions before rollout.
 - Rich text editors opened through Turbo navigation keep their styles.
+- Security, PostgreSQL and index hardening: stricter Pundit `== true` and
+  `assistant?` reference boundaries, signed bulk delete reviews, PostgreSQL
+  `FOR UPDATE` and `timestamptz` fixes, upload/CSP/Trix/header redaction, and
+  a new index migration.
 - The OpenRouter recordings made again with caching on, including period groups
   and operator notes. Fallbacks and the evaluation task are tested against a
   scripted provider only.
@@ -62,15 +64,28 @@ Unreleased; see the Unreleased section of [CHANGELOG.md](CHANGELOG.md).
 
 Prioritize from actual host use rather than a fixed release calendar:
 
-- OR filters and filters across more than one association.
-- Child forms that save with the parent, polymorphic references and separately
-  controlled attachment changes.
-- Bulk operations and bulk changes over more than 100 records as an
-  asynchronous job; undo of a confirmed change.
-- A search hint when a query names a record of another resource, from the
-  2026-11-22 recordings (see the assistant guide's Current Limits).
-- Native OpenAI and Anthropic API checks, more locales and additional policy
-  adapters.
+- **Contextual & interactive admin (`0.6` target):** a contextual assistant
+  drawer carrying server-signed page/filter/selection context (`PageContext`),
+  per-resource/field semantic descriptions, OR filters and single-hop
+  association (`EXISTS`) filters (addressing the 2026-11-22 cross-resource
+  lookup gap), read-only `RailsToolViews` surfaces (`RecordCard`,
+  `RecordTable`, `MetricCard`), and subset-selectable bulk change reviews.
+- **Agentic operations & review inbox (`0.7` target):** optional post-execution
+  verification and undo/compensation hooks on operations, asynchronous bulk
+  operations and bulk changes over more than 100 records, multi-actor approval
+  (separation of duties), and a resumable task/approval inbox built over
+  existing chats, runs and surfaces.
+- **Data quality, smart import & saved reports (`0.8` target):** declarative
+  data quality rules with merge/change review, AI-assisted CSV column mapping
+  and preview feeding deterministic imports, and saved exploratory queries as
+  re-authorized dashboard widgets.
+- **Propose-only recipes & automation (`0.9` target):** versioned manual,
+  scheduled and event-driven recipes with explicit execution principals,
+  isolated budgets and approval-inbox routing.
+- **Everyday admin & validation (ongoing):** child forms that save with the
+  parent, polymorphic references, separately controlled attachment changes,
+  native OpenAI and Anthropic API checks, human screen-reader review, an
+  independent host trial, more locales and additional policy adapters.
 
 No date or version is committed for these candidates. Beta and 1.0 require broader
 host validation, stable contracts and evidence beyond the local test suite.

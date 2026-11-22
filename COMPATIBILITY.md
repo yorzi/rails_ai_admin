@@ -1,5 +1,18 @@
 # Compatibility
 
+## 2026-11-22 — 0.5.0 release validation
+
+On Ruby 4.0.10 and Rails 8.1.4.1, the SQLite suite passed 723 tests and
+6,657 assertions with zero failures, errors or skips. The 0.5.0 package
+passed the fresh Rails authentication quickstart and session/SQLite host
+checks, including template overrides. RuboCop inspected 378 files with no
+offenses, and the frontend reproducibility check passed.
+
+The [base commit CI](https://github.com/yorzi/rails_ai_admin/actions/runs/44996011303)
+and [dependency checks](https://github.com/yorzi/rails_ai_admin/actions/runs/44996011328)
+passed on `2092534`. Consult the release commit and signed tag runs for the
+final CI results.
+
 ## 2026-11-22 — 0.5.0 development candidate
 
 Requires Ruby >= 3.3 and Rails >= 8.1.4.1, < 8.2, as in 0.4. The package is

@@ -8,7 +8,7 @@ description: Current release scope, compatibility and remaining validation.
 
 # {{ page.title }}
 
-0.4.1 is the current Public Preview. See the [release history]({% link _reference/release-history.md %}) and
+0.5.0 is the current Public Preview. See the [release history]({% link _reference/release-history.md %}) and
 [upgrade guide]({% link _reference/upgrading.md %}).
 
 0.2.0 focuses on Rails 8.1+ and simpler setup: generated authentication for Rails
@@ -32,11 +32,10 @@ recorded through OpenRouter and replayed in the test suite.
 imports and attachment cleanup. Existing installations need the migration in
 the [upgrade guide]({% link _reference/upgrading.md %}).
 
-The 0.5.0 development line (unreleased) adds operator notes for the assistant,
-fallback models, prompt caching, totals by calendar period and an evaluation
-task for a host's own questions. Its OpenRouter recordings were made again with
-caching on. [What's New in 0.5]({% link _getting_started/whats-new-in-0-5.md %})
-describes it.
+0.5.0 adds operator notes for the assistant, fallback models, prompt caching,
+totals by calendar period and an evaluation task for a host's own questions.
+Existing hosts need an index migration and should check their template overrides.
+See [What's New in 0.5]({% link _getting_started/whats-new-in-0-5.md %}).
 
 The engine already includes conventional CRUD, typed fields, associations, CSV
 import/export, audit/history, dashboards and optional reviewed assistant changes.

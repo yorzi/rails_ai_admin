@@ -1,11 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 (2026-11-22)
 
-The assistant learns the host's terms, falls back to other models, caches its
-repeated prompt, totals by calendar period and can be checked on a host's own
-questions. A new engine migration adds indexes; layout overrides move to
-contract 5 and bulk delete overrides to contract 3.
+This Public Preview adds operator notes, fallback models, prompt caching,
+calendar-period totals and an assistant evaluation task. Existing hosts need
+the new index migration and should check their layout and bulk delete overrides.
+See the [upgrade guide](https://rails-ai-admin.wangyaodi.com/upgrading/).
 
 - A new engine migration indexes queued batch items, work deadlines, runs by selection and audit event, and the audit log by resource. Copy it with `bin/rails generate rails_ai_admin:install --skip`, then run `bin/rails db:migrate`.
 - A bulk delete confirmation carries a signed list of the records it showed. If the records that can be deleted change before submission, nothing is deleted and the page reports a conflict. An override of `selections/confirm_destroy.html.erb` moves to contract 3 and must submit the `review_signature` field.
