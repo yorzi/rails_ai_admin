@@ -44,5 +44,17 @@ module RailsAiAdmin
     def admin_surface_review_available?(resource, definition)
       RailsAiAdmin.configuration.surfaces && resource.surface_operation?(definition.key)
     end
+
+    def admin_surface_record_card(props)
+      Integrations::ToolViews.record_card_data(props)
+    end
+
+    def admin_surface_record_table(props)
+      Integrations::ToolViews.record_table_data(props)
+    end
+
+    def admin_surface_metric_card(props)
+      Integrations::ToolViews.metric_card_data(props)
+    end
   end
 end

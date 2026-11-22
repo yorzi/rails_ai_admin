@@ -1,0 +1,17 @@
+<% card = admin_surface_record_card(props) %>
+<% if card %>
+  <div class="raa-surface-card raa-record-card">
+    <div class="raa-surface-card-header">
+      <span class="raa-surface-badge"><%= card.resource.label.singularize %></span>
+      <h3><%= link_to card.label, resource_path(resource: card.resource.key, id: card.record.id), data: { turbo_frame: "_top" } %></h3>
+    </div>
+    <% if card.fields.any? %>
+      <dl class="raa-details raa-surface-details">
+        <% card.fields.each do |field, text| %><dt><%= field.label %></dt><dd><%= text %></dd><% end %>
+      </dl>
+    <% end %>
+    <p class="raa-surface-card-footer"><%= link_to t("rails_ai_admin.surfaces.record_card.open"), resource_path(resource: card.resource.key, id: card.record.id), data: { turbo_frame: "_top" } %></p>
+  </div>
+<% else %>
+  <p><%= t("rails_ai_admin.surfaces.no_longer_available") %></p>
+<% end %>

@@ -272,7 +272,8 @@ class AggregatesTest < ActiveSupport::TestCase
       assert_equal({ "resource" => "agg_samples", "applied_scope" => nil, "function" => "sum", "field" => "amount", "count" => 4, "value" => "114.75",
         "group_by" => "kind", "groups" => [ { "group" => "standard", "count" => 2, "value" => "14.75" },
           { "group" => "priority", "count" => 1, "value" => "100.00" },
-          { "group" => "rush", "count" => 1, "value" => nil } ], "groups_truncated" => false }, results[1])
+          { "group" => "rush", "count" => 1, "value" => nil } ], "groups_truncated" => false }, results[1].except("surface"))
+      assert_match(/\A[0-9a-f-]{36}\z/, results[1]["surface"])
       assert_equal "38.2500", results[2]["value"]
       assert_equal "2026-11-01T09:00:00Z", Time.iso8601(results[3]["value"]).utc.iso8601
       groups = results[4]["groups"].sort_by { |group| group["group"].to_s }
@@ -302,7 +303,8 @@ class AggregatesTest < ActiveSupport::TestCase
       assert_equal({ "resource" => "agg_samples", "applied_scope" => nil, "function" => "sum", "field" => "amount", "count" => 4, "value" => "114.75",
         "group_by" => "due_on", "period" => "month", "groups" => [ { "group" => "2026-10-01", "count" => 1, "value" => "100.00" },
           { "group" => "2026-11-01", "count" => 2, "value" => "14.75" }, { "group" => nil, "count" => 1, "value" => nil } ],
-        "groups_truncated" => false }, months)
+        "groups_truncated" => false }, months.except("surface"))
+      assert_match(/\A[0-9a-f-]{36}\z/, months["surface"])
       assert_equal [ "week", "UTC", [ [ "2026-10-26", 1 ], [ "2026-11-02", 1 ], [ nil, 2 ] ] ],
         [ weeks["period"], weeks["time_zone"], weeks["groups"].map { |group| [ group["group"], group["count"] ] } ]
       assert_equal "INVALID_QUERY", invalid["error"]

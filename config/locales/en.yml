@@ -383,6 +383,28 @@ en:
       expired: This review can no longer be confirmed. Start a new review from the record.
       unavailable: This review is unavailable.
       no_longer_available: This review is no longer available.
+      record_card:
+        open: Open record
+      record_table:
+        shown:
+          one: 1 record shown
+          other: "%{count} records shown"
+        scope: "tab: %{scope}"
+        query: "search: %{query}"
+        empty: No matching records are currently available to you.
+        omitted:
+          one: 1 record omitted under your current permissions.
+          other: "%{count} records omitted under your current permissions."
+      metric_card:
+        title_count: Record count
+        title_field: "%{function} of %{field}"
+        records:
+          one: Based on 1 matching record
+          other: Based on %{count} matching records
+        period: "per %{period}"
+        breakdown: Breakdown
+        count_col: Count
+        truncated: Showing the top 25 groups.
     references:
       more:
         one: and 1 more

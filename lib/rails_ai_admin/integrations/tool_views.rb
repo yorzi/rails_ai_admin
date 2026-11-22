@@ -15,16 +15,64 @@ module RailsAiAdmin
     # route (such as the host's product engine mount) can never act on them.
     module ToolViews
       KEY = "raa_operation_review"
+      RECORD_CARD_KEY = "raa_record_card"
+      RECORD_TABLE_KEY = "raa_record_table"
+      METRIC_CARD_KEY = "raa_metric_card"
       VERSION = "1"
       PARTIAL = "rails_ai_admin/surfaces/operation_review"
+      RECORD_CARD_PARTIAL = "rails_ai_admin/surfaces/record_card"
+      RECORD_TABLE_PARTIAL = "rails_ai_admin/surfaces/record_table"
+      METRIC_CARD_PARTIAL = "rails_ai_admin/surfaces/metric_card"
       CONTEXT_KEY = :rails_ai_admin_surface_context
       UUID = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      RESOURCE_KEY_PATTERN = "^[a-z][a-z0-9_]{0,63}$"
       MAX_INPUT_BYTES = 16_384
+      MAX_TABLE_COLUMNS = 6
       # Props hold only a server intent reference and its canonical wire input,
       # so the component digest never depends on reloadable host code.
       SCHEMA = {
         type: "object", additionalProperties: false, required: %w[intent input],
         properties: { intent: { type: "string", pattern: UUID, maxLength: 36 }, input: { type: "string", maxLength: MAX_INPUT_BYTES } }
+      }.freeze
+      RECORD_CARD_SCHEMA = {
+        type: "object", additionalProperties: false, required: %w[resource record_id],
+        properties: {
+          resource: { type: "string", pattern: RESOURCE_KEY_PATTERN },
+          record_id: { type: "string", minLength: 1, maxLength: 100 }
+        }
+      }.freeze
+      RECORD_TABLE_SCHEMA = {
+        type: "object", additionalProperties: false, required: %w[resource ids],
+        properties: {
+          resource: { type: "string", pattern: RESOURCE_KEY_PATTERN },
+          ids: { type: "array", maxItems: 20, items: { type: "string", minLength: 1, maxLength: 100 } },
+          scope: { type: %w[string null], maxLength: 100 },
+          query: { type: %w[string null], maxLength: 200 },
+          sort: { type: %w[string null], maxLength: 100 },
+          direction: { type: %w[string null], enum: [ "asc", "desc", nil ] },
+          omitted: { type: "integer", minimum: 0 }
+        }
+      }.freeze
+      METRIC_CARD_SCHEMA = {
+        type: "object", additionalProperties: false, required: %w[resource function],
+        properties: {
+          resource: { type: "string", pattern: RESOURCE_KEY_PATTERN },
+          function: { type: "string", enum: %w[count sum average minimum maximum] },
+          field: { type: %w[string null], maxLength: 100 },
+          group_by: { type: %w[string null], maxLength: 100 },
+          period: { type: %w[string null], enum: [ "day", "week", "month", "year", nil ] },
+          scope: { type: %w[string null], maxLength: 100 },
+          query: { type: %w[string null], maxLength: 200 },
+          filters_json: { type: %w[string null], maxLength: 4096 },
+          any_json: { type: %w[string null], maxLength: 4096 },
+          relation_filters_json: { type: %w[string null], maxLength: 4096 },
+          computed_at: { type: %w[string null], maxLength: 64 }
+        }
+      }.freeze
+      READ_COMPONENTS = {
+        RECORD_CARD_KEY => { description: "Admin record summary card", schema: RECORD_CARD_SCHEMA, partial: RECORD_CARD_PARTIAL }.freeze,
+        RECORD_TABLE_KEY => { description: "Admin bounded record table", schema: RECORD_TABLE_SCHEMA, partial: RECORD_TABLE_PARTIAL }.freeze,
+        METRIC_CARD_KEY => { description: "Admin aggregate metric card", schema: METRIC_CARD_SCHEMA, partial: METRIC_CARD_PARTIAL }.freeze
       }.freeze
       CONFIRM_SCHEMA = { type: "object", additionalProperties: false, properties: {} }.freeze
       # Business outcomes are recorded on the Surface with their failure audit.
@@ -37,6 +85,9 @@ module RailsAiAdmin
         "IDEMPOTENCY_CONFLICT" => "This review no longer matches the recorded operation."
       }.freeze
       Review = ::Data.define(:run, :resource, :definition, :access, :record)
+      RecordCardData = ::Data.define(:resource, :record, :label, :fields)
+      RecordTableData = ::Data.define(:resource, :columns, :rows, :omitted, :scope, :query, :sort, :direction)
+      MetricCardData = ::Data.define(:resource, :aggregate, :value_text, :groups, :scope, :query, :computed_at)
       ASSISTANT_ADAPTER = "raa_assistant"
 
       class << self
@@ -48,32 +99,36 @@ module RailsAiAdmin
         # host-owned rails_tool_views registry.
         def check_registration!
           raise ConfigurationError, "rails_tool_views is not loaded" unless available?
-          component = begin
-            ::RailsToolViews.registry.fetch(KEY)
-          rescue ::RailsToolViews::Error => error
-            raise unless error.code == "UNKNOWN_COMPONENT"
-            return nil
+          verify_if_present(KEY) { |component| verify_component!(component) }
+          READ_COMPONENTS.each_key do |key|
+            verify_if_present(key) { |component| verify_read_component!(key, component) }
           end
-          verify_component!(component)
         end
 
         # Re-registers after a host `reset_registry!`. The contract is constant,
         # so an existing registration must be exactly this one.
         def ensure_registered!
           raise ConfigurationError, "rails_tool_views is not loaded" unless available?
-          component = begin
-            ::RailsToolViews.registry.fetch(KEY)
-          rescue ::RailsToolViews::Error => error
-            raise unless error.code == "UNKNOWN_COMPONENT"
-            register
+          review = ensure_component(KEY) { register }
+          verify_component!(review)
+          READ_COMPONENTS.each do |key, spec|
+            component = ensure_component(key) { register_read_component(key, spec) }
+            verify_read_component!(key, component)
           end
-          verify_component!(component)
+          review
         end
 
         def verify_component!(component)
           unless component.policy.equal?(POLICY) && component.actions.fetch("confirm").handler.equal?(CONFIRM) &&
               component.actions["dismiss"]&.handler.equal?(DISMISS)
             raise ConfigurationError, "#{KEY} is registered by other code"
+          end
+          component
+        end
+
+        def verify_read_component!(key, component)
+          unless component.policy.equal?(READ_POLICY) && component.actions.empty?
+            raise ConfigurationError, "#{key} is registered by other code"
           end
           component
         end
@@ -191,6 +246,178 @@ module RailsAiAdmin
           when :action then %w[confirm dismiss].include?(access.action)
           else false
           end
+        end
+
+        # Read-only interactive tool views: deny every action, require live
+        # assistant? + resource/record/aggregate grants on both present and read.
+        def authorize_read(access)
+          context = current_context
+          return false unless context.is_a?(Context) && access.actor == context.actor_ref && access.tenant == context.tenant_ref
+          return false unless %i[present read].include?(access.operation)
+          props = access.props
+          return false unless props.is_a?(Hash) && props["resource"].is_a?(String)
+          resource = RailsAiAdmin.registry.fetch(props["resource"])
+          auth = Authorization::Access.new(context, resource)
+          auth.authorize_assistant!
+          if props.key?("record_id")
+            return false unless props["record_id"].is_a?(String) && auth.canonical_id?(props["record_id"])
+            auth.find!(props["record_id"])
+            true
+          elsif props.key?("ids")
+            auth.authorize!(:index)
+            true
+          elsif props.key?("function")
+            auth.authorize!(:index)
+            if props["field"].present?
+              field = auth.fields(:read).find { |candidate| candidate.name.to_s == props["field"] && !candidate.virtual? }
+              return false unless field&.aggregate_functions&.include?(props["function"].to_sym)
+            end
+            if props["group_by"].present?
+              allowed_types = props["period"].present? ? Field::PERIOD_TYPES : Field::GROUP_TYPES
+              group = auth.fields(:filter).find { |candidate| candidate.name.to_s == props["group_by"] }
+              return false unless group && allowed_types.include?(group.scalar_type)
+            end
+            true
+          else
+            false
+          end
+        rescue AccessDenied, ConfigurationError, KeyError
+          false
+        end
+
+        def present_record_card(context:, resource:, record:, chat:, call_id:)
+          return unless chat && call_id.is_a?(String) && chat.current_for?(context)
+          present_read_surface(context: context, chat: chat, call_id: call_id, key: RECORD_CARD_KEY,
+            props: { "resource" => resource.key.to_s, "record_id" => record.id.to_s })
+        end
+
+        def present_record_table(context:, resource:, ids:, scope:, query:, sort:, direction:, omitted:, chat:, call_id:)
+          return unless chat && call_id.is_a?(String) && chat.current_for?(context)
+          present_read_surface(context: context, chat: chat, call_id: call_id, key: RECORD_TABLE_KEY,
+            props: {
+              "resource" => resource.key.to_s,
+              "ids" => Array(ids).first(20).map(&:to_s),
+              "scope" => scope&.to_s,
+              "query" => query.presence&.to_s&.first(200),
+              "sort" => sort&.to_s,
+              "direction" => %w[asc desc].include?(direction) ? direction : nil,
+              "omitted" => omitted.to_i
+            })
+        end
+
+        def present_metric_card(context:, resource:, result:, query:, filters:, any_filters:, relation_filters:, chat:, call_id:)
+          return unless chat && call_id.is_a?(String) && chat.current_for?(context)
+          filters_json = filters&.any? ? JSON.generate(filters) : nil
+          any_json = any_filters&.any? ? JSON.generate(any_filters) : nil
+          relation_filters_json = relation_filters&.any? ? JSON.generate(relation_filters) : nil
+          return if [ filters_json, any_json, relation_filters_json ].any? { |text| text && text.bytesize > 4096 }
+          present_read_surface(context: context, chat: chat, call_id: call_id, key: METRIC_CARD_KEY,
+            props: {
+              "resource" => resource.key.to_s,
+              "function" => result.function.to_s,
+              "field" => result.field&.name&.to_s,
+              "group_by" => result.group_by&.name&.to_s,
+              "period" => result.period&.to_s,
+              "scope" => result.scope&.to_s,
+              "query" => query.presence&.to_s&.first(200),
+              "filters_json" => filters_json,
+              "any_json" => any_json,
+              "relation_filters_json" => relation_filters_json,
+              "computed_at" => Time.current.utc.iso8601
+            })
+        end
+
+        # Live, permission-checked data loaders for read-only Surfaces. Never
+        # trust stored record values; re-query and re-authorize on every render.
+        def record_card_data(props)
+          context = current_context
+          return unless context.is_a?(Context) && props.is_a?(Hash)
+          resource = RailsAiAdmin.registry.fetch(props["resource"].to_s)
+          access = Authorization::Access.new(context, resource)
+          access.authorize_assistant!
+          record_id = props["record_id"].to_s
+          return unless access.canonical_id?(record_id)
+          record = access.find!(record_id)
+          readable = access.fields(:read, record, view: :show)
+          projected = access.project(record, view: :show)
+          resolver = Fields::Association.new(context, resource, assistant: true)
+          fields = readable.filter_map do |field|
+            next unless projected.key?(field.name.to_s)
+            [ field, native_text(field, projected[field.name.to_s], resolver, context) ]
+          end
+          RecordCardData.new(resource: resource, record: record, label: access.record_label(record, view: :show), fields: fields)
+        rescue AccessDenied, ConfigurationError, KeyError
+          nil
+        end
+
+        def record_table_data(props)
+          context = current_context
+          return unless context.is_a?(Context) && props.is_a?(Hash)
+          resource = RailsAiAdmin.registry.fetch(props["resource"].to_s)
+          access = Authorization::Access.new(context, resource)
+          access.authorize_assistant!
+          access.authorize!(:index)
+          ids = Array(props["ids"]).first(20).select { |id| id.is_a?(String) && access.canonical_id?(id) }
+          found = ids.any? ? access.relation.where(resource.model_class.primary_key => ids).index_by { |record| record.id.to_s } : {}
+          columns = access.fields(:read, nil, view: :index).first(MAX_TABLE_COLUMNS)
+          resolver = Fields::Association.new(context, resource, assistant: true)
+          visible_records = ids.filter_map do |id|
+            record = found[id]
+            next unless record
+            access.authorize!(:show, record)
+            record
+          rescue AccessDenied
+            nil
+          end
+          columns.select { |field| field.scalar_type == :belongs_to }.each do |field|
+            resolver.prime(field, visible_records.filter_map { |record| record.has_attribute?(field.column) ? record.read_attribute(field.column)&.to_s : nil })
+          end
+          rows = visible_records.map do |record|
+            projected = access.project(record, view: :index)
+            cells = columns.map do |field|
+              projected.key?(field.name.to_s) ? native_text(field, projected[field.name.to_s], resolver, context) : "—"
+            end
+            { id: record.id.to_s, label: access.record_label(record, view: :index), cells: cells }
+          end
+          omitted = props["omitted"].to_i + (ids.size - rows.size)
+          RecordTableData.new(resource: resource, columns: columns, rows: rows, omitted: omitted,
+            scope: props["scope"], query: props["query"], sort: props["sort"], direction: props["direction"])
+        rescue AccessDenied, ConfigurationError, KeyError
+          nil
+        end
+
+        def metric_card_data(props)
+          context = current_context
+          return unless context.is_a?(Context) && props.is_a?(Hash)
+          resource = RailsAiAdmin.registry.fetch(props["resource"].to_s)
+          access = Authorization::Access.new(context, resource)
+          access.authorize_assistant!
+          filters = parse_optional_json(props["filters_json"])
+          any_filters = parse_optional_json(props["any_json"])
+          relation_filters = parse_optional_json(props["relation_filters_json"])
+          scope_arg = props["scope"].present? ? props["scope"] : Queries::NamedScope::NONE
+          result = Queries::List.new(context, resource, assistant: true).aggregate(
+            function: props["function"].to_s, field: props["field"].presence, group_by: props["group_by"].presence,
+            period: props["period"].presence, search: props["query"].presence, scope: scope_arg,
+            filters: filters, any_filters: any_filters, relation_filters: relation_filters
+          )
+          resolver = Fields::Association.new(context, resource, assistant: true)
+          if result.group_by&.scalar_type == :belongs_to
+            resolver.prime(result.group_by, result.groups.filter_map { |group| group.key&.to_s })
+          end
+          value_text = result.field ? format_metric_value(result.field, result.function, result.value, context) : result.count.to_s
+          groups = result.groups.map do |group|
+            label = if result.period
+              group.key ? group.key.iso8601 : "—"
+            else
+              native_text(result.group_by, group.key, resolver, context)
+            end
+            { label: label, count: group.count, value_text: result.field ? format_metric_value(result.field, result.function, group.value, context) : nil }
+          end
+          MetricCardData.new(resource: resource, aggregate: result, value_text: value_text, groups: groups,
+            scope: result.scope, query: props["query"], computed_at: props["computed_at"])
+        rescue AccessDenied, ConfigurationError, KeyError, JSON::JSONError
+          nil
         end
 
         # The record a review is about: a new one for a proposed create, the
@@ -360,6 +587,47 @@ module RailsAiAdmin
           nil
         end
 
+        def verify_if_present(key)
+          component = begin
+            ::RailsToolViews.registry.fetch(key)
+          rescue ::RailsToolViews::Error => error
+            raise unless error.code == "UNKNOWN_COMPONENT"
+            return nil
+          end
+          yield component
+        end
+
+        def ensure_component(key)
+          ::RailsToolViews.registry.fetch(key)
+        rescue ::RailsToolViews::Error => error
+          raise unless error.code == "UNKNOWN_COMPONENT"
+          yield
+        end
+
+        def present_read_surface(context:, chat:, call_id:, key:, props:)
+          ensure_registered!
+          reference = chat.context_reference
+          with_context(context) do
+            ::RailsToolViews.present(key, props: props, scope: scope_for(context), context: reference,
+              correlation: { adapter: ASSISTANT_ADAPTER, call_id: call_id, context: reference })
+          end
+        end
+
+        def parse_optional_json(text)
+          return nil if text.nil? || text.empty?
+          JSON.parse(text, max_nesting: 8)
+        end
+
+        def format_metric_value(field, function, value, context)
+          return "—" if value.nil?
+          if function == "average"
+            places = (field.scalar_type == :decimal ? field.decimal_limits[:scale].to_i : 0) + 2
+            whole, fraction = value.round(places).to_s("F").split(".")
+            return "#{whole}.#{fraction.to_s.ljust(places, '0')}"
+          end
+          field.format(value, time_zone: context.time_zone)
+        end
+
         def register
           ::RailsToolViews.register(KEY, description: "Admin operation review", version: VERSION, schema: SCHEMA, partial: PARTIAL,
             policy: POLICY, actions: { confirm: { schema: CONFIRM_SCHEMA, policy: POLICY, handler: CONFIRM },
@@ -367,6 +635,14 @@ module RailsAiAdmin
         rescue ::RailsToolViews::Error => error
           raise unless error.code == "DUPLICATE_COMPONENT"
           ::RailsToolViews.registry.fetch(KEY)
+        end
+
+        def register_read_component(key, spec)
+          ::RailsToolViews.register(key, description: spec.fetch(:description), version: VERSION, schema: spec.fetch(:schema),
+            partial: spec.fetch(:partial), policy: READ_POLICY, actions: {}, expose_to: [])
+        rescue ::RailsToolViews::Error => error
+          raise unless error.code == "DUPLICATE_COMPONENT"
+          ::RailsToolViews.registry.fetch(key)
         end
 
         def canonical_input(input)
@@ -386,6 +662,7 @@ module RailsAiAdmin
       end
 
       POLICY = ->(access) { ToolViews.authorize(access) }
+      READ_POLICY = ->(access) { ToolViews.authorize_read(access) }
       CONFIRM = ->(request) { ToolViews.confirm(request) }
       DISMISS = ->(request) { ToolViews.dismiss(request) }
     end

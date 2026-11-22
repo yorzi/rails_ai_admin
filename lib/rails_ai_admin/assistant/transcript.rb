@@ -113,10 +113,12 @@ module RailsAiAdmin
         nil
       end
 
+      SURFACE_TOOLS = %w[propose_operation propose_change get_record search_records aggregate_records].freeze
+
       def tool_entries(message)
         data = JSON.parse(message.content.to_s)
         return [] unless data.is_a?(Hash)
-        if data["surface"].is_a?(String) && %w[propose_operation propose_change].include?(message.ruby_llm_parent_tool_call&.name)
+        if RailsAiAdmin.configuration.surfaces && data["surface"].is_a?(String) && SURFACE_TOOLS.include?(message.ruby_llm_parent_tool_call&.name)
           return [ entry(:surface, nil, message, surface_id: data["surface"]) ]
         end
         if message.ruby_llm_parent_tool_call&.name == "propose_bulk_change" && data["bulk_change"].is_a?(String) && data["selection"].is_a?(String)

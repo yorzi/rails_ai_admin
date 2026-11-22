@@ -1,0 +1,44 @@
+<% metric = admin_surface_metric_card(props) %>
+<% if metric %>
+  <% agg = metric.aggregate %>
+  <div class="raa-surface-card raa-metric-card">
+    <div class="raa-surface-card-header">
+      <span class="raa-surface-badge"><%= metric.resource.label %></span>
+      <h3><%= agg.field ? t("rails_ai_admin.surfaces.metric_card.title_field", function: agg.function.humanize, field: agg.field.label) : t("rails_ai_admin.surfaces.metric_card.title_count") %></h3>
+    </div>
+    <p class="raa-metric-value"><%= metric.value_text %></p>
+    <p class="raa-surface-meta">
+      <%= t("rails_ai_admin.surfaces.metric_card.records", count: agg.count) %>
+      <% if metric.scope.present? %> · <%= t("rails_ai_admin.surfaces.record_table.scope", scope: metric.scope) %><% end %>
+      <% if metric.query.present? %> · <%= t("rails_ai_admin.surfaces.record_table.query", query: metric.query) %><% end %>
+      <% if agg.period.present? %> · <%= t("rails_ai_admin.surfaces.metric_card.period", period: agg.period) %><% end %>
+    </p>
+    <% if metric.groups.any? %>
+      <div class="raa-table-scroll" role="region" aria-label="<%= t("rails_ai_admin.surfaces.metric_card.breakdown") %>" tabindex="0">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col"><%= agg.group_by.label %></th>
+              <th scope="col"><%= t("rails_ai_admin.surfaces.metric_card.count_col") %></th>
+              <% if agg.field %><th scope="col"><%= agg.field.label %></th><% end %>
+            </tr>
+          </thead>
+          <tbody>
+            <% metric.groups.each do |group| %>
+              <tr>
+                <td><%= group[:label] %></td>
+                <td><%= number_with_delimiter(group[:count]) %></td>
+                <% if agg.field %><td><%= group[:value_text] %></td><% end %>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+      <% if agg.groups_truncated %>
+        <p class="raa-surface-meta"><%= t("rails_ai_admin.surfaces.metric_card.truncated") %></p>
+      <% end %>
+    <% end %>
+  </div>
+<% else %>
+  <p><%= t("rails_ai_admin.surfaces.no_longer_available") %></p>
+<% end %>

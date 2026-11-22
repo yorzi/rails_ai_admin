@@ -397,6 +397,14 @@
 .raa .raa-drawer-loading { padding:1rem; }
 .raa .raa-drawer-recent-heading { margin:.5rem 0 0; font-size:.875rem; color:var(--raa-muted); }
 .raa .raa-drawer-recent { margin:0; padding-inline-start:1.1rem; display:grid; gap:.35rem; font-size:.875rem; }
+/* Read-only interactive Tool Views (E03): RecordCard, RecordTable, MetricCard. */
+.raa .raa-surface-card { display:grid; gap:.55rem; }
+.raa .raa-surface-card-header { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:.35rem .75rem; }
+.raa .raa-surface-card-header h3 { margin:0; font-size:1rem; }
+.raa .raa-surface-badge { display:inline-block; padding:.1rem .45rem; border:1px solid var(--raa-line); border-radius:999px; font-size:.75rem; color:var(--raa-muted); }
+.raa .raa-surface-meta,.raa .raa-surface-empty { margin:0; font-size:.8125rem; color:var(--raa-muted); }
+.raa .raa-surface-card-footer { margin:0; font-size:.875rem; }
+.raa .raa-metric-value { margin:0; font-size:1.5rem; font-weight:700; font-variant-numeric:tabular-nums; }
 @media (max-width:768px) {
   .raa[data-raa-drawer-open] .raa-shell { grid-template-columns:minmax(0,1fr); }
   .raa .raa-drawer { position:fixed; inset:0; z-index:40; max-height:100vh; min-height:100vh; border-inline-start:0; }

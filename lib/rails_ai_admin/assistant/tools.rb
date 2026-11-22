@@ -212,6 +212,12 @@ module RailsAiAdmin
         end
       end
 
+      def present_read_view
+        yield
+      rescue ::RailsToolViews::Error, AccessDenied, ConfigurationError
+        nil
+      end
+
       def scalar(value)
         case value
         when String then value
@@ -386,10 +392,17 @@ module RailsAiAdmin
           scope: list_scope(scope), sort: sort, direction: direction || "asc", page_size: [ PAGE_LIMIT, MAX_RECORDS - offset ].min, offset: offset)
         records, omitted, @row_positions = record_entries_with_positions(access, result.records, :index)
         @queried_count = result.records.size
-        { "resource" => resource.key.to_s, "applied_scope" => result.scope,
+        payload = { "resource" => resource.key.to_s, "applied_scope" => result.scope,
           "applied_sort" => result.sort ? { "field" => result.sort, "direction" => result.direction } : nil,
           "page" => result.number, "offset" => offset, "has_more" => result.has_next,
           "omitted" => omitted, "records" => records }
+        if RailsAiAdmin.configuration.surfaces && @session.chat && tool_call && records.any?
+          surface = present_read_view { Assistant.tool_views.present_record_table(context: @session.context, resource: resource,
+            ids: records.map { |entry| entry["id"] }, scope: result.scope, query: query.presence, sort: result.sort,
+            direction: result.direction, omitted: omitted, chat: @session.chat, call_id: tool_call.id) }
+          payload["surface"] = surface.id if surface
+        end
+        payload
       end
 
       def record_entries_with_positions(access, records, view)
@@ -513,6 +526,12 @@ module RailsAiAdmin
           end
           entry["groups_truncated"] = result.groups_truncated
         end
+        if RailsAiAdmin.configuration.surfaces && @session.chat && tool_call
+          surface = present_read_view { Assistant.tool_views.present_metric_card(context: @session.context, resource: resource,
+            result: result, query: query.presence, filters: wire_filters(filters), any_filters: wire_any_filters(any),
+            relation_filters: wire_relation_filters(relation_filters), chat: @session.chat, call_id: tool_call.id) }
+          entry["surface"] = surface.id if surface
+        end
         entry
       end
 
@@ -548,7 +567,14 @@ module RailsAiAdmin
         resource = @session.resource(resource)
         access = @session.access(resource)
         raise AccessDenied unless id.is_a?(String) && id.match?(Field::REFERENCE)
-        { "resource" => resource.key.to_s, "records" => [ record_entry(access, access.find!(id), :show) ] }
+        record = access.find!(id)
+        payload = { "resource" => resource.key.to_s, "records" => [ record_entry(access, record, :show) ] }
+        if RailsAiAdmin.configuration.surfaces && @session.chat && tool_call
+          surface = present_read_view { Assistant.tool_views.present_record_card(context: @session.context, resource: resource,
+            record: record, chat: @session.chat, call_id: tool_call.id) }
+          payload["surface"] = surface.id if surface
+        end
+        payload
       end
     end
 

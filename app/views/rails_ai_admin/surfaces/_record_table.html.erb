@@ -1,0 +1,46 @@
+<% table = admin_surface_record_table(props) %>
+<% if table %>
+  <div class="raa-surface-card raa-chat-records raa-record-table">
+    <div class="raa-surface-card-header">
+      <h3><%= link_to table.resource.label, resources_path(resource: table.resource.key), data: { turbo_frame: "_top" } %></h3>
+      <span class="raa-surface-meta">
+        <%= t("rails_ai_admin.surfaces.record_table.shown", count: table.rows.size) %>
+        <% if table.scope.present? %> · <%= t("rails_ai_admin.surfaces.record_table.scope", scope: table.scope) %><% end %>
+        <% if table.query.present? %> · <%= t("rails_ai_admin.surfaces.record_table.query", query: table.query) %><% end %>
+      </span>
+    </div>
+    <% if table.rows.any? %>
+      <div class="raa-table-scroll" role="region" aria-label="<%= table.resource.label %>" tabindex="0">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col"><%= table.resource.label.singularize %></th>
+              <% table.columns.each do |field| %>
+                <% next if field.name == table.resource.title %>
+                <th scope="col"><%= field.label %></th>
+              <% end %>
+            </tr>
+          </thead>
+          <tbody>
+            <% table.rows.each do |row| %>
+              <tr>
+                <td class="raa-cell-title"><%= link_to row[:label], resource_path(resource: table.resource.key, id: row[:id]), data: { turbo_frame: "_top" } %></td>
+                <% table.columns.each_with_index do |field, index| %>
+                  <% next if field.name == table.resource.title %>
+                  <td><%= row[:cells][index] %></td>
+                <% end %>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% else %>
+      <p class="raa-surface-empty"><%= t("rails_ai_admin.surfaces.record_table.empty") %></p>
+    <% end %>
+    <% if table.omitted.positive? %>
+      <p class="raa-surface-meta"><%= t("rails_ai_admin.surfaces.record_table.omitted", count: table.omitted) %></p>
+    <% end %>
+  </div>
+<% else %>
+  <p><%= t("rails_ai_admin.surfaces.no_longer_available") %></p>
+<% end %>
