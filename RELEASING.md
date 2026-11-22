@@ -2,7 +2,7 @@
 
 The owner authorized publication of the 0.4.1 Public Preview on 2026-11-18.
 The release commit opens `allowed_push_host`. Development continues as
-`0.4.2.dev` with publishing blocked.
+`0.5.0.dev` with publishing blocked.
 
 ## Candidate checks
 
