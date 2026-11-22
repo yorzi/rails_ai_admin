@@ -113,7 +113,7 @@ module RailsAiAdmin
         model = access.resource.model_class
         table = model.arel_table
         title = access.fields(:sort).find { |candidate| candidate.name == access.resource.title }
-        relation = access.relation.reorder(nil)
+        relation = Queries::List.unique_records(access.relation).reorder(nil)
         relation = relation.order(table[title.column].asc) if title
         records = relation.order(table[model.primary_key].asc).limit(MAX_CHOICES + 1).to_a
         cache = @references[cache_key(field)]
@@ -135,7 +135,9 @@ module RailsAiAdmin
         raise ConfigurationError, "Invalid picker limit" unless limit.is_a?(Integer) && limit.between?(1, SEARCH_LIMIT)
         access = Authorization::Access.new(context, target)
         access.authorize!(:index)
-        term = term.strip if term.is_a?(String) && term.valid_encoding?
+        return [] if term.nil?
+        raise AccessDenied, "INVALID_QUERY" unless term.is_a?(String) && term.valid_encoding?
+        term = term.strip
         return [] if term.blank?
         model = target.model_class
         exact = access.canonical_id?(term) ? access.relation.where(model.primary_key => term).limit(1).to_a : []
@@ -167,12 +169,15 @@ module RailsAiAdmin
         end
       end
 
-      # Integer keys are checked before the query so malformed text never reaches
-      # an integer comparison; other key types rely on the column's own cast.
+      # Integer and UUID keys are checked before the query so malformed text never
+      # reaches a typed comparison on PostgreSQL.
       def key_shape?(model, id)
-        return false unless id.match?(Field::REFERENCE)
-        column = model.columns_hash[model.primary_key]
-        column&.type == :integer ? id.match?(INTEGER_KEY) && Integer(id, 10) <= 2**63 - 1 : true
+        return false unless id.is_a?(String) && id.valid_encoding? && id.match?(Field::REFERENCE)
+        case model.type_for_attribute(model.primary_key).type
+        when :integer then id.match?(INTEGER_KEY) && Integer(id, 10) <= 2**63 - 1
+        when :uuid then id.match?(/\A[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}\z/)
+        else true
+        end
       end
 
       def assistant_allowed?(access)

@@ -80,13 +80,20 @@ class FormRecoveryController extends Controller {
     const values = new Map();
     let bytes = 0;
     for (const [name, value] of new FormData(this.element)) {
-      if (!/^record\[[a-z][a-z0-9_]*\]$/.test(name)) continue;
+      const match = /^record\[([a-z][a-z0-9_]*)\](\[\])?$/.exec(name);
+      if (!match) continue;
       // A chosen file cannot be kept across sign-in; the person picks it again.
       if (typeof File !== "undefined" && value instanceof File) continue;
       if (typeof value !== "string") throw new Error("Unsupported form input");
       bytes += new TextEncoder().encode(name + value).byteLength;
       if (bytes > 1048576) throw new Error("Form input bound exceeded");
-      values.set(name, value);
+      if (match[2]) {
+        const list = values.get(name) || [];
+        if (value !== "") list.push(value);
+        values.set(name, list);
+      } else {
+        values.set(name, value);
+      }
       if (values.size > 128) throw new Error("Form input bound exceeded");
     }
     return values;
@@ -116,9 +123,16 @@ class FormRecoveryController extends Controller {
       if (!Array.isArray(allowed) || allowed.some((name) => typeof name !== "string" || !/^[a-z][a-z0-9_]*$/.test(name))) throw new Error("Invalid form fields");
       const restored = new Set();
       for (const control of form.elements) {
-        if (!allowed.some((name) => control.name === `record[${name}]`) || !values.has(control.name) || control.disabled || control.readOnly || !["INPUT", "SELECT", "TEXTAREA"].includes(control.tagName)) continue;
+        const isList = allowed.some((name) => control.name === `record[${name}][]`);
+        const isScalar = !isList && allowed.some((name) => control.name === `record[${name}]`);
+        if ((!isList && !isScalar) || !values.has(control.name) || control.disabled || control.readOnly || !["INPUT", "SELECT", "TEXTAREA"].includes(control.tagName)) continue;
         const value = values.get(control.name);
-        if (["file", "submit", "hidden", "button", "reset"].includes(control.type)) continue;
+        const isTrixHidden = control.type === "hidden" && control.id && form.querySelector(`trix-editor[input="${CSS.escape(control.id)}"]`);
+        if (["file", "submit", "button", "reset"].includes(control.type) || (control.type === "hidden" && !isTrixHidden)) continue;
+        if (isList && Array.isArray(value)) {
+          if (control.type === "checkbox") { control.checked = value.includes(control.value); restored.add(control.name); }
+          continue;
+        }
         if (["checkbox", "radio"].includes(control.type)) control.checked = control.value === value;
         else if (control.tagName === "SELECT" && ![...control.options].some((option) => option.value === value && !option.disabled)) continue;
         else control.value = value;
@@ -361,9 +375,10 @@ class ReferencePickerController extends Controller {
     this.statusTarget.textContent = this.messagesValue.searching;
     try {
       const url = new URL(this.urlValue, location.href);
+      if (url.origin !== location.origin) throw new Error("search failed");
       url.searchParams.set("q", term);
       const response = await fetch(url, { headers: { Accept: "application/json" }, credentials: "same-origin", signal: this.abort.signal });
-      if (!response.ok || url.origin !== location.origin) throw new Error("search failed");
+      if (!response.ok) throw new Error("search failed");
       const body = await response.json();
       if (sequence === this.sequence) this.render(Array.isArray(body.results) ? body.results : []);
     } catch (error) {
@@ -391,7 +406,7 @@ class ReferencePickerController extends Controller {
     this.key.value = result.id;
     this.key.dispatchEvent(new Event("input", { bubbles: true }));
     this.key.dispatchEvent(new Event("change", { bubbles: true }));
-    this.currentTarget.textContent = this.messagesValue.chosen.replace("%{label}", result.label);
+    this.currentTarget.textContent = this.messagesValue.chosen.replace("%{label}", () => result.label);
     this.currentTarget.hidden = false;
     this.clear();
     this.key.focus();

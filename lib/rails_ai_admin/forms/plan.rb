@@ -11,8 +11,9 @@ module RailsAiAdmin
       MAX_FIELDS = 128
       MAX_TABS = 8
       MAX_PANELS = 16
-      MAX_VALUE_BYTES = 262_144
-      MAX_BYTES = 1_048_576
+      # Accommodates Field::MAX_RICH_TEXT (1 MB) after JSON escaping.
+      MAX_VALUE_BYTES = 1_572_864
+      MAX_BYTES = 4_194_304
       attr_reader :tabs, :entries
 
       def initialize(fields:, values:, readonly_fields: [], readonly_values: {}, order: nil)
@@ -47,6 +48,7 @@ module RailsAiAdmin
       private
 
       def scalar(value, type: nil)
+        return nil if type == :password
         copy = case value
         when nil, true, false, Integer then value
         when String then String.new(value).encode(Encoding::UTF_8, invalid: :replace, undef: :replace)

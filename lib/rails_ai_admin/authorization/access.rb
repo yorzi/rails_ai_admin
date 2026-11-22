@@ -18,13 +18,7 @@ module RailsAiAdmin
       end
 
       def relation
-        relation = @adapter.scope(context: context, resource: resource, relation: resource.model_class.all)
-        unless relation.is_a?(ActiveRecord::Relation) && relation.klass == resource.model_class
-          raise ConfigurationError, "Policy scope must return the resource's ActiveRecord relation"
-        end
-        if relation.limit_value || relation.offset_value || relation.select_values.any? || relation.group_values.any? || !relation.having_clause.empty? || !relation.from_clause.empty?
-          raise ConfigurationError, "Policy scope must be a complete filter relation without limit, offset, select, group, having or from"
-        end
+        relation = validate_policy_scope!(@adapter.scope(context: context, resource: resource, relation: resource.model_class.all))
         return relation unless resource.soft_delete?
         relation.where(resource.model_class.arel_table[resource.soft_delete].eq(nil))
       end
@@ -33,16 +27,20 @@ module RailsAiAdmin
       # the deleted-records page and restore read them.
       def discarded_relation
         raise AccessDenied unless resource.soft_delete?
-        scoped = @adapter.scope(context: context, resource: resource, relation: resource.model_class.all)
-        raise ConfigurationError, "Policy scope must return the resource's ActiveRecord relation" unless scoped.is_a?(ActiveRecord::Relation) && scoped.klass == resource.model_class
+        scoped = validate_policy_scope!(@adapter.scope(context: context, resource: resource, relation: resource.model_class.all))
         column = resource.model_class.arel_table[resource.soft_delete]
         scoped.where(column.not_eq(nil)).reorder(column.desc, resource.model_class.arel_table[resource.model_class.primary_key].desc)
       end
 
       def find!(id, action: :show, lock: false)
-        scoped = relation
-        scoped = scoped.lock if lock
-        record = scoped.find(id)
+        record = if lock
+          model = resource.model_class
+          locked = model.unscoped.lock.find_by(model.primary_key => id)
+          raise AccessDenied unless locked && relation.where(model.primary_key => locked.id).exists?
+          locked
+        else
+          relation.find(id)
+        end
         authorize!(action, record)
         record
       rescue ActiveRecord::RecordNotFound
@@ -53,10 +51,11 @@ module RailsAiAdmin
       # Pages address a record only by the primary key's canonical text; the
       # trusted Runner API still canonicalizes through the scoped lookup.
       def canonical_id?(id)
-        return id.positive? if id.is_a?(Integer)
+        type = resource.model_class.type_for_attribute(resource.model_class.primary_key).type
+        return type == :integer && id.positive? && id <= 2**63 - 1 if id.is_a?(Integer)
         return false unless id.is_a?(String) && id.valid_encoding? && id.bytesize.between?(1, 150) && !id.match?(/[[:cntrl:]]|[[:space:]]/)
-        case resource.model_class.type_for_attribute(resource.model_class.primary_key).type
-        when :integer then id.match?(/\A[1-9][0-9]{0,18}\z/)
+        case type
+        when :integer then id.match?(/\A[1-9][0-9]{0,18}\z/) && Integer(id, 10) <= 2**63 - 1
         when :uuid then id.match?(/\A[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}\z/)
         else true
         end
@@ -227,6 +226,16 @@ module RailsAiAdmin
 
       private
 
+      def validate_policy_scope!(relation)
+        unless relation.is_a?(ActiveRecord::Relation) && relation.klass == resource.model_class
+          raise ConfigurationError, "Policy scope must return the resource's ActiveRecord relation"
+        end
+        if relation.limit_value || relation.offset_value || relation.select_values.any? || relation.group_values.any? || !relation.having_clause.empty? || !relation.from_clause.empty?
+          raise ConfigurationError, "Policy scope must be a complete filter relation without limit, offset, select, group, having or from"
+        end
+        relation
+      end
+
       # The stored Action Text HTML, or nil. Pages sanitize it when they show it.
       def read_rich_text(record, field)
         unless record.class.reflect_on_association("rich_text_#{field.column}")
@@ -245,7 +254,7 @@ module RailsAiAdmin
           raise ConfigurationError, "references fields must name a has_many or has_and_belongs_to_many association"
         end
         ids = ActiveRecord::Base.while_preventing_writes { record.public_send(field.column) }
-        ids.map { |id| id.to_s.freeze }.uniq.sort.freeze
+        ids.map { |id| id.to_s.freeze }.uniq.sort.first(Fields::Association::MAX_BATCH).freeze
       end
 
       # At most 100 files, oldest first, each with its attachment id.

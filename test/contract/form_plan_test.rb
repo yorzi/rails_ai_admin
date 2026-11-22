@@ -51,4 +51,13 @@ class FormPlanTest < Minitest::Test
     plan = RailsAiAdmin::Forms::Plan.new(fields: [ json ], values: { "settings" => { "a" => [ 1 ] } })
     assert_equal JSON.pretty_generate("a" => [ 1 ]), plan.entries.first.value
   end
+
+  def test_rich_text_up_to_limit_fits_and_passwords_are_never_retained
+    rich = RailsAiAdmin::Field.new(:body, type: :rich_text)
+    password = RailsAiAdmin::Field.new(:password, type: :password)
+    plan = RailsAiAdmin::Forms::Plan.new(fields: [ rich, password ], values: { "body" => "a" * 300_000, "password" => "super-secret" })
+    assert_equal 300_000, plan.entries.find { |e| e.field == rich }.value.bytesize
+    assert_nil plan.entries.find { |e| e.field == password }.value
+    refute_includes plan.inspect, "super-secret"
+  end
 end

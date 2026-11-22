@@ -17,7 +17,7 @@ module RailsAiAdmin
 
       # before: the id of the oldest entry already shown (canonical integer text).
       def page(before: nil)
-        unless before.nil? || before.is_a?(String) && before.match?(/\A[1-9][0-9]{0,18}\z/)
+        unless before.nil? || before.is_a?(String) && before.valid_encoding? && before.match?(/\A[1-9][0-9]{0,18}\z/) && Integer(before, 10) <= 2**63 - 1
           raise AccessDenied, "INVALID_QUERY"
         end
         scope = AuditEvent.where(tenant_ref: @access.context.tenant_ref, resource_key: @access.resource.key.to_s, record_id: @record.id.to_s)

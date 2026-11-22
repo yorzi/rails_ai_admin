@@ -178,10 +178,10 @@ module RailsAiAdmin
       when :json then format_json(value)
       when :password then "—"
       when :rich_text then plain_text(value.to_s)
-      when :references then Array(value).map { |key| "##{key}" }.join(", ")
+      when :references then Array(value).map { |key| "##{key}" }.join(", ").truncate_bytes(16_000)
       when :file then value.respond_to?(:filename) ? "#{value.filename} (#{ActiveSupport::NumberHelper.number_to_human_size(value.byte_size)})" : value.to_s
       when :files then I18n.t(:files, scope: %i[rails_ai_admin fields], count: Array(value).size, default: "#{Array(value).size} files")
-      else value.to_s
+      else value.to_s.scrub("").truncate_bytes(16_000)
       end
     end
 
@@ -212,7 +212,7 @@ module RailsAiAdmin
       text = JSON.pretty_generate(value)
       text.bytesize > 16_000 ? "#{text.byteslice(0, 16_000).scrub("")}…" : text
     rescue JSON::ParserError, JSON::GeneratorError
-      value.to_s.truncate(16_000)
+      value.to_s.scrub("").truncate_bytes(16_000)
     end
 
     # Decimal text padded to the declared or column scale ("10.50", not
@@ -268,7 +268,7 @@ module RailsAiAdmin
         scalar_type == :password ? Secret.new(value) : String.new(value)
       when :time
         value = value.strftime("%H:%M:%S") if value.respond_to?(:strftime) && !value.is_a?(String)
-        parts = value.is_a?(String) && value.match(TIME_OF_DAY)
+        parts = value.is_a?(String) && value.valid_encoding? && value.match(TIME_OF_DAY)
         raise ArgumentError, message(:not_time, "must be a time of day (HH:MM)") unless parts
         "#{parts[1]}:#{parts[2]}:#{parts[3] || '00'}"
       when :file then coerce_file(value)
@@ -293,15 +293,17 @@ module RailsAiAdmin
         raise ArgumentError, message(:invalid, "is invalid") unless value.valid_encoding?
         String.new(value)
       when :integer
-        raise ArgumentError, message(:not_integer, "must be an integer") unless value.is_a?(Integer) || (value.is_a?(String) && value.match?(/\A[+-]?\d+\z/))
+        raise ArgumentError, message(:not_integer, "must be an integer") unless value.is_a?(Integer) || (value.is_a?(String) && value.valid_encoding? && value.match?(/\A[+-]?\d+\z/))
         raise ArgumentError, message(:out_of_range, "is out of range") if value.is_a?(String) && value.length > 100
         number = value.is_a?(String) ? Integer(value, 10) : value
         raise ArgumentError, message(:out_of_range, "is out of range") unless (-(2**63)..(2**63 - 1)).cover?(number)
         number
       when :decimal
-        raise ArgumentError, message(:not_decimal, "must be a decimal") unless value.is_a?(Integer) || value.is_a?(BigDecimal) || (value.is_a?(String) && value.match?(/\A[+-]?(?:\d+(?:\.\d*)?|\.\d+)\z/))
+        raise ArgumentError, message(:not_decimal, "must be a decimal") unless value.is_a?(Integer) || value.is_a?(BigDecimal) || (value.is_a?(String) && value.valid_encoding? && value.match?(/\A[+-]?(?:\d+(?:\.\d*)?|\.\d+)\z/))
         raise ArgumentError, message(:out_of_range, "is out of range") if value.is_a?(String) && value.length > MAX_NUMBER_TEXT
-        number = BigDecimal(value.to_s)
+        raise ArgumentError, message(:out_of_range, "is out of range") if value.is_a?(Integer) && value.abs >= 10**MAX_NUMBER_TEXT
+        raise ArgumentError, message(:out_of_range, "is out of range") if value.is_a?(BigDecimal) && value.finite? && value.exponent.abs > MAX_NUMBER_TEXT
+        number = value.is_a?(BigDecimal) ? value : BigDecimal(value.to_s)
         raise ArgumentError, message(:not_finite, "must be finite") unless number.finite?
         check_decimal_limits!(number) if strict
         number
@@ -311,11 +313,11 @@ module RailsAiAdmin
         raise ArgumentError, message(:not_boolean, "must be a boolean")
       when :date
         value = value.iso8601 if value.is_a?(Date) && !value.is_a?(DateTime)
-        raise ArgumentError, message(:not_date, "must be an ISO date") unless value.is_a?(String) && value.match?(/\A\d{4}-\d{2}-\d{2}\z/)
+        raise ArgumentError, message(:not_date, "must be an ISO date") unless value.is_a?(String) && value.valid_encoding? && value.match?(/\A\d{4}-\d{2}-\d{2}\z/)
         Date.iso8601(value)
       when :datetime
         value = value.to_time.getutc.iso8601(6) if value.is_a?(Time) || value.is_a?(ActiveSupport::TimeWithZone) || value.is_a?(DateTime)
-        parts = value.is_a?(String) && value.match(DATETIME)
+        parts = value.is_a?(String) && value.valid_encoding? && value.match(DATETIME)
         raise ArgumentError, message(:not_timestamp, "must be an ISO timestamp") unless parts
         # Ruby and Active Support roll 2026-02-30 into March (DEP-013); an
         # impossible calendar day or clock time is rejected instead (RAA-010).
@@ -558,12 +560,21 @@ module RailsAiAdmin
       end
     end
 
+    SEARCHABLE_TYPES = %i[text textarea email url enum select belongs_to].freeze
+    SEARCHABLE_MODES = [ nil, false, true, :prefix, :contains, :exact ].freeze
+
     def validate_query_options!
       if UNQUERYABLE_TYPES.include?(scalar_type) && (options[:searchable] || options[:sortable] || options[:filterable])
         raise ConfigurationError, "#{scalar_type} fields cannot search, sort or filter"
       end
       if scalar_type == :time && (options[:searchable] || options[:filterable])
         raise ConfigurationError, "time fields can sort but cannot search or filter"
+      end
+      unless SEARCHABLE_MODES.include?(options[:searchable])
+        raise ConfigurationError, "Field searchable must be false, true, :prefix, :contains or :exact"
+      end
+      if options[:searchable] && !SEARCHABLE_TYPES.include?(scalar_type)
+        raise ConfigurationError, "#{scalar_type} fields cannot be searchable"
       end
       unless options[:aggregatable].nil? || [ true, false ].include?(options[:aggregatable])
         raise ConfigurationError, "Field aggregatable must be true or false"

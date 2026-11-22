@@ -62,4 +62,23 @@ class InputSchemaTest < Minitest::Test
     assert_equal 10, field.coerce("010")
     assert_equal 8, field.coerce("08")
   end
+
+  def test_frozen_non_utc_time_invalid_utf8_password_and_extreme_decimal_bounds
+    frozen_time = Time.new(2026, 11, 22, 12, 0, 0, "+08:00").freeze
+    assert_equal({ "$time" => "2026-11-22T04:00:00.000000Z" }, RailsAiAdmin::InputSchema.canonical(frozen_time))
+
+    password_schema = RailsAiAdmin::InputSchema.new([ RailsAiAdmin::Field.new(:password, type: :password) ])
+    bad_utf8 = (+"\xff").force_encoding(Encoding::UTF_8)
+    refute password_schema.coerce({ "password" => bad_utf8 }).valid?
+
+    decimal = RailsAiAdmin::Field.new(:amount, type: :decimal)
+    assert_raises(ArgumentError) { decimal.coerce(BigDecimal("1e1000000")) }
+    assert_raises(ArgumentError) { decimal.coerce(10**101) }
+
+    text = RailsAiAdmin::Field.new(:notes, type: :textarea, max_length: 30_000)
+    assert_operator text.format("a" * 20_000).bytesize, :<=, 16_384
+
+    assert_raises(RailsAiAdmin::ConfigurationError) { RailsAiAdmin::Field.new(:points, type: :integer, searchable: true) }
+    assert_raises(RailsAiAdmin::ConfigurationError) { RailsAiAdmin::Field.new(:name, type: :text, searchable: :regex) }
+  end
 end

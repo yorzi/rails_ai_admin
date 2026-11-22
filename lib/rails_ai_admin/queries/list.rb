@@ -153,29 +153,42 @@ module RailsAiAdmin
       private_class_method :coerce_filter
 
       # The Arel condition for one validated filter value.
-      def self.filter_predicate(field, column, operator, value)
+      def self.filter_predicate(field, column, operator, value, string_column: nil)
         case operator.to_s
         when "in" then column.in(value)
         when "contains" then column.matches("%#{ActiveRecord::Base.sanitize_sql_like(value)}%", "\\")
         when "blank"
-          # Text stores "no value" as NULL or as an empty string.
-          empty = Field::TEXT_TYPES.include?(field.scalar_type) ? column.eq(nil).or(column.eq("")) : column.eq(nil)
+          # Text stores "no value" as NULL or as an empty string; non-text PK columns cannot compare to "".
+          allow_empty = field.scalar_type == :id ? (string_column == true) : Field::TEXT_TYPES.include?(field.scalar_type)
+          empty = allow_empty ? column.eq(nil).or(column.eq("")) : column.eq(nil)
           value ? empty : empty.not
         else column.public_send(AREL_PREDICATES.fetch(operator.to_s), value)
         end
       end
 
+      # Deduplicates policy relations that join other tables before counting or
+      # paginating, avoiding DISTINCT on PostgreSQL JSON columns.
+      def self.unique_records(relation)
+        return relation unless relation.joins_values.any? || relation.left_outer_joins_values.any? || relation.eager_loading? || relation.distinct_value
+        model = relation.klass
+        key = model.primary_key
+        ids = relation.reorder(nil).reselect(model.arel_table[key])
+        records = model.unscoped.where(key => ids).readonly(relation.readonly_value).strict_loading(relation.strict_loading_value)
+        preloads = relation.preload_values | relation.includes_values | relation.eager_load_values
+        preloads.any? ? records.preload(*preloads) : records
+      end
+
       private
 
       def aggregate_field(name, function)
-        raise AccessDenied, "INVALID_QUERY" unless name.is_a?(String) && name.match?(Field::NAME)
+        raise AccessDenied, "INVALID_QUERY" unless name.is_a?(String) && name.valid_encoding? && name.match?(Field::NAME)
         field = @access.fields(:read).find { |candidate| candidate.name.to_s == name && !candidate.virtual? }
         raise AccessDenied, "INVALID_QUERY" unless field&.aggregate_functions&.include?(function.to_sym)
         field
       end
 
       def group_field(name, period: false)
-        raise AccessDenied, "INVALID_QUERY" unless name.is_a?(String) && name.match?(Field::NAME)
+        raise AccessDenied, "INVALID_QUERY" unless name.is_a?(String) && name.valid_encoding? && name.match?(Field::NAME)
         field = @access.fields(:filter).find { |candidate| candidate.name.to_s == name }
         raise AccessDenied, "INVALID_QUERY" unless field && (period ? Field::PERIOD_TYPES : Field::GROUP_TYPES).include?(field.scalar_type)
         field
@@ -279,18 +292,7 @@ module RailsAiAdmin
         [ relation, field, direction ]
       end
 
-      # A policy join can return several rows for one record. Paginate and
-      # count the authorized keys before sorting or projecting model columns.
-      # Using IDs also avoids DISTINCT on PostgreSQL JSON columns.
-      def unique_records(relation)
-        return relation unless relation.joins_values.any? || relation.left_outer_joins_values.any? || relation.eager_loading? || relation.distinct_value
-        model = relation.klass
-        key = model.primary_key
-        ids = relation.reorder(nil).reselect(model.arel_table[key])
-        records = model.unscoped.where(key => ids).readonly(relation.readonly_value).strict_loading(relation.strict_loading_value)
-        preloads = relation.preload_values | relation.includes_values | relation.eager_load_values
-        preloads.any? ? records.preload(*preloads) : records
-      end
+      def unique_records(relation) = self.class.unique_records(relation)
 
       def filtered_relation(search:, scope:, filters:)
         # Leading and trailing spaces are never part of the term (RAA-021).
@@ -374,14 +376,37 @@ module RailsAiAdmin
           raise AccessDenied, "INVALID_QUERY"
         end
         granted = @access.fields(:filter).index_by { |field| field.name.to_s }
-        table = @resource.model_class.arel_table
+        model = @resource.model_class
+        table = model.arel_table
         filters.reduce(relation) do |scoped, (name, conditions)|
           field = granted[name.to_s] or raise AccessDenied, "INVALID_QUERY"
+          col_type = model.type_for_attribute(field.column).type
           conditions.reduce(scoped) do |inner, (operator, raw)|
             value = self.class.filter_value(field, operator.to_s, raw, time_zone: @access.context.time_zone)
-            inner.where(self.class.filter_predicate(field, table[field.column], operator, value))
+            value = cast_key_filter(field, operator.to_s, value, col_type)
+            inner.where(self.class.filter_predicate(field, table[field.column], operator, value, string_column: %i[string text].include?(col_type)))
           end
         end
+      end
+
+      # Ensures raw Arel predicates on integer/UUID key columns receive valid
+      # typed values so PostgreSQL never raises InvalidTextRepresentation.
+      def cast_key_filter(field, operator, value, col_type)
+        return value if operator == "blank" || !%i[belongs_to id].include?(field.scalar_type)
+        cast_one = lambda do |item|
+          case col_type
+          when :integer
+            raise AccessDenied, "INVALID_QUERY" unless item.is_a?(String) && item.match?(/\A[1-9][0-9]{0,18}\z/)
+            number = Integer(item, 10)
+            raise AccessDenied, "INVALID_QUERY" if number > 2**63 - 1
+            number
+          when :uuid
+            raise AccessDenied, "INVALID_QUERY" unless item.is_a?(String) && item.match?(/\A[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}\z/)
+            item
+          else item
+          end
+        end
+        operator == "in" ? value.map(&cast_one) : cast_one.call(value)
       end
     end
   end

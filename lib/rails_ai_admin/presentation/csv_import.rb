@@ -8,6 +8,7 @@ module RailsAiAdmin
     # values without writing anything.
     class CsvImport
       MAX_BYTES = 2 * 1024 * 1024
+      MAX_COLUMNS = 200
       # Types a CSV cell can carry. Files, passwords and lists are left out.
       TYPES = %i[text textarea integer decimal boolean date datetime time enum select email url json belongs_to rich_text].freeze
       TRUE_WORDS = %w[true yes y 1].freeze
@@ -32,6 +33,7 @@ module RailsAiAdmin
       end
 
       def template
+        @access.authorize_import!
         headers = fields.map do |field|
           header = matching_fields(field.label) == [ field ] ? field.label : field.name.to_s
           %("#{header.gsub('"', '""')}")
@@ -49,10 +51,15 @@ module RailsAiAdmin
         mapping = map_columns(header)
         raise Invalid, I18n.t("rails_ai_admin.imports.no_columns") if mapping.empty?
         runner = Operations::Runner.new
+        columns_hash = @resource.model_class.columns_hash
         results = rows.each_with_index.map do |cells, index|
           input = mapping.each_with_object({}) do |(position, field), values|
             cell = cells[position].to_s
-            values[field.name.to_s] = normalize(field, cell) unless cell.strip.empty?
+            if !cell.strip.empty?
+              values[field.name.to_s] = normalize(field, cell)
+            elsif !field.options[:nullable] && (column = columns_hash[field.column]) && !column.null && column.default.nil? && !column.default_function
+              values[field.name.to_s] = ""
+            end
           end
           run_row(runner, index + 2, input, write)
         end
@@ -138,6 +145,7 @@ module RailsAiAdmin
             cell << char if state == :after_quote
             state = :quoted
           when ","
+            raise Invalid, I18n.t("rails_ai_admin.imports.too_large") if row.size >= MAX_COLUMNS
             row << cell
             cell = +""
             state = :unquoted

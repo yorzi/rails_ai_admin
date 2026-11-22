@@ -83,4 +83,16 @@ class CsvExportIntegrationTest < ActionDispatch::IntegrationTest
       config.finalize!
     end
   end
+
+  def test_formula_injection_escapes_leading_newlines_and_whitespace_triggers
+    Article.create!(account_id: 1, title: "\n=HYPERLINK(\"http://evil.example\")")
+    Article.create!(account_id: 1, title: " =1+1")
+    EssentialFixtures::Policy.read = %i[id title]
+    with_essential_resources do
+      post "/backoffice/articles/exports"
+      assert_response :success
+      assert_includes response.body, %("'\n=HYPERLINK(""http://evil.example"")")
+      assert_includes response.body, %("' =1+1")
+    end
+  end
 end

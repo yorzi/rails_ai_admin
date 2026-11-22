@@ -135,7 +135,7 @@ module RailsAiAdmin
           values.to_h do |name, value|
             wire = case value
             when BigDecimal then value.to_s("F")
-            when Time, ActiveSupport::TimeWithZone then value.utc.iso8601(6)
+            when Time, ActiveSupport::TimeWithZone then value.to_time.getutc.iso8601(6)
             when Date then value.iso8601
             else value
             end

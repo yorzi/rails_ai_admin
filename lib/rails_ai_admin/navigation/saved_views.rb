@@ -66,7 +66,7 @@ module RailsAiAdmin
 
       def delete(id)
         @access.authorize!(:index)
-        raise AccessDenied unless id.is_a?(String) && id.match?(/\A[1-9]\d{0,18}\z/)
+        raise AccessDenied unless id.is_a?(String) && id.valid_encoding? && id.match?(/\A[1-9]\d{0,18}\z/) && Integer(id, 10) <= 2**63 - 1
         owned.where(id: id).delete_all.positive? || raise(AccessDenied)
       end
 
@@ -86,9 +86,9 @@ module RailsAiAdmin
       end
 
       def parse(text)
-        value = JSON.parse(text)
+        value = JSON.parse(text, max_nesting: 8)
         value.is_a?(Hash) ? value : {}
-      rescue JSON::ParserError
+      rescue JSON::JSONError
         {}
       end
     end

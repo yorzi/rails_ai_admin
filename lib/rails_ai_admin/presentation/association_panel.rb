@@ -59,7 +59,7 @@ module RailsAiAdmin
           # Listing children by parent reveals each child's reference value.
           return unless access.fields(:read, view: :index).include?(field)
           model = child.model_class
-          records = access.relation.where(field.column => record.id)
+          records = Queries::List.unique_records(access.relation.where(field.column => record.id))
             .reorder(model.arel_table[model.primary_key].asc).limit(definition.limit + 1).to_a
           rows = records.first(definition.limit).filter_map do |child_record|
             begin

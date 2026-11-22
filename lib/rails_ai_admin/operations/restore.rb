@@ -18,7 +18,8 @@ module RailsAiAdmin
         raise AccessDenied unless access.canonical_id?(id)
         model = resource.model_class
         OperationRun.transaction(requires_new: true) do
-          record = access.discarded_relation.lock.find_by(model.primary_key => id) || raise(AccessDenied)
+          record = model.unscoped.lock.find_by(model.primary_key => id)
+          raise AccessDenied unless record && access.discarded_relation.where(model.primary_key => record.id).exists?
           access.authorize!(:restore, record)
           raise AccessDenied, "CONFLICT" unless RecordVersion.of(record) == expected_version.to_i
           record.public_send("#{resource.soft_delete}=", nil)

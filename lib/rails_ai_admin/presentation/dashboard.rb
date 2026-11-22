@@ -94,7 +94,7 @@ module RailsAiAdmin
             return unless named
             relation = named.apply(relation)
           end
-          total = relation.except(:order).limit(List::COUNT_LIMIT + 1).count
+          total = List.unique_records(relation).except(:order).limit(List::COUNT_LIMIT + 1).count
           label = widget.label || (named ? "#{access.resource.label}: #{named.label}" : access.resource.label)
           MetricValue.new(label, [ total, List::COUNT_LIMIT ].min, total > List::COUNT_LIMIT, named&.name&.to_s)
         end
@@ -106,9 +106,12 @@ module RailsAiAdmin
           zone = ActiveSupport::TimeZone[access.context.time_zone]
           today = zone.today
           first = today - (widget.days - 1)
+          tomorrow = today + 1
           start = field.scalar_type == :date ? first : zone.local(first.year, first.month, first.day)
+          finish = field.scalar_type == :date ? tomorrow : zone.local(tomorrow.year, tomorrow.month, tomorrow.day)
           column = access.resource.model_class.arel_table[field.column]
-          values = access.relation.where(column.gteq(start)).reorder(nil).limit(TREND_LIMIT + 1).pluck(field.column)
+          values = List.unique_records(access.relation).where(column.gteq(start).and(column.lt(finish)))
+            .reorder(column.desc).limit(TREND_LIMIT + 1).pluck(column)
           counts = Hash.new(0)
           values.first(TREND_LIMIT).compact.each { |value| counts[value.respond_to?(:in_time_zone) && !value.is_a?(Date) ? value.in_time_zone(zone).to_date : value.to_date] += 1 }
           days = (first..today).map { |day| [ day, counts[day] ] }

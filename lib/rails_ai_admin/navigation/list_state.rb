@@ -20,8 +20,8 @@ module RailsAiAdmin
         elsif value.is_a?(String) && value.bytesize <= MAX_HEADER_BYTES
           begin
             decoded = Base64.urlsafe_decode64(value).force_encoding(Encoding::UTF_8)
-            decoded.bytesize <= MAX_JSON_BYTES && decoded.valid_encoding? ? JSON.parse(decoded) : INVALID
-          rescue ArgumentError, JSON::ParserError
+            decoded.bytesize <= MAX_JSON_BYTES && decoded.valid_encoding? ? JSON.parse(decoded, max_nesting: 8) : INVALID
+          rescue ArgumentError, JSON::JSONError
             INVALID
           end
         else
@@ -157,7 +157,7 @@ module RailsAiAdmin
         return INVALID unless value.is_a?(Hash) && value.size <= Queries::List::MAX_FILTER_CONDITIONS
         parsed = {}
         value.each do |name, conditions|
-          return INVALID unless (name.is_a?(String) || name.is_a?(Symbol)) && name.to_s.match?(/\A[a-z][a-z0-9_]{0,79}\z/) && conditions.is_a?(Hash)
+          return INVALID unless (name.is_a?(String) || name.is_a?(Symbol)) && name.to_s.valid_encoding? && name.to_s.match?(/\A[a-z][a-z0-9_]{0,79}\z/) && conditions.is_a?(Hash)
           conditions.each do |operator, condition|
             return INVALID unless (operator.is_a?(String) || operator.is_a?(Symbol)) && FILTER_OPERATORS.include?(operator.to_s)
             if operator.to_s == "in"

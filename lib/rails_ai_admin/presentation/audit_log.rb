@@ -28,9 +28,9 @@ module RailsAiAdmin
       def page(resource: nil, operation: nil, status: nil, actor: nil, before: nil)
         keys = @resources.map { |entry| entry.key.to_s }
         valid = (resource.nil? || keys.include?(resource)) && (status.nil? || STATUSES.include?(status)) &&
-          (operation.nil? || operation.is_a?(String) && operation.match?(/\A[a-z][a-z0-9_]{0,63}\z/)) &&
-          (actor.nil? || actor.is_a?(String) && actor.bytesize <= 150 && !actor.match?(/[[:cntrl:]]/)) &&
-          (before.nil? || before.is_a?(String) && before.match?(CURSOR))
+          (operation.nil? || operation.is_a?(String) && operation.valid_encoding? && operation.match?(/\A[a-z][a-z0-9_]{0,63}\z/)) &&
+          (actor.nil? || actor.is_a?(String) && actor.valid_encoding? && actor.bytesize <= 150 && !actor.match?(/[[:cntrl:]]/)) &&
+          (before.nil? || before.is_a?(String) && before.valid_encoding? && before.match?(CURSOR) && Integer(before, 10) <= 2**63 - 1)
         raise AccessDenied, "INVALID_QUERY" unless valid
         scope = AuditEvent.where(tenant_ref: @context.tenant_ref, resource_key: resource || keys)
         scope = scope.where(operation: operation) if operation

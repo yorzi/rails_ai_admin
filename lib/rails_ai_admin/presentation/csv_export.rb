@@ -9,7 +9,7 @@ module RailsAiAdmin
       BATCH = 500
       # A spreadsheet runs a cell that starts with these as a formula
       # (CSV injection); such cells get a leading apostrophe.
-      FORMULA = /\A[=+\-@\t\r]/
+      FORMULA = /\A(?:[=+\-@\t\r\n]|[[:space:]]+[=+\-@])/
       # Number and time text is produced by coercion and cannot be a formula.
       NUMERIC = %i[integer decimal date datetime time].freeze
       Result = Data.define(:body, :rows, :fields, :too_many)
@@ -26,17 +26,31 @@ module RailsAiAdmin
         fields = @access.fields(:read, nil, view: :show)
         references = Fields::Association.new(@context, @resource)
         lines = [ line(fields.map(&:label)) ]
-        # One query per list field and batch instead of one per row.
-        lists = fields.select { |field| field.scalar_type == :references }.map(&:name)
-        relation = relation.preload(*lists) if lists.any?
+        # Preload associations for visible columns once per batch instead of per row.
+        model = @resource.model_class
+        preloads = fields.filter_map do |field|
+          case field.scalar_type
+          when :references then field.name if model.reflect_on_association(field.name)
+          when :file then { "#{field.column}_attachment": :blob } if model.reflect_on_association(:"#{field.column}_attachment")
+          when :rich_text then :"rich_text_#{field.column}" if model.reflect_on_association(:"rich_text_#{field.column}")
+          end
+        end
+        relation = relation.preload(*preloads) if preloads.any?
         rows = 0
         offset = 0
         loop do
-          records = relation.offset(offset).limit(BATCH).to_a
+          remaining = @limit - offset
+          break if remaining <= 0
+          records = relation.offset(offset).limit([ BATCH, remaining ].min).to_a
           break if records.empty?
           offset += records.size
           fields.select { |field| field.scalar_type == :belongs_to }.each do |field|
-            references.prime(field, records.filter_map { |record| record.has_attribute?(field.column) ? record.read_attribute(field.column)&.to_s : nil })
+            ids = records.filter_map { |record| record.has_attribute?(field.column) ? record.read_attribute(field.column)&.to_s : nil }.uniq
+            ids.each_slice(Fields::Association::MAX_BATCH) { |slice| references.prime(field, slice) }
+          end
+          fields.select { |field| field.scalar_type == :references }.each do |field|
+            ids = records.flat_map { |record| Array(record.public_send(field.column)).map(&:to_s) }.uniq
+            ids.each_slice(Fields::Association::MAX_BATCH) { |slice| references.prime(field, slice) }
           end
           records.each do |record|
             values = @access.project(record, view: :show)
@@ -67,14 +81,13 @@ module RailsAiAdmin
           when :file then value.filename
           when :files then Array(value).map(&:filename).join("; ")
           when :references
-            references.prime(field, Array(value))
             Array(value).map { |id| references.reference(field, id).label.to_s }.join("; ")
           when :belongs_to then references.reference(field, value.to_s).label.to_s
           else field.format(value, time_zone: @context.time_zone)
           end
         end
         text = text.to_s
-        !NUMERIC.include?(field.scalar_type) && text.match?(FORMULA) ? "'#{text}" : text
+        (field.plugin? || !NUMERIC.include?(field.scalar_type)) && text.match?(FORMULA) ? "'#{text}" : text
       end
 
       def line(cells)

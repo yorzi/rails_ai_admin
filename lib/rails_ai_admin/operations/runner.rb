@@ -345,6 +345,9 @@ module RailsAiAdmin
           # A references target deleted after its check fails the id writer.
           ActiveRecord::RecordNotFound
           Result.new(code: "CONFLICT")
+        when ActiveRecord::NotNullViolation
+          audit_failure(context, run, "VALIDATION_FAILED", origin) unless admission
+          Result.new(code: "VALIDATION_FAILED", errors: { "base" => [ Field.error_message(:blank, "cannot be blank") ] })
         when ActiveRecord::StatementInvalid
           if defined?(SQLite3::BusyException) && error.cause.is_a?(SQLite3::BusyException)
             Result.new(code: "CONFLICT")
@@ -469,7 +472,10 @@ module RailsAiAdmin
         elsif run.operation == "create"
           access.relation.new
         elsif definition.custom? && run.status == "succeeded"
-          access.relation.lock.find_by(access.resource.model_class.primary_key => run.record_id).tap { |record| reject!("NOT_FOUND") unless record }
+          model = access.resource.model_class
+          locked = model.unscoped.lock.find_by(model.primary_key => run.record_id)
+          reject!("NOT_FOUND") unless locked && access.relation.where(model.primary_key => locked.id).exists?
+          locked
         else
           access.find!(run.target_id, action: run.operation, lock: true)
         end

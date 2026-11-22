@@ -32,13 +32,19 @@ module RailsAiAdmin
       @current_scope = @page.scope
       @columns = @resource.index.order(@access.fields(:read, view: :index))
       computed = @columns.map(&:name) | [ @resource.title ]
+      preload_index_associations(@page.records, @columns)
       # A record inside the policy scope whose own show check fails is left out
       # of the page, like an unavailable reference, instead of failing the
       # whole list (RAA-001). The notice says rows were left out, never which.
       @rows = @page.records.filter_map do |record|
         values = @access.project(record, view: :index, only: computed)
-        { id: record.id, label: record_label(@resource, record, values: values, view: :index), values: values,
-          editable: allowed_action?(@resource, :update, record) }
+        editable = begin
+          @access.authorize!(:update, record)
+        rescue AccessDenied
+          false
+        end
+        { id: record.id, label: @access.record_label(record, values: values, view: :index), values: values,
+          editable: editable }
       rescue AccessDenied
         @omitted_rows = true
         nil
@@ -46,6 +52,10 @@ module RailsAiAdmin
       # One target query per reference column instead of one per row.
       @columns.select { |field| field.scalar_type == :belongs_to }.each do |field|
         admin_associations.prime(field, @rows.filter_map { |row| row[:values][field.name.to_s] })
+      end
+      @columns.select { |field| field.scalar_type == :references }.each do |field|
+        ids = @rows.flat_map { |row| Array(row[:values][field.name.to_s]).first(FieldsHelper::REFERENCES_SHOWN) }.uniq
+        ids.each_slice(Fields::Association::MAX_BATCH) { |slice| admin_associations.prime(field, slice) }
       end
       @searchable = @access.fields(:search).any?
       @omitted_rows ||= false
@@ -290,6 +300,19 @@ module RailsAiAdmin
       value.is_a?(ActionController::Parameters) ? value.to_unsafe_h : {}
     end
 
+    def preload_index_associations(records, fields)
+      return if records.empty?
+      model = @resource.model_class
+      associations = fields.filter_map do |field|
+        case field.scalar_type
+        when :file then { "#{field.column}_attachment": :blob } if model.reflect_on_association(:"#{field.column}_attachment")
+        when :rich_text then :"rich_text_#{field.column}" if model.reflect_on_association(:"rich_text_#{field.column}")
+        when :references then field.name if model.reflect_on_association(field.name)
+        end
+      end
+      ActiveRecord::Associations::Preloader.new(records: records, associations: associations).call if associations.any?
+    end
+
     def build_form_plan(operation, input = nil)
       view = operation == :create ? :create : :edit
       @form_fields = @access.fields(:write, @record, operation: operation)
@@ -301,9 +324,19 @@ module RailsAiAdmin
       names = @form_fields.map { |field| field.name.to_s }
       @form_values = readable_values.slice(*names)
       if input.is_a?(Hash)
-        # A refused file is chosen again; the form keeps showing the stored one.
-        files = @form_fields.select { |field| Field::FILE_TYPES.include?(field.scalar_type) }.map { |field| field.name.to_s }
-        @form_values.merge!(input.stringify_keys.slice(*(names - files)).reject { |_, value| value.is_a?(Hash) || value.is_a?(Array) })
+        # Refused files and passwords are never echoed back into form values.
+        excluded = @form_fields.select { |field| Field::FILE_TYPES.include?(field.scalar_type) || field.scalar_type == :password }.map { |field| field.name.to_s }
+        references = @form_fields.select { |field| field.scalar_type == :references }.map { |field| field.name.to_s }
+        input.stringify_keys.slice(*(names - excluded)).each do |name, value|
+          if references.include?(name)
+            next unless value.is_a?(Array) && value.size <= Field::MAX_REFERENCES + 1
+            keys = value.select { |item| item.is_a?(String) && item.valid_encoding? && item.present? }.uniq
+            @form_values[name] = keys
+          elsif !value.is_a?(Hash) && !value.is_a?(Array)
+            next if value.is_a?(String) && value.bytesize > Forms::Plan::MAX_VALUE_BYTES
+            @form_values[name] = value
+          end
+        end
       end
       readonly_fields = @access.fields(:read, @record, view: view).select { |field| readable_values.key?(field.name.to_s) && !names.include?(field.name.to_s) }
       readonly_values = readable_values.slice(*readonly_fields.map { |field| field.name.to_s })

@@ -100,6 +100,10 @@ class CsvImportIntegrationTest < ActionDispatch::IntegrationTest
       assert_select "p[role=alert]", text: "Choose a CSV file."
       post "/backoffice/articles/imports", params: { mode: "drop", file: csv(FILE) }
       assert_response :unprocessable_content
+      too_many_columns = ("a," * 205) + "b\r\n" + ("1," * 205) + "1\r\n"
+      post "/backoffice/articles/imports", params: { mode: "check", file: csv(too_many_columns) }
+      assert_response :unprocessable_content
+      assert_select "p[role=alert]"
     end
     with_essential_resources(import_limit: 2) do
       post "/backoffice/articles/imports", params: { mode: "check", file: csv(FILE) }

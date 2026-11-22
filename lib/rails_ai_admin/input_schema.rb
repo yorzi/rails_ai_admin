@@ -26,7 +26,7 @@ module RailsAiAdmin
       @fields.each do |name, field|
         # An empty password box means "keep the current password".
         input_value = input[name]
-        if !input.key?(name) || field.scalar_type == :password && input_value.is_a?(String) && input_value.match?(Field::BLANK)
+        if !input.key?(name) || field.scalar_type == :password && input_value.is_a?(String) && input_value.valid_encoding? && input_value.match?(Field::BLANK)
           errors[name] = [ Field.error_message(:required, "is required") ] if !@partial && field.options[:required]
           next
         end
@@ -65,7 +65,7 @@ module RailsAiAdmin
       when Hash then value.stringify_keys.sort.to_h.transform_values { |entry| canonical(entry) }
       when Array then value.map { |entry| canonical(entry) }
       when BigDecimal then { "$decimal" => value.to_s("F") }
-      when Time, ActiveSupport::TimeWithZone then { "$time" => value.utc.iso8601(6) }
+      when Time, ActiveSupport::TimeWithZone then { "$time" => value.to_time.getutc.iso8601(6) }
       when Date then { "$date" => value.iso8601 }
       when Fields::FileValue, Fields::RejectedUpload then value.to_h.transform_keys(&:to_s)
       when Field::Secret then { "$secret" => OpenSSL::HMAC.hexdigest("SHA256", secret_key, value) }

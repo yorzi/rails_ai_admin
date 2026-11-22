@@ -88,12 +88,17 @@ class ListStateTest < Minitest::Test
     hint = state({ q: "客户 🚀", sort: "name", direction: "desc", page: "2" })
     assert hint.encoded.ascii_only?
     assert_equal hint.state, RailsAiAdmin::Navigation::ListState.from_header(@access, hint.encoded).state
-    bad = [ "!bad!", "a" * 2049, Base64.urlsafe_encode64('"not a map"'), Base64.urlsafe_encode64("\xff"), Base64.urlsafe_encode64(" " * 1025), Base64.urlsafe_encode64('{"host":"evil.test"}') ]
+    bad = [ "!bad!", "a" * 2049, Base64.urlsafe_encode64('"not a map"'), Base64.urlsafe_encode64("\xff"), Base64.urlsafe_encode64(" " * 1025), Base64.urlsafe_encode64('{"host":"evil.test"}'),
+      Base64.urlsafe_encode64(("[" * 105) + ("]" * 105)) ]
     bad.each do |header|
       parsed = RailsAiAdmin::Navigation::ListState.from_header(@access, header)
       assert_empty parsed.state
       assert parsed.discarded?
     end
     assert_empty RailsAiAdmin::Navigation::ListState.from_header(@access, nil).state
+    invalid_utf8 = (+"\xff").force_encoding(Encoding::UTF_8)
+    parsed = state({ filter: { invalid_utf8 => { "eq" => "1" } } })
+    assert_empty parsed.state
+    assert parsed.discarded?
   end
 end
