@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+The assistant learns the host's terms, falls back to other models, caches its
+repeated prompt, totals by calendar period and can be checked on a host's own
+questions. No migration is required; layout overrides move to contract 5.
+
 - `bin/rails rails_ai_admin:assistant:eval` asks the questions in
   `config/rails_ai_admin/assistant_eval.yml` as one person, through the real
   model, grants and operator notes, and checks the tools called, the answer
@@ -39,6 +43,11 @@
   without `Sec-Fetch-Site`; the admin asks such a request for its token.
 - The field input partial compiles through Herb, which `load_defaults 8.2`
   uses for HTML templates: `case` and its first `when` are separate tags.
+- The OpenRouter recordings were made again on 2026-11-22 with RubyLLM 2.2.3
+  and prompt caching on, adding active customers per month and operator notes
+  on `anthropic/claude-haiku-5.5`. The recorded evaluation passes 26 of 27
+  questions. Fallbacks and the evaluation task are tested against a scripted
+  provider only.
 - A scheduled CI workflow runs the suite against Rails main on SQLite and
   PostgreSQL (`gemfiles/rails_main.gemfile`). It warns early and does not
   block releases; Rails 8.2 is not supported yet.

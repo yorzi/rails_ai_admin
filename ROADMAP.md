@@ -1,6 +1,6 @@
 # Roadmap
 
-Rails AI Admin is a Public Preview. 0.4.1 was released on 2026-11-18. See [CHANGELOG.md](CHANGELOG.md) for changes and
+Rails AI Admin is a Public Preview. 0.4.1 was released on 2026-11-18; 0.5.0 is in development. See [CHANGELOG.md](CHANGELOG.md) for changes and
 [COMPATIBILITY.md](COMPATIBILITY.md) for version-specific validation evidence.
 
 ## 0.2.0: simpler setup (released)
@@ -41,17 +41,22 @@ read-only demo is a future task, not part of this release's claim.
   evaluation set recorded the same way.
 - `bin/demo --openrouter` for the demo on real models.
 
-## In development on main
+## 0.5.0: an assistant you can run in production (in development)
 
 Unreleased; see the Unreleased section of [CHANGELOG.md](CHANGELOG.md).
 
-- Totals per day, week, month or year in the person's time zone.
-- Host instructions for the assistant from the adapter, read for every turn.
+- Operator notes from the adapter, read for every turn, that explain terms
+  without granting anything.
 - Fallback models for rate limits, overloads and outages, through RubyLLM.
+- Prompt caching of the instructions and tools, with cache reads on the spend line.
+- Totals per day, week, month or year in the person's time zone.
+- `rails_ai_admin:assistant:eval` to check the assistant on a host's own
+  questions before rollout.
 - Rich text editors opened through Turbo navigation keep their styles.
-
-These have tests against a scripted provider. Recorded and live provider runs
-for them are still to come.
+- The OpenRouter recordings made again with caching on, including period groups
+  and operator notes. Fallbacks and the evaluation task are tested against a
+  scripted provider only.
+- A nightly, non-blocking run against Rails main.
 
 ## Next candidates
 
@@ -62,10 +67,8 @@ Prioritize from actual host use rather than a fixed release calendar:
   controlled attachment changes.
 - Bulk operations and bulk changes over more than 100 records as an
   asynchronous job; undo of a confirmed change.
-- Prompt caching for the assistant's instructions and tools, with cached
-  tokens shown in the spending record.
-- An evaluation task hosts can run against their own resources and
-  instructions before rollout.
+- A search hint when a query names a record of another resource, from the
+  2026-11-22 recordings (see the assistant guide's Current Limits).
 - Native OpenAI and Anthropic API checks, more locales and additional policy
   adapters.
 

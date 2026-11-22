@@ -1,7 +1,8 @@
 ---
 layout: default
 title: What's New in 0.4
-nav_order: 6
+parent: Release History
+nav_order: 4
 description: The assistant calculates totals, proposes one reviewed change for many records, stays within spending limits, forgets old conversations on schedule and is tested against real models.
 ---
 
@@ -126,7 +127,8 @@ period. For the 0.4.1 fixes and the required migration, see the
 
 * Ruby 3.3 or newer, Rails 8.1.4.1 or newer below 8.2, and SQLite or PostgreSQL.
 * Bulk changes and bulk actions take up to 100 records. Undo of a confirmed
-  change, grouping by date periods and host-supplied instructions are open.
+  change, grouping by date periods and host-supplied instructions are open
+  (the last two arrived in 0.5).
 * A cost limit counts a request whose cost is unknown as zero; set a token limit
   too when your model has no known pricing.
 * Native OpenAI and Anthropic APIs and repeated live runs still need

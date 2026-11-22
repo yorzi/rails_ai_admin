@@ -563,12 +563,16 @@ or a provider, so it cannot prove that credentials work.
 
 ## Current Limits
 
-The engine suite replays real conversations recorded on 2026-11-15 through
-RubyLLM's OpenRouter provider: totals with real usage and cost feeding the
-budget, another tenant's record and injected instructions staying out, one bulk
-review, and a reviewed update with `openai/gpt-6-luna`,
-`anthropic/claude-haiku-5.5` and `google/gemini-3.8-flash`. The recorded
-evaluation run of `openai/gpt-6-luna` passes all 27 questions. On every replay
+The engine suite replays real conversations recorded on 2026-11-22 through
+RubyLLM 2.2.3's OpenRouter provider with prompt caching on: totals with real
+usage and cost feeding the budget, active customers per month from period
+groups, operator notes that define a term, another tenant's record and injected
+instructions staying out, one bulk review, and a reviewed update with
+`openai/gpt-6-luna`, `anthropic/claude-haiku-5.5` and `google/gemini-3.8-flash`.
+Every OpenAI and Anthropic recording reads part of its prompt from the cache;
+Gemini reports no cache reads. The recorded evaluation run of `openai/gpt-6-luna`
+passes 26 of 27 questions; `count-inactive` answered correctly with
+`aggregate_records` instead of the expected `count_records`. On every replay
 the admin's tools, grants, usage accounting and review flows run for real; only
 the models' replies come from the recording, so a replay shows that this
 engine still handles those replies correctly, not that a model answers the same
@@ -581,9 +585,13 @@ match mode, like the index search box: a live model that searched for
 `describe_resource` now tells the model each field's mode. Some models also answer in Markdown,
 which the transcript shows as literal characters.
 
-Host instructions, fallback models, prompt caching, grouping by date period
-and the evaluation task have tests against a scripted provider but no recorded
-or live provider run yet. Selection
+A request that names a customer but asks for another resource's records can
+miss: asked to "list the invoice numbers of Judy Jones", `openai/gpt-6-luna`
+searched invoice numbers for her name twice instead of finding the customer
+first. Operator notes that say where such records live help.
+
+Fallback models and the evaluation task have tests against a scripted provider
+but no recorded or live provider run yet. Selection
 context, undo of a confirmed change and bulk changes over more than 100 records
 are not available yet. Streaming is saved and polled, not pushed over WebSockets.
 
