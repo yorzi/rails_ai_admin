@@ -1,5 +1,34 @@
 # Compatibility
 
+## 2026-11-22 — 0.5.0 development candidate
+
+Requires Ruby >= 3.3 and Rails >= 8.1.4.1, < 8.2, as in 0.4. The package is
+`0.5.0.dev`; publishing is blocked pending owner review. Results are local, at
+`32562d1`; remote CI on the pushed commit must be checked separately.
+
+| Check | Executed result |
+| --- | --- |
+| Ruby 4.0.10 and 3.3.14 × SQLite and PostgreSQL 18.4, Rails 8.1.4.1 | All four combinations: 702 tests / 6,500 assertions, zero failures, errors or skips, run without `OPENROUTER_API_KEY` |
+| Rails main `666c152` (8.2.0.alpha), Ruby 4.0.10 × SQLite and PostgreSQL | 702 / 6,500 each, zero failures. Without the CSRF change, 7 CSRF tests fail; without the input partial change, form pages raise `ActionView::SyntaxErrorInTemplate` (all 5 errors in `resources_test.rb`, the file checked). All 64 HTML+ERB templates compile through Herb 0.11.2. Rails 8.2 remains unsupported |
+| Recorded real-provider tests | All recordings made again on 2026-11-22 through RubyLLM 2.2.3's OpenRouter provider with prompt caching on, from empty cassettes: 8 scenarios (`openai/gpt-6-luna`; the reviewed update also with `anthropic/claude-haiku-5.5` and `google/gemini-3.8-flash`; operator notes with `anthropic/claude-haiku-5.5`) and the 27-question evaluation set on `openai/gpt-6-luna`. Final set about US$0.019, plus failed attempts |
+| Caching | Every OpenAI and Anthropic recording reports cache reads, e.g. 15,325 of 17,348 tokens for operator notes on Claude Haiku 5.5; Gemini 3.8 Flash reports none |
+| Evaluation results | 26 of 27 pass. `count-inactive` answered "4" correctly with `aggregate_records` instead of `count_records` and stays a recorded miss. `record-history` answered "No audited changes are listed"; the grader now accepts "no audited change" and "no admin change". `reference-label` was recorded again after a transient `PROVIDER_UNAVAILABLE` |
+| Scenario attempts | Period groups first failed because the test resource did not declare `created_at` filterable (test fix). The isolation question "list the invoice numbers of Judy Jones" failed twice: the model searched invoice numbers for her name and never read the injected invoice; tenant isolation held. The question now names the customer lookup and passes |
+| Fresh packaged Rails authentication quickstart | Passed: 2 / 21, generated authentication, registration, CRUD, revocation and rerun preservation |
+| Packaged session / SQLite | 18 / 377; 19 / 450 with every catalogued template overridden; reload and production eager boot passed |
+| Packaged Devise / Pundit / PostgreSQL | 28 / 453 on Propshaft and on Sprockets; production eager load passed |
+| Recovery | Development reload, template reload, crash/replay, outbox death/retry/reconciliation and collection worker recovery passed against synthetic effects |
+| Static checks | RuboCop: 377 files, no offenses; `npm run check --prefix frontend` passed |
+| Dependencies | bundle-audit 0.9.3 with ruby-advisory-db `31efd9aa` (2026-11-21): no vulnerabilities in the main and docs bundles. npm audit: 0 vulnerabilities. `bundle outdated --only-explicit`: only webmock (test) |
+| Documentation | Jekyll build serves tagged 0.4.1 at `/` and the 0.5 guides at `/next/`; `docs.py check`: 47 pages, no errors, two expected warnings for the `.dev` version |
+| Candidate check | `rake release:check_candidate` passed with the publishing gate closed; `pkg/rails_ai_admin-0.5.0.dev.gem` sha256 `0936ed968b9cb00b6b2440e046ec90676f7e70daaa629fbe17daae1c725a02a3` |
+
+Recorded replays show that this engine handles those model replies; they do not
+show how a model answers today. Fallback models and the evaluation task are
+tested against a scripted provider only. Native OpenAI and Anthropic APIs,
+repeated live runs, a browser pass of this candidate, human screen-reader
+validation and an independent host trial remain open.
+
 ## 2026-11-21 — Trix after Turbo navigation
 
 On Ruby 4.0.9, Rails 8.1.4.1, RubyLLM 2.2.3, turbo-rails 2.0.23, Trix 2.1.19 and Chromium 159, a browser probe against `bin/demo` opened the article editor two ways: Turbo clicks from the overview, and a full page load. Before the change, the Turbo route applied 0 of 2 Trix styles, logged 4 style-policy errors and showed the link dialog open. With Trix loaded in the layout head, both routes applied 2 of 2 styles with no policy errors; the link dialog stayed hidden until the link tool was clicked, and an edit saved through Turbo. This resolves the observation recorded on 2026-11-18. The same probe injected an inline script into a Turbo-loaded list ([hotwired/turbo#1476](https://github.com/hotwired/turbo/issues/1476)). Turbo copied the `csp-nonce` onto it, but the admin's `script-src 'self'` carries no nonce, so the script did not run.
