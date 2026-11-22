@@ -79,6 +79,14 @@ module RailsAiAdmin
         raise AccessDenied, "CONFLICT" unless pending_selection(selection).update_all(bulk_change_decision: decision) == 1
       end
 
+      # Atomically closes an open bulk review when replaced by a revised subset
+      # or edited values, invalidating the prior preview token and signature.
+      def supersede!(selection)
+        now = Time.current
+        updated = pending_selection(selection).update_all(bulk_change_decision: "dismiss", expires_at: now - 1.second, updated_at: now)
+        raise AccessDenied, "CONFLICT" unless updated == 1
+      end
+
       def pending_selection(selection)
         Selection.where(id: selection.selection_ref, manifest_digest: selection.manifest_digest, bulk_change_decision: nil)
           .where(Selection.arel_table[:expires_at].gt(Time.current))

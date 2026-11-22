@@ -23,6 +23,7 @@ RailsAiAdmin::Engine.routes.draw do
     # Reviews of an assistant's bulk change; the page writes nothing.
     get "selections/:selection_ref/bulk_change", to: "bulk_changes#show", as: :bulk_change
     post "selections/:selection_ref/bulk_change", to: "bulk_changes#create", as: :apply_bulk_change
+    post "selections/:selection_ref/bulk_change/revise", to: "bulk_changes#revise", as: :revise_bulk_change
   end
   # Drawn only for hosts that opt in; MCP builds on the assistant setup.
   if RailsAiAdmin.configuration.mcp

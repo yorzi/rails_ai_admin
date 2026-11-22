@@ -365,4 +365,78 @@ class AssistantBulkChangesIntegrationTest < ActionDispatch::IntegrationTest
       assert_equal 4, @bob.reload.points
     end
   end
+
+  def test_operator_can_revise_subset_and_values_before_confirming_and_old_preview_is_invalidated
+    with_bulk do
+      chat = start_chat
+      propose(chat, { resource: "changeable_customers", values: { points: 1 }, ids: [ @bob.id.to_s, @cara.id.to_s ] })
+      original_url = review_link(chat)
+      get original_url
+      assert_response :success
+      assert_select "table.raa-bulk-review tbody tr", count: 2
+      assert_select "input[type=checkbox][name='target_ids[]'][form='raa-bulk-revise']", count: 2
+
+      confirm_form = css_select("form[action$='/bulk_change']").first
+      old_fields = confirm_form.css("input[type=hidden]").to_h { |input| [ input["name"], input["value"] ] }
+      revise_form = css_select("form#raa-bulk-revise").first
+      change_token = revise_form.css("input[name='change']").first["value"]
+
+      # Untick Cara and adjust points to 7: creates a fresh preview, writes nothing.
+      post revise_form["action"], params: { change: change_token, target_ids: [ @bob.id.to_s ], values: { points: "7" } }
+      assert_response :see_other
+      assert_equal [ 4, 9 ], [ @bob.reload.points, @cara.reload.points ], "revising never writes records"
+      refute_equal original_url, response.location
+      revised_url = response.location
+
+      # Old preview token and confirm form are permanently invalidated.
+      get original_url
+      assert_response :conflict
+      post confirm_form["action"], params: old_fields.merge("decision" => "confirm")
+      assert_response :conflict
+
+      # Revised review shows only Bob with 4 -> 7; confirming updates only Bob.
+      get revised_url
+      assert_response :success
+      assert_select "table.raa-bulk-review tbody tr", count: 1
+      assert_select "table.raa-bulk-review td", text: /4 → 7/
+      decide("confirm")
+      assert_response :success
+      assert_equal [ 7, 9 ], [ @bob.reload.points, @cara.reload.points ]
+      assert_equal 1, chat.turns.where(kind: "continuation").count
+      assert_includes chat.turns.find_by!(kind: "continuation").content, "1 of 1 records were updated"
+    end
+  end
+
+  def test_revise_rejects_empty_selection_unselected_ids_unproposed_fields_and_invalid_values
+    with_bulk do
+      other = Customer.create!(account_id: 2, name: "Foreign", points: 50)
+      chat = start_chat
+      propose(chat, { resource: "changeable_customers", values: { points: 1 }, ids: [ @bob.id.to_s ] })
+      original_url = review_link(chat)
+      get original_url
+      revise_form = css_select("form#raa-bulk-revise").first
+      token = revise_form.css("input[name='change']").first["value"]
+
+      # Empty subset rejected without closing the original preview.
+      post revise_form["action"], params: { change: token, target_ids: [], values: { points: "2" } }
+      assert_response :unprocessable_content
+
+      # Unselected / foreign ID rejected.
+      post revise_form["action"], params: { change: token, target_ids: [ @bob.id.to_s, other.id.to_s ], values: { points: "2" } }
+      assert_response :unprocessable_content
+
+      # Unproposed field smuggling rejected.
+      post revise_form["action"], params: { change: token, target_ids: [ @bob.id.to_s ], values: { points: "2", name: "Hacked" } }
+      assert_response :unprocessable_content
+
+      # Invalid typed value rejected.
+      post revise_form["action"], params: { change: token, target_ids: [ @bob.id.to_s ], values: { points: "not-a-number" } }
+      assert_response :unprocessable_content
+
+      # Original preview remains open and unmodified.
+      get original_url
+      assert_response :success
+      assert_equal [ 4, 50 ], [ @bob.reload.points, other.reload.points ]
+    end
+  end
 end

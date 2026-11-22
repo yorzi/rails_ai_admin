@@ -280,6 +280,14 @@ en:
         other: Updated %{count} records.
       not_updated: Not updated
       open_list: Open %{label}
+      revise:
+        include: Include record
+        select_row: Include %{label} in this change
+        heading: Adjust records or values before confirming
+        note: Untick records above or change proposed values below, then update the preview. Nothing is saved until you confirm the revised review.
+        submit: Update preview
+        empty_selection: Select at least one record to update the preview.
+        invalid_values: One or more edited values are not valid for this resource.
     saved_views:
       title: Saved views
       save_current: Save this view

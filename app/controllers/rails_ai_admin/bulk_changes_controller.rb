@@ -13,6 +13,35 @@ module RailsAiAdmin
       @review_signature = Operations::BulkChange.sign_review(@selection, params[:change], @ready) if @ready.any?
     end
 
+    # Revises the selected subset and/or proposed field values into a brand-new
+    # immutable Selection + encrypted change token, invalidating the previous
+    # preview without writing any business records.
+    def revise
+      load_plan
+      selected_ids = Array(params[:target_ids]).select { |id| id.is_a?(String) && id.present? }.uniq
+      ready_ids = @ready.map { |item| item.target.id }
+      if selected_ids.empty?
+        @review_signature = Operations::BulkChange.sign_review(@selection, params[:change], @ready) if @ready.any?
+        @revise_error = t("rails_ai_admin.bulk_changes.revise.empty_selection")
+        return render :show, status: :unprocessable_content
+      end
+      raise AccessDenied, "INVALID_QUERY" unless (selected_ids - ready_ids).empty?
+      revised_values = revised_input_values
+      if revised_values.nil?
+        @review_signature = Operations::BulkChange.sign_review(@selection, params[:change], @ready) if @ready.any?
+        @revise_error = t("rails_ai_admin.bulk_changes.revise.invalid_values")
+        return render :show, status: :unprocessable_content
+      end
+      revised_selection = nil
+      Selection.transaction do
+        Operations::BulkChange.supersede!(@selection)
+        revised_selection = Selections::Builder.new.capture(context: @context, resource: @resource, target_ids: selected_ids)
+      end
+      revised_token = Operations::BulkChange.encode(context: @context, selection: revised_selection,
+        resource: @resource, values: revised_values, context_ref: @proposal.context_ref)
+      redirect_to bulk_change_path(selection_ref: revised_selection.selection_ref, change: revised_token), status: :see_other
+    end
+
     def create
       decision = params[:decision]
       raise AccessDenied, "INVALID_QUERY" unless Operations::BulkChange::DECISIONS.include?(decision)
@@ -86,6 +115,22 @@ module RailsAiAdmin
       @chat_ref = @proposal.context_ref&.then { |value| value[/\Araa:chat:([0-9a-f-]{36})\z/, 1] }
     rescue KeyError
       raise AccessDenied
+    end
+
+    def revised_input_values
+      raw = params[:values]
+      return @proposal.values if raw.nil?
+      return nil unless raw.is_a?(ActionController::Parameters)
+      submitted = raw.to_unsafe_h
+      allowed_names = @proposal.values.keys
+      return nil unless (submitted.keys - allowed_names).empty?
+      merged = @proposal.values.merge(submitted.transform_values { |value| value.is_a?(String) ? value : value.to_s })
+      access = Authorization::Access.new(@context, @resource)
+      writable = access.fields(:write, nil, operation: :update).select { |field| allowed_names.include?(field.name.to_s) }
+      return nil unless writable.size == allowed_names.size
+      result = InputSchema.new(writable, partial: true).coerce(merged, time_zone: @context.time_zone)
+      return nil unless result.valid?
+      merged
     end
 
     def return_path
