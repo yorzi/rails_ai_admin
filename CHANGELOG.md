@@ -33,6 +33,10 @@
   an overridden layout's head; until then, Trix keeps loading beside each editor.
 - `bin/demo` follows the supported RubyLLM range instead of pinning 2.2.0, so
   the demo runs the release the checkout was tested with.
+- On a Rails version with `forgery_protection_verification_strategy` (Rails
+  main, 8.2.0.alpha), engine controllers use `:header_or_legacy_token` whatever
+  the host's default. Rails 8.2's `:header_only` accepts a plain-HTTP request
+  without `Sec-Fetch-Site`; the admin asks such a request for its token.
 
 ## 0.4.1 (2026-11-18)
 

@@ -5,7 +5,16 @@ module RailsAiAdmin
   class ApplicationController < ActionController::Base
     # Routing metadata is useful; arbitrary inputs and search text are not logs.
     LOG_FILTER = /\A(?!(?:controller|action|resource|id|format)\z)/
-    protect_from_forgery with: :exception
+    # Rails 8.2 verifies requests by Sec-Fetch-Site, and its :header_only
+    # default accepts a request without that header over plain HTTP
+    # (rails/rails#56580; #58989 proposes an Origin check). The admin keeps a
+    # token check for such requests whatever the host's default: same-site
+    # headers pass, cross-site is refused, a missing header needs the token.
+    if ActionController::Base.respond_to?(:forgery_protection_verification_strategy)
+      protect_from_forgery with: :exception, using: :header_or_legacy_token
+    else
+      protect_from_forgery with: :exception
+    end
     wrap_parameters false
     layout "rails_ai_admin/application"
     helper RailsAiAdmin::FieldsHelper
