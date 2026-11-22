@@ -1,7 +1,8 @@
 # Releasing
 
 The owner authorized publication of the 0.5.0 Public Preview on 2026-11-22.
-The release commit opens `allowed_push_host`.
+The release commit opens `allowed_push_host`. Development continues as
+`0.6.0.dev` with publishing blocked.
 
 ## Candidate checks
 

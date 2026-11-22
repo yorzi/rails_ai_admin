@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+Development for 0.6.0.
+
 ## 0.5.0 (2026-11-22)
 
 This Public Preview adds operator notes, fallback models, prompt caching,
