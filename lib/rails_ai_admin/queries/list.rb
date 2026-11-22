@@ -12,6 +12,9 @@ module RailsAiAdmin
       PAGE_SIZE = 25
       COUNT_LIMIT = Presentation::IndexSettings::COUNT_LIMIT
       MAX_FILTER_CONDITIONS = 20
+      MAX_OR_GROUPS = 5
+      MAX_RELATION_FILTERS = 3
+      RelationFilterSpec = Data.define(:name, :resource, :kind, :fields)
       FILTER_VALUE = ->(value) { value.is_a?(String) && value.valid_encoding? && (value.encoding == Encoding::UTF_8 || value.ascii_only?) && value.length.between?(1, 200) && !value.match?(/[\x00-\x1f\x7f]/) }
       AREL_PREDICATES = { "eq" => :eq, "gte" => :gteq, "lte" => :lteq }.freeze
       OPERATORS = Field::FILTER_OPERATORS.map(&:to_s).freeze
@@ -29,13 +32,13 @@ module RailsAiAdmin
       # A named scope must be declared and granted; it is never discarded here.
       # filters: { "field" => { "eq" | "gte" | "lte" | "contains" | "blank" => "wire string", "in" => [ "wire string" ] } }, ANDed.
       # Every field needs a current :filter grant and a declared operator.
-      def call(search: nil, sort: nil, direction: "asc", page: "1", recover_empty_page: false, scope: nil, filters: nil, page_size: nil, offset: nil)
+      def call(search: nil, sort: nil, direction: "asc", page: "1", recover_empty_page: false, scope: nil, filters: nil, any_filters: nil, relation_filters: nil, page_size: nil, offset: nil)
         @access.authorize!(:index)
         unless (page.is_a?(String) || page.is_a?(Integer)) && page.to_s.valid_encoding? && page.to_s.ascii_only? && page.to_s.match?(/\A[1-9]\d{0,3}\z/) && page.to_i <= 1000
           raise AccessDenied, "INVALID_QUERY"
         end
         raise AccessDenied, "INVALID_QUERY" unless %w[asc desc].include?(direction)
-        relation, named = filtered_relation(search: search, scope: scope, filters: filters)
+        relation, named = filtered_relation(search: search, scope: scope, filters: filters, any_filters: any_filters, relation_filters: relation_filters)
         settings = @resource.index
         size = page_size || settings.page_size
         raise AccessDenied, "INVALID_QUERY" unless size.is_a?(Integer) && size.between?(1, Presentation::IndexSettings::MAX_PAGE_SIZE)
@@ -56,21 +59,43 @@ module RailsAiAdmin
 
       # The complete ordered relation the index shows across all its pages,
       # with the same grants and validation. Callers bound it themselves.
-      def relation(search: nil, sort: nil, direction: "asc", scope: nil, filters: nil)
+      def relation(search: nil, sort: nil, direction: "asc", scope: nil, filters: nil, any_filters: nil, relation_filters: nil)
         @access.authorize!(:index)
         raise AccessDenied, "INVALID_QUERY" unless %w[asc desc].include?(direction)
-        relation, = filtered_relation(search: search, scope: scope, filters: filters)
+        relation, = filtered_relation(search: search, scope: scope, filters: filters, any_filters: any_filters, relation_filters: relation_filters)
         sorted(relation, sort, direction).first
       end
 
       # The bounded number of records the same search/scope/filters match,
       # capped like the index count. Same grants and validation as call.
       CountResult = Data.define(:count, :capped, :scope)
-      def count(search: nil, scope: nil, filters: nil)
+      def count(search: nil, scope: nil, filters: nil, any_filters: nil, relation_filters: nil)
         @access.authorize!(:index)
-        relation, named = filtered_relation(search: search, scope: scope, filters: filters)
+        relation, named = filtered_relation(search: search, scope: scope, filters: filters, any_filters: any_filters, relation_filters: relation_filters)
         total = unique_records(relation).except(:order).limit(COUNT_LIMIT + 1).count
         CountResult.new([ total, COUNT_LIMIT ].min, total > COUNT_LIMIT, named&.name&.to_s)
+      end
+
+      # Single-hop declared relations the actor may filter through (belongs_to
+      # fields granted for :filter, and has_many/has_one panels whose child
+      # back-reference is readable). Each target requires :index (and assistant?
+      # when assistant: true) plus at least one granted :filter field.
+      def filterable_relations
+        specs = []
+        @access.fields(:filter).select { |field| field.scalar_type == :belongs_to }.each do |field|
+          target = Fields::Association.target(field)
+          fields = granted_target_filter_fields(target)
+          next if fields.empty?
+          specs << RelationFilterSpec.new(name: field.name.to_s, resource: target, kind: "belongs_to", fields: fields)
+        end
+        @resource.has_many_declarations.each do |definition|
+          child, = resolve_child_relation(definition)
+          next unless child
+          fields = granted_target_filter_fields(child)
+          next if fields.empty?
+          specs << RelationFilterSpec.new(name: definition.name.to_s, resource: child, kind: definition.single ? "has_one" : "has_many", fields: fields)
+        end
+        specs.uniq(&:name)
       end
 
       # Counts and aggregates over the same search, scope and filters as the
@@ -86,14 +111,14 @@ module RailsAiAdmin
       MAX_GROUPS = 25
       Aggregate = Data.define(:function, :field, :group_by, :count, :value, :groups, :groups_truncated, :scope, :period)
       Group = Data.define(:key, :count, :value)
-      def aggregate(function:, field: nil, group_by: nil, period: nil, search: nil, scope: nil, filters: nil)
+      def aggregate(function:, field: nil, group_by: nil, period: nil, search: nil, scope: nil, filters: nil, any_filters: nil, relation_filters: nil)
         @access.authorize!(:index)
         raise AccessDenied, "INVALID_QUERY" unless AGGREGATE_FUNCTIONS.include?(function)
         raise AccessDenied, "INVALID_QUERY" unless period.nil? || PERIODS.include?(period) && !group_by.nil?
         measure = function == "count" ? nil : aggregate_field(field, function)
         raise AccessDenied, "INVALID_QUERY" if function == "count" && !field.nil?
         grouping = group_by.nil? ? nil : group_field(group_by, period: !period.nil?)
-        relation, named = filtered_relation(search: search, scope: scope, filters: filters)
+        relation, named = filtered_relation(search: search, scope: scope, filters: filters, any_filters: any_filters, relation_filters: relation_filters)
         model = @resource.model_class
         primary = model.primary_key
         base = model.unscoped.where(primary => relation.except(:order).reselect(model.arel_table[primary]))
@@ -294,7 +319,7 @@ module RailsAiAdmin
 
       def unique_records(relation) = self.class.unique_records(relation)
 
-      def filtered_relation(search:, scope:, filters:)
+      def filtered_relation(search:, scope:, filters:, any_filters: nil, relation_filters: nil)
         # Leading and trailing spaces are never part of the term (RAA-021).
         search = search.strip if search.is_a?(String) && search.valid_encoding?
         unless search.nil? || search.is_a?(String) && search.valid_encoding? && (search.encoding == Encoding::UTF_8 || search.ascii_only?) && search.length <= 200 && !search.match?(/[\x00-\x1f\x7f]/)
@@ -310,9 +335,12 @@ module RailsAiAdmin
         else granted.find { |definition| definition.name.to_s == scope }
         end
         raise AccessDenied, "INVALID_QUERY" if scope && !unscoped && !named
+        validate_filter_budget!(filters, any_filters, relation_filters)
         relation = @access.relation
         relation = named.apply(relation) if named
         relation = apply_filters(relation, filters)
+        relation = apply_any_filters(relation, any_filters)
+        relation = apply_relation_filters(relation, relation_filters)
         if search.present?
           fields = @access.fields(:search, assistant: @assistant)
           raise AccessDenied, "INVALID_QUERY" if fields.empty?
@@ -368,23 +396,125 @@ module RailsAiAdmin
         [ access.relation.unscope(:order, :limit, :offset), target.model_class, title ]
       end
 
-      def apply_filters(relation, filters)
-        return relation if filters.nil?
+      def validate_filter_budget!(filters, any_filters, relation_filters)
+        total = filter_condition_count(filters)
+        if any_filters
+          raise AccessDenied, "INVALID_QUERY" unless any_filters.is_a?(Array) && any_filters.size.between?(1, MAX_OR_GROUPS)
+          any_filters.each do |group|
+            raise AccessDenied, "INVALID_QUERY" unless group.is_a?(Hash) && group.any?
+            total += filter_condition_count(group)
+          end
+        end
+        if relation_filters
+          raise AccessDenied, "INVALID_QUERY" unless relation_filters.is_a?(Hash) && relation_filters.size.between?(1, MAX_RELATION_FILTERS)
+          relation_filters.each do |name, nested|
+            raise AccessDenied, "INVALID_QUERY" unless (name.is_a?(String) || name.is_a?(Symbol)) && name.to_s.match?(Field::NAME)
+            raise AccessDenied, "INVALID_QUERY" unless nested.is_a?(Hash) && nested.any?
+            total += filter_condition_count(nested)
+          end
+        end
+        raise AccessDenied, "INVALID_QUERY" if total > MAX_FILTER_CONDITIONS
+      end
+
+      def filter_condition_count(filters)
+        return 0 if filters.nil?
         unless filters.is_a?(Hash) && filters.keys.all? { |key| key.is_a?(String) || key.is_a?(Symbol) } &&
-            filters.values.all? { |conditions| conditions.is_a?(Hash) && conditions.any? && conditions.keys.all? { |key| OPERATORS.include?(key.to_s) } } &&
-            filters.values.sum(&:size) <= MAX_FILTER_CONDITIONS
+            filters.values.all? { |conditions| conditions.is_a?(Hash) && conditions.any? && conditions.keys.all? { |key| OPERATORS.include?(key.to_s) } }
           raise AccessDenied, "INVALID_QUERY"
         end
+        filters.values.sum(&:size)
+      end
+
+      def apply_filters(relation, filters)
+        return relation if filters.nil? || filters.empty?
+        filter_predicates_for(filters).reduce(relation) { |scoped, predicate| scoped.where(predicate) }
+      end
+
+      def apply_any_filters(relation, any_filters)
+        return relation if any_filters.nil? || any_filters.empty?
+        clauses = any_filters.map do |group|
+          predicates = filter_predicates_for(group)
+          raise AccessDenied, "INVALID_QUERY" if predicates.empty?
+          predicates.reduce(&:and)
+        end
+        relation.where(clauses.reduce(&:or))
+      end
+
+      # Single-hop relation filters compiled as IN subqueries over the target
+      # resource's own Policy::Scope + soft_delete + target :filter grants.
+      # Using IN subqueries prevents row multiplication in counts/aggregates
+      # and avoids table-name collisions on self-referential models.
+      def apply_relation_filters(relation, relation_filters)
+        return relation if relation_filters.nil? || relation_filters.empty?
+        belongs_to_fields = @access.fields(:filter).select { |field| field.scalar_type == :belongs_to }.index_by { |field| field.name.to_s }
+        panels = @resource.has_many_declarations.index_by { |definition| definition.name.to_s }
+        parent_table = @resource.model_class.arel_table
+        parent_pk = @resource.model_class.primary_key
+        relation_filters.reduce(relation) do |scoped, (name, nested)|
+          key = name.to_s
+          if (field = belongs_to_fields[key])
+            target = Fields::Association.target(field)
+            target_relation = target_filtered_relation(target, nested)
+            target_table = target.model_class.arel_table
+            subquery = target_relation.reorder(nil).reselect(target_table[target.model_class.primary_key]).arel
+            scoped.where(parent_table[field.column].in(subquery))
+          elsif (definition = panels[key])
+            child, via_field = resolve_child_relation(definition)
+            raise AccessDenied, "INVALID_QUERY" unless child && via_field
+            child_relation = target_filtered_relation(child, nested)
+            fk_col = child.model_class.arel_table[via_field.column]
+            subquery = child_relation.where(fk_col.not_eq(nil)).reorder(nil).reselect(fk_col).arel
+            scoped.where(parent_table[parent_pk].in(subquery))
+          else
+            raise AccessDenied, "INVALID_QUERY"
+          end
+        end
+      end
+
+      def target_filtered_relation(target, nested)
+        target_access = Authorization::Access.new(@access.context, target)
+        target_access.authorize!(:index)
+        target_access.authorize_assistant! if @assistant
+        self.class.new(@access.context, target, assistant: @assistant).relation(filters: nested, scope: NamedScope::NONE)
+      rescue AccessDenied
+        raise AccessDenied, "INVALID_QUERY"
+      end
+
+      def granted_target_filter_fields(target)
+        target_access = Authorization::Access.new(@access.context, target)
+        target_access.authorize!(:index)
+        target_access.authorize_assistant! if @assistant
+        target_access.fields(:filter)
+      rescue AccessDenied, ConfigurationError
+        []
+      end
+
+      def resolve_child_relation(definition)
+        child = RailsAiAdmin.registry.fetch(definition.resource)
+        child_access = Authorization::Access.new(@access.context, child)
+        child_access.authorize!(:index)
+        child_access.authorize_assistant! if @assistant
+        via_field = child.fields.find { |candidate| candidate.name == definition.via(@resource) }
+        return nil unless via_field
+        target = Fields::Association.validate!(child, via_field)
+        return nil unless target.model_class == @resource.model_class
+        return nil unless child_access.fields(:read, view: :index).include?(via_field)
+        [ child, via_field ]
+      rescue AccessDenied, ConfigurationError, KeyError
+        nil
+      end
+
+      def filter_predicates_for(filters)
         granted = @access.fields(:filter).index_by { |field| field.name.to_s }
         model = @resource.model_class
         table = model.arel_table
-        filters.reduce(relation) do |scoped, (name, conditions)|
+        filters.flat_map do |name, conditions|
           field = granted[name.to_s] or raise AccessDenied, "INVALID_QUERY"
           col_type = model.type_for_attribute(field.column).type
-          conditions.reduce(scoped) do |inner, (operator, raw)|
+          conditions.map do |operator, raw|
             value = self.class.filter_value(field, operator.to_s, raw, time_zone: @access.context.time_zone)
             value = cast_key_filter(field, operator.to_s, value, col_type)
-            inner.where(self.class.filter_predicate(field, table[field.column], operator, value, string_column: %i[string text].include?(col_type)))
+            self.class.filter_predicate(field, table[field.column], operator, value, string_column: %i[string text].include?(col_type))
           end
         end
       end

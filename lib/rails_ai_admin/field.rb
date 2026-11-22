@@ -33,7 +33,7 @@ module RailsAiAdmin
     TIME_OF_DAY = /\A([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d)(?:\.\d{1,6})?)?\z/
     # A practical address check (Rails' own URI::MailTo pattern), not delivery proof.
     EMAIL = URI::MailTo::EMAIL_REGEXP
-    OPTIONS = %i[readonly required nullable values max_length searchable sortable filterable aggregatable create edit label choices index show hidden help_text tab panel resource foreign_key precision scale accept max_size max_files].freeze
+    OPTIONS = %i[readonly required nullable values max_length searchable sortable filterable aggregatable create edit label choices index show hidden help_text description tab panel resource foreign_key precision scale accept max_size max_files].freeze
     # A belongs_to value is the target's opaque primary-key text, never a record.
     REFERENCE = /\A[A-Za-z0-9][A-Za-z0-9_-]{0,99}\z/
     NAME = /\A[a-z][a-z0-9_]*\z/
@@ -541,9 +541,9 @@ module RailsAiAdmin
           raise ConfigurationError, "precision and scale are decimal options with 1..1000 digits and 0 <= scale <= precision"
         end
       end
-      { help_text: 500, tab: 80, panel: 80 }.each do |key, limit|
+      { help_text: 500, description: 300, tab: 80, panel: 80 }.each do |key, limit|
         value = options[key]
-        unless value.nil? || value.is_a?(String) && value.valid_encoding? && value.length.between?(1, limit)
+        unless value.nil? || value.is_a?(String) && value.valid_encoding? && value.length.between?(1, limit) && !value.match?(TEXT_CONTROLS)
           raise ConfigurationError, "Field presentation text must be bounded plain text"
         end
       end

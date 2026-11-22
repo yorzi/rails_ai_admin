@@ -35,6 +35,17 @@ module RailsAiAdmin
         @label || key.to_s.humanize
       end
 
+      # Short domain description surfaced to the assistant under assistant? grants.
+      def description(value = nil)
+        if value
+          unless value.is_a?(String) && value.valid_encoding? && value.length.between?(1, 500) && !value.match?(Field::TEXT_CONTROLS)
+            raise ConfigurationError, "Resource description must be 1 to 500 characters of plain text"
+          end
+          @description = String.new(value).freeze
+        end
+        @description
+      end
+
       def title(value = nil)
         @title = value.to_sym if value
         @title
@@ -220,6 +231,7 @@ module RailsAiAdmin
         Navigation::Settings.caption(label) unless navigation.hidden || navigation.label
         @model_name.freeze
         @label&.freeze
+        @description&.freeze
         @policy_name&.freeze
         @fields.freeze
         @scopes.freeze

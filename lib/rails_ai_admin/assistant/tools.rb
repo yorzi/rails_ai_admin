@@ -192,6 +192,26 @@ module RailsAiAdmin
         end
       end
 
+      def wire_any_filters(any)
+        return nil if any.nil? || any == []
+        raise AccessDenied, "INVALID_QUERY" unless any.is_a?(Array) && any.size.between?(1, Queries::List::MAX_OR_GROUPS)
+        any.map do |group|
+          parsed = wire_filters(group)
+          raise AccessDenied, "INVALID_QUERY" unless parsed&.any?
+          parsed
+        end
+      end
+
+      def wire_relation_filters(relations)
+        return nil if relations.nil? || relations == {}
+        raise AccessDenied, "INVALID_QUERY" unless relations.is_a?(Hash) && relations.size.between?(1, Queries::List::MAX_RELATION_FILTERS)
+        relations.to_h do |name, nested|
+          parsed = wire_filters(nested)
+          raise AccessDenied, "INVALID_QUERY" unless parsed&.any?
+          [ name.to_s, parsed ]
+        end
+      end
+
       def scalar(value)
         case value
         when String then value
@@ -218,7 +238,11 @@ module RailsAiAdmin
       private
 
       def perform(tool_call:)
-        { "resources" => @session.resources.map { |resource| { "key" => resource.key.to_s, "label" => resource.label } } }
+        { "resources" => @session.resources.map do |resource|
+          entry = { "key" => resource.key.to_s, "label" => resource.label }
+          entry["description"] = resource.description if resource.description
+          entry
+        end }
       end
     end
 
@@ -251,6 +275,14 @@ module RailsAiAdmin
           # Search and count apply no list tab unless one is named (RAA-007).
           "scopes" => access.named_scopes.map { |definition| { "name" => definition.name.to_s, "label" => definition.label, "default_in_ui" => definition.default? } }
         }
+        result["description"] = resource.description if resource.description
+        relations = Queries::List.new(@session.context, resource, assistant: true).filterable_relations
+        if relations.any?
+          result["filter_relations"] = relations.map do |spec|
+            { "relation" => spec.name, "resource" => spec.resource.key.to_s, "kind" => spec.kind,
+              "filters" => spec.fields.map { |field| { "field" => field.name.to_s, "operators" => field.filter_operators.map(&:to_s) } } }
+          end
+        end
         if RailsAiAdmin.configuration.surfaces
           result["operations"] = operations(resource, access)
           result["changes"] = changes(resource, access)
@@ -295,6 +327,7 @@ module RailsAiAdmin
 
       def field_entry(field)
         entry = { "name" => field.name.to_s, "label" => field.label, "type" => field.scalar_type.to_s }
+        entry["description"] = field.options[:description] if field.options[:description]
         # Operation inputs declare enum values; without them a model can only guess.
         entry["choices"] = field.choice_options.map { |label, value| { "value" => value, "label" => label } } if %i[select enum].include?(field.scalar_type)
         entry
@@ -323,6 +356,12 @@ module RailsAiAdmin
           "query" => { "type" => "string", "maxLength" => 200, "description" => "Text matched against searchable fields with each field's match mode" },
           "filters" => { "type" => "object", "description" => "Field name to {operator: value} with operators from describe_resource: eq, in (a list of values), gte, lte, contains (part of the text) or blank (true for empty, false for not empty); use select values, not labels",
             "additionalProperties" => { "type" => "object", "additionalProperties" => FILTER_VALUE_SCHEMA } },
+          "any" => { "type" => "array", "maxItems" => Queries::List::MAX_OR_GROUPS,
+            "description" => "Optional OR filter groups (up to #{Queries::List::MAX_OR_GROUPS}); each item is a filters object whose conditions are ANDed, and the groups are ORed together",
+            "items" => { "type" => "object", "additionalProperties" => { "type" => "object", "additionalProperties" => FILTER_VALUE_SCHEMA } } },
+          "relation_filters" => { "type" => "object",
+            "description" => "Optional single-hop filters over related resources from describe_resource filter_relations: {relation_name: {target_field: {operator: value}}}",
+            "additionalProperties" => { "type" => "object", "additionalProperties" => { "type" => "object", "additionalProperties" => FILTER_VALUE_SCHEMA } } },
           "scope" => { "type" => "string", "description" => "Optional scope name from describe_resource" },
           "sort" => { "type" => "string", "description" => "Optional sortable field from describe_resource" },
           "direction" => { "type" => "string", "enum" => %w[asc desc] },
@@ -334,7 +373,7 @@ module RailsAiAdmin
 
       private
 
-      def perform(tool_call:, resource:, query: nil, filters: nil, scope: nil, sort: nil, direction: nil, page: 1, offset: nil)
+      def perform(tool_call:, resource:, query: nil, filters: nil, any: nil, relation_filters: nil, scope: nil, sort: nil, direction: nil, page: 1, offset: nil)
         resource = @session.resource(resource)
         access = @session.access(resource)
         raise AccessDenied, "INVALID_QUERY" unless page.is_a?(Integer) && page.between?(1, 50)
@@ -343,6 +382,7 @@ module RailsAiAdmin
         offset = (page - 1) * PAGE_LIMIT if offset.nil?
         raise AccessDenied, "INVALID_QUERY" unless offset.is_a?(Integer) && offset.between?(0, MAX_RECORDS - 1)
         result = Queries::List.new(@session.context, resource, assistant: true).call(search: query.presence, page: page.to_s, filters: wire_filters(filters),
+          any_filters: wire_any_filters(any), relation_filters: wire_relation_filters(relation_filters),
           scope: list_scope(scope), sort: sort, direction: direction || "asc", page_size: [ PAGE_LIMIT, MAX_RECORDS - offset ].min, offset: offset)
         records, omitted, @row_positions = record_entries_with_positions(access, result.records, :index)
         @queried_count = result.records.size
@@ -395,6 +435,10 @@ module RailsAiAdmin
           "query" => { "type" => "string", "maxLength" => 200 },
           "filters" => { "type" => "object", "description" => "Field name to {operator: value} with operators from describe_resource: eq, in (a list of values), gte, lte, contains (part of the text) or blank (true for empty, false for not empty)",
             "additionalProperties" => { "type" => "object", "additionalProperties" => FILTER_VALUE_SCHEMA } },
+          "any" => { "type" => "array", "maxItems" => Queries::List::MAX_OR_GROUPS,
+            "items" => { "type" => "object", "additionalProperties" => { "type" => "object", "additionalProperties" => FILTER_VALUE_SCHEMA } } },
+          "relation_filters" => { "type" => "object",
+            "additionalProperties" => { "type" => "object", "additionalProperties" => { "type" => "object", "additionalProperties" => FILTER_VALUE_SCHEMA } } },
           "scope" => { "type" => "string", "description" => "Optional scope name from describe_resource" }
         } })
 
@@ -402,9 +446,10 @@ module RailsAiAdmin
 
       private
 
-      def perform(tool_call:, resource:, query: nil, filters: nil, scope: nil)
+      def perform(tool_call:, resource:, query: nil, filters: nil, any: nil, relation_filters: nil, scope: nil)
         resource = @session.resource(resource)
-        result = Queries::List.new(@session.context, resource, assistant: true).count(search: query.presence, filters: wire_filters(filters), scope: list_scope(scope))
+        result = Queries::List.new(@session.context, resource, assistant: true).count(search: query.presence, filters: wire_filters(filters),
+          any_filters: wire_any_filters(any), relation_filters: wire_relation_filters(relation_filters), scope: list_scope(scope))
         { "resource" => resource.key.to_s, "applied_scope" => result.scope, "count" => result.count, "capped" => result.capped }
       end
     end
@@ -428,6 +473,10 @@ module RailsAiAdmin
           "query" => { "type" => "string", "maxLength" => 200 },
           "filters" => { "type" => "object", "description" => "Field name to {operator: value}, as for search_records",
             "additionalProperties" => { "type" => "object", "additionalProperties" => FILTER_VALUE_SCHEMA } },
+          "any" => { "type" => "array", "maxItems" => Queries::List::MAX_OR_GROUPS,
+            "items" => { "type" => "object", "additionalProperties" => { "type" => "object", "additionalProperties" => FILTER_VALUE_SCHEMA } } },
+          "relation_filters" => { "type" => "object",
+            "additionalProperties" => { "type" => "object", "additionalProperties" => { "type" => "object", "additionalProperties" => FILTER_VALUE_SCHEMA } } },
           "scope" => { "type" => "string", "description" => "Optional scope name from describe_resource" }
         } })
 
@@ -435,13 +484,14 @@ module RailsAiAdmin
 
       private
 
-      def perform(tool_call:, resource:, function:, field: nil, group_by: nil, period: nil, query: nil, filters: nil, scope: nil)
+      def perform(tool_call:, resource:, function:, field: nil, group_by: nil, period: nil, query: nil, filters: nil, any: nil, relation_filters: nil, scope: nil)
         resource = @session.resource(resource)
         unless function.is_a?(String) && [ field, group_by, period ].all? { |value| value.nil? || value.is_a?(String) }
           raise AccessDenied, "INVALID_QUERY"
         end
         result = Queries::List.new(@session.context, resource, assistant: true).aggregate(function: function, field: field, group_by: group_by,
-          period: period, search: query.presence, filters: wire_filters(filters), scope: list_scope(scope))
+          period: period, search: query.presence, filters: wire_filters(filters), any_filters: wire_any_filters(any),
+          relation_filters: wire_relation_filters(relation_filters), scope: list_scope(scope))
         references = reference_resolver(@session.access(resource))
         if result.group_by&.scalar_type == :belongs_to
           references.prime(result.group_by, result.groups.filter_map { |group| group.key&.to_s })
