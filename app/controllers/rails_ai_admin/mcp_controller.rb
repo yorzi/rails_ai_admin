@@ -29,6 +29,9 @@ module RailsAiAdmin
         server.handle(message)
       end
       body ? render(json: body, status: status) : head(status)
+    rescue StandardError => error
+      Rails.error.report(error, handled: true, severity: :error, source: "rails_ai_admin")
+      render json: rpc_error(message.is_a?(Hash) ? message["id"] : nil, -32603, "Internal error"), status: :internal_server_error
     end
 
     # No server-initiated stream and no session to end.
@@ -64,7 +67,10 @@ module RailsAiAdmin
     def same_origin?
       origin = request.headers["Origin"]
       return true if origin.blank?
-      URI.parse(origin).then { |uri| uri.host == request.host && (uri.port || 80) == request.port }
+      uri = URI.parse(origin)
+      %w[http https].include?(uri.scheme) && uri.scheme == request.scheme &&
+        uri.host.is_a?(String) && uri.host.casecmp?(request.host) &&
+        uri.port == request.port && uri.userinfo.nil? && uri.path.empty? && uri.query.nil? && uri.fragment.nil?
     rescue URI::InvalidURIError
       false
     end
@@ -83,7 +89,7 @@ module RailsAiAdmin
         adapter.resolve_job(actor_ref: token.actor_ref, tenant_ref: token.tenant_ref, security_version: token.security_version)
       end
       unless context.is_a?(Context) && context.actor_ref == token.actor_ref && context.tenant_ref == token.tenant_ref &&
-          context.security_version == token.security_version
+          context.security_version == token.security_version && Assistant.available?(context)
         return [ nil, nil ]
       end
       token.update_columns(last_used_at: Time.current) if token.last_used_at.nil? || token.last_used_at < 1.minute.ago

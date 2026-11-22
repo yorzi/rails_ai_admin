@@ -1,5 +1,9 @@
 <%= turbo_frame_tag "raa_assistant_transcript", class: "raa-chat", data: { controller: "raa-poll", raa_poll_url_value: assistant_conversation_path(chat_ref: @chat.ref) } do %>
-  <% if @entries.empty? && !@pending && !@failure %>
+  <% if !@current %>
+    <div class="raa-conversation-closed">
+      <p class="raa-notice" role="status"><%= @chat.status == "archived" ? t("rails_ai_admin.assistant.archived_note") : t("rails_ai_admin.assistant.closed_note") %></p>
+    </div>
+  <% elsif @entries.empty? && !@pending && !@failure %>
     <div class="raa-chat-empty">
       <h2><%= t("rails_ai_admin.assistant.empty_title") %></h2>
       <p><%= t("rails_ai_admin.assistant.empty") %></p>

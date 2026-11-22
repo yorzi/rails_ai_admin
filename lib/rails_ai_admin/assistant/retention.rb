@@ -34,10 +34,20 @@ module RailsAiAdmin
           last_id = ids.last
           break if ids.size < BATCH
         end
+        prune_access_tokens
         Result.new(deleted)
       end
 
       private
+
+      def prune_access_tokens
+        require "rails_ai_admin/mcp"
+        return unless Mcp::AccessToken.table_exists?
+        tokens = Mcp::AccessToken.arel_table
+        Mcp::AccessToken.where(tokens[:expires_at].lt(@cutoff).or(tokens[:revoked_at].lt(@cutoff))).delete_all
+      rescue ActiveRecord::ActiveRecordError
+        0
+      end
 
       def candidates
         Chat.where(Chat.arel_table[:updated_at].lt(@cutoff))
@@ -47,7 +57,8 @@ module RailsAiAdmin
 
       def recent_usage_owners
         usage = ::RubyLLM::ActiveRecord::Usage
-        usage.where(owner_type: Chat.polymorphic_name).where(usage.arel_table[:created_at].gt(@now - Budget::WINDOW)).select(:owner_id)
+        usage.where(owner_type: Chat.polymorphic_name).where.not(owner_id: nil)
+          .where(usage.arel_table[:created_at].gt(@now - Budget::WINDOW)).select(:owner_id)
       end
 
       # Rechecked under the chat lock that admission and claiming also take,

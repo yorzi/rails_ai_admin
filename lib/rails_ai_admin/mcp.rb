@@ -37,13 +37,15 @@ module RailsAiAdmin
 
       # Returns [record, token]; the token is never readable again.
       def self.issue!(context, name:, lifetime:)
-        raise AccessDenied, "INVALID_QUERY" unless name.is_a?(String) && name.strip.length.between?(1, 80) && LIFETIMES.key?(lifetime.to_s)
-        raise AccessDenied, "INVALID_QUERY" if for_owner(context).active.count >= MAX_ACTIVE
-        token = "#{TOKEN_PREFIX}#{SecureRandom.urlsafe_base64(32)}"
-        record = create!(id: SecureRandom.uuid, actor_ref: context.actor_ref, tenant_ref: context.tenant_ref,
-          security_version: context.security_version, name: name.strip.squish, token_digest: digest(token),
-          expires_at: Time.current + LIFETIMES.fetch(lifetime.to_s))
-        [ record, token ]
+        raise AccessDenied, "INVALID_QUERY" unless name.is_a?(String) && name.valid_encoding? && name.strip.length.between?(1, 80) && LIFETIMES.key?(lifetime.to_s)
+        transaction(requires_new: true) do
+          raise AccessDenied, "INVALID_QUERY" if for_owner(context).active.lock.count >= MAX_ACTIVE
+          token = "#{TOKEN_PREFIX}#{SecureRandom.urlsafe_base64(32)}"
+          record = create!(id: SecureRandom.uuid, actor_ref: context.actor_ref, tenant_ref: context.tenant_ref,
+            security_version: context.security_version, name: name.strip.squish, token_digest: digest(token),
+            expires_at: Time.current + LIFETIMES.fetch(lifetime.to_s))
+          [ record, token ]
+        end
       end
 
       def self.authenticate(token)
@@ -74,13 +76,19 @@ module RailsAiAdmin
       # Returns [status, body or nil].
       def handle(message)
         raise Error.new(-32600, "Invalid request") unless message.is_a?(Hash) && message["jsonrpc"] == "2.0" && message["method"].is_a?(String)
-        id = message["id"]
         notification = !message.key?("id")
-        result = dispatch(message["method"], message["params"].is_a?(Hash) ? message["params"] : {})
+        id = message["id"]
+        unless notification || id.nil? || id.is_a?(String) || id.is_a?(Integer) || (id.is_a?(Float) && id.finite?)
+          raise Error.new(-32600, "Invalid request id")
+        end
+        raw_params = message["params"]
+        raise Error.new(-32602, "Params must be an object") unless raw_params.nil? || raw_params.is_a?(Hash)
+        result = dispatch(message["method"], raw_params || {})
         return [ 202, nil ] if notification
         [ 200, { "jsonrpc" => "2.0", "id" => id, "result" => result } ]
       rescue Error => error
-        [ 200, { "jsonrpc" => "2.0", "id" => message.is_a?(Hash) ? message["id"] : nil, "error" => { "code" => error.code, "message" => error.message } } ]
+        response_id = message.is_a?(Hash) && (message["id"].is_a?(String) || message["id"].is_a?(Integer)) ? message["id"] : nil
+        [ 200, { "jsonrpc" => "2.0", "id" => response_id, "error" => { "code" => error.code, "message" => error.message } } ]
       end
 
       private
@@ -116,9 +124,10 @@ module RailsAiAdmin
       def call(params)
         tool = tools.find { |candidate| candidate.name == params["name"] }
         raise Error.new(-32602, "Unknown tool") unless tool
-        arguments = params["arguments"] || {}
-        raise Error.new(-32602, "Arguments must be an object") unless arguments.is_a?(Hash)
-        result = tool.execute(tool_call: ToolCall.new("mcp-#{SecureRandom.uuid}"), **arguments.transform_keys(&:to_sym))
+        arguments = params.key?("arguments") ? params["arguments"] : {}
+        arguments = {} if arguments.nil?
+        raise Error.new(-32602, "Arguments must be an object") unless arguments.is_a?(Hash) && !arguments.key?("tool_call")
+        result = tool.execute(**arguments.transform_keys(&:to_sym), tool_call: ToolCall.new("mcp-#{SecureRandom.uuid}"))
         result = result.merge("review_url" => @review_url.call(result["surface"])) if result.is_a?(Hash) && result["surface"].is_a?(String)
         if result.is_a?(Hash) && result["bulk_change"].is_a?(String)
           result = result.except("bulk_change").merge("review_url" => @bulk_review_url.call(result["selection"], result["bulk_change"]))

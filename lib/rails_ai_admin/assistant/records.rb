@@ -39,6 +39,7 @@ module RailsAiAdmin
     # this class's own polymorphic associations, never by table-wide queries.
     class Message < ::ActiveRecord::Base
       self.table_name = "rails_ai_admin_assistant_messages"
+      self.filter_attributes += %i[content thinking_text thinking_signature raw_content raw_reasoning]
       acts_as_message chat: :chat, chat_class: "RailsAiAdmin::Assistant::Chat", chat_foreign_key: :chat_id
       around_save :fence_worker_write
       around_destroy :fence_worker_write, prepend: true
@@ -53,7 +54,7 @@ module RailsAiAdmin
     # A unit of inbox work: one human message or one Surface continuation.
     class Turn < ::ActiveRecord::Base
       self.table_name = "rails_ai_admin_assistant_turns"
-      self.filter_attributes += %i[content]
+      self.filter_attributes += %i[content draft]
       KINDS = %w[message continuation].freeze
       STATUSES = %w[queued running completed failed cancelled].freeze
       ACTIVE = %w[queued running].freeze

@@ -16,16 +16,16 @@ module RailsAiAdmin
     def create
       decision = params[:decision]
       raise AccessDenied, "INVALID_QUERY" unless Operations::BulkChange::DECISIONS.include?(decision)
-      load_plan
-      if decision == "confirm"
-        Operations::BulkChange.verify_review!(params[:review_signature], params[:change], @ready)
-        raise AccessDenied if @ready.empty?
-      end
-      Operations::BulkChange.decide!(@selection, decision)
       if decision == "dismiss"
+        load_dismiss_target
+        Operations::BulkChange.decide!(@selection, decision)
         continue_chat("dismissed", "Nothing was changed.")
         return redirect_to(return_path, status: :see_other, notice: t("rails_ai_admin.bulk_changes.dismissed"))
       end
+      load_plan
+      Operations::BulkChange.verify_review!(params[:review_signature], params[:change], @ready)
+      raise AccessDenied if @ready.empty?
+      Operations::BulkChange.decide!(@selection, decision)
       runner = Operations::Runner.new
       outcomes = @ready.map do |item|
         code = begin
@@ -62,6 +62,26 @@ module RailsAiAdmin
       @items = Operations::BulkChange.plan(context: @context, resource: @resource, selection: @selection, records: records, values: @proposal.values)
       @ready = @items.select { |item| item.code.nil? }
       @skipped = @items.reject { |item| item.code.nil? }
+      @fields = @resource.fields.select { |field| @proposal.values.key?(field.name.to_s) }
+      @chat_ref = @proposal.context_ref&.then { |value| value[/\Araa:chat:([0-9a-f-]{36})\z/, 1] }
+    rescue KeyError
+      raise AccessDenied
+    end
+
+    # Dismissing never mutates domain records, so it stays allowed even if a
+    # selected record changed version after the proposal was created.
+    def load_dismiss_target
+      @proposal = Operations::BulkChange.decode(params[:change], context: @context)
+      raise AccessDenied unless @proposal.selection_ref == params[:selection_ref]
+      row = Selection.find_by(id: @proposal.selection_ref, actor_ref: @context.actor_ref,
+        tenant_ref: @context.tenant_ref, security_version: @context.security_version)
+      raise AccessDenied unless row && row.id == @proposal.selection_ref && row.expires_at && row.expires_at > Time.current &&
+        row.manifest_digest == @proposal.manifest_digest && row.resource_key == @proposal.resource_key
+      @resource = RailsAiAdmin.registry.fetch(row.resource_key)
+      raise AccessDenied unless @resource.assistant_change?(:bulk_update)
+      @selection = Selections::Builder::Snapshot.new(row.id, row.resource_key, row.manifest_digest, row.expires_at, [].freeze)
+      Operations::BulkChange.ensure_open!(@selection)
+      @ready = Array.new(row.item_count)
       @fields = @resource.fields.select { |field| @proposal.values.key?(field.name.to_s) }
       @chat_ref = @proposal.context_ref&.then { |value| value[/\Araa:chat:([0-9a-f-]{36})\z/, 1] }
     rescue KeyError

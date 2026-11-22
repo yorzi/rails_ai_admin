@@ -171,4 +171,53 @@ class AssistantTrustTest < ActiveSupport::TestCase
       assert_empty LLMFixture.requests
     end
   end
+
+  def test_search_records_advances_offset_past_omitted_rows_without_looping_and_reclaim_honors_cancel
+    with_assistant do
+      25.times { |i| Customer.create!(account_id: 1, name: "Hidden #{i}") }
+      policy = Class.new(AssistantPolicy) do
+        def allowed?(context:, action:, resource:, record: nil)
+          return false if action.to_sym == :show && record.is_a?(Customer) && record.name != "Hidden 24"
+          super
+        end
+      end
+      const_name = "OmitShowAssistantPolicy"
+      Object.const_set(const_name, policy)
+      previous = RailsAiAdmin.configuration.authorization_adapter
+      RailsAiAdmin.configuration.authorization_adapter = const_name
+      begin
+        session = RailsAiAdmin::Assistant::Session.new(context: context, chat: nil, fence: -> { })
+        tool = RailsAiAdmin::Assistant::SearchRecords.new(session)
+        page1 = tool.execute(resource: "contract_customers", offset: 0)
+        assert_equal 0, page1["records"].size
+        assert_equal 20, page1["omitted"]
+        assert_equal true, page1["has_more"]
+        assert_equal 20, page1["next_offset"], "offset must advance past omitted rows instead of looping at 0"
+        page2 = tool.execute(resource: "contract_customers", offset: page1["next_offset"])
+        assert_equal [ "Hidden 24" ], page2["records"].map { |r| r.dig("fields", "name") }
+      ensure
+        RailsAiAdmin.configuration.authorization_adapter = previous
+        Object.send(:remove_const, const_name) if Object.const_defined?(const_name, false)
+      end
+
+      # A stalled running turn whose chat was cancelled is cancelled on reclaim, not re-executed.
+      chat = new_chat
+      turn = admit(chat, "Cancel while running")
+      claim = Coordinator.new.claim_next(chat.ref)
+      assert claim
+      chat.update_columns(cancelled: true)
+      turn.update_columns(lease_expires_at: 1.minute.ago)
+      assert_nil Coordinator.new.claim_next(chat.ref)
+      assert_equal [ "cancelled", "CANCELLED" ], [ turn.reload.status, turn.error_code ]
+
+      # Rational daily cost limit converts cleanly.
+      cfg = RailsAiAdmin::Configuration.new
+      cfg.assistant = true
+      cfg.assistant_adapter = "TestAssistantAdapter"
+      cfg.assistant_model = "gpt-4.1-mini"
+      cfg.assistant_daily_cost_limit = Rational(1, 2)
+      cfg.finalize!
+      assert_equal BigDecimal("0.5"), cfg.assistant_daily_cost_limit
+    end
+  end
 end

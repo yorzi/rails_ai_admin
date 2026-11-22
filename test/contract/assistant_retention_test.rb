@@ -84,4 +84,21 @@ class AssistantRetentionTest < ActiveSupport::TestCase
       assert_equal 0, Retention.new.call.chats
     end
   end
+
+  def test_null_usage_owner_does_not_halt_retention_and_old_mcp_tokens_are_pruned
+    with_assistant do
+      old = travel_to(40.days.ago) { answered_chat }
+      RubyLLM::ActiveRecord::Usage.create!(owner_type: RailsAiAdmin::Assistant::Chat.polymorphic_name, owner_id: nil,
+        operation: "chat", provider: "openai", model: "gpt-4.1-mini", status: "succeeded", input_tokens: 1)
+      require "rails_ai_admin/mcp"
+      expired_token, = RailsAiAdmin::Mcp::AccessToken.issue!(context, name: "Old token", lifetime: "30")
+      expired_token.update_columns(expires_at: 40.days.ago)
+      active_token, = RailsAiAdmin::Mcp::AccessToken.issue!(context, name: "Active token", lifetime: "30")
+
+      assert_equal 1, Retention.new(older_than: 30.days).call.chats
+      refute RailsAiAdmin::Assistant::Chat.exists?(old.id)
+      refute RailsAiAdmin::Mcp::AccessToken.exists?(expired_token.id)
+      assert RailsAiAdmin::Mcp::AccessToken.exists?(active_token.id)
+    end
+  end
 end

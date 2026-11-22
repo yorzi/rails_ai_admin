@@ -225,7 +225,10 @@ module RailsAiAdmin
       unless assistant_daily_cost_limit.nil? || cost_limit?(assistant_daily_cost_limit)
         raise ConfigurationError, "assistant_daily_cost_limit must be nil or an amount in US dollars above 0 and up to 1000000"
       end
-      self.assistant_daily_cost_limit = BigDecimal(assistant_daily_cost_limit.to_s).freeze unless assistant_daily_cost_limit.nil?
+      unless assistant_daily_cost_limit.nil?
+        limit = assistant_daily_cost_limit.is_a?(Rational) ? BigDecimal(assistant_daily_cost_limit, 16) : BigDecimal(assistant_daily_cost_limit.to_s)
+        self.assistant_daily_cost_limit = limit.freeze
+      end
       unless assistant_retention.nil? || assistant_retention.is_a?(ActiveSupport::Duration) && assistant_retention.between?(1.day, 3660.days)
         raise ConfigurationError, "assistant_retention must be nil or a duration from 1 day to 10 years, such as 90.days"
       end

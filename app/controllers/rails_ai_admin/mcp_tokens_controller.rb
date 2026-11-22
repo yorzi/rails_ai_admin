@@ -22,8 +22,10 @@ module RailsAiAdmin
     end
 
     def revoke
-      token = Mcp::AccessToken.for_owner(@context).find_by(id: params[:id])
-      raise AccessDenied unless token
+      id = params[:id]
+      raise AccessDenied unless id.is_a?(String) && id.match?(/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/)
+      token = Mcp::AccessToken.for_owner(@context).find_by(id: id)
+      raise AccessDenied unless token && token.id == id && token.actor_ref == @context.actor_ref && token.tenant_ref == @context.tenant_ref
       token.update!(revoked_at: Time.current) if token.revoked_at.nil?
       redirect_to mcp_tokens_path, status: :see_other, notice: t("rails_ai_admin.mcp.revoked")
     end

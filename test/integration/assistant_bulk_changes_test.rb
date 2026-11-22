@@ -224,6 +224,11 @@ class AssistantBulkChangesIntegrationTest < ActionDispatch::IntegrationTest
       get link
       assert_response :conflict
       assert_equal %w[Bob Cara], [ @bob.reload.name, @cara.reload.name ]
+      # Even when a selected record changed, the user can still dismiss the stale review.
+      path, query = link.split("?")
+      post path, params: { change: Rack::Utils.parse_query(query).fetch("change"), decision: "dismiss" }
+      assert_redirected_to "/backoffice/assistant/conversations/#{other.ref}"
+      assert_equal %w[Bob Cara], [ @bob.reload.name, @cara.reload.name ]
     end
   end
 

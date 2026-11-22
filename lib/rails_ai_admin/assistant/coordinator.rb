@@ -71,10 +71,15 @@ module RailsAiAdmin
       # Safe inside a caller transaction (Surface confirmation) and outside one.
       def self.admit!(chat, kind:, content:, admission_key:)
         raise ArgumentError, "Unknown turn kind" unless Turn::KINDS.include?(kind)
-        raise AccessDenied, "INVALID_QUERY" unless admission_key.is_a?(String) && admission_key.match?(ADMISSION_KEY)
-        text = content.is_a?(String) ? content.strip : ""
-        raise AccessDenied, "INVALID_QUERY" unless text.valid_encoding? && text.length.between?(1, MAX_CONTENT)
+        raise AccessDenied, "INVALID_QUERY" unless admission_key.is_a?(String) && admission_key.valid_encoding? && admission_key.match?(ADMISSION_KEY)
+        raise AccessDenied, "INVALID_QUERY" if kind == "message" && admission_key.start_with?("intent:", "bulk:")
+        raise AccessDenied, "INVALID_QUERY" unless content.is_a?(String) && content.valid_encoding?
+        text = content.strip
+        raise AccessDenied, "INVALID_QUERY" unless text.length.between?(1, MAX_CONTENT)
         turn = Turn.transaction(requires_new: true) do
+          # Lock all chats of this owner in id order on message admission to
+          # serialize daily limit and budget checks across concurrent chats.
+          Chat.where(actor_ref: chat.actor_ref, tenant_ref: chat.tenant_ref).order(:id).lock.pluck(:id) if kind == "message"
           locked = Chat.lock.find(chat.id)
           raise AccessDenied, "CHAT_CLOSED" unless locked.status == "active"
           existing = Turn.find_by(chat_id: locked.id, admission_key: admission_key)
@@ -144,6 +149,12 @@ module RailsAiAdmin
               turn.update!(status: "cancelled", error_code: "CHAT_CLOSED", completed_at: now)
               next
             end
+            if turn.status == "running" && chat.cancelled
+              # A stalled turn that the user cancelled must not be re-executed.
+              turn.update!(status: "cancelled", error_code: "CANCELLED", completed_at: now, lease_owner: nil, lease_expires_at: nil)
+              chat.update_columns(cancelled: false)
+              next
+            end
             if turn.attempts >= MAX_ATTEMPTS
               turn.update!(status: "failed", error_code: turn.error_code || "ATTEMPTS_EXHAUSTED", completed_at: now)
               next
@@ -180,7 +191,7 @@ module RailsAiAdmin
               raise StepLimit if (steps += 1) > MAX_STEPS
               # A step after a tool-call response runs those tools and calls no
               # provider, so the round always finishes; only a request stops.
-              tools_pending = last.respond_to?(:tool_call?) && last.tool_call?
+              tools_pending = last.respond_to?(:tool_call?) ? last.tool_call? : chat.messages.where.not(role: "system").reorder(id: :desc).first&.tool_call? == true
               raise BudgetExceeded if !tools_pending && Budget.exceeded?(chat)
               stream = DraftStream.new(self, claim)
               begin
@@ -192,6 +203,9 @@ module RailsAiAdmin
               ensure
                 stream.clear
               end
+              # RubyLLM 2.2 returns nil without raising when another worker still
+              # holds the chat's run claim. Reschedule instead of burning MAX_STEPS.
+              return retry_later(claim, "PROVIDER_UNAVAILABLE") if last.nil?
             end
           end
         end

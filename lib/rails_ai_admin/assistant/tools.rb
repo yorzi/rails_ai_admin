@@ -254,8 +254,17 @@ module RailsAiAdmin
         if RailsAiAdmin.configuration.surfaces
           result["operations"] = operations(resource, access)
           result["changes"] = changes(resource, access)
+        elsif resource.assistant_change?(:bulk_update) && bulk_granted?(access)
+          result["changes"] = bulk_only_changes(resource, access)
         end
         result
+      end
+
+      def bulk_only_changes(resource, access)
+        fields = access.fields(:write, nil, operation: :update)
+          .reject { |field| ProposeChange::UNSUPPORTED.include?(field.scalar_type) }
+          .map { |field| field_entry(field).merge("required" => false) }
+        [ { "action" => "bulk_update", "fields" => fields, "max_records" => Selections::Builder::LIMIT } ]
       end
 
       # Native changes this resource lets the assistant propose, with the
@@ -295,7 +304,7 @@ module RailsAiAdmin
       # proposal is authorized against its record by propose_operation.
       def operations(resource, _access)
         RailsAiAdmin.operation_registry.custom(resource).filter_map do |definition|
-          next unless definition.scope == :member && resource.assistant_operation?(definition.key)
+          next unless definition.scope == :member && resource.assistant_operation?(definition.key) && resource.action_enabled?(definition.key)
           { "key" => definition.key.to_s, "description" => definition.description.to_s.truncate(200),
             "input" => definition.handler_class.input.map { |field| field_entry(field).merge("required" => field.options[:required] == true) } }
         end
@@ -335,21 +344,40 @@ module RailsAiAdmin
         raise AccessDenied, "INVALID_QUERY" unless offset.is_a?(Integer) && offset.between?(0, MAX_RECORDS - 1)
         result = Queries::List.new(@session.context, resource, assistant: true).call(search: query.presence, page: page.to_s, filters: wire_filters(filters),
           scope: list_scope(scope), sort: sort, direction: direction || "asc", page_size: [ PAGE_LIMIT, MAX_RECORDS - offset ].min, offset: offset)
-        records, omitted = record_entries(access, result.records, :index)
+        records, omitted, @row_positions = record_entries_with_positions(access, result.records, :index)
+        @queried_count = result.records.size
         { "resource" => resource.key.to_s, "applied_scope" => result.scope,
           "applied_sort" => result.sort ? { "field" => result.sort, "direction" => result.direction } : nil,
           "page" => result.number, "offset" => offset, "has_more" => result.has_next,
           "omitted" => omitted, "records" => records }
       end
 
+      def record_entries_with_positions(access, records, view)
+        resolver = reference_resolver(access)
+        access.fields(:read, nil, view: view).select { |field| field.scalar_type == :belongs_to }.each do |field|
+          resolver.prime(field, records.filter_map { |record| record.has_attribute?(field.column) ? record.read_attribute(field.column)&.to_s : nil })
+        end
+        omitted = 0
+        positions = []
+        entries = []
+        records.each_with_index do |record, index|
+          entries << record_entry(access, record, view, resolver)
+          positions << (index + 1)
+        rescue AccessDenied
+          omitted += 1
+        end
+        [ entries, omitted, positions ]
+      end
+
       # Leave room for continuation metadata before applying the byte bound.
-      # Advance by what the model actually saw, not the number queried.
+      # Advance by SQL rows consumed so omitted pages never loop infinitely.
       def bounded(result)
         return result if result["error"]
         result = super(result.merge("next_offset" => MAX_RECORDS, "limit_reached" => false))
         records = result.fetch("records")
         return failure("UNAVAILABLE") if records.empty? && result["truncated"]
-        next_offset = result.fetch("offset") + records.size
+        consumed = result["truncated"] ? @row_positions[records.size - 1].to_i : @queried_count.to_i
+        next_offset = result.fetch("offset") + consumed
         more = result["has_more"] || result["truncated"] == true
         result.merge("next_offset" => more && next_offset < MAX_RECORDS ? next_offset : nil,
           "has_more" => more && next_offset < MAX_RECORDS, "limit_reached" => more && next_offset >= MAX_RECORDS)

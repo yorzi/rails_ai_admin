@@ -207,6 +207,9 @@ module RailsAiAdmin
           context = current_context
           review = review(context, request.props) if context && request.actor == context.actor_ref && request.tenant == context.tenant_ref
           raise ::RailsToolViews::Error.new("NOT_ALLOWED", status: 403) unless review
+          if request.respond_to?(:surface) && request.surface&.state.is_a?(Hash) && request.surface.state["outcome"].present?
+            raise ::RailsToolViews::Error.new("CONFLICT", status: 409, message: "This review was already decided.")
+          end
           run = review.run
           result = Operations::Runner.new.execute(context: context, intent_ref: run.id, input: JSON.parse(request.props.fetch("input")),
             human_confirmed: true, origin: :surface, binding: { resource_key: run.resource_key, operation: run.operation, target_id: run.target_id })
@@ -232,8 +235,14 @@ module RailsAiAdmin
           context = current_context
           review = review(context, request.props) if context && request.actor == context.actor_ref && request.tenant == context.tenant_ref
           raise ::RailsToolViews::Error.new("NOT_ALLOWED", status: 403) unless review
-          expired = OperationRun.where(id: review.run.id, status: "proposed", approved_by_ref: nil)
-            .update_all(expires_at: Time.current, updated_at: Time.current)
+          if request.respond_to?(:surface) && request.surface&.state.is_a?(Hash) && request.surface.state["outcome"].present?
+            raise ::RailsToolViews::Error.new("CONFLICT", status: 409, message: "This review was already decided.")
+          end
+          now = Time.current
+          expired = OperationRun.where(id: review.run.id, status: "proposed", approved_by_ref: nil,
+            security_version: context.security_version)
+            .where(OperationRun.arel_table[:expires_at].gt(now))
+            .update_all(expires_at: now - 1.second, updated_at: now)
           raise ::RailsToolViews::Error.new("CONFLICT", status: 409, message: "This review was already decided.") unless expired == 1
           continue_chat(context, request, review, "Nothing was changed.", decision: "dismissed")
           ::RailsToolViews::Transition.new(state: { "outcome" => "dismissed", "message" => "Dismissed. Nothing was changed." }, agent: false)

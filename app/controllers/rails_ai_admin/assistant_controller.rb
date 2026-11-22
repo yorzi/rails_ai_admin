@@ -5,7 +5,7 @@ module RailsAiAdmin
   # enqueues work; no provider call runs in a web request. RubyLLM is loaded
   # inside actions only, so conventional hosts can eager-load this file.
   class AssistantController < ApplicationController
-    RETRYABLE = %w[PROVIDER_UNAVAILABLE ASSISTANT_FAILED ATTEMPTS_EXHAUSTED AI_UNAVAILABLE STEP_LIMIT].freeze
+    RETRYABLE = %w[PROVIDER_UNAVAILABLE ASSISTANT_FAILED ATTEMPTS_EXHAUSTED AI_UNAVAILABLE].freeze
     FAILURES = {
       "AI_UNAVAILABLE" => "The assistant is not available right now. The rest of the administration works as usual.",
       "AI_REJECTED" => "The AI provider rejected this request. Try a shorter or different message.",
@@ -31,7 +31,7 @@ module RailsAiAdmin
     # server-written "Context:" line naming that page.
     def create
       question = params[:content]
-      raise AccessDenied, "INVALID_QUERY" unless question.nil? || question.is_a?(String)
+      raise AccessDenied, "INVALID_QUERY" unless question.nil? || question.is_a?(String) && question.valid_encoding?
       @chat = Assistant.create_chat!(@context)
       if question.present?
         content = [ page_context_line, question.strip ].compact.join("\n\n").first(Assistant::Coordinator::MAX_CONTENT)
@@ -60,7 +60,9 @@ module RailsAiAdmin
 
     def message
       return admin_status(:conflict) unless @chat.current_for?(@context)
-      Assistant::Coordinator.admit!(@chat, kind: "message", content: params[:content], admission_key: params[:admission_key])
+      key = params[:admission_key]
+      raise AccessDenied, "INVALID_QUERY" unless key.is_a?(String) && key.start_with?("message:")
+      Assistant::Coordinator.admit!(@chat, kind: "message", content: params[:content], admission_key: key)
       redirect_to assistant_conversation_path(chat_ref: @chat.ref), status: :see_other
     rescue AccessDenied => error
       raise unless error.code == "INVALID_QUERY" || REFUSALS.include?(error.code)
@@ -83,17 +85,28 @@ module RailsAiAdmin
     def retry_turn
       return admin_status(:conflict) unless @chat.current_for?(@context)
       Assistant::Turn.transaction do
-        Assistant::Chat.lock.find(@chat.id)
-        turn = @chat.turns.reorder(sequence: :desc).first
+        Assistant::Chat.for_owner(@context).order(:id).lock.pluck(:id)
+        locked = Assistant::Chat.lock.find(@chat.id)
+        turn = locked.turns.reorder(sequence: :desc).first
         raise AccessDenied, "CONFLICT" unless turn&.status == "failed" && RETRYABLE.include?(turn.error_code)
+        raise AccessDenied, "RATE_LIMITED" if Assistant::Coordinator.over_daily_limit?(locked)
+        raise AccessDenied, "BUDGET_EXCEEDED" if Assistant::Budget.exceeded?(locked)
         turn.update!(status: "queued", attempts: 0, error_code: nil, next_attempt_at: nil, completed_at: nil)
       end
       Assistant::Coordinator.enqueue_after_commit(@chat.ref)
       redirect_to assistant_conversation_path(chat_ref: @chat.ref), status: :see_other
+    rescue AccessDenied => error
+      raise unless REFUSALS.include?(error.code)
+      refuse_message(error.code, "")
     end
 
     def archive
-      @chat.update!(status: "archived")
+      Assistant::Turn.transaction do
+        locked = Assistant::Chat.lock.find(@chat.id)
+        locked.update!(status: "archived")
+        locked.turns.where(status: "queued").update_all(status: "cancelled", error_code: "CHAT_CLOSED", completed_at: Time.current, updated_at: Time.current)
+        locked.cancel if locked.turns.where(status: "running").exists?
+      end
       redirect_to assistant_path, status: :see_other, notice: t("rails_ai_admin.assistant.archived")
     end
 
@@ -133,7 +146,7 @@ module RailsAiAdmin
         record = access.find!(id)
         "Context: I am looking at #{resource.label.singularize} #{record.id} (\"#{access.record_label(record).truncate(120)}\") in the #{resource.key} resource."
       else
-        query = about[:q].is_a?(String) ? about[:q].strip.first(100) : nil
+        query = about[:q].is_a?(String) && about[:q].valid_encoding? ? about[:q].strip.first(100) : nil
         scope = about[:scope].is_a?(String) ? access.named_scopes.find { |definition| definition.name.to_s == about[:scope] } : nil
         details = [ (query.present? ? "searching for \"#{query}\"" : nil), (scope ? "on the #{scope.label} tab (scope #{scope.name})" : nil) ].compact
         "Context: I am looking at the #{resource.label} list (the #{resource.key} resource)#{details.any? ? ", #{details.join(', ')}" : ''}."

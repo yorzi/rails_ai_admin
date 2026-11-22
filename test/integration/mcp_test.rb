@@ -148,6 +148,18 @@ class McpIntegrationTest < ActionDispatch::IntegrationTest
       param_filter = ActiveSupport::ParameterFilter.new(env["action_dispatch.parameter_filter"])
       assert_equal "[FILTERED]", param_filter.filter("q" => "secret")["q"]
       assert_equal "[FILTERED]", param_filter.filter("HTTP_AUTHORIZATION" => "Bearer raa_mcp_secret")["HTTP_AUTHORIZATION"]
+
+      # Same-origin rejects scheme downgrade and non-HTTP schemes.
+      rpc(token, "tools/list", {}, headers: { "Origin" => "https://www.example.com:80" })
+      assert_response :forbidden
+      rpc(token, "tools/list", {}, headers: { "Origin" => "custom://www.example.com" })
+      assert_response :forbidden
+
+      # Rejects tool_call keyword shadowing and non-object arguments.
+      bad_args = rpc(token, "tools/call", { name: "list_resources", arguments: { tool_call: "forged" } })
+      assert_equal(-32602, bad_args.dig("error", "code"))
+      false_args = rpc(token, "tools/call", { name: "list_resources", arguments: false })
+      assert_equal(-32602, false_args.dig("error", "code"))
     end
   end
 end
