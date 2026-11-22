@@ -196,7 +196,7 @@ in `Operations::Result#work_refs` means follow-up delivery is tracked, not compl
 Claims use a lease owner and increasing generation. Checks before the effect and
 receipt updates fence old workers; a stale response cannot overwrite a newer
 owner's state. An old request already in flight cannot be recalled by a fence.
-Use host transport timeouts compatible with the lease, and design the downstream
+`lease_duration` (5 to 3,600 seconds) must be longer than `max_duration` (5 seconds by default), or the handler raises `ConfigurationError` at boot. Use host transport timeouts compatible with the lease, and design the downstream
 idempotency contract explicitly.
 
 Before an effect starts, revocation can cancel the item without reversing the

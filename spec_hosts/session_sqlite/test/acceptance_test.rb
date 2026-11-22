@@ -115,7 +115,7 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
       get destroy_path
       assert_response :success
       assert_select "[data-raa-override=selection_destroy]"
-      post destroy_path, params: { authenticity_token: css_select("input[name=authenticity_token]").first["value"], manifest_digest: css_select("input[name=manifest_digest]").first["value"] }
+      post destroy_path, params: { authenticity_token: css_select("input[name=authenticity_token]").first["value"], manifest_digest: css_select("input[name=manifest_digest]").first["value"], review_signature: css_select("input[name=review_signature]").first["value"] }
       assert_response :success
       assert_select "[data-raa-override=selection_destroy_result]"
       refute Order.exists?(draft.id)

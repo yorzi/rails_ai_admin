@@ -1,6 +1,7 @@
 class TicketReceiptWork < RailsAiAdmin::Work
   description "Record a synthetic ticket delivery receipt"
   lease_duration 5
+  max_duration 1
   idempotent true
   input { text :ticket_ref, required: true, nullable: false, max_length: 150 }
 
