@@ -51,6 +51,8 @@ require_relative "rails_ai_admin/navigation/saved_views"
 
 # Provides an isolated admin engine. The host supplies all authority.
 module RailsAiAdmin
+  Snapshot = Data.define(:registry, :operation_registry, :work_registry, :field_registry)
+
   class << self
     # Returns the process configuration, frozen after Rails initialization.
     def configuration
@@ -64,29 +66,31 @@ module RailsAiAdmin
 
     # Returns the current registry, rebuilt on Rails reload.
     def registry
-      @registry ||= Registry.new([])
+      @snapshot&.registry || (@registry ||= Registry.new([]))
     end
 
     def field_registry
-      return @field_registry if @field_registry&.matches?(configuration.field_types)
+      prepared = @snapshot&.field_registry
+      return prepared if prepared&.matches?(configuration.field_types)
       Fields::Registry.new(configuration.field_types)
     end
 
     def operation_registry
-      @operation_registry ||= Operations::Registry.new([])
+      @snapshot&.operation_registry || (@operation_registry ||= Operations::Registry.new([]))
     end
 
     def work_registry
-      @work_registry ||= Outbox::Registry.new({})
+      @snapshot&.work_registry || (@work_registry ||= Outbox::Registry.new({}))
     end
 
-    # Rebuilds the registry from reloadable host constant names.
+    # Rebuilds the registry from reloadable host constant names and publishes
+    # the tuple as one atomic reference swap.
     def prepare!
       fields = Fields::Registry.new(configuration.field_types).validate!
       resources = Registry.new(configuration.resources)
       operations = Operations::Registry.new(resources.resources)
       work = Outbox::Registry.new(configuration.work_handlers)
-      @registry, @operation_registry, @work_registry, @field_registry = resources, operations, work, fields
+      @snapshot = Snapshot.new(registry: resources, operation_registry: operations, work_registry: work, field_registry: fields)
     end
   end
 end

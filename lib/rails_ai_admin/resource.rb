@@ -218,6 +218,8 @@ module RailsAiAdmin
         # Fail at registration rather than on every menu render; explicit labels
         # were already bounded when declared.
         Navigation::Settings.caption(label) unless navigation.hidden || navigation.label
+        @model_name.freeze
+        @label&.freeze
         @policy_name&.freeze
         @fields.freeze
         @scopes.freeze
@@ -227,6 +229,8 @@ module RailsAiAdmin
         @surface_operations.freeze
         @has_many.freeze
         @assistant_operations.freeze
+        @assistant_changes.freeze
+        @dashboard.freeze
         self
       end
     end

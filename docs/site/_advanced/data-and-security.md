@@ -22,8 +22,10 @@ After reading this guide, you will know:
 version, canonical digest, record refs, approval evidence, expiry, status, audit ref
 and callback warning. It does not store full submitted payloads or record snapshots.
 `rails_ai_admin_audit_events` records actor/tenant refs, operation/result codes,
-record/correlation refs and changed field names. Arbitrary model validation messages
-are not returned as errors because they may contain confidential values.
+record/correlation refs and changed field names. By default (`validation_messages = :model`),
+model validation messages for writable fields are shown so editors can fix form errors;
+set `config.validation_messages = :generic` if your model messages may carry values an
+editor should not see.
 
 Audit model instances are append-only through the normal Active Record model API.
 Direct SQL and database administrators remain outside that boundary. Framework
@@ -95,9 +97,11 @@ authorization, handler and RPC/effect execution also prevent ordinary Active
 Record writes, except short framework CAS bookkeeping. Work is not a permitted
 route for unaudited business updates, and these guards are not a Ruby sandbox.
 
-The current engine does not expose assistant tools, arbitrary SQL, private uploads,
-exports, cross-database writes or asynchronous business actions. Each needs its
-own later contract and adversarial validation before becoming a supported feature.
+The engine does not expose arbitrary SQL or cross-database writes. Opt-in features
+(admin Chat assistant, MCP, Surfaces, CSV export/import, Active Storage attachments,
+and `aggregatable` fields) each carry explicit resource declarations and policy checks.
+For `aggregatable` fields, SQL aggregation runs over the policy's SQL `Scope` directly,
+so ensure your policy `Scope` enforces the same record visibility boundary as `show?`.
 
 ## Next Steps
 

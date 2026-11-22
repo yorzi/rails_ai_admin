@@ -47,11 +47,12 @@ module RailsAiAdmin
         name = normalize_name(name)
         state = ListState.new(@access, state).state.except("page")
         SavedView.transaction(requires_new: true) do
-          row = owned.lock.find_by(name: name)
+          existing = owned.order(:id).lock.to_a
+          row = existing.find { |candidate| candidate.name == name }
           if row
             row.update!(state: JSON.generate(state))
           else
-            raise Rejected, :limit if owned.count >= MAX_PER_RESOURCE
+            raise Rejected, :limit if existing.size >= MAX_PER_RESOURCE
             row = SavedView.create!(actor_ref: @context.actor_ref, tenant_ref: @context.tenant_ref,
               resource_key: @resource.key.to_s, name: name, state: JSON.generate(state))
           end

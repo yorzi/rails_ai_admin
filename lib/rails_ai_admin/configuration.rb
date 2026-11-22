@@ -106,16 +106,24 @@ module RailsAiAdmin
       @sign_out_method = :delete
     end
 
+    CONSTANT_NAME = /\A[A-Z]\w*(?:::[A-Z]\w*)*\z/.freeze
     # Validates and freezes the boot configuration without reading domain tables.
     def finalize!
-      [ context_adapter, authorization_adapter ].compact.each do |name|
-        raise ConfigurationError, "Adapters must be constant name strings" unless name.is_a?(String) && name.match?(/\A[A-Z]\w*(?:::[A-Z]\w*)*\z/)
+      return self if frozen?
+      unless context_adapter.nil? || context_adapter.is_a?(String) && context_adapter.match?(CONSTANT_NAME)
+        raise ConfigurationError, "Adapters must be constant name strings"
       end
-      unless resources.is_a?(Array) && resources.all? { |name| name.is_a?(String) }
+      unless authorization_adapter.is_a?(String) && authorization_adapter.match?(CONSTANT_NAME)
+        raise ConfigurationError, "Adapters must be constant name strings"
+      end
+      unless resources.is_a?(Array) && resources.all? { |name| name.is_a?(String) && name.match?(CONSTANT_NAME) }
         raise ConfigurationError, "resources must contain constant name strings"
       end
-      raise ConfigurationError, "intent_ttl must be between 60 and 3600 seconds" unless (60..3600).cover?(intent_ttl)
-      unless work_handlers.is_a?(Hash) && work_handlers.all? { |kind, name| kind.is_a?(String) && kind.match?(/\A[a-z][a-z0-9_.-]{0,99}\z/) && name.is_a?(String) && name.match?(/\A[A-Z]\w*(?:::[A-Z]\w*)*\z/) } && [ true, false ].include?(outbox_auto_dispatch)
+      unless title.is_a?(String) && title.valid_encoding? && title.length.between?(1, 120) && !title.match?(/[[:cntrl:]]/)
+        raise ConfigurationError, "title must be 1 to 120 characters of plain text"
+      end
+      raise ConfigurationError, "intent_ttl must be between 60 and 3600 seconds" unless (intent_ttl.is_a?(Numeric) || intent_ttl.is_a?(ActiveSupport::Duration)) && (60..3600).cover?(intent_ttl)
+      unless work_handlers.is_a?(Hash) && work_handlers.all? { |kind, name| kind.is_a?(String) && kind.match?(/\A[a-z][a-z0-9_.-]{0,99}\z/) && name.is_a?(String) && name.match?(CONSTANT_NAME) } && [ true, false ].include?(outbox_auto_dispatch)
         raise ConfigurationError, "work_handlers needs stable string keys/class names and outbox_auto_dispatch must be boolean"
       end
       raise ConfigurationError, "collection_auto_dispatch must be boolean" unless [ true, false ].include?(collection_auto_dispatch)
@@ -197,6 +205,10 @@ module RailsAiAdmin
 
     def validate_assistant!
       raise ConfigurationError, "assistant must be boolean" unless [ true, false ].include?(assistant)
+      models = assistant_fallback_models
+      unless models.is_a?(Array) && models.all? { |id| id.is_a?(String) }
+        raise ConfigurationError, "assistant_fallback_models must list at most three other model ids"
+      end
       return unless assistant
       unless defined?(::RubyLLM::Railtie)
         raise ConfigurationError, "assistant requires the host to load ruby_llm (add it to the Gemfile)"
@@ -204,15 +216,14 @@ module RailsAiAdmin
       if (problem = self.class.optional_gem_problem("ruby_llm", "assistant"))
         raise ConfigurationError, problem
       end
-      unless assistant_adapter.is_a?(String) && assistant_adapter.match?(/\A[A-Z]\w*(?:::[A-Z]\w*)*\z/)
+      unless assistant_adapter.is_a?(String) && assistant_adapter.match?(CONSTANT_NAME)
         raise ConfigurationError, "assistant_adapter must be a constant name string"
       end
       unless assistant_model.is_a?(String) && assistant_model.match?(MODEL_ID)
         raise ConfigurationError, "assistant_model must name one model"
       end
       raise ConfigurationError, "assistant_prompt_caching must be boolean" unless [ true, false ].include?(assistant_prompt_caching)
-      models = assistant_fallback_models
-      unless models.is_a?(Array) && models.size <= 3 && models.all? { |id| id.is_a?(String) && id.match?(MODEL_ID) } &&
+      unless models.size <= 3 && models.all? { |id| id.match?(MODEL_ID) } &&
           models.uniq.size == models.size && !models.include?(assistant_model)
         raise ConfigurationError, "assistant_fallback_models must list at most three other model ids"
       end

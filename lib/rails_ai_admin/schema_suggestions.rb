@@ -11,12 +11,12 @@ module RailsAiAdmin
     end
     Report = Data.define(:suggestions, :omitted, :available)
     TYPES = { string: :text, text: :textarea, integer: :integer, decimal: :decimal,
-      boolean: :boolean, date: :date, datetime: :datetime, timestamp: :datetime, time: :time,
+      boolean: :boolean, date: :date, datetime: :datetime, timestamp: :datetime, timestamptz: :datetime, time: :time,
       json: :json, jsonb: :json }.freeze
     EMAIL_NAME = /(?:\A|_)email(?:_address)?\z/
     URL_NAME = /(?:\A|_)(?:url|website|homepage)\z/
     # Heuristics are a conservative starting point, never a sensitivity proof.
-    SENSITIVE = /password|token|secret|credential|ciphertext|encrypted|(?:\A|_)(?:api_key|private_key|access_key|signing_key|otp|ssn|salt|session|digest|role|roles|permission|permissions|security_version|admin|superuser)(?:_|\z)|_digest\z/i
+    SENSITIVE = /password|passphrase|token|secret|credential|ciphertext|encrypted|(?:\A|_)(?:api_key|private_key|access_key|signing_key|encryption_key|master_key|webhook_key|auth_key|ssh_key|otp|totp|two_factor|recovery_code|backup_code|ssn|tax_id|cvv|cvc|credit_card|iban|salt|session|digest|role|roles|permission|permissions|privilege|privileges|security_version|admin|superuser)(?:_|\z)|_digest\z/i
     IDENTIFIER = /\A[a-z][a-z0-9_]*\z/
     # Reassigning a tenant is an authority change, so tenant-like references are
     # never suggested, even as comments.
@@ -56,15 +56,21 @@ module RailsAiAdmin
       # A declared non-polymorphic belongs_to may become a commented reference.
       references = @model.reflect_on_all_associations(:belongs_to).reject(&:polymorphic?).to_h { |association| [ association.foreign_key.to_s, association ] }
       omitted = 0
+      seen = {}
       suggestions = columns.filter_map do |column|
         name = column.name
         next if name == @model.primary_key || name == "id"
         # The resource declares it with soft_delete instead of as a field.
         next if name == self.class.soft_delete_column(@model)
         if (reference = suggest_reference(references[name], column))
+          if seen[reference.name]
+            omitted += 1
+            next
+          end
+          seen[reference.name] = true
           next reference
         end
-        if !name.match?(IDENTIFIER) || [ "lock_version", @model.inheritance_column ].include?(name) || name.end_with?("_id") || foreign_keys.include?(name) || self.class.sensitive?(@model, name) || self.class.array?(column)
+        if seen[name] || !name.match?(IDENTIFIER) || [ "lock_version", @model.inheritance_column ].include?(name) || name.end_with?("_id") || foreign_keys.include?(name) || self.class.sensitive?(@model, name) || self.class.array?(column)
           omitted += 1
           next
         end
@@ -75,7 +81,7 @@ module RailsAiAdmin
         end
         options = {}
         enum = @model.defined_enums[name]
-        if enum && (!enum.keys.all? { |value| value.length <= 100 } || !enum.size.between?(1, 100))
+        if enum && (!enum.keys.all? { |value| value.is_a?(String) && value.valid_encoding? && value.length.between?(1, 100) } || !enum.size.between?(1, 100))
           omitted += 1
           next
         end
@@ -86,7 +92,7 @@ module RailsAiAdmin
           options[:values] = enum.keys
         end
         options[:nullable] = false unless column.null
-        options[:max_length] = column.limit if %i[text textarea email url].include?(type) && column.limit.is_a?(Integer) && column.limit.positive?
+        options[:max_length] = [ column.limit, 65_536 ].min if %i[text textarea email url].include?(type) && column.limit.is_a?(Integer) && column.limit.positive?
         # Explicit limits keep the declaration reviewable; coercion would
         # otherwise read the same values from the column on first use.
         if type == :decimal && column.precision.is_a?(Integer) && column.precision.between?(1, 1000)
@@ -94,6 +100,7 @@ module RailsAiAdmin
           options[:scale] = column.scale if column.scale.is_a?(Integer) && column.scale.between?(0, column.precision)
         end
         options[:readonly] = true if %w[created_at updated_at].include?(name)
+        seen[name] = true
         Suggestion.new(name, type, options.freeze)
       end
       Report.new(suggestions.freeze, omitted, true)
@@ -105,6 +112,7 @@ module RailsAiAdmin
 
     def suggest_reference(association, column)
       return unless association && association.name.to_s.match?(IDENTIFIER) && column.name.match?(IDENTIFIER)
+      return if column.name == association.name.to_s
       return if association.name.to_s.match?(TENANT) || self.class.sensitive?(@model, association.name) || self.class.sensitive?(@model, column.name)
       options = {}
       options[:foreign_key] = column.name unless column.name == "#{association.name}_id"

@@ -55,13 +55,15 @@ module RailsAiAdmin
       unless ::RailsToolViews::Surface.table_exists? && ::RailsToolViews::ActionExecution.table_exists?
         return Check.new("surfaces", :error, "Run the rails_tool_views installer migrations before enabling admin Surfaces.")
       end
-      Integrations::ToolViews.ensure_registered!
+      Integrations::ToolViews.check_registration!
       operations = @registry.resources.sum { |resource| resource.operation_declarations.keys.count { |key| resource.surface_operation?(key) } }
       assistant = @configuration.respond_to?(:assistant) && @configuration.assistant
       Check.new("surfaces", :review, "#{Integrations::ToolViews::KEY} is registered for #{operations} member operations through admin-owned endpoints. " \
         "#{assistant ? 'Assistant proposals present it and confirmed outcomes continue their chat once.' : 'Assistant presentation is off.'}")
     rescue ConfigurationError => error
       Check.new("surfaces", :error, error.message)
+    rescue ActiveRecord::ActiveRecordError
+      Check.new("surfaces", :error, "Cannot inspect rails_tool_views tables. Check database connectivity and pending migrations.")
     end
 
     # Reports whether the opt-in MCP endpoint can authenticate tokens.
@@ -72,6 +74,8 @@ module RailsAiAdmin
       active = Mcp::AccessToken.active.count
       Check.new("mcp", :review, "MCP clients use personal access tokens (#{active} active). Each request resolves the owner through resolve_job " \
         "and applies the assistant? grant and the owner's current grants; proposals wait for confirmation in the admin. Serve it over HTTPS only.")
+    rescue ActiveRecord::ActiveRecordError
+      Check.new("mcp", :error, "Cannot inspect MCP access token table. Check database connectivity and pending migrations.")
     end
 
     # Reports whether opt-in admin Chat can run. It never calls the adapter or
@@ -84,20 +88,25 @@ module RailsAiAdmin
       missing = [ Assistant::Chat, Assistant::Message, Assistant::Turn, ::RubyLLM::ActiveRecord::ToolCall, ::RubyLLM::ActiveRecord::Usage ]
         .reject(&:table_exists?).map(&:table_name)
       return Check.new("assistant", :error, "Run rails_ai_admin:assistant and db:migrate; missing tables: #{missing.join(', ')}.") if missing.any?
-      adapter = @configuration.assistant_adapter.safe_constantize
-      unless adapter.is_a?(Class) && adapter.method_defined?(:llm_context) && adapter.instance_method(:llm_context).parameters.include?([ :keyreq, :context ])
+      adapter = @configuration.assistant_adapter&.safe_constantize
+      unless adapter.is_a?(Class) && adapter.respond_to?(:new) &&
+          accepts_arguments?(adapter.method(:new), 0, []) &&
+          accepts_arguments?(adapter.instance_method(:initialize), 0, []) &&
+          adapter.public_instance_methods.include?(:llm_context) &&
+          accepts_arguments?(adapter.instance_method(:llm_context), 0, [ :context ])
         return Check.new("assistant", :error, "#{@configuration.assistant_adapter} must define llm_context(context:) returning a RubyLLM::Context or nil.")
       end
       job = @configuration.context_adapter&.safe_constantize
-      unless job.is_a?(Class) && job.method_defined?(:resolve_job)
-        return Check.new("assistant", :error, "Assistant turns run in jobs; the context adapter must define resolve_job.")
+      unless job.is_a?(Class) && job.public_instance_methods.include?(:resolve_job) &&
+          accepts_arguments?(job.instance_method(:resolve_job), 0, %i[actor_ref tenant_ref security_version])
+        return Check.new("assistant", :error, "Assistant turns run in jobs; the context adapter must define resolve_job(actor_ref:, tenant_ref:, security_version:).")
       end
       fallbacks = @configuration.assistant_fallback_models
       model = "Model #{@configuration.assistant_model}#{" (fallbacks #{fallbacks.join(', ')})" if fallbacks.any?}"
       Check.new("assistant", :review, "#{model}; tools apply each actor's current grants and the independent assistant? grant. " \
         "Schedule rails_ai_admin:assistant:scan, keep provider credentials in the adapter's own RubyLLM::Context, and verify real-provider behavior separately. " \
         "#{assistant_limits}")
-    rescue NameError, ConfigurationError => error
+    rescue NameError, ConfigurationError, ActiveRecord::ActiveRecordError => error
       Check.new("assistant", :error, "Assistant configuration failed (#{error.class.name}).")
     end
 
@@ -123,11 +132,12 @@ module RailsAiAdmin
         adapter_check("context", config.context_adapter, { resolve: [ 1, [] ] }),
         adapter_check("policy", config.authorization_adapter, { scope: [ 0, %i[context resource relation] ], allowed?: [ 0, %i[context action resource record] ], fields: [ 0, %i[context resource action record] ] }),
         autoload_check,
+        mount_check,
         rails_check,
         policy_preset_check,
         assistant_check,
         mcp_check,
-        Check.new("files", :unsupported, "Private attachment management is not implemented."),
+        files_check,
         selection_check,
         saved_views_check,
         Check.new("queue", @work_registry.definitions.empty? && collections.zero? ? :closed : :review,
@@ -272,6 +282,9 @@ module RailsAiAdmin
     end
 
     def adapter_check(kind, name, methods)
+      if kind == "policy" && name.nil?
+        return Check.new(kind, :error, "authorization_adapter cannot be nil; use RailsAiAdmin::Authorization::Adapter or a host policy adapter class name.")
+      end
       if name.nil? || name == "RailsAiAdmin::Authorization::Adapter"
         return Check.new(kind, :closed, "Default denies access. Implement and test the host context, scopes, actions and independent field grants.")
       end
@@ -297,6 +310,26 @@ module RailsAiAdmin
       return false unless (parameters.filter_map { |kind, name| name if kind == :keyreq } - keywords).empty?
       parameters.any? { |kind, _| kind == :keyrest } || !keyword_parameters ||
         (keywords - parameters.filter_map { |kind, name| name if %i[key keyreq].include?(kind) }).empty?
+    end
+
+    def files_check
+      fields = @registry.resources.sum { |resource| resource.fields.count { |field| Field::FILE_TYPES.include?(field.scalar_type) } }
+      return Check.new("files", :closed, "No resource declares Active Storage file or files fields.") if fields.zero?
+      Check.new("files", :review, "#{fields} declared Active Storage attachment #{fields == 1 ? 'field' : 'fields'} served through admin-owned file endpoints under current show/field grants. Verify private storage buckets and attachment grants.")
+    end
+
+    def mount_check
+      return unless @application&.respond_to?(:routes)
+      require "generators/rails_ai_admin/install/engine_mounts"
+      @application.reload_routes_unless_loaded if @application.respond_to?(:reload_routes_unless_loaded)
+      mounts = Generators::EngineMounts.names(@application.routes)
+      if mounts == [ "rails_ai_admin" ]
+        Check.new("mount", :ok, "RailsAiAdmin::Engine is mounted once under the standard rails_ai_admin helper.")
+      elsif mounts.empty?
+        Check.new("mount", :closed, "RailsAiAdmin::Engine is not mounted.")
+      else
+        Check.new("mount", :review, "Unexpected engine mount configuration (#{mounts.join(', ')}); use one mount with as: :rails_ai_admin and no dynamic path parameters.")
+      end
     end
 
     def autoload_check
@@ -332,7 +365,7 @@ module RailsAiAdmin
         next false unless column
         case field.scalar_type
         when :belongs_to then !%i[integer string uuid].include?(column.type)
-        when :datetime then !%i[datetime timestamp].include?(column.type)
+        when :datetime then !%i[datetime timestamp timestamptz].include?(column.type)
         when :date then column.type != :date
         when :boolean then column.type != :boolean
         when :integer then column.type != :integer || model.defined_enums.key?(field.name.to_s)

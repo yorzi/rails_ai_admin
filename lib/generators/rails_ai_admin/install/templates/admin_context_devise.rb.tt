@@ -25,7 +25,8 @@ class AdminContext
     return unless user && admin?(user)
     return if user.respond_to?(:active_for_authentication?) && !user.active_for_authentication?
     # Any change to the user, including the admin flag, closes open forms.
-    RailsAiAdmin::Context.new(actor: user, tenant: TENANT, security_version: user.updated_at.utc.iso8601(6))
+    version = user.respond_to?(:updated_at) && user.updated_at ? user.updated_at.utc.iso8601(6) : "0"
+    RailsAiAdmin::Context.new(actor: user, tenant: TENANT, security_version: version)
   end
 
 <% if @auth.all_admins -%>

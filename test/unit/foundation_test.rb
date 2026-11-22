@@ -37,7 +37,37 @@ class FoundationTest < Minitest::Test
     config.resources = [ "TestResource" ]
     config.finalize!
     assert config.frozen?
+    assert_same config, config.finalize!
     assert_raises(FrozenError) { config.resources << "UnexpectedAdmin" }
+  end
+
+  def test_configuration_validates_adapters_resources_title_and_fallbacks
+    invalid = [
+      ->(config) { config.authorization_adapter = nil },
+      ->(config) { config.resources = [ "not a constant" ] },
+      ->(config) { config.title = "" },
+      ->(config) { config.title = "Admin\nInjected" },
+      ->(config) { config.assistant_fallback_models = nil }
+    ]
+    invalid.each do |mutate|
+      config = RailsAiAdmin::Configuration.new
+      mutate.call(config)
+      assert_raises(RailsAiAdmin::ConfigurationError) { config.finalize! }
+    end
+  end
+
+  def test_plugin_field_types_reject_excluded_scalars
+    RailsAiAdmin::Field::PLUGIN_EXCLUDED.each do |excluded|
+      klass = Class.new(RailsAiAdmin::Fields::Type) { scalar excluded }
+      assert_raises(RailsAiAdmin::ConfigurationError, excluded.to_s) { klass.metadata }
+    end
+  end
+
+  def test_record_version_accepts_postgresql_timestamptz
+    column = Struct.new(:type).new(:timestamptz)
+    model = Struct.new(:locking_enabled?, :locking_column, :columns_hash, :record_timestamps)
+      .new(false, "lock_version", { "updated_at" => column }, true)
+    assert_equal :updated_at, RailsAiAdmin::RecordVersion.strategy(model)
   end
 
   def test_rails_default_inflections_are_preserved

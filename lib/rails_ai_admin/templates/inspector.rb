@@ -55,7 +55,7 @@ module RailsAiAdmin
           elsif stat.symlink? || !stat.file?
             relative = path.relative_path_from(@root).to_s
             @findings << Finding.new(relative, :error, "UNSAFE_PATH", relative, nil)
-          elsif path.basename.to_s.end_with?(".html.erb")
+          else
             @files += 1
             incomplete! if @files > @max_files
             @findings << inspect_file(path)
@@ -72,8 +72,12 @@ module RailsAiAdmin
         relative = path.relative_path_from(@root.join("app/views")).to_s
         entry = @catalog.for_path(relative)
         key = entry&.key || relative
+        begin
+          SafePaths.check!(@root, path)
+        rescue ConfigurationError, SystemCallError
+          return Finding.new(key, :error, "UNSAFE_PATH", "app/views/#{relative}", nil)
+        end
         return Finding.new(key, :review, "UNCATALOGED", "app/views/#{relative}", nil) unless entry
-        SafePaths.check!(@root, path)
         metadata = Metadata.read(path, entry)
         return Finding.new(key, :review, "UNTRACKED", "app/views/#{relative}", nil) unless metadata
         code, status = if metadata["contract"] != entry.revision

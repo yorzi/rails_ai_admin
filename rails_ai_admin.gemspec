@@ -22,12 +22,13 @@ Gem::Specification.new do |spec|
   spec.metadata["allowed_push_host"] = "https://unreleased.invalid"
 
   spec.add_dependency "base64", "~> 0.3"
+  spec.add_dependency "bigdecimal"
   # Rails 8.1 from its patched 8.1.4.1 release. The upper bound moves when a
   # newer series passes the suite.
   spec.add_dependency "rails", ">= 8.1.4.1", "< 8.2"
   spec.add_dependency "json_schemer", "~> 2.5"
   # allow_duplicate_key (template override headers) arrived in json 2.13.
-  spec.add_dependency "json", ">= 2.13"
+  spec.add_dependency "json", ">= 2.13", "< 4"
   spec.add_dependency "turbo-rails", "~> 2.0"
   spec.add_dependency "stimulus-rails", "~> 1.3"
 end

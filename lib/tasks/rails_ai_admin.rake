@@ -56,7 +56,7 @@ namespace :rails_ai_admin do
       abort usage if actor.empty? || tenant.empty?
       adapter = RailsAiAdmin.configuration.context_adapter&.safe_constantize&.new
       abort "rails_ai_admin:assistant:eval: the context adapter must define resolve_job" unless adapter.respond_to?(:resolve_job)
-      context = adapter.resolve_job(actor_ref: actor, tenant_ref: tenant, security_version: nil)
+      context = adapter.resolve_job(actor_ref: actor, tenant_ref: tenant, security_version: ENV["SECURITY_VERSION"].presence)
       abort "rails_ai_admin:assistant:eval: #{actor} in #{tenant} is not a current admin person" unless context.is_a?(RailsAiAdmin::Context)
       grader = ENV["GRADER"] == "none" ? false : ENV["GRADER"].presence
       file = Rails.root.join(ENV.fetch("FILE", "config/rails_ai_admin/assistant_eval.yml")).to_s

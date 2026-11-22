@@ -474,4 +474,55 @@ class DeveloperToolsTest < Minitest::Test
       RubyVM::InstructionSequence.compile(closed + "\n" + uncommented)
     end
   end
+
+  def test_schema_suggestions_bounds_timestamptz_and_sensitivity
+    %w[passphrase totp_code two_factor_secret recovery_code credit_card_number iban tax_id privilege_level].each do |name|
+      assert RailsAiAdmin::SchemaSuggestions.sensitive?(SchemaSuggestionRecord, name), name
+    end
+    column = Struct.new(:name, :type, :null, :limit, :precision, :scale, :array)
+    fake_connection = Object.new
+    fake_connection.define_singleton_method(:foreign_keys) { |_| [] }
+    fake_model = Class.new(ActiveRecord::Base) do
+      self.abstract_class = true
+      define_singleton_method(:table_name) { "fake_pg_records" }
+      define_singleton_method(:primary_key) { "id" }
+      define_singleton_method(:inheritance_column) { "type" }
+      define_singleton_method(:columns) do
+        [
+          column.new("id", :integer, false, nil, nil, nil, false),
+          column.new("summary", :string, true, 100_000, nil, nil, false),
+          column.new("happened_at", :timestamptz, true, nil, nil, nil, false),
+          column.new("bad_enum", :integer, true, nil, nil, nil, false)
+        ]
+      end
+      define_singleton_method(:columns_hash) { columns.index_by(&:name) }
+      define_singleton_method(:reflect_on_all_associations) { |*| [] }
+      define_singleton_method(:connection) { fake_connection }
+      define_singleton_method(:defined_enums) { { "bad_enum" => { "" => 0, "ok" => 1 } } }
+    end
+    report = RailsAiAdmin::SchemaSuggestions.new(fake_model).call
+    assert report.available
+    summary = report.suggestions.find { |entry| entry.name == "summary" }
+    assert_equal 65_536, summary.options[:max_length]
+    happened = report.suggestions.find { |entry| entry.name == "happened_at" }
+    assert_equal :datetime, happened.type
+    assert_nil report.suggestions.find { |entry| entry.name == "bad_enum" }
+  end
+
+  def test_doctor_checks_nil_policy_files_mount_and_read_only_surface_registration
+    config = RailsAiAdmin::Configuration.new
+    config.authorization_adapter = nil
+    checks = RailsAiAdmin::Doctor.new(configuration: config, registry: RailsAiAdmin::Registry.new([]), application: nil).checks
+    assert_equal :error, checks.find { |entry| entry.name == "policy" }.status
+    assert_equal :closed, checks.find { |entry| entry.name == "files" }.status
+
+    with_isolated_engine_routes do
+      routes = ActionDispatch::Routing::RouteSet.new
+      routes.draw { mount RailsAiAdmin::Engine => "/admin", as: :rails_ai_admin }
+      app = Struct.new(:root, :routes, :autoloaders).new(Rails.application.root, routes, Rails.application.autoloaders)
+      mount_check = RailsAiAdmin::Doctor.new(configuration: RailsAiAdmin::Configuration.new, registry: RailsAiAdmin::Registry.new([]), application: app)
+        .checks.find { |entry| entry.name == "mount" }
+      assert_equal :ok, mount_check.status
+    end
+  end
 end

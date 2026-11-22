@@ -7,7 +7,9 @@ class AdminContext
   TENANT = SingleTenant.new(id: "app")
 
   def resolve(controller)
-    session = Session.find_by(id: controller.request.cookie_jar.signed[:session_id])
+    session_id = controller.request.cookie_jar.signed[:session_id]
+    return unless session_id.present?
+    session = Session.find_by(id: session_id)
     context_for(session&.user)
   end
 
@@ -25,7 +27,8 @@ class AdminContext
   def context_for(user)
     return unless user && admin?(user)
     # Any change to the user, including the admin flag, closes open forms.
-    RailsAiAdmin::Context.new(actor: user, tenant: TENANT, security_version: user.updated_at.utc.iso8601(6))
+    version = user.respond_to?(:updated_at) && user.updated_at ? user.updated_at.utc.iso8601(6) : "0"
+    RailsAiAdmin::Context.new(actor: user, tenant: TENANT, security_version: version)
   end
 
   # Decide who may use the admin. It stays closed until this returns true for

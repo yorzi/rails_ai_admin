@@ -83,7 +83,7 @@ class AdminContext
 
   def actor_labels(context:, actor_refs:)
     ids = actor_refs.filter_map { |ref| ref.delete_prefix("raa:actor:User:") if ref.start_with?("raa:actor:User:") }
-    User.where(id: ids).to_h { |user| [ "raa:actor:User:#{user.id}", user.name ] }
+    context.tenant.users.where(id: ids).to_h { |user| [ "raa:actor:User:#{user.id}", user.name ] }
   end
 end
 ```

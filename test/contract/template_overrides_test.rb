@@ -204,4 +204,20 @@ class TemplateOverridesTest < Minitest::Test
       assert checks.any? { |check| check.name == "override:resource_index" && check.status == :ok }
     end
   end
+
+  def test_non_html_erb_files_are_flagged_and_safe_paths_rejects_nul_bytes
+    with_host do |root|
+      views = root.join("app/views/rails_ai_admin/resources")
+      views.mkpath
+      views.join("index.html.haml").write("%p override")
+      views.join("show.turbo_stream.erb").write("<turbo-stream></turbo-stream>")
+      findings = inspector(root).checks
+      assert_equal %w[rails_ai_admin/resources/index.html.haml rails_ai_admin/resources/show.turbo_stream.erb], findings.map(&:key)
+      assert findings.all? { |finding| finding.code == "UNCATALOGED" && finding.status == :review }
+      assert inspector(root, max_files: 1).checks.any? { |finding| finding.code == "INCOMPLETE" }
+      assert_raises(RailsAiAdmin::ConfigurationError) { RailsAiAdmin::Templates::SafePaths.check!(root, "app/views/a\0b.html.erb") }
+      resolved = RailsAiAdmin::Templates::SafePaths.check!(root, "app/views/rails_ai_admin/resources/index.html.haml")
+      assert_equal root.realpath.join("app/views/rails_ai_admin/resources/index.html.haml"), resolved
+    end
+  end
 end

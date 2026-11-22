@@ -44,6 +44,19 @@ module RailsAiAdmin
           defined?(::RailsToolViews::Registry) ? true : false
         end
 
+        # Read-only check used by diagnostics so doctor never mutates the
+        # host-owned rails_tool_views registry.
+        def check_registration!
+          raise ConfigurationError, "rails_tool_views is not loaded" unless available?
+          component = begin
+            ::RailsToolViews.registry.fetch(KEY)
+          rescue ::RailsToolViews::Error => error
+            raise unless error.code == "UNKNOWN_COMPONENT"
+            return nil
+          end
+          verify_component!(component)
+        end
+
         # Re-registers after a host `reset_registry!`. The contract is constant,
         # so an existing registration must be exactly this one.
         def ensure_registered!
@@ -54,6 +67,10 @@ module RailsAiAdmin
             raise unless error.code == "UNKNOWN_COMPONENT"
             register
           end
+          verify_component!(component)
+        end
+
+        def verify_component!(component)
           unless component.policy.equal?(POLICY) && component.actions.fetch("confirm").handler.equal?(CONFIRM) &&
               component.actions["dismiss"]&.handler.equal?(DISMISS)
             raise ConfigurationError, "#{KEY} is registered by other code"

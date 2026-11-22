@@ -130,6 +130,7 @@ class CreateRailsAiAdminAssistant < ActiveRecord::Migration[8.0]
       t.index [ :owner_type, :owner_id ]
       t.index :status
     end
+    require "ruby_llm"
     entry = ::RubyLLM::Accounting::Usage::Entry
     quote = ->(values) { values.map { |value| connection.quote(value.to_s) }.join(", ") }
     add_check_constraint :ruby_llm_usages, "operation IN (#{quote.call(entry::OPERATIONS)})"

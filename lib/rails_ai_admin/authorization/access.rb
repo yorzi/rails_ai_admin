@@ -157,7 +157,9 @@ module RailsAiAdmin
         definition = RailsAiAdmin.operation_registry.fetch(resource, operation)
         return [] unless definition.custom?
         names = @adapter.respond_to?(:operation_fields) ? @adapter.operation_fields(context: context, resource: resource, operation: operation.to_sym, record: record) : []
-        raise ConfigurationError, "Operation fields must be an array" unless names.is_a?(Array)
+        unless names.is_a?(Array) && names.all? { |name| name.is_a?(String) || name.is_a?(Symbol) }
+          raise ConfigurationError, "Operation fields must be an array of names"
+        end
         names = names.map(&:to_sym)
         definition.handler_class.input.select { |field| names.include?(field.name) }
       end

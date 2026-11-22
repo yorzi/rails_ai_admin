@@ -14,7 +14,7 @@ module RailsAiAdmin
     def strategy(model)
       return :lock_version if model.locking_enabled? && model.locking_column == "lock_version"
       column = model.columns_hash["updated_at"]
-      return :updated_at if column && %i[datetime timestamp].include?(column.type) && model.record_timestamps
+      return :updated_at if column && %i[datetime timestamp timestamptz].include?(column.type) && model.record_timestamps
       nil
     end
 
