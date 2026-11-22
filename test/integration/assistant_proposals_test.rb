@@ -16,6 +16,7 @@ class AssistantProposalsTest < ActionDispatch::IntegrationTest
 
   def setup
     reset_database
+    OperationContractPolicy.assistant_grant = true
     [ RailsToolViews::AgentInteraction, RailsToolViews::ActionExecution, RailsToolViews::Presentation, RailsToolViews::Surface ].each(&:delete_all)
     post "/test/sign_in/1"
   end
@@ -80,7 +81,22 @@ class AssistantProposalsTest < ActionDispatch::IntegrationTest
       assert_equal [ "succeeded", context.actor_ref ], [ run.status, run.approved_by_ref ]
       assert_equal [ "surface" ], RailsAiAdmin::AuditEvent.where(correlation_ref: run.id, status: "succeeded").pluck(:origin)
       assert_equal "reviewed", propose(tool)[:status], "a crash replay after confirmation does not ask again"
+      other_customer = Customer.create!(account_id: 1, name: "Bob")
+      assert_equal [ "rejected", "IDEMPOTENCY_CONFLICT" ], propose(tool, record: other_customer.id.to_s).values_at(:status, :code)
+      assert_equal [ "rejected", "IDEMPOTENCY_CONFLICT" ], propose(tool, input: { "note" => "Different" }).values_at(:status, :code)
       refute RailsAiAdmin::Integrations::ProposeOperation.instance_methods.include?(:confirm)
+    end
+  end
+
+  def test_propose_operation_enforces_assistant_policy_grant
+    with_assistant do
+      OperationContractPolicy.assistant_grant = false
+      assert_empty tool().catalog
+      OperationContractPolicy.assistant_grant = true
+      t = tool()
+      OperationContractPolicy.assistant_grant = false
+      result = propose(t, id: "call_denied_assistant")
+      assert_equal [ "rejected", "NOT_FOUND" ], result.values_at(:status, :code)
     end
   end
 

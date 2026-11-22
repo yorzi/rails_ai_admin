@@ -121,14 +121,14 @@ module RailsAiAdmin
       end
     end
 
-    def resolve_list_navigation
+    def resolve_list_navigation(strict: false)
       raw = params[:return_to]
       raw = raw.to_unsafe_h if raw.is_a?(ActionController::Parameters)
       access = Authorization::Access.new(@context, @resource)
       @list_navigation = if action_name == "recover_form"
         Navigation::ListState.from_header(access, request.headers["X-RailsAiAdmin-Return-State"])
       else
-        Navigation::ListState.new(access, raw)
+        Navigation::ListState.new(access, raw, strict: strict)
       end
     end
 
@@ -298,8 +298,12 @@ module RailsAiAdmin
     end
 
     def default_actor_label(ref)
-      _, _, kind, id = ref.to_s.split(":", 4)
-      kind && id ? "#{kind.demodulize.titleize} ##{id}" : ref.to_s
+      text = ref.to_s
+      if (match = text.match(/\Araa:[^:]+:(.+):([^:]+)\z/))
+        "#{match[1].demodulize.titleize} ##{match[2]}"
+      else
+        text
+      end
     end
 
     def record_label(resource, record, values: nil, view: :show)

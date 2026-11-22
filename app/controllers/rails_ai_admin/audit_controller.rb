@@ -10,7 +10,11 @@ module RailsAiAdmin
       @filters = FILTERS.to_h { |key| [ key, params[key] ] }.compact_blank
       raise AccessDenied, "INVALID_QUERY" unless @filters.values.all? { |value| value.is_a?(String) }
       @page = @log.page(**@filters.transform_keys(&:to_sym))
-      @actor_labels = actor_labels(@page.entries.map(&:actor_ref).uniq | [ @filters["actor"] ].compact)
+      refs = @page.entries.map(&:actor_ref).uniq
+      actor = @filters["actor"]
+      refs << actor if actor && !refs.include?(actor) && @log.actor_present?(actor)
+      @actor_labels = actor_labels(refs)
+      @actor_labels[actor] ||= default_actor_label(actor) if actor
     end
   end
 end

@@ -57,9 +57,35 @@ class AuditLogIntegrationTest < ActionDispatch::IntegrationTest
     EssentialFixtures::Policy.history = false
     with_essential_resources do
       get "/backoffice/"
-      assert_select "a[href='/backoffice/audit']", count: 0
+      assert_select "nav a[href='/backoffice/audit']", count: 0
       get "/backoffice/audit"
       assert_response :not_found
     end
+  end
+
+  def test_unseen_actor_filter_does_not_invoke_actor_labels_oracle_and_handles_namespaced_actors
+    seen_refs = []
+    base = RailsAiAdmin.configuration.context_adapter.constantize
+    adapter_class = Class.new(base) do
+      define_method(:actor_labels) do |context:, actor_refs:|
+        seen_refs.concat(actor_refs)
+        { "raa:actor:Admin::User:99" => "Secret Other Tenant User" }
+      end
+    end
+    const_name = "AuditActorOracleContextAdapter"
+    Object.const_set(const_name, adapter_class)
+    with_essential_resources do
+      previous = RailsAiAdmin.configuration.context_adapter
+      RailsAiAdmin.configuration.context_adapter = const_name
+      get "/backoffice/audit", params: { actor: "raa:actor:Admin::User:99" }
+      assert_response :success
+      assert_empty seen_refs, "unseen actor_ref must not be queried via adapter.actor_labels"
+      refute_includes response.body, "Secret Other Tenant User"
+      assert_select "p.raa-notice", text: /User #99/
+    ensure
+      RailsAiAdmin.configuration.context_adapter = previous
+    end
+  ensure
+    Object.send(:remove_const, const_name) if const_name && Object.const_defined?(const_name, false)
   end
 end

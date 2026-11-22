@@ -69,14 +69,21 @@ module RailsAiAdmin
         entry = @catalog.find { |item| item[:resource].key.to_s == resource.to_s && item[:definition].key.to_s == operation.to_s }
         raise AccessDenied unless entry && record.is_a?(String) && record.match?(RECORD_REF) && input.is_a?(Hash)
         resource, definition = entry[:resource], entry[:definition]
+        access = Authorization::Access.new(@context, resource)
+        access.authorize_assistant!
+        raise AccessDenied unless resource.action_enabled?(definition.key)
         intent_id = Digest::UUID.uuid_v5(NAMESPACE, [ @context.actor_ref, @context.tenant_ref, @conversation, tool_call.id ].join("\n"))
         # A replay of an already confirmed call reports it before re-checking the
         # command grant, which a completed change may legitimately withdraw.
         done = OperationRun.find_by(id: intent_id, actor_ref: @context.actor_ref, tenant_ref: @context.tenant_ref, status: "succeeded")
-        if done && done.origin == "assistant" && done.resource_key == resource.key.to_s && done.operation == definition.key.to_s
+        if done
+          unless done.origin == "assistant" && done.resource_key == resource.key.to_s && done.operation == definition.key.to_s &&
+              done.target_id == record && done.security_version == @context.security_version &&
+              replay_input_matches?(done, definition, input)
+            raise AccessDenied, "IDEMPOTENCY_CONFLICT"
+          end
           return { status: "reviewed", message: "The user already confirmed this proposal. Do not propose it again." }
         end
-        access = Authorization::Access.new(@context, resource)
         target = access.find!(record, action: definition.key)
         values = proposal_values(resource, definition, target, input, intent_id)
         return values if values.key?(:status)
@@ -93,20 +100,27 @@ module RailsAiAdmin
 
       private
 
-      # Opted-in operations on resources the actor may currently list.
+      # Opted-in operations on resources the actor may currently expose to an assistant.
       def build_catalog
         RailsAiAdmin.registry.resources.flat_map do |resource|
           access = Authorization::Access.new(@context, resource)
           begin
-            access.authorize!(:index)
+            access.authorize_assistant!
           rescue AccessDenied
             next []
           end
           resource.assistant_operations.filter_map do |key|
+            next unless resource.action_enabled?(key)
             definition = RailsAiAdmin.operation_registry.fetch(resource, key)
             { resource: resource, definition: definition } if definition.custom? && definition.scope == :member
           end
         end
+      end
+
+      def replay_input_matches?(run, definition, input)
+        return false unless run.input_digest
+        result = InputSchema.new(definition.handler_class.input).coerce(input, time_zone: @context.time_zone)
+        result.valid? && InputSchema.digest(result.values) == run.input_digest
       end
 
       # Typed values of a new or replayed intent for this exact tool call.

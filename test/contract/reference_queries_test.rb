@@ -153,4 +153,60 @@ class ReferenceQueriesTest < Minitest::Test
       end
     end
   end
+
+  def test_assistant_tools_cannot_resolve_search_or_sort_targets_without_assistant_grant
+    policy = Class.new(AssociationFixtures::Policy) do
+      def assistant?(context:, resource:)
+        resource.key == :invoices
+      end
+    end
+    const_name = "AssistantTargetBoundaryPolicy"
+    Object.const_set(const_name, policy)
+    with_association_resources(RESOURCES) do |registry|
+      previous = RailsAiAdmin.configuration.authorization_adapter
+      RailsAiAdmin.configuration.authorization_adapter = const_name
+      invoices = registry.fetch(:invoices)
+      access = RailsAiAdmin::Authorization::Access.new(context, invoices)
+      assert_equal %i[number customer], access.fields(:search).map(&:name)
+      assert_equal %i[number], access.fields(:search, assistant: true).map(&:name)
+      assert_equal %i[number], access.fields(:sort, assistant: true).map(&:name)
+
+      resolver = RailsAiAdmin::Fields::Association.new(context, invoices, assistant: true)
+      field = invoices.fields.find { |f| f.name == :customer }
+      ref = resolver.reference(field, @ada.id.to_s)
+      refute ref.visible
+      assert_equal "Customer ##{@ada.id}", ref.label
+      assert_nil ref.resource_key
+
+      assistant_list = RailsAiAdmin::Queries::List.new(context, invoices, assistant: true)
+      assert_empty assistant_list.call(search: "ada").records
+      assert_raises(RailsAiAdmin::AccessDenied) { assistant_list.call(sort: "customer") }
+    ensure
+      RailsAiAdmin.configuration.authorization_adapter = previous
+    end
+  ensure
+    Object.send(:remove_const, const_name) if const_name && Object.const_defined?(const_name, false)
+  end
+
+  def test_reference_search_never_weakens_target_titles_stricter_match_mode
+    exact_customer = Class.new(RailsAiAdmin::Resource) do
+      model "Customer"
+      key :customers
+      title :name
+      fields do
+        id :id
+        text :name, searchable: :exact, sortable: true
+      end
+    end
+    const_name = "ExactSearchCustomerAdmin"
+    Object.const_set(const_name, exact_customer)
+    with_association_resources([ const_name, "AssociationFixtures::ReferenceQueryInvoiceAdmin" ]) do |registry|
+      invoices = registry.fetch(:invoices)
+      # Invoice declares searchable: :contains on customer, but customer title is :exact.
+      assert_empty RailsAiAdmin::Queries::List.new(context, invoices).call(search: "ad").records
+      assert_equal %w[I-2 I-6], RailsAiAdmin::Queries::List.new(context, invoices).call(search: "Ada").records.map(&:number).sort
+    end
+  ensure
+    Object.send(:remove_const, const_name) if const_name && Object.const_defined?(const_name, false)
+  end
 end

@@ -121,4 +121,38 @@ class PunditAdapterTest < Minitest::Test
     refute @adapter.configured?(ScopeLessAdmin)
     refute @adapter.configured?(TestResource)
   end
+
+  def test_object_predicates_and_truthy_non_booleans_never_grant_access
+    operation_resource = Class.new(RailsAiAdmin::Resource) do
+      model "Customer"
+      key :pundit_ops
+      policy "ScopedAdminCustomerPolicy"
+      title :name
+      fields do
+        id :id
+        text :name
+      end
+      operation :present, handler: "ReviewContractOperation"
+    end
+    refute @adapter.allowed?(context: context, action: :present, resource: operation_resource, record: @customer)
+
+    truthy_policy = Class.new(ScopedAdminCustomerPolicy) do
+      def index? = "not a boolean"
+    end
+    policy_name = "TruthyReturnTestPolicy"
+    Object.const_set(policy_name, truthy_policy)
+    truthy_resource = Class.new(RailsAiAdmin::Resource) do
+      model "Customer"
+      key :truthy_customers
+      policy policy_name
+      title :name
+      fields do
+        id :id
+        text :name
+      end
+    end
+    refute @adapter.allowed?(context: context, action: :index, resource: truthy_resource)
+  ensure
+    Object.send(:remove_const, policy_name) if policy_name && Object.const_defined?(policy_name, false)
+  end
 end

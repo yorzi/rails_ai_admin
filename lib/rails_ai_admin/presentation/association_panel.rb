@@ -61,18 +61,18 @@ module RailsAiAdmin
           model = child.model_class
           records = access.relation.where(field.column => record.id)
             .reorder(model.arel_table[model.primary_key].asc).limit(definition.limit + 1).to_a
-          rows = records.first(definition.limit).map do |child_record|
-            linked = begin
+          rows = records.first(definition.limit).filter_map do |child_record|
+            begin
               access.authorize!(:show, child_record)
             rescue AccessDenied
-              false
+              next
             end
-            editable = linked && begin
+            editable = begin
               access.authorize!(:update, child_record)
             rescue AccessDenied
               false
             end
-            Row.new(child_record.id.to_s.freeze, access.record_label(child_record, view: :index).freeze, linked, editable)
+            Row.new(child_record.id.to_s.freeze, access.record_label(child_record, view: :index).freeze, true, editable)
           end
           filter = access.fields(:filter).include?(field) ? { field.name.to_s => { "eq" => record.id.to_s } }.freeze : nil
           Panel.new(definition.name, definition.caption, child.key, rows.freeze, records.size > definition.limit, filter,

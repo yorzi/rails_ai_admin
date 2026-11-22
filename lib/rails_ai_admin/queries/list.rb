@@ -16,9 +16,12 @@ module RailsAiAdmin
       AREL_PREDICATES = { "eq" => :eq, "gte" => :gteq, "lte" => :lteq }.freeze
       OPERATORS = Field::FILTER_OPERATORS.map(&:to_s).freeze
 
-      def initialize(context, resource)
+      SEARCH_STRICTNESS = { exact: 0, prefix: 1, contains: 2 }.freeze
+
+      def initialize(context, resource, assistant: false)
         @access = Authorization::Access.new(context, resource)
         @resource = resource
+        @assistant = assistant == true
       end
 
       # scope: nil uses the declared default when it is currently granted;
@@ -252,7 +255,7 @@ module RailsAiAdmin
         settings = @resource.index
         table = @resource.model_class.arel_table
         primary = @resource.model_class.primary_key
-        sortable = @access.fields(:sort)
+        sortable = @access.fields(:sort, assistant: @assistant)
         field = if sort.present?
           sortable.find { |entry| entry.name.to_s == sort } || raise(AccessDenied, "INVALID_QUERY")
         elsif settings.default_sort
@@ -309,25 +312,33 @@ module RailsAiAdmin
         relation = named.apply(relation) if named
         relation = apply_filters(relation, filters)
         if search.present?
-          fields = @access.fields(:search)
+          fields = @access.fields(:search, assistant: @assistant)
           raise AccessDenied, "INVALID_QUERY" if fields.empty?
           predicates = fields.map do |field|
             term = ActiveRecord::Base.sanitize_sql_like(search)
-            pattern = case field.options[:searchable]
-            when :exact then term
-            when :contains then "%#{term}%"
-            else "#{term}%"
-            end
             column = @resource.model_class.arel_table[field.column]
             if field.scalar_type == :belongs_to
-              column.in(reference_matches(field, pattern))
+              column.in(reference_matches(field, term))
             else
-              column.matches(pattern, "\\")
+              column.matches(search_pattern(search_mode(field), term), "\\")
             end
           end
           relation = relation.where(predicates.reduce(&:or))
         end
         [ relation, named ]
+      end
+
+      def search_mode(field)
+        mode = field.options[:searchable]
+        mode == true ? :prefix : mode
+      end
+
+      def search_pattern(mode, term)
+        case mode
+        when :exact then term
+        when :contains then "%#{term}%"
+        else "#{term}%"
+        end
       end
 
       # A subquery of the target's policy relation: its key and title.
@@ -338,15 +349,19 @@ module RailsAiAdmin
       end
 
       # Keys of target records in the target's policy relation whose title matches.
-      def reference_matches(field, pattern)
+      # Intersects the reference field's match mode with the target title's so a
+      # referencing resource cannot weaken an :exact or :prefix target restriction.
+      def reference_matches(field, term)
         relation, model, title = reference_relation(field)
+        mode = [ search_mode(field), search_mode(title) ].min_by { |entry| SEARCH_STRICTNESS.fetch(entry, 1) }
         table = model.arel_table
-        relation.where(table[title.column].matches(pattern, "\\")).reselect(table[model.primary_key]).arel
+        relation.where(table[title.column].matches(search_pattern(mode, term), "\\")).reselect(table[model.primary_key]).arel
       end
 
       def reference_relation(field)
         target = Fields::Association.target(field)
         access = Authorization::Access.new(@access.context, target)
+        access.authorize_assistant! if @assistant
         title = target.fields.find { |candidate| candidate.name == target.title }
         [ access.relation.unscope(:order, :limit, :offset), target.model_class, title ]
       end

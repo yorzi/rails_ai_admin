@@ -37,8 +37,9 @@ class BulkDestroyIntegrationTest < ActionDispatch::IntegrationTest
       assert_select "li", text: "First"
       assert_select "li", text: "Second"
       digest = css_select("input[name=manifest_digest]").first["value"]
+      signature = css_select("input[name=review_signature]").first["value"]
       assert_equal 0, RailsAiAdmin::AuditEvent.count, "the review page writes nothing"
-      post "#{path}/destroy", params: { manifest_digest: digest }
+      post "#{path}/destroy", params: { manifest_digest: digest, review_signature: signature }
       assert_response :see_other
       assert_equal "/backoffice/articles", URI(response.location).path
       follow_redirect!
@@ -58,7 +59,8 @@ class BulkDestroyIntegrationTest < ActionDispatch::IntegrationTest
       assert_select "li", count: 2
       assert_select "p.raa-notice", text: "1 selected record cannot be deleted by you and will be kept."
       digest = css_select("input[name=manifest_digest]").first["value"]
-      post "#{path}/destroy", params: { manifest_digest: digest }
+      signature = css_select("input[name=review_signature]").first["value"]
+      post "#{path}/destroy", params: { manifest_digest: digest, review_signature: signature }
       assert_response :success
       assert_select "p[role=status]", text: "Deleted 1 record."
       assert_select "td a", text: "Locked"
@@ -72,12 +74,13 @@ class BulkDestroyIntegrationTest < ActionDispatch::IntegrationTest
       path = select(@article, @second)
       get "#{path}/destroy"
       digest = css_select("input[name=manifest_digest]").first["value"]
-      post "#{path}/destroy", params: { manifest_digest: "0" * 64 }
+      signature = css_select("input[name=review_signature]").first["value"]
+      post "#{path}/destroy", params: { manifest_digest: "0" * 64, review_signature: signature }
       assert_response :conflict
-      post "#{path}/destroy", params: { manifest_digest: "not hex" }
+      post "#{path}/destroy", params: { manifest_digest: "not hex", review_signature: signature }
       assert_response :unprocessable_content
       @second.update!(title: "Edited after selecting")
-      post "#{path}/destroy", params: { manifest_digest: digest }
+      post "#{path}/destroy", params: { manifest_digest: digest, review_signature: signature }
       assert_response :conflict
       assert_equal 3, Article.where(account_id: 1).count
     end
@@ -158,6 +161,25 @@ class BulkDestroyIntegrationTest < ActionDispatch::IntegrationTest
       assert_response :see_other
       follow_redirect!
       assert_select ".raa-notice", text: /More than 100 records match/
+    end
+  end
+
+  def test_destroy_confirmation_rejects_expanded_deletable_subset_and_all_matching_rejects_discarded_filters
+    EssentialFixtures::Policy.undeletable = [ "Second" ]
+    with_essential_resources do
+      path = select(@article, @second)
+      get "#{path}/destroy"
+      assert_select "li", count: 1
+      digest = css_select("input[name=manifest_digest]").first["value"]
+      signature = css_select("input[name=review_signature]").first["value"]
+      EssentialFixtures::Policy.undeletable = []
+      post "#{path}/destroy", params: { manifest_digest: digest, review_signature: signature }
+      assert_response :conflict
+      assert_equal 3, Article.where(account_id: 1).count
+
+      # Revoking/invalidating a filter on all_matching=1 fails closed instead of widening.
+      post "/backoffice/articles/selections", params: { all_matching: "1", then: "destroy", return_to: { filter: { status: { eq: "draft" } }, q: "First" } }
+      assert_response :unprocessable_content
     end
   end
 end

@@ -32,10 +32,13 @@ module RailsAiAdmin
       def allowed?(context:, action:, resource:, record: nil)
         return false unless ACTIONS.include?(action.to_sym) || resource.operation_declarations.key?(action.to_sym)
         klass = policy_class(resource)
+        return false unless klass
         target = record || (action.to_sym == :create ? scope(context: context, resource: resource, relation: resource.model_class.all).new : resource.model_class)
-        return false unless klass && klass.new(context, target).respond_to?("#{action}?")
-        Pundit.authorize(context, target, "#{action}?", policy_class: klass)
-        true
+        query = :"#{action}?"
+        policy = klass.new(context, target)
+        return false unless policy.respond_to?(query)
+        return false if Object.ancestors.include?(policy.method(query).owner)
+        policy.public_send(query) == true
       rescue Pundit::NotAuthorizedError
         false
       rescue StandardError => error

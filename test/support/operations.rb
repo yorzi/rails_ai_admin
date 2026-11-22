@@ -8,6 +8,9 @@ class OperationContractPolicy < TestPolicy
   class_attribute :receipt_grant, default: true
   class_attribute :delivery_grant, default: true
   class_attribute :input_grant, default: true
+  class_attribute :assistant_grant, default: true
+
+  def assistant?(context:, resource:) = !denied && assistant_grant
 
   def allowed?(context:, action:, resource:, record: nil)
     return super unless resource.operation_declarations.key?(action.to_sym)

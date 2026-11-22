@@ -183,4 +183,30 @@ class AssociationsIntegrationTest < ActionDispatch::IntegrationTest
       assert_equal [ "INV-B" ], css_select("tbody tr").map { |row| row.text[/INV-\w+/] }
     end
   end
+
+  def test_association_panel_omits_show_denied_children
+    inv1 = Invoice.create!(account_id: 1, number: "INV-SHOW", customer: @customer)
+    inv2 = Invoice.create!(account_id: 1, number: "INV-HIDE", customer: @customer)
+    policy_class = Class.new(AssociationFixtures::Policy) do
+      define_method(:allowed?) do |context:, action:, resource:, record: nil|
+        return false if action.to_sym == :show && record.is_a?(Invoice) && record.number == "INV-HIDE"
+        super(context: context, action: action, resource: resource, record: record)
+      end
+    end
+    const_name = "HideInvoiceShowPolicy"
+    Object.const_set(const_name, policy_class)
+    with_association_resources do
+      previous = RailsAiAdmin.configuration.authorization_adapter
+      RailsAiAdmin.configuration.authorization_adapter = const_name
+      get "/backoffice/customers/#{@customer.id}"
+      assert_response :success
+      assert_includes response.body, inv1.number
+      refute_includes response.body, inv2.number
+      refute_includes response.body, "Record ##{inv2.id}"
+    ensure
+      RailsAiAdmin.configuration.authorization_adapter = previous
+    end
+  ensure
+    Object.send(:remove_const, const_name) if const_name && Object.const_defined?(const_name, false)
+  end
 end

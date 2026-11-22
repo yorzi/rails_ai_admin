@@ -8,6 +8,7 @@
 <% if @resource.soft_delete? %><p><%= t("rails_ai_admin.deleted_records.destroy_note") %></p><% end %>
 <%= form_with url: destroy_selection_path(selection_ref: @selection.selection_ref), method: :post, local: true, data: { turbo: false } do |form| %>
   <%= hidden_field_tag :manifest_digest, @selection.manifest_digest, id: nil %>
+  <%= hidden_field_tag :review_signature, @review_signature, id: nil %>
   <%= return_navigation_fields %>
   <div class="raa-actions"><%= form.submit t("rails_ai_admin.selections.destroy.submit", count: @deletable.size), class: "raa-danger", name: nil, data: { turbo_submits_with: t("rails_ai_admin.selections.destroy.deleting") } %>
   <%= link_to t("rails_ai_admin.actions.cancel"), list_return_path %></div>

@@ -66,9 +66,10 @@ module RailsAiAdmin
 
       # resource: the declaring resource. Its own fields are checked against the
       # model reflection; operation input fields only need a registered target.
-      def initialize(context, resource = nil)
+      # assistant: when true, target resources must also hold the assistant? grant.
+      def initialize(context, resource = nil, assistant: false)
         raise AccessDenied, "UNAUTHENTICATED" unless context.is_a?(Context)
-        @context, @resource = context, resource
+        @context, @resource, @assistant = context, resource, assistant == true
         @accesses = {}
         @references = Hash.new { |hash, key| hash[key] = {} }
       end
@@ -81,6 +82,10 @@ module RailsAiAdmin
         return self if pending.empty?
         raise ConfigurationError, "Too many references to resolve at once" if pending.size > MAX_BATCH
         access = target_access(field)
+        if @assistant && !assistant_allowed?(access)
+          pending.each { |id| cache[id] = unavailable(field, id) }
+          return self
+        end
         model = access.resource.model_class
         keys = pending.select { |id| key_shape?(model, id) }
         found = keys.empty? ? {} : access.relation.where(model.primary_key => keys).to_a.index_by { |record| record.id.to_s }
@@ -170,8 +175,15 @@ module RailsAiAdmin
         column&.type == :integer ? id.match?(INTEGER_KEY) && Integer(id, 10) <= 2**63 - 1 : true
       end
 
+      def assistant_allowed?(access)
+        access.authorize_assistant!
+      rescue AccessDenied
+        false
+      end
+
       def build(field, access, record, id)
         if record
+          access.authorize_assistant! if @assistant
           access.authorize!(:show, record)
           return Reference.new(id.dup.freeze, access.record_label(record).freeze, access.resource.key, true)
         end

@@ -160,7 +160,7 @@ module RailsAiAdmin
         end.to_h
       end
 
-      def reference_resolver(access) = Fields::Association.new(access.context, access.resource)
+      def reference_resolver(access) = Fields::Association.new(access.context, access.resource, assistant: true)
 
       def record_entry(access, record, view, references = reference_resolver(access))
         { "id" => record.id.to_s, "label" => access.record_label(record, view: view), "fields" => values(access, record, view, references) }
@@ -238,9 +238,9 @@ module RailsAiAdmin
           "key" => resource.key.to_s, "label" => resource.label,
           "fields" => access.fields(:read, nil, view: :show).map { |field| field_entry(field) },
           # Match mode per field: "prefix" means "Love" does not find "Ada Lovelace" (RAA-021).
-          "search" => access.fields(:search).map { |field| { "field" => field.name.to_s, "match" => (field.options[:searchable] == true ? :prefix : field.options[:searchable]).to_s } },
+          "search" => access.fields(:search, assistant: true).map { |field| { "field" => field.name.to_s, "match" => (field.options[:searchable] == true ? :prefix : field.options[:searchable]).to_s } },
           "filters" => access.fields(:filter).map { |field| { "field" => field.name.to_s, "operators" => field.filter_operators.map(&:to_s) } },
-          "sort" => access.fields(:sort).map { |field| field.name.to_s },
+          "sort" => access.fields(:sort, assistant: true).map { |field| field.name.to_s },
           # aggregate_records: measured fields and their functions, and the
           # categories results can be grouped by (filter grant required).
           "aggregates" => access.fields(:read).select { |field| field.aggregatable? && !field.virtual? }
@@ -333,7 +333,7 @@ module RailsAiAdmin
         raise AccessDenied, "INVALID_QUERY" unless direction.nil? || %w[asc desc].include?(direction)
         offset = (page - 1) * PAGE_LIMIT if offset.nil?
         raise AccessDenied, "INVALID_QUERY" unless offset.is_a?(Integer) && offset.between?(0, MAX_RECORDS - 1)
-        result = Queries::List.new(@session.context, resource).call(search: query.presence, page: page.to_s, filters: wire_filters(filters),
+        result = Queries::List.new(@session.context, resource, assistant: true).call(search: query.presence, page: page.to_s, filters: wire_filters(filters),
           scope: list_scope(scope), sort: sort, direction: direction || "asc", page_size: [ PAGE_LIMIT, MAX_RECORDS - offset ].min, offset: offset)
         records, omitted = record_entries(access, result.records, :index)
         { "resource" => resource.key.to_s, "applied_scope" => result.scope,
@@ -376,7 +376,7 @@ module RailsAiAdmin
 
       def perform(tool_call:, resource:, query: nil, filters: nil, scope: nil)
         resource = @session.resource(resource)
-        result = Queries::List.new(@session.context, resource).count(search: query.presence, filters: wire_filters(filters), scope: list_scope(scope))
+        result = Queries::List.new(@session.context, resource, assistant: true).count(search: query.presence, filters: wire_filters(filters), scope: list_scope(scope))
         { "resource" => resource.key.to_s, "applied_scope" => result.scope, "count" => result.count, "capped" => result.capped }
       end
     end
@@ -412,7 +412,7 @@ module RailsAiAdmin
         unless function.is_a?(String) && [ field, group_by, period ].all? { |value| value.nil? || value.is_a?(String) }
           raise AccessDenied, "INVALID_QUERY"
         end
-        result = Queries::List.new(@session.context, resource).aggregate(function: function, field: field, group_by: group_by,
+        result = Queries::List.new(@session.context, resource, assistant: true).aggregate(function: function, field: field, group_by: group_by,
           period: period, search: query.presence, filters: wire_filters(filters), scope: list_scope(scope))
         references = reference_resolver(@session.access(resource))
         if result.group_by&.scalar_type == :belongs_to
@@ -628,7 +628,7 @@ module RailsAiAdmin
       # The same records search_records would page through, one past the limit.
       def matching_ids(resource, query, filters, scope)
         model = resource.model_class
-        Queries::List.new(@session.context, resource).relation(search: query.presence, filters: wire_filters(filters), scope: list_scope(scope))
+        Queries::List.new(@session.context, resource, assistant: true).relation(search: query.presence, filters: wire_filters(filters), scope: list_scope(scope))
           .limit(Selections::Builder::LIMIT + 1).pluck(model.arel_table[model.primary_key]).map(&:to_s)
       end
     end

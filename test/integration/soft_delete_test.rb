@@ -108,7 +108,10 @@ class SoftDeleteTest < ActionDispatch::IntegrationTest
       post "/backoffice/memos/selections", params: { target_ids: [ @memo.id, second.id ], then: "destroy" }
       follow_redirect!
       assert_select "strong", text: "Delete these 2 records?"
-      post "#{URI(request.url).path}", params: { manifest_digest: css_select("input[name=manifest_digest]").first["value"] }
+      post "#{URI(request.url).path}", params: {
+        manifest_digest: css_select("input[name=manifest_digest]").first["value"],
+        review_signature: css_select("input[name=review_signature]").first["value"]
+      }
       assert_equal 0, Memo.where(account_id: 1, discarded_at: nil).count
       assert_equal 4, Memo.count
     end

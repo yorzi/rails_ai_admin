@@ -49,6 +49,11 @@ module RailsAiAdmin
         Page.new(entries.freeze, events.size > PAGE_SIZE ? entries.last.id : nil)
       end
 
+      def actor_present?(actor)
+        return false unless actor.is_a?(String) && actor.valid_encoding? && actor.bytesize <= 150 && !actor.match?(/[[:cntrl:]]/)
+        AuditEvent.where(tenant_ref: @context.tenant_ref, resource_key: @resources.map { |entry| entry.key.to_s }, actor_ref: actor).exists?
+      end
+
       private
 
       def visible_labels(resource)

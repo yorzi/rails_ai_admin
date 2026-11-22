@@ -64,9 +64,9 @@ module RailsAiAdmin
 
       VIEWS = %i[index show create edit].freeze
 
-      def fields(action, record = nil, operation: nil, view: nil)
+      def fields(action, record = nil, operation: nil, view: nil, assistant: false)
         view = write_view(operation, view) if action == :write
-        granted = permission_fields(action, record, operation: operation, view: view)
+        granted = permission_fields(action, record, operation: operation, view: view, assistant: assistant)
         action == :read && view ? granted.select { |field| field.visible_on?(view) } : granted
       end
 
@@ -276,7 +276,7 @@ module RailsAiAdmin
       end
       protected :granted_names
 
-      def permission_fields(action, record, operation: nil, view: nil)
+      def permission_fields(action, record, operation: nil, view: nil, assistant: false)
         raise ConfigurationError, "Unknown presentation view" if view && !VIEWS.include?(view)
         names = granted_names(action, record)
         selected = resource.fields.select do |field|
@@ -288,7 +288,7 @@ module RailsAiAdmin
             (action != :search || !field.virtual? && field.options[:searchable]) &&
             (action != :sort || !field.virtual? && field.options[:sortable]) &&
             (action != :filter || !field.virtual? && field.filter_operators.any?) &&
-            (!%i[search sort].include?(action) || field.scalar_type != :belongs_to || reference_title_granted?(field, action))
+            (!%i[search sort].include?(action) || field.scalar_type != :belongs_to || reference_title_granted?(field, action, assistant: assistant))
         end
         mask = presentation_mask(record, view) if view
         selected = selected.select { |field| mask.include?(field.name) } if mask
@@ -300,13 +300,13 @@ module RailsAiAdmin
       # title there. A title that is itself a reference never qualifies, and
       # only the title is checked: the target's own references are not, so a
       # self-reference or a cycle of references cannot recurse.
-      def reference_title_granted?(field, action)
+      def reference_title_granted?(field, action, assistant: false)
         target = Fields::Association.target(field)
         title = target.fields.find { |candidate| candidate.name == target.title }
         return false if title.nil? || title.virtual? || title.hidden? || Field::REFERENCE_TYPES.include?(title.scalar_type)
         return false unless title.options[action == :sort ? :sortable : :searchable]
         access = self.class.new(context, target)
-        access.authorize!(:index)
+        assistant ? access.authorize_assistant! : access.authorize!(:index)
         access.granted_names(action).include?(title.name)
       rescue AccessDenied
         false

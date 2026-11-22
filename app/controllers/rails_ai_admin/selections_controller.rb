@@ -3,9 +3,16 @@
 module RailsAiAdmin
   # Snapshot capture/view is deliberately separate from business confirmation.
   class SelectionsController < ApplicationController
+    DESTROY_REVIEW_PURPOSE = "rails_ai_admin/selection_destroy_review"
+
     def create
       @resource = RailsAiAdmin.registry.fetch(params[:resource])
-      resolve_list_navigation
+      if params[:all_matching] == "1"
+        resolve_list_navigation(strict: true)
+        raise AccessDenied, "INVALID_QUERY" if return_state_discarded?
+      else
+        resolve_list_navigation
+      end
       target_ids = if params[:all_matching] == "1"
         Authorization::Access.new(@context, @resource).authorize_selection!
         ids = matching_ids
@@ -46,7 +53,10 @@ module RailsAiAdmin
     # now, and how many will be skipped. With none, the selection stays.
     def confirm_destroy
       load_deletable
-      return if @deletable.any?
+      if @deletable.any?
+        @review_signature = sign_destroy_review(@selection, @deletable)
+        return
+      end
       redirect_to selection_path(selection_ref: @selection.selection_ref, **navigation_params), status: :see_other,
         notice: t("rails_ai_admin.selections.destroy.none")
     end
@@ -58,6 +68,7 @@ module RailsAiAdmin
       digest = params[:manifest_digest]
       raise AccessDenied, "INVALID_QUERY" unless digest.is_a?(String) && digest.match?(/\A[0-9a-f]{64}\z/)
       load_deletable(manifest_digest: digest)
+      verify_destroy_review!(params[:review_signature], @selection, @deletable)
       raise AccessDenied if @deletable.empty?
       runner = Operations::Runner.new
       @outcomes = @deletable.map do |target|
@@ -86,10 +97,35 @@ module RailsAiAdmin
     # The builder then checks each of them again.
     def matching_ids
       state = navigation_state
-      model = @resource.model_class
-      Queries::List.new(@context, @resource).relation(search: state["q"], sort: state["sort"], direction: state.fetch("direction", "asc"),
-        scope: state["scope"], filters: state["filter"]).limit(Selections::Builder::LIMIT + 1).pluck(model.arel_table[model.primary_key]).map(&:to_s)
+      access = Authorization::Access.new(@context, @resource)
+      records = Queries::List.new(@context, @resource).relation(search: state["q"], sort: state["sort"], direction: state.fetch("direction", "asc"),
+        scope: state["scope"], filters: state["filter"]).limit(Selections::Builder::LIMIT + 1).to_a
+      records.filter_map do |record|
+        access.authorize!(:show, record)
+        record.id.to_s
+      rescue AccessDenied
+        nil
+      end
     end
+
+    def sign_destroy_review(selection, targets)
+      destroy_review_verifier.generate(destroy_review_digest(selection, targets),
+        expires_at: selection.expires_at, purpose: DESTROY_REVIEW_PURPOSE)
+    end
+
+    def verify_destroy_review!(signature, selection, targets)
+      raise AccessDenied, "INVALID_QUERY" unless signature.is_a?(String) && signature.bytesize.between?(1, 1024)
+      unless destroy_review_verifier.verified(signature, purpose: DESTROY_REVIEW_PURPOSE) == destroy_review_digest(selection, targets)
+        raise AccessDenied, "CONFLICT"
+      end
+    end
+
+    def destroy_review_digest(selection, targets)
+      InputSchema.digest(selection_ref: selection.selection_ref, manifest_digest: selection.manifest_digest,
+        actor_ref: @context.actor_ref, tenant_ref: @context.tenant_ref, ids: targets.map(&:id))
+    end
+
+    def destroy_review_verifier = ::Rails.application.message_verifier(DESTROY_REVIEW_PURPOSE)
 
     # The list's bulk buttons name the action to review next. An unknown or
     # ungranted name falls back to the selection page; nothing runs here.
