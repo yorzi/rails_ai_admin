@@ -39,6 +39,9 @@
   without `Sec-Fetch-Site`; the admin asks such a request for its token.
 - The field input partial compiles through Herb, which `load_defaults 8.2`
   uses for HTML templates: `case` and its first `when` are separate tags.
+- A scheduled CI workflow runs the suite against Rails main on SQLite and
+  PostgreSQL (`gemfiles/rails_main.gemfile`). It warns early and does not
+  block releases; Rails 8.2 is not supported yet.
 
 ## 0.4.1 (2026-11-18)
 

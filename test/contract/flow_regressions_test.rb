@@ -68,7 +68,9 @@ class FlowRegressionsContractTest < ActiveSupport::TestCase
 
   def test_doctor_flags_rails_releases_below_each_series_patch
     doctor = RailsAiAdmin::Doctor.new(application: nil)
-    assert_equal :ok, doctor.send(:rails_check).status
+    # The scheduled Rails main run (gemfiles/rails_main.gemfile) is outside the supported series on purpose.
+    supported = Rails.gem_version.segments.first(2) == [ 8, 1 ]
+    assert_equal supported ? :ok : :error, doctor.send(:rails_check).status
     { "8.1.4.1" => :ok, "8.1.5" => :ok, "8.1.4" => :error, "8.1.0" => :error, "8.0.5.2" => :error, "8.2.0" => :error }.each do |version, status|
       assert_equal status, doctor.send(:rails_check, version: Gem::Version.new(version)).status, version
     end

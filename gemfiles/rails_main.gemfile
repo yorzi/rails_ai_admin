@@ -1,0 +1,6 @@
+# The suite against Rails main, run on a schedule by
+# .github/workflows/rails-main.yml. Failures here are early warnings about
+# upstream changes, not release blockers; releases use the root Gemfile.lock.
+eval_gemfile File.expand_path("../Gemfile", __dir__)
+
+gem "rails", github: "rails/rails", branch: "main"

@@ -13,3 +13,4 @@
 /docs/site/.jekyll-cache/
 .DS_Store
 *.sqlite3*
+/gemfiles/*.lock
