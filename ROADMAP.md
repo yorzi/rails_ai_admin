@@ -60,16 +60,27 @@ read-only demo is a future task, not part of this release's claim.
   scripted provider only.
 - A nightly, non-blocking run against Rails main.
 
+## 0.6.0: contextual and interactive admin (in development)
+
+Unreleased; see the Unreleased section of [CHANGELOG.md](CHANGELOG.md).
+
+- Contextual assistant shell drawer with follow/pin/remove controls backed by
+  server-signed, actor/tenant/epoch-bound `PageContext` tokens over records,
+  canonical `ListState` and fixed `Selection` snapshots (`E01`).
+- Per-resource and per-field `description` semantic metadata under current read
+  grants, bounded `OR` filter groups (`any`), and single-hop `belongs_to` and
+  `has_many`/`has_one` `IN`-subquery relation filters (`relation_filters`) that
+  avoid aggregate row multiplication (`E02` Phase 1).
+- Read-only `RailsToolViews` surfaces (`raa_record_card`, `raa_record_table`,
+  `raa_metric_card`) with live re-authorization on every render and graceful
+  fallback when `config.surfaces` is off (`E03` Phase 1).
+- Subset-selectable and editable bulk change reviews that atomically supersede
+  prior previews into a fresh immutable selection and token (`E06` Delta 1).
+
 ## Next candidates
 
 Prioritize from actual host use rather than a fixed release calendar:
 
-- **Contextual & interactive admin (`0.6` target):** a contextual assistant
-  drawer carrying server-signed page/filter/selection context (`PageContext`),
-  per-resource/field semantic descriptions, OR filters and single-hop
-  association (`EXISTS`) filters (addressing the 2026-11-22 cross-resource
-  lookup gap), read-only `RailsToolViews` surfaces (`RecordCard`,
-  `RecordTable`, `MetricCard`), and subset-selectable bulk change reviews.
 - **Agentic operations & review inbox (`0.7` target):** optional post-execution
   verification and undo/compensation hooks on operations, asynchronous bulk
   operations and bulk changes over more than 100 records, multi-actor approval
