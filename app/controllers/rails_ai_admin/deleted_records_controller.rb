@@ -14,18 +14,26 @@ module RailsAiAdmin
       @page = page.to_i
       records = @access.discarded_relation.offset((@page - 1) * PAGE_SIZE).limit(PAGE_SIZE + 1).to_a
       @has_next = records.size > PAGE_SIZE
-      @records = records.first(PAGE_SIZE).map do |record|
+      @records = records.first(PAGE_SIZE).filter_map do |record|
+        restorable = allowed_action?(@resource, :restore, record)
+        next unless restorable || allowed_action?(@resource, :show, record)
         { id: record.id.to_s, label: record_label(@resource, record), deleted_at: record.public_send(@resource.soft_delete),
-          version: RecordVersion.of(record).to_s, restorable: allowed_action?(@resource, :restore, record) }
+          version: RecordVersion.of(record).to_s, restorable: restorable }
       end
     end
 
     def restore
       Operations::Restore.new.call(context: @context, resource: @resource, id: params[:id], expected_version: params[:expected_version])
-      redirect_to resource_path(resource: @resource.key, id: params[:id]), status: :see_other, notice: t("rails_ai_admin.deleted_records.restored")
+      target = begin
+        @access.find!(params[:id])
+        resource_path(resource: @resource.key, id: params[:id], **navigation_params)
+      rescue AccessDenied
+        list_return_path
+      end
+      redirect_to target, status: :see_other, notice: t("rails_ai_admin.deleted_records.restored")
     rescue AccessDenied => error
       raise unless error.code == "CONFLICT"
-      redirect_to deleted_records_path(resource: @resource.key), status: :see_other, notice: t("rails_ai_admin.deleted_records.conflict")
+      redirect_to deleted_records_path(resource: @resource.key, **navigation_params), status: :see_other, notice: t("rails_ai_admin.deleted_records.conflict")
     end
 
     private

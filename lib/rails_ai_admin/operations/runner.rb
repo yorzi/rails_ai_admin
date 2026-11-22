@@ -76,6 +76,11 @@ module RailsAiAdmin
         payload["id"]
       rescue ActiveRecord::RecordNotUnique
         payload["id"]
+      rescue ActiveRecord::LockWaitTimeout
+        raise AccessDenied, "CONFLICT", cause: nil
+      rescue ActiveRecord::StatementInvalid => error
+        raise unless defined?(SQLite3::BusyException) && error.cause.is_a?(SQLite3::BusyException)
+        raise AccessDenied, "CONFLICT", cause: nil
       end
 
       # Reopens an unconsumed native form after fresh authentication. No input,
@@ -194,7 +199,7 @@ module RailsAiAdmin
           reject!("NOT_FOUND") if run.parent_run_id && !admission
           check_origin!(origin)
           reject!("APPROVAL_INVALIDATED") unless run.security_version == context.security_version
-          reject!("APPROVAL_EXPIRED") unless run.expires_at && run.expires_at > Time.current
+          reject!("APPROVAL_EXPIRED") unless run.status == "succeeded" || run.expires_at && run.expires_at > Time.current
           check_binding!(run, binding) if binding
           resource = RailsAiAdmin.registry.fetch(run.resource_key)
           definition = RailsAiAdmin.operation_registry.fetch(resource, run.operation)
@@ -259,15 +264,19 @@ module RailsAiAdmin
             # A password writer changes a digest column the resource never names.
             changed_fields |= resource.fields.select { |field| field.scalar_type == :password && !values[field.name.to_s].nil? }.map { |field| field.name.to_s }
             # Action Text keeps the content in its own record.
-            changed_fields |= resource.fields.select { |field| field.scalar_type == :rich_text && values.key?(field.name.to_s) && record.public_send(field.column)&.changed? }.map { |field| field.name.to_s }
+            changed_rich_text = resource.fields.select { |field| field.scalar_type == :rich_text && values.key?(field.name.to_s) && record.public_send(field.column)&.changed? }.map { |field| field.name.to_s }
+            changed_fields |= changed_rich_text
             # Active Storage keeps attachment changes outside the attributes.
-            if record.respond_to?(:attachment_changes)
-              changed_fields |= resource.fields.select { |field| field.scalar_type == :file && values.key?(field.name.to_s) && record.attachment_changes.key?(field.column) }.map { |field| field.name.to_s }
+            changed_single_files = if record.respond_to?(:attachment_changes)
+              resource.fields.select { |field| field.scalar_type == :file && values.key?(field.name.to_s) && record.attachment_changes.key?(field.column) }.map { |field| field.name.to_s }
+            else
+              []
             end
+            changed_fields |= changed_single_files
             changed_files = apply_files(access, record, values)
             changed_fields |= changed_files
-            # Join rows change no owner column, so a changed list touches the
-            # record: its version advances and a concurrent form conflicts.
+            # Join rows, attachments and Action Text change no owner column, so
+            # advance the record version explicitly when only those changed.
             changed_lists = lists.map { |field| field.name.to_s }.reject { |name| before_lists.fetch(name) == values.fetch(name) }
             changed_fields |= changed_lists
             persisted = if run.operation == "destroy" && resource.soft_delete?
@@ -276,7 +285,8 @@ module RailsAiAdmin
               definition.handler_class.new.perform(nil, record, values)
             end
             reject!("VALIDATION_FAILED", errors: { "base" => [ "could not be saved" ] }) unless persisted
-            record.touch if run.operation == "update" && (changed_lists.any? || changed_files.any?)
+            external_change = changed_lists.any? || changed_files.any? || changed_single_files.any? || changed_rich_text.any?
+            advance_version!(record) if run.operation == "update" && external_change && RecordVersion.of(record) == run.expected_version
           end
           unless run.operation == "destroy" || access.relation.where(resource.model_class.primary_key => record.id).exists?
             reject!("NOT_FOUND")
@@ -305,14 +315,17 @@ module RailsAiAdmin
           audit_failure(context, run, error.code, origin) unless admission
           Result.new(code: error.code)
         when ActiveRecord::RecordInvalid
-          allowed = if definition&.custom?
-            access&.operation_fields(run.operation, error.record)&.map { |field| field.name.to_s } || []
+          same_model = access && error.record.is_a?(access.resource.model_class)
+          allowed = if !same_model
+            []
+          elsif definition&.custom?
+            access.operation_fields(run.operation, error.record).map { |field| field.name.to_s }
           else
-            access&.fields(:write, error.record, operation: run.operation)&.map { |field| field.name.to_s } || []
+            access.fields(:write, error.record, operation: run.operation).map { |field| field.name.to_s }
           end
           names = definition&.custom? || !access ? {} : field_names_by_column(access.resource)
           audit_failure(context, run, "VALIDATION_FAILED", origin) unless admission
-          invalid_model_result(error.record, names, allowed)
+          same_model ? invalid_model_result(error.record, names, allowed) : Result.new(code: "VALIDATION_FAILED", errors: { "base" => [ Field.error_message(:invalid, "is invalid") ] })
         when ActiveRecord::RecordNotDestroyed
           if run&.operation == "destroy" && !definition&.custom?
             # dependent: :restrict_with_error (or a before_destroy abort) says
@@ -430,8 +443,25 @@ module RailsAiAdmin
       end
 
       def parse_version(value)
-        raise AccessDenied, "CONFLICT" unless value.is_a?(Integer) || value.to_s.match?(/\A\d+\z/)
-        value.is_a?(String) ? Integer(value, 10) : value
+        if value.is_a?(Integer)
+          raise AccessDenied, "CONFLICT" unless value >= 0 && value <= 2**63 - 1
+          return value
+        end
+        raise AccessDenied, "CONFLICT" unless value.is_a?(String) && value.valid_encoding? && value.match?(/\A(?:0|[1-9]\d{0,18})\z/)
+        number = Integer(value, 10)
+        raise AccessDenied, "CONFLICT" if number > 2**63 - 1
+        number
+      end
+
+      def advance_version!(record)
+        if RecordVersion.strategy(record.class) == :lock_version
+          pk = record.class.primary_key
+          updated = record.class.where(pk => record.id, lock_version: record.lock_version).update_all("lock_version = lock_version + 1")
+          raise ActiveRecord::StaleObjectError.new(record, "update") unless updated == 1
+          record.reload
+        else
+          record.touch
+        end
       end
 
       def ensure_connection!(resource, definition)
@@ -483,7 +513,7 @@ module RailsAiAdmin
 
       def coerce!(access, record, definition, input, replay: false)
         fields = replay && definition.custom? ? definition.handler_class.input : definition.fields(access, record)
-        result = InputSchema.new(fields, partial: definition.key == "update" && !definition.custom?).coerce(input, time_zone: access.context.time_zone)
+        result = InputSchema.new(fields, partial: definition.key == "update" && !definition.custom?).coerce(input, time_zone: access.context.time_zone, replay: replay)
         reject!(replay ? "IDEMPOTENCY_CONFLICT" : "VALIDATION_FAILED", errors: replay ? {} : result.errors) unless result.valid?
         check_references!(access, record, fields, result.values) unless replay
         retain_hidden_references(access, record, fields, result.values)

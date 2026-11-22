@@ -18,7 +18,7 @@ module RailsAiAdmin
       @partial = partial
     end
 
-    def coerce(input, time_zone: "UTC")
+    def coerce(input, time_zone: "UTC", replay: false)
       return Coercion.new({}, { "base" => [ Field.error_message(:not_object, "must be an object") ] }) unless input.is_a?(Hash)
       values, errors = {}, {}
       input = input.stringify_keys
@@ -31,7 +31,7 @@ module RailsAiAdmin
           next
         end
         begin
-          values[name] = field.coerce(input[name], time_zone: time_zone)
+          values[name] = field.coerce(input[name], time_zone: time_zone, replay: replay)
         rescue ArgumentError => error
           errors[name] = [ error.message ]
         end

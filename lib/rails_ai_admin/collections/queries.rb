@@ -44,7 +44,7 @@ module RailsAiAdmin
           parent_run_id: nil).where.not(selection_id: nil).where.not(status: "proposed").order(created_at: :desc, id: :desc).limit(50).pluck(:id)
         refs.filter_map do |ref|
           fetch(context: context, job_ref: ref, summary: true)
-        rescue AccessDenied
+        rescue AccessDenied, ConfigurationError
           nil
         end
       end

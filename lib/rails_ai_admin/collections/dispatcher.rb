@@ -31,7 +31,7 @@ module RailsAiAdmin
         now = Time.current
         queued = BatchItem.where(status: "queued").where("next_attempt_at IS NULL OR next_attempt_at <= ?", now)
         stale = BatchItem.where(status: "running").where("lease_expires_at IS NULL OR lease_expires_at <= ?", now)
-        ids = queued.or(stale).distinct.limit(limit).pluck(:parent_run_id)
+        ids = queued.or(stale).group(:parent_run_id).order(BatchItem.arel_table[:created_at].minimum.asc, :parent_run_id).limit(limit).pluck(:parent_run_id)
         ids.count do |ref|
           if inline
             run(ref)
@@ -100,8 +100,8 @@ module RailsAiAdmin
               next_attempt_at: retryable ? Time.current + [ 2**item.attempts, 60 ].min : nil,
               completed_at: retryable ? nil : Time.current)
             AuditEvent.create!(actor_ref: parent.actor_ref, tenant_ref: parent.tenant_ref, resource_key: parent.resource_key,
-              operation: parent.operation, status: "rejected", code: result.code, correlation_ref: item.operation_run_id,
-              origin: parent.origin, changed_fields: [], created_at: Time.current)
+              operation: parent.operation, status: "rejected", code: result.code, record_id: item.target_id,
+              correlation_ref: item.operation_run_id, origin: parent.origin, changed_fields: [], created_at: Time.current)
             Contract.refresh!(parent)
           end
           raise AccessDenied, "FENCED" unless lease_deadline > Time.current

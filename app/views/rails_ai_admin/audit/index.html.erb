@@ -5,7 +5,7 @@
   <div class="raa-filter"><%= label_tag "raa-audit-resource", t("rails_ai_admin.audit.resource") %>
     <%= select_tag :resource, options_for_select(@log.resources.map { |resource| [ resource.label, resource.key.to_s ] }, @filters["resource"]), include_blank: t("rails_ai_admin.audit.any"), id: "raa-audit-resource" %></div>
   <div class="raa-filter"><%= label_tag "raa-audit-operation", t("rails_ai_admin.audit.change") %>
-    <%= select_tag :operation, options_for_select(%w[create update destroy export].map { |key| [ t(key, scope: %i[rails_ai_admin history operations]), key ] }, @filters["operation"]), include_blank: t("rails_ai_admin.audit.any"), id: "raa-audit-operation" %></div>
+    <%= select_tag :operation, options_for_select(%w[create update destroy restore export].map { |key| [ t(key, scope: %i[rails_ai_admin history operations]), key ] }, @filters["operation"]), include_blank: t("rails_ai_admin.audit.any"), id: "raa-audit-operation" %></div>
   <div class="raa-filter"><%= label_tag "raa-audit-status", t("rails_ai_admin.audit.outcome") %>
     <%= select_tag :status, options_for_select([ [ t("rails_ai_admin.audit.saved"), "succeeded" ], [ t("rails_ai_admin.history.not_saved"), "rejected" ] ], @filters["status"]), include_blank: t("rails_ai_admin.audit.any"), id: "raa-audit-status" %></div>
   <% if @filters["actor"] %><%= hidden_field_tag :actor, @filters["actor"], id: nil %><% end %>

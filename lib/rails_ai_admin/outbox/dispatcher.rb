@@ -156,8 +156,12 @@ module RailsAiAdmin
         return Result.new(nil, "missing", "NOT_FOUND") unless item.is_a?(WorkItem)
         current = WorkItem.find(item.id)
         unknown = current.effect_started_at.present?
-        definition = RailsAiAdmin.work_registry.fetch(item.kind)
-        terminal = if reconcile || (unknown && (denied || !definition.handler_class.idempotent))
+        definition = begin
+          RailsAiAdmin.work_registry.fetch(item.kind)
+        rescue ConfigurationError, NameError
+          nil
+        end
+        terminal = if reconcile || definition.nil? || (unknown && (denied || !definition.handler_class.idempotent))
           "reconciliation_required"
         elsif denied
           "cancelled"

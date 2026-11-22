@@ -27,23 +27,34 @@ module RailsAiAdmin
 
     def prune_intents
       runs = OperationRun.arel_table
-      candidates = OperationRun.where(status: "proposed", parent_run_id: nil, selection_id: nil)
+      candidates = OperationRun.where(status: "proposed", parent_run_id: nil, approved_digest: nil, confirmed_at: nil)
         .where(runs[:expires_at].lt(@cutoff))
         .where.not(id: WorkItem.select(:operation_run_id))
         .where.not(id: BatchItem.select(:operation_run_id))
         .where.not(id: BatchItem.select(:parent_run_id))
         .where.not(id: OperationRun.where.not(parent_run_id: nil).select(:parent_run_id))
-      delete_in_batches(candidates) { |ids| OperationRun.where(id: ids).delete_all }
+      # Re-assert the safety predicates inside DELETE so a concurrent resume or
+      # execution cannot have its committed receipt removed.
+      delete_in_batches(candidates) do |ids|
+        OperationRun.where(id: ids, status: "proposed", parent_run_id: nil, approved_digest: nil, confirmed_at: nil)
+          .where(runs[:expires_at].lt(@cutoff)).delete_all
+      end
     end
 
     def prune_selections
-      candidates = Selection.where(Selection.arel_table[:expires_at].lt(@cutoff))
+      selections = Selection.arel_table
+      candidates = Selection.where(selections[:expires_at].lt(@cutoff))
         .where.not(id: OperationRun.where.not(selection_id: nil).select(:selection_id))
       delete_in_batches(candidates) do |ids|
         Selection.transaction do
-          SelectionItem.where(selection_id: ids).delete_all
-          Selection.where(id: ids).delete_all
+          locked = Selection.lock.where(id: ids).where(selections[:expires_at].lt(@cutoff))
+            .where.not(id: OperationRun.where.not(selection_id: nil).select(:selection_id)).pluck(:id)
+          next 0 if locked.empty?
+          SelectionItem.where(selection_id: locked).delete_all
+          Selection.where(id: locked).delete_all
         end
+      rescue ActiveRecord::InvalidForeignKey
+        0
       end
     end
 

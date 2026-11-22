@@ -31,9 +31,11 @@ class RichTextIntegrationTest < ActionDispatch::IntegrationTest
       assert_select "script[src*='trix']"
       assert_select "link[rel=stylesheet][href*='trix']"
       html = %(<div>Hello <strong class="raa-danger" data-controller="evil">world</strong><script>alert(1)</script><img src="/sign_out" onerror="alert(2)"></div>)
+      before_version = RailsAiAdmin::RecordVersion.of(@document)
       patch "/backoffice/documents/#{@document.id}", params: { intent_ref: intent, record: { title: "Handbook", body: html } }
       assert_response :see_other
-      assert_includes @document.reload.body.to_s, "world"
+      assert_operator RailsAiAdmin::RecordVersion.of(@document.reload), :>, before_version
+      assert_includes @document.body.to_s, "world"
       assert_equal [ "body" ], RailsAiAdmin::AuditEvent.where(status: "succeeded").last.changed_fields
 
       get "/backoffice/documents/#{@document.id}"

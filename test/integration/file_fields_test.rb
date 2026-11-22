@@ -34,6 +34,14 @@ class FileFieldsIntegrationTest < ActionDispatch::IntegrationTest
       assert_equal "cover.png", @document.reload.cover.filename.to_s
       assert_equal [ "cover" ], RailsAiAdmin::AuditEvent.where(status: "succeeded").last.changed_fields
 
+      # Updating only the attached file advances the record version so stale forms conflict.
+      before_version = RailsAiAdmin::RecordVersion.of(@document)
+      submit({ cover: upload(PNG, "cover-2.png", "image/png") })
+      assert_response :see_other
+      assert_operator RailsAiAdmin::RecordVersion.of(@document.reload), :>, before_version
+      submit({ cover: upload(PNG, "cover.png", "image/png") })
+      assert_response :see_other
+
       get "/backoffice/documents/#{@document.id}"
       path = "/backoffice/documents/#{@document.id}/files/cover"
       assert_select "img.raa-file-preview[src='#{path}?disposition=inline'][alt='cover.png']"

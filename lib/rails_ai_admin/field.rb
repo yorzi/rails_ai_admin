@@ -234,14 +234,14 @@ module RailsAiAdmin
     # Coerces form or JSON input values, preserving false, zero and null. Input
     # is strict: blank text, control characters, out-of-scale decimals and
     # impossible calendar dates are rejected with a field message.
-    def coerce(value, time_zone: "UTC") = coerce_value(value, time_zone, strict: true)
+    def coerce(value, time_zone: "UTC", replay: false) = coerce_value(value, time_zone, strict: true, replay: replay)
 
     # Internal: types a value produced by host code (a computation or a
     # preflight preview). It checks the scalar type only, so a handler result is
     # never rejected by the input-only rules above.
     def coerce_output(value, time_zone: "UTC") = coerce_value(value, time_zone, strict: false)
 
-    def coerce_scalar(value, time_zone: "UTC", strict: true)
+    def coerce_scalar(value, time_zone: "UTC", strict: true, replay: false)
       if blank_input?(value, strict)
         # Clearing a password would remove the sign-in secret; leave it out instead.
         raise ArgumentError, message(:blank, "cannot be blank") if scalar_type == :password
@@ -271,8 +271,8 @@ module RailsAiAdmin
         parts = value.is_a?(String) && value.valid_encoding? && value.match(TIME_OF_DAY)
         raise ArgumentError, message(:not_time, "must be a time of day (HH:MM)") unless parts
         "#{parts[1]}:#{parts[2]}:#{parts[3] || '00'}"
-      when :file then coerce_file(value)
-      when :files then coerce_files(value)
+      when :file then coerce_file(value, replay: replay)
+      when :files then coerce_files(value, replay: replay)
       when :references
         raise ArgumentError, message(:not_list, "must be a list of records") unless value.is_a?(Array) && value.size <= MAX_REFERENCES + 1
         keys = value.map { |item| item.is_a?(Integer) && item.positive? ? item.to_s : item }.reject { |item| item == "" }
@@ -389,8 +389,8 @@ module RailsAiAdmin
 
     private
 
-    def coerce_value(value, time_zone, strict:)
-      typed = coerce_scalar(value, time_zone: time_zone, strict: strict)
+    def coerce_value(value, time_zone, strict:, replay: false)
+      typed = coerce_scalar(value, time_zone: time_zone, strict: strict, replay: replay)
       return typed unless @plugin && !typed.nil?
       normalized = invoke(:normalize, immutable_copy(typed), field: @descriptor, time_zone: time_zone)
       normalized = coerce_scalar(wire(normalized), time_zone: time_zone, strict: strict)
@@ -418,7 +418,7 @@ module RailsAiAdmin
     # blob. Its identified content type and size must fit the declaration.
     # A files change: new uploads to add and attachment ids to remove. A list
     # is never replaced as a whole, so concurrent additions are kept.
-    def coerce_files(value)
+    def coerce_files(value, replay: false)
       value = value.to_h { |key, item| [ key.to_s, item ] } if value.is_a?(Hash)
       unless value.is_a?(Hash) && (value.keys - %w[add remove]).empty? && value.values.all? { |item| item.is_a?(Array) }
         raise ArgumentError, message(:invalid, "is invalid")
@@ -426,20 +426,20 @@ module RailsAiAdmin
       raw_add = Array(value["add"])
       raw_remove = Array(value["remove"])
       raise ArgumentError, message(:too_many_files, "can hold at most %{count} files", count: options[:max_files]) if raw_add.size > options[:max_files] || raw_remove.size > MAX_REFERENCES
-      add = raw_add.map { |item| coerce_file(item) }
+      add = raw_add.map { |item| coerce_file(item, replay: replay) }
       remove = raw_remove.map { |item| item.is_a?(Integer) && item.positive? ? item.to_s : item }
       raise ArgumentError, message(:unavailable_choice, "is not an available choice") unless remove.all? { |item| item.is_a?(String) && item.valid_encoding? && item.match?(REFERENCE) }
       { "add" => add.uniq.freeze, "remove" => remove.uniq.sort.freeze }.freeze
     end
 
-    def coerce_file(value)
+    def coerce_file(value, replay: false)
       if value.is_a?(Fields::RejectedUpload)
         raise ArgumentError, message(:file_too_large, "is larger than %{size}", size: ActiveSupport::NumberHelper.number_to_human_size(options[:max_size]))
       end
       raise ConfigurationError, "file fields need Active Storage" unless defined?(::ActiveStorage::Blob)
       raise ArgumentError, message(:invalid, "is invalid") unless value.is_a?(String) && value.valid_encoding? && value.length.between?(1, 1000)
       blob = ::ActiveStorage::Blob.find_signed(value)
-      raise ArgumentError, message(:file_unavailable, "is not an available upload") unless blob && !blob.attachments.exists?
+      raise ArgumentError, message(:file_unavailable, "is not an available upload") unless blob && (replay || !blob.attachments.exists?)
       raise ArgumentError, message(:file_too_large, "is larger than %{size}", size: ActiveSupport::NumberHelper.number_to_human_size(options[:max_size])) if blob.byte_size > options[:max_size]
       raise ArgumentError, message(:file_type, "is not an accepted file type") unless accepts?(blob.content_type.to_s)
       String.new(value)

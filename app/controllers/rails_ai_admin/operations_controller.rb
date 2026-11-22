@@ -19,9 +19,12 @@ module RailsAiAdmin
       if proposal.is_a?(Operations::Result)
         render_failure(proposal, input)
       else
+        @wire_input = JSON.generate(proposal.values.transform_values { |value| wire_value(value) })
+        if @wire_input.bytesize > 16_384
+          return render_failure(Operations::Result.new(code: "VALIDATION_FAILED", errors: { "base" => [ Field.error_message(:too_long, "is too long") ] }), input)
+        end
         @proposal = proposal
         @form_values = proposal.values
-        @wire_input = JSON.generate(proposal.values.transform_values { |value| wire_value(value) })
         if request.format.turbo_stream?
           render turbo_stream: turbo_stream.replace(@flow_id, template: "rails_ai_admin/operations/confirmation", layout: false)
         else
@@ -84,7 +87,7 @@ module RailsAiAdmin
     def wire_value(value)
       case value
       when BigDecimal then value.to_s("F")
-      when Time, ActiveSupport::TimeWithZone then value.utc.iso8601(6)
+      when Time, ActiveSupport::TimeWithZone then value.to_time.getutc.iso8601(6)
       when Date then value.iso8601
       else value
       end

@@ -145,10 +145,14 @@ class FlowRegressionsContractTest < ActiveSupport::TestCase
     with_collection do
       expired = selection([ @customer.id ])
       RailsAiAdmin::Selection.where(id: expired.selection_ref).update_all(expires_at: 8.days.ago)
+      abandoned_selection = selection([ @customer.id ])
+      abandoned_proposal = proposal(selection_ref: abandoned_selection.selection_ref)
+      abandoned_proposal.intent.update_columns(expires_at: 8.days.ago)
+      RailsAiAdmin::Selection.where(id: abandoned_selection.selection_ref).update_all(expires_at: 8.days.ago)
       kept = selection([ @customer.id ])
       result = RailsAiAdmin::Prune.new.call
-      assert_equal 1, result.intents
-      assert_equal 1, result.selections
+      assert_equal 2, result.intents
+      assert_equal 2, result.selections
       assert RailsAiAdmin::Selection.exists?(kept.selection_ref)
       assert_equal 1, RailsAiAdmin::SelectionItem.count
     end

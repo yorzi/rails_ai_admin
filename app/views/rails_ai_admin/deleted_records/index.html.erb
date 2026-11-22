@@ -14,6 +14,7 @@
   <td class="raa-row-actions"><% if row[:restorable] %>
     <%= form_with url: restore_deleted_record_path(resource: @resource.key, id: row[:id]), method: :post, local: true, class: "raa-inline-form" do %>
       <%= hidden_field_tag :expected_version, row[:version], id: nil %>
+      <%= return_navigation_fields %>
       <%= button_tag t("rails_ai_admin.deleted_records.restore"), type: "submit", name: nil, class: "raa-secondary", aria: { label: t("rails_ai_admin.deleted_records.restore_named", label: row[:label]) } %>
     <% end %>
   <% end %></td>
@@ -21,8 +22,8 @@
 <% end %>
 <% if @page > 1 || @has_next %>
 <nav class="raa-pagination" aria-label="<%= t("rails_ai_admin.resources.index.pagination") %>">
-  <% if @page > 1 %><%= link_to t("rails_ai_admin.resources.index.previous"), deleted_records_path(resource: @resource.key, page: (@page == 2 ? nil : @page - 1)), rel: "prev" %><% end %>
+  <% if @page > 1 %><%= link_to t("rails_ai_admin.resources.index.previous"), deleted_records_path(resource: @resource.key, page: (@page == 2 ? nil : @page - 1), **navigation_params), rel: "prev" %><% end %>
   <span class="raa-page-current"><%= t("rails_ai_admin.resources.index.page_number", number: @page) %></span>
-  <% if @has_next && @page < 1000 %><%= link_to t("rails_ai_admin.resources.index.next"), deleted_records_path(resource: @resource.key, page: @page + 1), rel: "next" %><% end %>
+  <% if @has_next && @page < 1000 %><%= link_to t("rails_ai_admin.resources.index.next"), deleted_records_path(resource: @resource.key, page: @page + 1, **navigation_params), rel: "next" %><% end %>
 </nav>
 <% end %>

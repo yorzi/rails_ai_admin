@@ -315,4 +315,25 @@ class OutboxTest < Minitest::Test
       thread&.kill&.join if thread&.alive?
     end
   end
+
+  def test_fail_delivery_reconciles_safely_when_handler_is_removed_and_work_validates_lease_against_max_duration
+    claimed = nil
+    item = nil
+    with_operations do
+      item = RailsAiAdmin::WorkItem.find(approve.work_refs.first)
+      claimed = dispatcher.send(:claim, item.id)
+    end
+    # Outside with_operations the handler is no longer registered in work_registry.
+    result = dispatcher.send(:fail_delivery, claimed, "HANDLER_CHANGED", reconcile: true)
+    assert_equal [ "reconciliation_required", "HANDLER_CHANGED" ], [ result.status, result.code ]
+    assert_equal "reconciliation_required", item.reload.status
+
+    bad_work = Class.new(RailsAiAdmin::Work) do
+      description "Bad work"
+      max_duration 60
+      lease_duration 60
+      def perform(_context, _input) = nil
+    end
+    assert_raises(RailsAiAdmin::ConfigurationError) { bad_work.validate! }
+  end
 end

@@ -231,6 +231,7 @@ en:
         create: Created
         update: Updated
         destroy: Deleted
+        restore: Restored
         export: Exported CSV
       origins:
         surface: From a review in Chat
