@@ -15,7 +15,8 @@
   <%= javascript_include_tag "rails_ai_admin", type: "module", "data-turbo-track": "reload", defer: true, preload_links_header: false %>
   <%= admin_rich_text_assets %>
 </head>
-<body class="raa" data-raa-messages="<%= t("rails_ai_admin.script").to_json %>">
+<% drawer_enabled = assistant_available? && controller_path != "rails_ai_admin/assistant" %>
+<body class="raa" data-raa-messages="<%= t("rails_ai_admin.script").to_json %>"<% if drawer_enabled %> data-controller="raa-drawer"<% end %>>
   <a class="raa-skip" href="#raa-main"><%= t("rails_ai_admin.layout.skip") %></a>
   <header class="raa-header"><%= link_to RailsAiAdmin.configuration.title, root_path %>
     <% if @context && searchable_resources.any? %>
@@ -25,6 +26,7 @@
       <% end %>
     <% end %>
     <div class="raa-header-meta">
+      <% if drawer_enabled %><button type="button" class="raa-secondary raa-drawer-toggle" hidden aria-expanded="false" aria-controls="raa-assistant-drawer" data-raa-drawer-target="toggle" data-action="raa-drawer#toggle"><%= t("rails_ai_admin.layout.assistant") %></button><% end %>
       <% if RailsAiAdmin.configuration.environment_label %><span class="raa-environment"><%= RailsAiAdmin.configuration.environment_label %></span><% end %>
       <%= render "rails_ai_admin/shared/session" %>
     </div>
@@ -50,6 +52,7 @@
       <% flash.each do |_, message| %><p class="raa-notice" role="status"><%= message %></p><% end %>
       <%= yield %>
     </main>
+    <% if drawer_enabled %><%= render "rails_ai_admin/assistant/drawer" %><% end %>
   </div>
 </body>
 </html>

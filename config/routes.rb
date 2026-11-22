@@ -13,6 +13,7 @@ RailsAiAdmin::Engine.routes.draw do
   # Drawn only for hosts that opt in and load ruby_llm themselves.
   if RailsAiAdmin.configuration.assistant
     get "assistant", to: "assistant#index", as: :assistant
+    get "assistant/drawer", to: "assistant#drawer", as: :assistant_drawer
     post "assistant/conversations", to: "assistant#create", as: :assistant_conversations
     get "assistant/conversations/:chat_ref", to: "assistant#show", as: :assistant_conversation
     post "assistant/conversations/:chat_ref/messages", to: "assistant#message", as: :assistant_messages

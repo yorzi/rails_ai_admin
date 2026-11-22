@@ -17,3 +17,4 @@
 <% @operations.each do |operation| %>
   <p><%= link_to operation.description, collection_operation_form_path(resource: @resource.key, operation: operation.key, selection_ref: @selection.selection_ref, **navigation_params), class: "raa-button" %></p>
 <% end %>
+<% if assistant_for?(@resource) %><%= render "rails_ai_admin/assistant/ask", resource: @resource, record: nil, selection: @selection %><% end %>

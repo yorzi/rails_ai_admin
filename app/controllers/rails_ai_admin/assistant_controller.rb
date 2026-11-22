@@ -20,21 +20,37 @@ module RailsAiAdmin
     }.freeze
 
     before_action :require_assistant
-    before_action :load_chat, except: %i[index create]
+    before_action :load_chat, except: %i[index create drawer]
     around_action :bind_surface_context
 
     def index
       @chats = Assistant::Chat.for_owner(@context).order(updated_at: :desc, id: :desc).limit(50).to_a
     end
 
-    # A new chat; from a record or list page it starts with the question and a
-    # server-written "Context:" line naming that page.
+    # Contextual shell drawer view. Renders inside a Turbo Frame when opened
+    # from another admin page; keeps all authority checks identical to show.
+    def drawer
+      @drawer = true
+      if params[:chat_ref].present?
+        @chat = Assistant::Chat.owned(@context, params[:chat_ref])
+      end
+      @chats = Assistant::Chat.for_owner(@context).where(status: "active").order(updated_at: :desc, id: :desc).limit(10).to_a unless @chat
+      if @chat
+        prepare_transcript
+        @admission_key = "message:#{SecureRandom.uuid}"
+      end
+      render :drawer, layout: turbo_frame_request? ? "rails_ai_admin/frame" : "rails_ai_admin/application"
+    end
+
+    # A new chat; from a record, list, or selection page it starts with the
+    # question and a server-verified "Context:" line naming that page.
     def create
       question = params[:content]
       raise AccessDenied, "INVALID_QUERY" unless question.nil? || question.is_a?(String) && question.valid_encoding?
+      context_line = resolve_page_context_line
       @chat = Assistant.create_chat!(@context)
       if question.present?
-        content = [ page_context_line, question.strip ].compact.join("\n\n").first(Assistant::Coordinator::MAX_CONTENT)
+        content = [ context_line, question.strip ].compact.join("\n\n").first(Assistant::Coordinator::MAX_CONTENT)
         begin
           Assistant::Coordinator.admit!(@chat, kind: "message", content: content, admission_key: "message:#{SecureRandom.uuid}")
         rescue AccessDenied => error
@@ -43,12 +59,13 @@ module RailsAiAdmin
           return refuse_message(error.code, question)
         end
       end
-      redirect_to assistant_conversation_path(chat_ref: @chat.ref), status: :see_other
+      redirect_to conversation_destination(@chat), status: :see_other
     rescue ::RubyLLM::ModelNotFoundError, ::RubyLLM::ModelRegistryError
       admin_status(:unavailable)
     end
 
     def show
+      @drawer = drawer_request?
       prepare_transcript
       if turbo_frame_request?
         # A complete standards-mode document; Turbo extracts the matching frame.
@@ -62,8 +79,13 @@ module RailsAiAdmin
       return admin_status(:conflict) unless @chat.current_for?(@context)
       key = params[:admission_key]
       raise AccessDenied, "INVALID_QUERY" unless key.is_a?(String) && key.start_with?("message:")
-      Assistant::Coordinator.admit!(@chat, kind: "message", content: params[:content], admission_key: key)
-      redirect_to assistant_conversation_path(chat_ref: @chat.ref), status: :see_other
+      question = params[:content]
+      raise AccessDenied, "INVALID_QUERY" unless question.is_a?(String) && question.valid_encoding? &&
+        question.strip.length.between?(1, Assistant::Coordinator::MAX_CONTENT)
+      context_line = resolve_page_context_line
+      content = context_line ? "#{context_line}\n\n#{question.strip}".first(Assistant::Coordinator::MAX_CONTENT) : question
+      Assistant::Coordinator.admit!(@chat, kind: "message", content: content, admission_key: key)
+      redirect_to conversation_destination(@chat), status: :see_other
     rescue AccessDenied => error
       raise unless error.code == "INVALID_QUERY" || REFUSALS.include?(error.code)
       refuse_message(error.code, params[:content])
@@ -77,7 +99,7 @@ module RailsAiAdmin
         @chat.turns.where(status: "queued").update_all(status: "cancelled", error_code: "CANCELLED", completed_at: Time.current, updated_at: Time.current)
         @chat.cancel if @chat.turns.where(status: "running").exists?
       end
-      redirect_to assistant_conversation_path(chat_ref: @chat.ref), status: :see_other
+      redirect_to conversation_destination(@chat), status: :see_other
     end
 
     # Requeues the latest failed turn. The saved human message is reused, so
@@ -94,7 +116,7 @@ module RailsAiAdmin
         turn.update!(status: "queued", attempts: 0, error_code: nil, next_attempt_at: nil, completed_at: nil)
       end
       Assistant::Coordinator.enqueue_after_commit(@chat.ref)
-      redirect_to assistant_conversation_path(chat_ref: @chat.ref), status: :see_other
+      redirect_to conversation_destination(@chat), status: :see_other
     rescue AccessDenied => error
       raise unless REFUSALS.include?(error.code)
       refuse_message(error.code, "")
@@ -115,21 +137,43 @@ module RailsAiAdmin
     # Admission refusals shown on the conversation page with the text kept.
     REFUSALS = %w[RATE_LIMITED BUDGET_EXCEEDED].freeze
 
+    def drawer_request?
+      params[:drawer] == "1"
+    end
+
+    def conversation_destination(chat)
+      drawer_request? ? assistant_drawer_path(chat_ref: chat.ref) : assistant_conversation_path(chat_ref: chat.ref)
+    end
+
     def refuse_message(code, content)
+      @drawer = drawer_request?
       prepare_transcript
       @admission_key = params[:admission_key].is_a?(String) && params[:admission_key].match?(Assistant::Coordinator::ADMISSION_KEY) ? params[:admission_key] : "message:#{SecureRandom.uuid}"
       @draft = content.is_a?(String) ? content.first(Assistant::Coordinator::MAX_CONTENT + 1) : ""
+      template = @drawer ? :drawer : :show
+      layout = @drawer && turbo_frame_request? ? "rails_ai_admin/frame" : "rails_ai_admin/application"
       case code
       when "RATE_LIMITED"
         @message_error = t("rails_ai_admin.assistant.rate_limited", count: RailsAiAdmin.configuration.assistant_daily_message_limit)
-        render :show, status: :too_many_requests
+        render template, layout: layout, status: :too_many_requests
       when "BUDGET_EXCEEDED"
         @message_error = t("rails_ai_admin.assistant.budget_exceeded")
-        render :show, status: :too_many_requests
+        render template, layout: layout, status: :too_many_requests
       else
         @message_error = t("rails_ai_admin.assistant.invalid_message", count: Assistant::Coordinator::MAX_CONTENT)
-        render :show, status: :unprocessable_content
+        render template, layout: layout, status: :unprocessable_content
       end
+    end
+
+    # When a signed page_context token is supplied, it MUST verify cleanly
+    # (failing closed on tamper, expiry, foreign tenant, or revoked grant).
+    # Falls back to the legacy about[...] fields only when no token is passed.
+    def resolve_page_context_line
+      token = params[:page_context]
+      if token.present?
+        return Assistant::PageContext.resolve!(context: @context, token: token).summary
+      end
+      page_context_line
     end
 
     # Names the page only when the actor may show it to the assistant now. The

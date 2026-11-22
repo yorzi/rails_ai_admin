@@ -431,6 +431,148 @@ class MenuController extends Controller {
     this.toggleTarget.setAttribute("aria-expanded", String(open));
   }
 }
+// Contextual assistant drawer: follows Turbo navigation with server-signed
+// PageContext tokens unless pinned or cleared by the operator. Stores only UI
+// state (open, pinned, chatRef, and opaque signed context when pinned) in
+// sessionStorage; the server re-verifies authority on every request.
+class DrawerController extends Controller {
+  static targets = ["toggle", "panel", "frame", "contextBar", "chipLabel", "mode", "pin", "close", "fullLink", "contextInput"];
+  static STORAGE_KEY = "raa_assistant_drawer_v1";
+
+  connect() {
+    if (!this.hasToggleTarget || !this.hasPanelTarget) return;
+    this.toggleTarget.hidden = false;
+    this.loaded = false;
+    this.onKeydown = (event) => {
+      if (event.key === "Escape" && !this.panelTarget.hidden) this.close();
+    };
+    document.addEventListener("keydown", this.onKeydown);
+    const saved = this.readState();
+    this.pinned = saved.pinned === true;
+    this.chatRef = typeof saved.chatRef === "string" && /^[0-9a-f-]{36}$/.test(saved.chatRef) ? saved.chatRef : null;
+    const pageToken = this.panelTarget.dataset.pageContextToken || "";
+    const pageLabel = this.panelTarget.dataset.pageContextLabel || "";
+    const autoOpen = new URLSearchParams(location.search).get("open_assistant") === "1";
+    if (autoOpen && pageToken) {
+      this.pinned = false;
+      this.contextToken = pageToken;
+      this.contextLabel = pageLabel;
+    } else if (this.pinned && saved.token && saved.label) {
+      this.contextToken = saved.token;
+      this.contextLabel = saved.label;
+    } else {
+      this.pinned = false;
+      this.contextToken = pageToken;
+      this.contextLabel = pageLabel;
+    }
+    this.renderContext();
+    if (autoOpen || saved.open === true) this.open(false);
+  }
+
+  disconnect() {
+    document.removeEventListener("keydown", this.onKeydown);
+  }
+
+  toggle() {
+    if (this.panelTarget.hidden) this.open(true);
+    else this.close();
+  }
+
+  open(focus = true) {
+    this.panelTarget.hidden = false;
+    this.element.setAttribute("data-raa-drawer-open", "");
+    this.toggleTarget.setAttribute("aria-expanded", "true");
+    this.loadFrame();
+    this.persistState(true);
+    if (focus) requestAnimationFrame(() => (this.panelTarget.querySelector("textarea") || this.closeTarget)?.focus());
+  }
+
+  close() {
+    this.panelTarget.hidden = true;
+    this.element.removeAttribute("data-raa-drawer-open");
+    this.toggleTarget.setAttribute("aria-expanded", "false");
+    this.persistState(false);
+    this.toggleTarget.focus();
+  }
+
+  togglePin() {
+    if (!this.contextToken) return;
+    this.pinned = !this.pinned;
+    this.renderContext();
+    this.persistState(!this.panelTarget.hidden);
+  }
+
+  removeContext() {
+    this.pinned = false;
+    this.contextToken = "";
+    this.contextLabel = "";
+    this.renderContext();
+    this.persistState(!this.panelTarget.hidden);
+  }
+
+  resetChat() {
+    this.chatRef = null;
+    this.persistState(!this.panelTarget.hidden);
+  }
+
+  frameLoaded() {
+    const ref = this.frameTarget.dataset.chatRef || "";
+    this.chatRef = /^[0-9a-f-]{36}$/.test(ref) ? ref : null;
+    const fullUrl = this.frameTarget.dataset.fullUrl;
+    if (fullUrl && this.hasFullLinkTarget) this.fullLinkTarget.setAttribute("href", fullUrl);
+    this.syncInputs();
+    this.persistState(!this.panelTarget.hidden);
+  }
+
+  loadFrame() {
+    if (this.loaded || !this.hasFrameTarget) return;
+    const base = this.frameTarget.dataset.src;
+    if (!base) return;
+    const url = new URL(base, location.href);
+    if (url.origin !== location.origin) return;
+    if (this.chatRef) url.searchParams.set("chat_ref", this.chatRef);
+    this.loaded = true;
+    this.frameTarget.setAttribute("src", url.pathname + url.search);
+  }
+
+  renderContext() {
+    const hasContext = Boolean(this.contextToken && this.contextLabel);
+    if (this.hasContextBarTarget) this.contextBarTarget.hidden = !hasContext;
+    if (this.hasChipLabelTarget) this.chipLabelTarget.textContent = this.contextLabel;
+    if (this.hasModeTarget) {
+      this.modeTarget.textContent = this.pinned ? this.panelTarget.dataset.pinnedLabel : this.panelTarget.dataset.followingLabel;
+    }
+    if (this.hasPinTarget) {
+      this.pinTarget.hidden = !hasContext;
+      this.pinTarget.setAttribute("aria-pressed", String(this.pinned));
+      this.pinTarget.textContent = this.pinned ? this.panelTarget.dataset.unpinLabel : this.panelTarget.dataset.pinLabel;
+    }
+    this.syncInputs();
+  }
+
+  syncInputs() {
+    this.contextInputTargets.forEach((input) => { input.value = this.contextToken || ""; });
+  }
+
+  readState() {
+    try {
+      const raw = sessionStorage.getItem(DrawerController.STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+  }
+
+  persistState(open) {
+    try {
+      const state = { open: Boolean(open), pinned: Boolean(this.pinned), chatRef: this.chatRef };
+      if (this.pinned && this.contextToken && this.contextLabel) {
+        state.token = this.contextToken;
+        state.label = this.contextLabel;
+      }
+      sessionStorage.setItem(DrawerController.STORAGE_KEY, JSON.stringify(state));
+    } catch { /* ignore storage restrictions */ }
+  }
+}
+application.register("raa-drawer", DrawerController);
 application.register("raa-menu", MenuController);
 application.register("raa-selection", SelectionController);
 application.register("raa-reference-picker", ReferencePickerController);

@@ -134,6 +134,9 @@ module RailsAiAdmin
       if step == "destroy" && @resource.action_enabled?(:destroy)
         return confirm_destroy_selection_path(selection_ref: selection_ref, **navigation_params)
       end
+      if step == "assistant" && assistant_for?(@resource)
+        return selection_path(selection_ref: selection_ref, open_assistant: "1", **navigation_params)
+      end
       if step.is_a?(String) && (key = step[/\Aoperation:([a-z][a-z0-9_]{0,79})\z/, 1])
         access = Authorization::Access.new(@context, @resource)
         operation = granted_collection_operations(@resource, access).find { |definition| definition.key.to_s == key }

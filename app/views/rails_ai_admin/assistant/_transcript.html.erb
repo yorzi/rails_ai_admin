@@ -1,4 +1,4 @@
-<%= turbo_frame_tag "raa_assistant_transcript", class: "raa-chat", data: { controller: "raa-poll", raa_poll_url_value: assistant_conversation_path(chat_ref: @chat.ref) } do %>
+<%= turbo_frame_tag "raa_assistant_transcript", class: "raa-chat", data: { controller: "raa-poll", raa_poll_url_value: assistant_conversation_path(chat_ref: @chat.ref, drawer: (@drawer ? "1" : nil)) } do %>
   <% if !@current %>
     <div class="raa-conversation-closed">
       <p class="raa-notice" role="status"><%= @chat.status == "archived" ? t("rails_ai_admin.assistant.archived_note") : t("rails_ai_admin.assistant.closed_note") %></p>
@@ -44,13 +44,13 @@
       <p class="raa-chat-status" role="status" data-raa-pending="<%= @streaming_text ? "streaming" : "waiting" %>">
         <%= @retry_status || (@running ? t("rails_ai_admin.assistant.working") : t("rails_ai_admin.assistant.waiting")) %>
       </p>
-      <%= button_to t("rails_ai_admin.assistant.stop"), cancel_assistant_conversation_path(chat_ref: @chat.ref), method: :post, class: "raa-secondary", form: { data: { turbo_frame: "_top" } } %>
-      <%= link_to t("rails_ai_admin.assistant.refresh"), assistant_conversation_path(chat_ref: @chat.ref), data: { turbo_frame: "_top" } %>
+      <%= button_to t("rails_ai_admin.assistant.stop"), cancel_assistant_conversation_path(chat_ref: @chat.ref), method: :post, params: (@drawer ? { drawer: "1" } : {}), class: "raa-secondary", form: { data: { turbo_frame: (@drawer ? "raa_assistant_drawer" : "_top") } } %>
+      <%= link_to t("rails_ai_admin.assistant.refresh"), (@drawer ? assistant_drawer_path(chat_ref: @chat.ref) : assistant_conversation_path(chat_ref: @chat.ref)), data: { turbo_frame: (@drawer ? "raa_assistant_drawer" : "_top") } %>
     </div>
   <% elsif @failure %>
     <div class="raa-chat-turn">
       <p class="raa-chat-status raa-chat-failure" role="status"><%= @failure_message %></p>
-      <% if @retryable %><%= button_to t("rails_ai_admin.assistant.try_again"), retry_assistant_conversation_path(chat_ref: @chat.ref), method: :post, class: "raa-secondary", form: { data: { turbo_frame: "_top" } } %><% end %>
+      <% if @retryable %><%= button_to t("rails_ai_admin.assistant.try_again"), retry_assistant_conversation_path(chat_ref: @chat.ref), method: :post, params: (@drawer ? { drawer: "1" } : {}), class: "raa-secondary", form: { data: { turbo_frame: (@drawer ? "raa_assistant_drawer" : "_top") } } %><% end %>
     </div>
   <% end %>
   <%# Inside the frame, so it refreshes with each reply. %>

@@ -43,6 +43,7 @@ end
 
 require "ruby_llm"
 require_relative "assistant/records"
+require_relative "assistant/page_context"
 require_relative "assistant/budget"
 require_relative "assistant/retention"
 require_relative "assistant/tools"

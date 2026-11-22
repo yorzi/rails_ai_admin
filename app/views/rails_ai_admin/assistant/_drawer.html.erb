@@ -1,0 +1,30 @@
+<% page_context = assistant_page_context %>
+<aside id="raa-assistant-drawer" class="raa-drawer" hidden aria-label="<%= t("rails_ai_admin.assistant.drawer.title") %>"
+  data-raa-drawer-target="panel"
+  data-page-context-token="<%= page_context&.token %>"
+  data-page-context-label="<%= page_context&.label %>"
+  data-following-label="<%= t("rails_ai_admin.assistant.drawer.following") %>"
+  data-pinned-label="<%= t("rails_ai_admin.assistant.drawer.pinned") %>"
+  data-pin-label="<%= t("rails_ai_admin.assistant.drawer.pin") %>"
+  data-unpin-label="<%= t("rails_ai_admin.assistant.drawer.unpin") %>">
+  <header class="raa-drawer-header">
+    <h2 class="raa-drawer-title"><%= t("rails_ai_admin.assistant.drawer.title") %></h2>
+    <div class="raa-drawer-controls">
+      <%= link_to t("rails_ai_admin.assistant.drawer.full_view"), assistant_path, class: "raa-drawer-link", data: { raa_drawer_target: "fullLink", turbo_frame: "_top" } %>
+      <button type="button" class="raa-secondary raa-drawer-pin" aria-pressed="false" data-raa-drawer-target="pin" data-action="raa-drawer#togglePin"><%= t("rails_ai_admin.assistant.drawer.pin") %></button>
+      <button type="button" class="raa-secondary raa-drawer-close" aria-label="<%= t("rails_ai_admin.assistant.drawer.close") %>" data-raa-drawer-target="close" data-action="raa-drawer#close">×</button>
+    </div>
+  </header>
+  <div class="raa-drawer-context" data-raa-drawer-target="contextBar"<%= " hidden" unless page_context %>>
+    <span class="raa-context-chip" data-raa-drawer-target="chip">
+      <span class="raa-context-chip-label" data-raa-drawer-target="chipLabel"><%= page_context&.label %></span>
+      <button type="button" class="raa-context-chip-remove" aria-label="<%= t("rails_ai_admin.assistant.drawer.remove_context") %>" data-action="raa-drawer#removeContext">×</button>
+    </span>
+    <span class="raa-context-mode" data-raa-drawer-target="mode"><%= t("rails_ai_admin.assistant.drawer.following") %></span>
+  </div>
+  <div class="raa-drawer-body">
+    <%= turbo_frame_tag "raa_assistant_drawer", data: { raa_drawer_target: "frame", src: assistant_drawer_path, action: "turbo:frame-load->raa-drawer#frameLoaded" } do %>
+      <p class="raa-drawer-loading"><%= t("rails_ai_admin.assistant.waiting") %></p>
+    <% end %>
+  </div>
+</aside>

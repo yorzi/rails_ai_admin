@@ -95,6 +95,7 @@
       <%= button_tag operation.description, type: "submit", name: "then", value: "operation:#{operation.key}", data: { raa_selection_target: "submit" } %>
     <% end %>
     <% if @bulk_destroy %><%= button_tag t("rails_ai_admin.resources.index.delete_selected"), type: "submit", name: "then", value: "destroy", class: "raa-danger", data: { raa_selection_target: "submit" } %><% end %>
+    <% if assistant_for?(@resource) %><%= button_tag t("rails_ai_admin.resources.index.ask_selected"), type: "submit", name: "then", value: "assistant", class: "raa-secondary", data: { raa_selection_target: "submit" } %><% end %>
     <%= button_tag t("rails_ai_admin.resources.index.capture_selection"), type: "submit", name: nil, class: "raa-secondary", data: { raa_selection_target: "submit" } %>
   <% end %>
 <% end %>

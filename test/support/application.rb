@@ -23,6 +23,9 @@ RailsAiAdmin.configuration.assistant_protocol = "chat_completions"
 RailsAiAdmin.configuration.mcp = true
 require_relative "../dummy/config/application"
 Rails.application.initialize!
+# Draw engine routes while assistant, surfaces and MCP are enabled above, so
+# random test order cannot lazily draw them under a stubbed configuration.
+Rails.application.reload_routes_unless_loaded if Rails.application.respond_to?(:reload_routes_unless_loaded)
 ActiveRecord::Migration.verbose = false
 ActiveRecord::MigrationContext.new(File.expand_path("../../db/migrate", __dir__)).migrate
 ActiveRecord::MigrationContext.new(RailsToolViews::Engine.root.join("db/migrate").to_s).migrate

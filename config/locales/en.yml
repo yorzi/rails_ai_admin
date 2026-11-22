@@ -90,6 +90,7 @@ en:
         all_matching: All %{count} matching records
         all_matching_limit: Bulk actions take up to %{count} records. Narrow the list to act on every match.
         delete_selected: Delete selected
+        ask_selected: Ask assistant
         search_label: Search %{label}
         search: Search
         scopes: "%{label} scopes"
@@ -557,8 +558,25 @@ en:
       ask: Ask
       ask_record: Ask the assistant about this record
       ask_list: Ask the assistant about this list
+      ask_selection:
+        one: Ask the assistant about this selected record
+        other: Ask the assistant about these %{count} selected records
       ask_record_placeholder: For example, “Who changed this last?” or “Set the status to closed.”
       ask_list_placeholder: For example, “How many of these were created this week?”
+      ask_selection_placeholder: For example, “Compare these records” or “Update their status.”
+      drawer:
+        title: Assistant
+        full_view: Full view
+        open_conversation: Open full conversation
+        pin: Pin context
+        unpin: Unpin context
+        following: Following page
+        pinned: Pinned
+        close: Close assistant
+        remove_context: Remove page context
+        intro: Ask about the current page or any records you can access.
+        placeholder: Ask about this page…
+        recent: Recent conversations
       intro: >-
         Ask about the records you can already see. The assistant reads through your current permissions
         and cannot change data; any change it suggests opens a review that you confirm yourself.

@@ -27,7 +27,7 @@ module RailsAiAdmin
     prepend_before_action :secure_headers
     before_action :authenticate_admin
     after_action :notice_discarded_list_settings
-    helper_method :resource_navigation, :admin_csp_nonce, :list_page_path, :encoded_return_state, :navigation_state, :navigation_params, :list_return_path, :list_return_label, :return_state_discarded?, :return_navigation_fields, :list_state_fields, :visible_resources, :allowed_action?, :record_label, :parent_return, :parent_return_params, :parent_return_fields, :collection_jobs_available?, :admin_associations, :assistant_available?, :searchable_resources, :audit_log_available?, :actor_labels, :assistant_for?
+    helper_method :resource_navigation, :admin_csp_nonce, :list_page_path, :encoded_return_state, :navigation_state, :navigation_params, :list_return_path, :list_return_label, :return_state_discarded?, :return_navigation_fields, :list_state_fields, :visible_resources, :allowed_action?, :record_label, :parent_return, :parent_return_params, :parent_return_fields, :collection_jobs_available?, :admin_associations, :assistant_available?, :searchable_resources, :audit_log_available?, :actor_labels, :assistant_for?, :assistant_page_context
 
     rescue_from AccessDenied, with: :deny_access
     rescue_from ConfigurationError do
@@ -247,6 +247,21 @@ module RailsAiAdmin
       Authorization::Access.new(@context, resource).authorize_assistant!
     rescue AccessDenied
       false
+    end
+
+    # Server-signed page context token for the contextual assistant drawer.
+    # Returns nil unless the assistant is enabled and allowed for this resource.
+    def assistant_page_context
+      return @assistant_page_context if defined?(@assistant_page_context)
+      @assistant_page_context = if @resource && assistant_for?(@resource)
+        if @selection.is_a?(Selections::Builder::Snapshot)
+          Assistant::PageContext.issue(context: @context, resource: @resource, selection: @selection)
+        elsif @record&.persisted?
+          Assistant::PageContext.issue(context: @context, resource: @resource, record: @record)
+        elsif is_a?(ResourcesController) && action_name == "index"
+          Assistant::PageContext.issue(context: @context, resource: @resource, list_state: navigation_state)
+        end
+      end
     end
 
     def audit_log_available?
