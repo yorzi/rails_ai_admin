@@ -38,6 +38,11 @@ class TemplateOverridesTest < Minitest::Test
       assert_equal 64, catalog.source_digest(entry).length
     end
     assert_equal %i[field value text], catalog.fetch("field_show").locals
+    # The bulk delete form must submit review_signature, so older copies are stale.
+    destroy = catalog.fetch("selection_destroy")
+    assert_equal 3, destroy.revision
+    assert_includes destroy.assigns, :review_signature
+    assert_includes File.read(catalog.source_path(destroy)), "@review_signature"
   end
 
   def test_every_public_template_copies_unicode_bytes_without_transcoding_or_extra_files

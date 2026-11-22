@@ -115,6 +115,6 @@ legacy visible_resources still includes hidden-menu resources. See
 | `job_index` | 1 | `rails_ai_admin/collection_jobs/index.html.erb` | `context`, `jobs` | None |
 | `job_show` | 2 | `rails_ai_admin/collection_jobs/show.html.erb` | `context`, `resource`, `job`, `list_navigation` | None |
 | `selection` | 2 | `rails_ai_admin/selections/show.html.erb` | `context`, `resource`, `selection`, `operations`, `deletable`, `list_navigation` | None |
-| `selection_destroy` | 2 | `rails_ai_admin/selections/confirm_destroy.html.erb` | `context`, `resource`, `selection`, `deletable`, `skipped`, `list_navigation` | None |
+| `selection_destroy` | 3 | `rails_ai_admin/selections/confirm_destroy.html.erb` | `context`, `resource`, `selection`, `deletable`, `skipped`, `review_signature`, `list_navigation` | None |
 | `resource_deleted` | 1 | `rails_ai_admin/deleted_records/index.html.erb` | `context`, `resource`, `records`, `page`, `has_next` | None |
 | `selection_destroy_result` | 2 | `rails_ai_admin/selections/destroyed.html.erb` | `context`, `resource`, `selection`, `deleted`, `skipped`, `failed`, `list_navigation` | None |

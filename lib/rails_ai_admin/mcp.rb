@@ -39,7 +39,8 @@ module RailsAiAdmin
       def self.issue!(context, name:, lifetime:)
         raise AccessDenied, "INVALID_QUERY" unless name.is_a?(String) && name.valid_encoding? && name.strip.length.between?(1, 80) && LIFETIMES.key?(lifetime.to_s)
         transaction(requires_new: true) do
-          raise AccessDenied, "INVALID_QUERY" if for_owner(context).active.lock.count >= MAX_ACTIVE
+          # PostgreSQL refuses FOR UPDATE with COUNT, so lock and count the rows.
+          raise AccessDenied, "INVALID_QUERY" if for_owner(context).active.order(:id).lock.pluck(:id).size >= MAX_ACTIVE
           token = "#{TOKEN_PREFIX}#{SecureRandom.urlsafe_base64(32)}"
           record = create!(id: SecureRandom.uuid, actor_ref: context.actor_ref, tenant_ref: context.tenant_ref,
             security_version: context.security_version, name: name.strip.squish, token_digest: digest(token),

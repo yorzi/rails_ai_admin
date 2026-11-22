@@ -4,7 +4,19 @@
 
 The assistant learns the host's terms, falls back to other models, caches its
 repeated prompt, totals by calendar period and can be checked on a host's own
-questions. No migration is required; layout overrides move to contract 5.
+questions. A new engine migration adds indexes; layout overrides move to
+contract 5 and bulk delete overrides to contract 3.
+
+- A new engine migration indexes queued batch items, work deadlines, runs by selection and audit event, and the audit log by resource. Copy it with `bin/rails generate rails_ai_admin:install --skip`, then run `bin/rails db:migrate`.
+- A bulk delete confirmation carries a signed list of the records it showed. If the records that can be deleted change before submission, nothing is deleted and the page reports a conflict. An override of `selections/confirm_destroy.html.erb` moves to contract 3 and must submit the `review_signature` field.
+- The Pundit adapter grants an action only when the policy method returns exactly `true`, and never through a method that Ruby's `Object` defines. A policy that returns another truthy value now denies.
+- `searchable:` takes `false`, `true`, `:prefix`, `:contains` or `:exact`, on text, textarea, email, url, enum, select and belongs_to fields only. Other declarations raise `ConfigurationError` at boot.
+- Restoring a soft-deleted record runs its model validations. A record that no longer validates stays deleted, and the page reports a conflict.
+- A Work handler's `lease_duration` must be longer than its `max_duration`.
+- The assistant and MCP resolve reference labels, and search or sort through a reference, only for target resources that also grant `assistant?`. MCP tokens work only while their owner has the assistant on at least one resource. Proposals for disabled operations are refused, and a turn that hit the step limit can no longer be retried.
+- Association panels and the deleted-records page leave out records the person may not show, instead of listing their labels. The audit log names an actor in its filter only when that actor appears in the visible log.
+- Request logs filter the `Authorization` and `Cookie` headers. MCP reads at most its body limit before parsing and never parses an unauthenticated body. Files are served only for fields visible on the show or list page, with `frame-ancestors 'none'`. Rich text renders through a fixed tag allowlist, whatever the host's sanitizer settings. A rejected form never sends a password back to the browser. CSV export also escapes formulas that follow leading spaces.
+- Models versioned only by `lock_version` now advance their version when an edit changes only files, rich text or a list, so a concurrent form conflicts. On PostgreSQL, locked lookups no longer combine `FOR UPDATE` with a policy's outer join, and a malformed key in a filter is refused instead of raising. The dashboard trend leaves out future dates, and `Time` values are no longer converted to UTC in place.
 
 - `bin/rails rails_ai_admin:assistant:eval` asks the questions in
   `config/rails_ai_admin/assistant_eval.yml` as one person, through the real

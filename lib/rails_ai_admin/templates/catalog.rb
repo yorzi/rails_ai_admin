@@ -43,7 +43,7 @@ module RailsAiAdmin
         "job_index" => [ "rails_ai_admin/collection_jobs/index.html.erb", %i[context jobs], [] ],
         "job_show" => [ "rails_ai_admin/collection_jobs/show.html.erb", %i[context resource job], [] ],
         "selection" => [ "rails_ai_admin/selections/show.html.erb", %i[context resource selection operations deletable], [] ],
-        "selection_destroy" => [ "rails_ai_admin/selections/confirm_destroy.html.erb", %i[context resource selection deletable skipped], [] ],
+        "selection_destroy" => [ "rails_ai_admin/selections/confirm_destroy.html.erb", %i[context resource selection deletable skipped review_signature], [] ],
         "resource_deleted" => [ "rails_ai_admin/deleted_records/index.html.erb", %i[context resource records page has_next], [] ],
         "selection_destroy_result" => [ "rails_ai_admin/selections/destroyed.html.erb", %i[context resource selection deleted skipped failed], [] ]
       }.freeze
@@ -62,6 +62,8 @@ module RailsAiAdmin
           5 # intent_ref replaces intent (ADR 0025)
         elsif %w[resource_destroy resource_errors].include?(key)
           3 # intent_ref; outcome sentences and RESTRICTED
+        elsif key == "selection_destroy"
+          3 # review_signature binds the confirmation to the records shown
         elsif navigation || %w[input_fields field_form].include?(key)
           2
         else

@@ -140,11 +140,7 @@ scripted provider only; native OpenAI and Anthropic APIs are still unchecked.
 
 ## Upgrading
 
-0.5.0 adds no migration. Caching is on by default; the other features are opt-in.
-Running `bin/rails generate rails_ai_admin:assistant` again adds the starter
-evaluation file and leaves an existing adapter alone. A layout override needs
-`<%= admin_rich_text_assets %>` in its head; the doctor reports it as
-`STALE_CONTRACT` until then. See the [upgrade guide]({% link _reference/upgrading.md %}).
+0.5.0 adds one migration with indexes only; copy it with `bin/rails generate rails_ai_admin:install --skip` and run `bin/rails db:migrate`. Caching is on by default; the other features are opt-in. Running `bin/rails generate rails_ai_admin:assistant` again adds the starter evaluation file and leaves an existing adapter alone. A layout override needs `<%= admin_rich_text_assets %>` in its head, and a bulk delete override needs the `review_signature` field; the doctor reports either as `STALE_CONTRACT` until then. Some declarations are checked more strictly, such as Pundit policies that return a truthy value other than `true`. See the [upgrade guide]({% link _reference/upgrading.md %}).
 
 ## Public Preview Limits
 

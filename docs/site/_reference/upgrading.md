@@ -3,7 +3,7 @@ layout: default
 title: Upgrading
 nav_order: 2
 guide: false
-description: Upgrade an existing 0.4 host to 0.5.0, update a layout override and add an assistant evaluation file.
+description: Upgrade an existing 0.4 host to 0.5.0, apply the index migration, update layout and bulk delete overrides and add an assistant evaluation file.
 ---
 
 # {{ page.title }}
@@ -18,11 +18,21 @@ from the host application.
 
 ```sh
 bundle update rails_ai_admin
+bin/rails generate rails_ai_admin:install --skip
+bin/rails db:migrate
 bin/rails rails_ai_admin:doctor
 ```
 
-0.5.0 adds no migration. Install 0.4.1 and run its migration first if the host
-is on 0.4.0 or earlier.
+The installer copies `add_missing_indexes_to_rails_ai_admin_tables`, which only adds indexes. Install 0.4.1 and run its migration first if the host is on 0.4.0 or earlier.
+
+**Bulk delete overrides.** The `selection_destroy` contract is revision 3. The confirmation now submits a signed `review_signature` of the records it showed, and a submission without it is refused. If you copied `selections/confirm_destroy.html.erb`, the doctor reports it as `STALE_CONTRACT`. Add `<%= hidden_field_tag :review_signature, @review_signature, id: nil %>` to its form and set the header's `contract` to 3.
+
+**Stricter checks.** These declarations worked before and now fail early or deny:
+
+- A Pundit policy method must return exactly `true` to grant. One that returns another truthy value, such as a record or a string, now denies.
+- `searchable:` is allowed on text, textarea, email, url, enum, select and belongs_to fields only, with `true`, `:prefix`, `:contains` or `:exact`. Remove it from other fields; loading the resource raises `ConfigurationError` until then.
+- A Work handler's `lease_duration` must be longer than its `max_duration`.
+- Restore runs the model's validations, so a record that no longer validates stays deleted.
 
 **Layout overrides.** The `layout` contract is revision 5. If you copied
 `layouts/rails_ai_admin/application.html.erb`, the doctor reports it as
