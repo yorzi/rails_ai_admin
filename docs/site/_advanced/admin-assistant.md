@@ -273,6 +273,10 @@ native pages, so the model never receives a field or record the person could
 not open. Another tenant's record and a missing record return the same
 `NOT_FOUND` result.
 
+Reference labels, searches through a reference and sorts by a reference
+also require `assistant?` on the target resource. The target's own field
+and record grants still apply.
+
 ## Know the Tools
 
 | Tool | Returns |

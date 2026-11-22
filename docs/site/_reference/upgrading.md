@@ -34,6 +34,11 @@ The installer copies `add_missing_indexes_to_rails_ai_admin_tables`, which only 
 - A Work handler's `lease_duration` must be longer than its `max_duration`.
 - Restore runs the model's validations, so a record that no longer validates stays deleted.
 
+**Assistant and MCP grants.** Review policies for resources reached through a
+reference. Chat and MCP now require `assistant?` on the target resource to
+resolve its label or search or sort through it. An MCP token stops working when
+its owner loses the assistant grant on every resource.
+
 **Layout overrides.** The `layout` contract is revision 5. If you copied
 `layouts/rails_ai_admin/application.html.erb`, the doctor reports it as
 `STALE_CONTRACT`. Add `<%= admin_rich_text_assets %>` to its head and set the

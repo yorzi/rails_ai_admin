@@ -2,8 +2,9 @@
 
 ## 2026-11-22 — 0.5.0 release validation
 
-On Ruby 4.0.10 and Rails 8.1.4.1, the SQLite suite passed 723 tests and
-6,657 assertions with zero failures, errors or skips. The 0.5.0 package
+On Ruby 4.0.10 and 3.3.14 with Rails 8.1.4.1, the SQLite suite passed 723 tests
+and 6,657 assertions on both Ruby versions, with zero failures, errors or skips.
+The 0.5.0 package
 passed the fresh Rails authentication quickstart and session/SQLite host
 checks, including template overrides. RuboCop inspected 378 files with no
 offenses, and the frontend reproducibility check passed.

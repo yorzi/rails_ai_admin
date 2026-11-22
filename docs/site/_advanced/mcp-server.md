@@ -46,7 +46,8 @@ ten active tokens and can revoke any of them.
 A token belongs to its owner, tenant and the owner's `security_version`. On
 every request the endpoint asks your context adapter's `resolve_job` for that
 owner again, so a disabled user, a changed role or a bumped security version
-retires the token at once, exactly as it closes their chats.
+retires the token at once, exactly as it closes their chats. The owner must
+still have `assistant?` on at least one resource to use the token.
 
 ## Connect a Client
 
