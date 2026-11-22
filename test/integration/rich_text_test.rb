@@ -30,20 +30,26 @@ class RichTextIntegrationTest < ActionDispatch::IntegrationTest
       assert_equal "#{editor['id']}--label", editor["aria-labelledby"]
       assert_select "script[src*='trix']"
       assert_select "link[rel=stylesheet][href*='trix']"
-      html = %(<div>Hello <strong>world</strong><script>alert(1)</script><img src=x onerror="alert(2)"></div>)
+      html = %(<div>Hello <strong class="raa-danger" data-controller="evil">world</strong><script>alert(1)</script><img src="/sign_out" onerror="alert(2)"></div>)
       patch "/backoffice/documents/#{@document.id}", params: { intent_ref: intent, record: { title: "Handbook", body: html } }
       assert_response :see_other
-      assert_includes @document.reload.body.to_s, "<strong>world</strong>"
+      assert_includes @document.reload.body.to_s, "world"
       assert_equal [ "body" ], RailsAiAdmin::AuditEvent.where(status: "succeeded").last.changed_fields
 
       get "/backoffice/documents/#{@document.id}"
       assert_select "div.raa-rich-text strong", text: "world"
       assert_select "div.raa-rich-text script", count: 0
+      assert_select "div.raa-rich-text img", count: 0
+      assert_select "div.raa-rich-text [data-controller]", count: 0
+      assert_select "div.raa-rich-text .raa-danger", count: 0
       refute_includes response.body, "onerror"
       refute_includes response.body, "<script>alert(1)"
 
       get "/backoffice/documents/#{@document.id}/edit"
-      assert_includes css_select("input[name='record[body]']").first["value"], "<strong>world</strong>"
+      hidden_val = css_select("input[name='record[body]']").first["value"]
+      assert_includes hidden_val, "<strong>world</strong>"
+      refute_includes hidden_val, "<img"
+      refute_includes hidden_val, "data-controller"
       patch "/backoffice/documents/#{@document.id}", params: { intent_ref: intent, record: { title: "Handbook", body: "" } }
       assert_response :see_other
       assert @document.reload.body.to_plain_text.blank?

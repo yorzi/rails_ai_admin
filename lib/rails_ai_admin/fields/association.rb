@@ -149,7 +149,7 @@ module RailsAiAdmin
         end
         (exact + matches).uniq(&:id).first(limit).filter_map do |record|
           access.authorize!(:show, record)
-          [ access.record_label(record).freeze, record.id.to_s.freeze ]
+          [ access.record_label(record, view: :index).freeze, record.id.to_s.freeze ]
         rescue AccessDenied
           nil
         end

@@ -2,6 +2,9 @@
 
 module RailsAiAdmin
   module FieldsHelper
+    RICH_TEXT_TAGS = %w[div p br strong b em i del s u a h1 h2 h3 h4 ul ol li blockquote pre code figure figcaption span].freeze
+    RICH_TEXT_ATTRIBUTES = %w[href].freeze
+
     # Only receives the already-authorized scalar projection. Host partials are
     # trusted Rails code, not a sandbox or an authorization mechanism.
     # record_id names the record a file field links to; pages that show one
@@ -29,7 +32,7 @@ module RailsAiAdmin
           text = tag.time(text, datetime: value.iso8601)
         elsif field.scalar_type == :textarea && view != :index
           text = tag.span(text, class: "raa-multiline")
-        elsif field.scalar_type == :email
+        elsif field.scalar_type == :email && value.to_s.match?(Field::EMAIL)
           text = mail_to(value.to_s, text)
         elsif field.scalar_type == :url && field.web_address?(value.to_s)
           # Only an absolute http(s) address becomes a link (never javascript:).
@@ -37,8 +40,8 @@ module RailsAiAdmin
         elsif field.scalar_type == :json
           text = view == :index ? text.squish.truncate(80) : tag.pre(text, class: "raa-json")
         elsif field.scalar_type == :rich_text
-          # The stored HTML through Rails' safe list; lists show plain text.
-          text = view == :index ? text.squish.truncate(80) : tag.div(sanitize(value.to_s), class: "raa-rich-text")
+          # Explicit minimal Trix allowlist, independent of host sanitizer settings.
+          text = view == :index ? text.squish.truncate(80) : tag.div(admin_sanitize_rich_text(value), class: "raa-rich-text")
         end
       end
       partial = field.display_partial(view) || "rails_ai_admin/fields/#{view == :index ? 'index' : 'show'}"
@@ -120,7 +123,11 @@ module RailsAiAdmin
         aria: input_options[:aria].merge(required: input_options[:required], labelledby: "#{id}--label"), data: { controller: "raa-rich-text",
         action: "trix-file-accept->raa-rich-text#refuse trix-change->raa-rich-text#change" })
       assets = admin_layout_loads_rich_text? ? [] : [ stylesheet_link_tag("trix"), javascript_include_tag("trix", defer: true) ]
-      safe_join([ *assets, hidden_field_tag(form.field_name(field.name), value, id: "#{id}--value"), editor ])
+      safe_join([ *assets, hidden_field_tag(form.field_name(field.name), value.nil? ? nil : admin_sanitize_rich_text(value), id: "#{id}--value"), editor ])
+    end
+
+    def admin_sanitize_rich_text(html)
+      sanitize(html.to_s, tags: RICH_TEXT_TAGS, attributes: RICH_TEXT_ATTRIBUTES)
     end
 
     # The view renders before its layout, so ask the layout's source. Loading

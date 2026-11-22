@@ -11,8 +11,9 @@ module RailsAiAdmin
       context, token = authenticate
       return unauthorized unless context
       require "rails_ai_admin/mcp"
-      raw = request.raw_post.to_s
-      return render(json: rpc_error(nil, -32600, "Request too large"), status: :payload_too_large) if raw.bytesize > Mcp::MAX_BODY
+      return render(json: rpc_error(nil, -32600, "Request too large"), status: :content_too_large) if request.content_length.to_i > Mcp::MAX_BODY
+      raw = read_bounded_body
+      return render(json: rpc_error(nil, -32600, "Request too large"), status: :content_too_large) if raw.nil?
       message = begin
         JSON.parse(raw)
       rescue JSON::ParserError
@@ -34,6 +35,25 @@ module RailsAiAdmin
     def unsupported = head(:method_not_allowed)
 
     private
+
+    # Prevent ActionController::Instrumentation from buffering and JSON-parsing
+    # untrusted bodies before auth/MAX_BODY checks, and keep MCP logs filtered
+    # even when mounted under a custom helper name.
+    def process_action(*)
+      filters = Array(request.get_header("action_dispatch.parameter_filter")) + [ ApplicationController::LOG_FILTER, RequestLogFilter::HEADER_FILTER ]
+      request.set_header("action_dispatch.parameter_filter", filters)
+      request.request_parameters = {}
+      super
+    end
+
+    def read_bounded_body
+      body = request.body
+      return "" unless body
+      body.rewind if body.respond_to?(:rewind)
+      chunk = body.read(Mcp::MAX_BODY + 1).to_s
+      return nil if chunk.bytesize > Mcp::MAX_BODY
+      chunk
+    end
 
     def prepare_headers
       response.headers["Cache-Control"] = "no-store"

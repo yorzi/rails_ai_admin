@@ -4,6 +4,8 @@ module RailsAiAdmin
   # Redacts admin query values before Rails logs the initial request URL.
   # The documented mount name is required; its path can be customized/reloaded.
   class RequestLogFilter
+    HEADER_FILTER = /\AHTTP_(?:AUTHORIZATION|COOKIE)\z/i
+
     def initialize(app)
       @app = app
     end
@@ -12,10 +14,10 @@ module RailsAiAdmin
       helpers = Rails.application.routes.url_helpers
       if helpers.respond_to?(:rails_ai_admin_path)
         prefix = helpers.rails_ai_admin_path(script_name: "").delete_suffix("/")
-        path = env["PATH_INFO"].to_s
+        path = ActionDispatch::Journey::Router::Utils.normalize_path(env["PATH_INFO"].to_s)
         if path == prefix || path.start_with?("#{prefix}/")
           filter = /\A(?!(?:controller|action|resource|id|format)\z)/
-          env["action_dispatch.parameter_filter"] = Array(env["action_dispatch.parameter_filter"]) + [ filter ]
+          env["action_dispatch.parameter_filter"] = Array(env["action_dispatch.parameter_filter"]) + [ filter, HEADER_FILTER ]
         end
       end
       @app.call(env)

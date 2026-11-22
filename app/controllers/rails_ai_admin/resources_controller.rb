@@ -180,6 +180,7 @@ module RailsAiAdmin
       input = operation == :destroy ? {} : submitted_input
       @intent_ref = params[:intent_ref]
       intent_id = runner.materialize_form_intent(context: @context, reference: @intent_ref)
+      raise AccessDenied unless intent_id
       upload_files(operation, input) unless operation == :destroy
       result = runner.execute(context: @context, intent_ref: intent_id, input: input,
         human_confirmed: true, origin: :ui,
@@ -216,6 +217,7 @@ module RailsAiAdmin
     def upload_files(operation, input)
       @uploaded_blobs = []
       record = operation == :create ? @access.relation.new : @access.find!(params[:id], action: operation)
+      @access.authorize!(operation, record)
       writable = @access.fields(:write, record, operation: operation)
       upload_lists(writable.select { |field| field.scalar_type == :files }, input)
       files = writable.select { |field| field.scalar_type == :file }.index_by { |field| field.name.to_s }
@@ -263,6 +265,10 @@ module RailsAiAdmin
         raise AccessDenied, "INVALID_QUERY" unless uploads.is_a?(Array) && remove.is_a?(Array) && remove.all? { |id| id.is_a?(String) }
         uploads = uploads.reject { |value| value == "" }
         raise AccessDenied, "INVALID_QUERY" unless uploads.all? { |value| value.is_a?(ActionDispatch::Http::UploadedFile) }
+        if uploads.size > field.options[:max_files]
+          input[name] = { "add" => Array.new(uploads.size, Fields::RejectedUpload.new("too_many", field.options[:max_files])), "remove" => remove }
+          next
+        end
         added = uploads.map { |value| value.size > field.options[:max_size] ? Fields::RejectedUpload.new("too_large", field.options[:max_size]) : store_upload(value) }
         if added.empty? && remove.empty?
           input.delete(name)

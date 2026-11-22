@@ -72,7 +72,7 @@ module RailsAiAdmin
     private
 
     def process_action(*)
-      filters = Array(request.get_header("action_dispatch.parameter_filter")) + [ LOG_FILTER ]
+      filters = Array(request.get_header("action_dispatch.parameter_filter")) + [ LOG_FILTER, RequestLogFilter::HEADER_FILTER ]
       request.set_header("action_dispatch.parameter_filter", filters)
       super
     end

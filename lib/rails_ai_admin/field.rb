@@ -421,10 +421,12 @@ module RailsAiAdmin
       unless value.is_a?(Hash) && (value.keys - %w[add remove]).empty? && value.values.all? { |item| item.is_a?(Array) }
         raise ArgumentError, message(:invalid, "is invalid")
       end
-      add = Array(value["add"]).map { |item| coerce_file(item) }
-      remove = Array(value["remove"]).map { |item| item.is_a?(Integer) && item.positive? ? item.to_s : item }
-      raise ArgumentError, message(:unavailable_choice, "is not an available choice") unless remove.all? { |item| item.is_a?(String) && item.match?(REFERENCE) }
-      raise ArgumentError, message(:too_many_files, "can hold at most %{count} files", count: options[:max_files]) if add.size > options[:max_files] || remove.size > MAX_REFERENCES
+      raw_add = Array(value["add"])
+      raw_remove = Array(value["remove"])
+      raise ArgumentError, message(:too_many_files, "can hold at most %{count} files", count: options[:max_files]) if raw_add.size > options[:max_files] || raw_remove.size > MAX_REFERENCES
+      add = raw_add.map { |item| coerce_file(item) }
+      remove = raw_remove.map { |item| item.is_a?(Integer) && item.positive? ? item.to_s : item }
+      raise ArgumentError, message(:unavailable_choice, "is not an available choice") unless remove.all? { |item| item.is_a?(String) && item.valid_encoding? && item.match?(REFERENCE) }
       { "add" => add.uniq.freeze, "remove" => remove.uniq.sort.freeze }.freeze
     end
 

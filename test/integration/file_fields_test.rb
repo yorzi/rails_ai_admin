@@ -46,6 +46,7 @@ class FileFieldsIntegrationTest < ActionDispatch::IntegrationTest
       assert_match(/\Aattachment; filename="cover.png"/, response.headers["Content-Disposition"])
       assert_equal PNG.b, response.body.b
       assert_includes response.headers["Content-Security-Policy"], "sandbox"
+      assert_includes response.headers["Content-Security-Policy"], "frame-ancestors 'none'"
       get "#{path}?disposition=inline"
       assert_equal "image/png", response.media_type
       assert_match(/\Ainline/, response.headers["Content-Disposition"])
@@ -131,6 +132,28 @@ class FileFieldsIntegrationTest < ActionDispatch::IntegrationTest
       refute @document.cover.attached?
       refute @document.photos.attached?
       assert_empty RailsAiAdmin::AuditEvent.all
+    end
+  end
+
+  def test_unauthorized_or_missing_intent_never_stores_blobs_and_missing_storage_object_returns_404
+    with_document_resources do
+      assert_no_difference -> { ActiveStorage::Blob.count } do
+        post "/backoffice/documents", params: { intent_ref: "missing", record: { title: "Bad", cover: upload(PNG, "a.png", "image/png") } }
+        assert_response :not_found
+      end
+
+      @document.cover.attach(io: StringIO.new(PNG), filename: "gone.png", content_type: "image/png")
+      @document.cover.blob.service.delete(@document.cover.blob.key)
+      get "/backoffice/documents/#{@document.id}/files/cover"
+      assert_response :not_found
+    end
+
+    post "/test/sign_in/2"
+    with_document_resources do
+      assert_no_difference -> { ActiveStorage::Blob.count } do
+        post "/backoffice/documents", params: { intent_ref: SecureRandom.uuid, record: { title: "Nope", cover: upload(PNG, "b.png", "image/png") } }
+        assert_response :not_found
+      end
     end
   end
 

@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="<%= I18n.locale %>">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="turbo-visit-control" content="reload">
-  <title><%= @admin_status.title %> · Administration</title>
+  <title><%= @admin_status.title %> · <%= RailsAiAdmin.configuration.title %></title>
   <%= stylesheet_link_tag "rails_ai_admin" %>
 </head>
 <body class="raa">

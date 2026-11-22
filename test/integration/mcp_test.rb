@@ -130,4 +130,24 @@ class McpIntegrationTest < ActionDispatch::IntegrationTest
       assert_response :not_found, "only the owner can revoke"
     end
   end
+
+  def test_oversized_and_unauthenticated_mcp_bodies_are_never_parsed_as_request_params
+    with_assistant(resources: RESOURCES) do
+      token = issue_token
+      oversized = { jsonrpc: "2.0", id: 1, method: "tools/list", params: { pad: "a" * (RailsAiAdmin::Mcp::MAX_BODY + 100) } }.to_json
+      post "/backoffice/mcp", params: oversized, headers: { "Content-Type" => "application/json" }
+      assert_response :unauthorized
+
+      post "/backoffice/mcp", params: oversized, headers: { "Content-Type" => "application/json", "Authorization" => "Bearer #{token}" }
+      assert_response :content_too_large
+
+      # Duplicate leading slashes still trigger RequestLogFilter redaction.
+      filter = RailsAiAdmin::RequestLogFilter.new(->(env) { [ 200, {}, [ env["action_dispatch.parameter_filter"].inspect ] ] })
+      env = { "PATH_INFO" => "//backoffice/customers" }
+      filter.call(env)
+      param_filter = ActiveSupport::ParameterFilter.new(env["action_dispatch.parameter_filter"])
+      assert_equal "[FILTERED]", param_filter.filter("q" => "secret")["q"]
+      assert_equal "[FILTERED]", param_filter.filter("HTTP_AUTHORIZATION" => "Bearer raa_mcp_secret")["HTTP_AUTHORIZATION"]
+    end
+  end
 end

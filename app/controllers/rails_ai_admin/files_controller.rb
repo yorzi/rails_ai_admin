@@ -11,20 +11,21 @@ module RailsAiAdmin
       access = Authorization::Access.new(@context, resource)
       raise AccessDenied unless access.canonical_id?(params[:id])
       record = access.find!(params[:id])
-      field = access.fields(:read, record).find { |candidate| Field::FILE_TYPES.include?(candidate.scalar_type) && candidate.name.to_s == params[:field] }
+      visible = access.fields(:read, record, view: :show) | access.fields(:read, record, view: :index)
+      field = visible.find { |candidate| Field::FILE_TYPES.include?(candidate.scalar_type) && candidate.name.to_s == params[:field] }
       raise AccessDenied unless field
       attached = access.attachment(record, field)
       blob = if field.scalar_type == :files
         id = params[:attachment]
-        raise AccessDenied unless id.is_a?(String) && id.match?(Field::REFERENCE)
+        raise AccessDenied unless canonical_attachment_id?(id)
         access.stored_attachments(record, field).find_by(id: id)&.blob
       else
         attached.attached? ? attached.blob : nil
       end
-      raise AccessDenied unless blob
+      raise AccessDenied unless blob && blob.service.exist?(blob.key)
       inline = params[:disposition] == "inline" && Fields::INLINE_IMAGE_TYPES.include?(blob.content_type)
       # A served file is a document of its own: no script, no framing.
-      response.headers["Content-Security-Policy"] = "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox"
+      response.headers["Content-Security-Policy"] = "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'; sandbox"
       response.headers["Cache-Control"] = "no-store, private"
       response.headers["Content-Type"] = inline ? blob.content_type : "application/octet-stream"
       response.headers["Content-Disposition"] = ActionDispatch::Http::ContentDisposition.format(
@@ -32,6 +33,17 @@ module RailsAiAdmin
       response.headers["Content-Length"] = blob.byte_size.to_s
       # Streamed in the service's chunks; a large file is never held in memory.
       self.response_body = Enumerator.new { |body| blob.download { |chunk| body << chunk } }
+    end
+
+    private
+
+    def canonical_attachment_id?(id)
+      return false unless id.is_a?(String) && id.valid_encoding? && id.bytesize.between?(1, 150) && !id.match?(/[[:cntrl:]]|[[:space:]]/)
+      case ::ActiveStorage::Attachment.type_for_attribute(::ActiveStorage::Attachment.primary_key).type
+      when :integer then id.match?(/\A[1-9][0-9]{0,18}\z/) && Integer(id, 10) <= 2**63 - 1
+      when :uuid then id.match?(/\A[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}\z/)
+      else id.match?(Field::REFERENCE)
+      end
     end
   end
 end

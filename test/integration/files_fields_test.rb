@@ -59,7 +59,9 @@ class FilesFieldsIntegrationTest < ActionDispatch::IntegrationTest
     other = Document.create!(account_id: 1, title: "Other")
     other.photos.attach(io: StringIO.new(PNG), filename: "theirs.png", content_type: "image/png")
     with_document_resources do
-      submit(photos: [ "", png("1.png"), png("2.png"), png("3.png"), png("4.png") ])
+      assert_no_difference -> { ActiveStorage::Blob.count } do
+        submit(photos: [ "", png("1.png"), png("2.png"), png("3.png"), png("4.png") ])
+      end
       assert_response :unprocessable_content
       assert_select "p.raa-field-error", text: "can hold at most 3 files"
       submit(photos: [ "", upload(PDF, "x.png", "image/png") ])
