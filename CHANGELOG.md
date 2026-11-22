@@ -37,6 +37,8 @@
   main, 8.2.0.alpha), engine controllers use `:header_or_legacy_token` whatever
   the host's default. Rails 8.2's `:header_only` accepts a plain-HTTP request
   without `Sec-Fetch-Site`; the admin asks such a request for its token.
+- The field input partial compiles through Herb, which `load_defaults 8.2`
+  uses for HTML templates: `case` and its first `when` are separate tags.
 
 ## 0.4.1 (2026-11-18)
 
