@@ -5,7 +5,7 @@
       <h3><%= link_to table.resource.label, resources_path(resource: table.resource.key), data: { turbo_frame: "_top" } %></h3>
       <span class="raa-surface-meta">
         <%= t("rails_ai_admin.surfaces.record_table.shown", count: table.rows.size) %>
-        <% if table.scope.present? %> · <%= t("rails_ai_admin.surfaces.record_table.scope", scope: table.scope) %><% end %>
+        <% if table.scope.present? %> · <%= t("rails_ai_admin.surfaces.record_table.scope", tab: table.scope) %><% end %>
         <% if table.query.present? %> · <%= t("rails_ai_admin.surfaces.record_table.query", query: table.query) %><% end %>
       </span>
     </div>

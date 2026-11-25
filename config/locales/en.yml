@@ -400,7 +400,7 @@ en:
         shown:
           one: 1 record shown
           other: "%{count} records shown"
-        scope: "tab: %{scope}"
+        scope: "tab: %{tab}"
         query: "search: %{query}"
         empty: No matching records are currently available to you.
         omitted:

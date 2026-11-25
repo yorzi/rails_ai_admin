@@ -9,7 +9,7 @@
     <p class="raa-metric-value"><%= metric.value_text %></p>
     <p class="raa-surface-meta">
       <%= t("rails_ai_admin.surfaces.metric_card.records", count: agg.count) %>
-      <% if metric.scope.present? %> · <%= t("rails_ai_admin.surfaces.record_table.scope", scope: metric.scope) %><% end %>
+      <% if metric.scope.present? %> · <%= t("rails_ai_admin.surfaces.record_table.scope", tab: metric.scope) %><% end %>
       <% if metric.query.present? %> · <%= t("rails_ai_admin.surfaces.record_table.query", query: metric.query) %><% end %>
       <% if agg.period.present? %> · <%= t("rails_ai_admin.surfaces.metric_card.period", period: agg.period) %><% end %>
     </p>

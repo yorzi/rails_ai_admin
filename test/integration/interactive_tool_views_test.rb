@@ -15,6 +15,9 @@ class InteractiveCustomerAdmin < RailsAiAdmin::Resource
     integer :points, filterable: true, aggregatable: true
     boolean :active, filterable: true
   end
+  scopes do
+    scope :active, -> { where(active: true) }, label: "Active"
+  end
 end
 
 class InteractiveSurfacePolicy < AssistantPolicy
@@ -29,6 +32,8 @@ class InteractiveSurfacePolicy < AssistantPolicy
     return false if action.to_sym == :show && record && deny_show_id && record.id == deny_show_id
     super
   end
+
+  def named_scopes(context:, resource:) = denied ? [] : %i[active]
 
   def fields(context:, resource:, action:, record: nil)
     return [] if denied
@@ -154,6 +159,42 @@ class InteractiveToolViewsTest < ActionDispatch::IntegrationTest
       assert_response :success
       assert_select ".raa-record-table", count: 0
       assert_select ".raa-chat-records a[href='/backoffice/interactive_customers/#{bob.id}']", text: "Bob"
+    end
+  end
+
+  # The common case: one total, no breakdown (recorded totals scenario).
+  def test_metric_card_shows_an_ungrouped_total
+    Customer.create!(account_id: 1, name: "Bob", points: 40, active: false)
+    @customer.update!(points: 10, active: true)
+    with_interactive do
+      chat = new_chat
+      ask_and_run(chat, "Total points",
+        [ "aggregate_records", { resource: "interactive_customers", function: "sum", field: "points" } ])
+
+      get "/backoffice/assistant/conversations/#{chat.ref}"
+      assert_response :success
+      assert_select ".rails-tool-views-error", count: 0
+      assert_select ".raa-metric-card .raa-metric-value", text: "50"
+      assert_select ".raa-metric-card table", count: 0
+    end
+  end
+
+  # A named list tab is shown on the card; "scope" is also I18n's own option.
+  def test_cards_name_the_list_tab_they_used
+    Customer.create!(account_id: 1, name: "Bob", points: 40, active: false)
+    @customer.update!(points: 10, active: true)
+    with_interactive do
+      chat = new_chat
+      ask_and_run(chat, "Total points of active customers",
+        [ "aggregate_records", { resource: "interactive_customers", function: "sum", field: "points", scope: "active" } ],
+        [ "search_records", { resource: "interactive_customers", scope: "active" } ])
+
+      get "/backoffice/assistant/conversations/#{chat.ref}"
+      assert_response :success
+      assert_select ".rails-tool-views-error", count: 0
+      assert_select ".raa-metric-card .raa-metric-value", text: "10"
+      assert_select ".raa-metric-card .raa-surface-meta", text: /tab: active/
+      assert_select ".raa-record-table .raa-surface-meta", text: /tab: active/
     end
   end
 
