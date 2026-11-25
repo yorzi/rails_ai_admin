@@ -77,19 +77,18 @@ Unreleased; see the Unreleased section of [CHANGELOG.md](CHANGELOG.md).
 - Subset-selectable and editable bulk change reviews that atomically supersede
   prior previews into a fresh immutable selection and token (`E06` Delta 1).
 
+## 0.7.0: operations and the approval inbox (implemented in development)
+
+Operators can review another person’s proposal, track large bulk changes in Tasks, inspect verification receipts and preview undo when the host supports it. See the [unreleased changelog](CHANGELOG.md#unreleased) for the migrations and upgrade details.
+
+## 0.8.0: data quality, import review and saved reports (in progress)
+
+- **Data quality (E07).** The first implementation covers registered rules, bounded duplicate and blank-field checks, native evidence review, links to authorized corrections and read-only chat/MCP tools. A dedicated multi-record merge review with source-version checks and dependent-record counts, plus an orphaned-reference helper, remain planned. [Data quality guide](docs/site/_core_features/data-quality.md)
+- **CSV import (E08).** Planned work includes staged mapping and duplicate review, optional AI mapping suggestions and resumable chunked imports.
+- **Cross-resource queries and dashboards (E02-P2 and E09).** Planned work includes negated relation filters, target search, bounded cross-tab aggregates and saved queries that recheck the viewer’s permissions whenever a chart is rendered.
+
 ## Next candidates
 
-Prioritize from actual host use rather than a fixed release calendar:
-
-- **Agentic operations & review inbox (`0.7` target):** optional post-execution
-  verification and undo/compensation hooks on operations, asynchronous bulk
-  operations and bulk changes over more than 100 records, multi-actor approval
-  (separation of duties), and a resumable task/approval inbox built over
-  existing chats, runs and surfaces.
-- **Data quality, smart import & saved reports (`0.8` target):** declarative
-  data quality rules with merge/change review, AI-assisted CSV column mapping
-  and preview feeding deterministic imports, and saved exploratory queries as
-  re-authorized dashboard widgets.
 - **Propose-only recipes & automation (`0.9` target):** versioned manual,
   scheduled and event-driven recipes with explicit execution principals,
   isolated budgets and approval-inbox routing.

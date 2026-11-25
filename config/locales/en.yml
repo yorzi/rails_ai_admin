@@ -2,6 +2,17 @@
 # Add a locale by copying this file; missing keys fall back as Rails I18n configures.
 en:
   rails_ai_admin:
+    quality:
+      title: Data quality
+      empty: No visible findings in this check.
+      limits: "Checks up to %{findings} findings and shows up to %{records} records per finding."
+      record: "Record #%{id}"
+      edit: Edit record
+      operation: "Review %{operation}"
+      severity:
+        info: Information
+        warning: Warning
+        critical: Critical
     outcomes:
       ok: Done.
       validation_failed: Some values need attention.

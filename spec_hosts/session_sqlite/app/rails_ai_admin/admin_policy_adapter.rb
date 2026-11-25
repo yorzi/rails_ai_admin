@@ -10,6 +10,10 @@ class AdminPolicyAdapter < RailsAiAdmin::Authorization::Adapter
     %i[index show].include?(action) || context.actor.role == "admin"
   end
 
+  def run_quality_rule?(context:, resource:, rule:)
+    context.actor.role == "admin" && resource.key == :orders && rule == :missing_delivery_date
+  end
+
   def select_records?(context:, resource:) = context.actor.role == "admin"
 
   def view_history?(context:, resource:, record:) = context.actor.role == "admin"

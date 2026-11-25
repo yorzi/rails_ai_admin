@@ -64,7 +64,7 @@ module RailsAiAdmin
         chat.with_caching(caching)
         fallbacks = fallback_models
         chat.with_fallbacks(*fallbacks) if fallbacks.any?
-        tools = (TOOLS + Assistant.proposal_tools).map { |klass| klass.new(session) }
+        tools = Assistant.tools_for(session)
         chat.with_tools(*tools)
         chat
       end

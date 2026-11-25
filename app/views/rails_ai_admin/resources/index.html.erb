@@ -2,7 +2,7 @@
 <%# The first screen shows records: search sits beside the heading, filters fold away (RAA-025). %>
 <% creatable = allowed_action?(@resource, :create) %>
 <div class="raa-heading raa-list-heading"><h1><%= @resource.label %></h1>
-<% if @searchable || @exportable || @importable || creatable %>
+<% if @searchable || @exportable || @importable || @quality_rules_available || creatable %>
 <div class="raa-actions raa-list-toolbar">
 <% if @searchable %>
   <%= form_with url: resources_path(resource: @resource.key), method: :get, local: true, class: "raa-search", html: { role: "search", aria: { label: t("rails_ai_admin.resources.index.search_label", label: @resource.label.downcase_first) } } do |form| %>
@@ -17,6 +17,7 @@
     <%= form.submit t("rails_ai_admin.exports.button"), class: "raa-secondary", name: nil %>
   <% end %>
 <% end %>
+<% if @quality_rules_available %><%= link_to t("rails_ai_admin.quality.title"), quality_rules_path(resource: @resource.key), class: "raa-button raa-secondary" %><% end %>
 <% if @importable %><%= link_to t("rails_ai_admin.imports.button"), new_resource_import_path(resource: @resource.key), class: "raa-button raa-secondary" %><% end %>
 <% if creatable %><%= link_to t("rails_ai_admin.resources.new", label: @resource.label.singularize.downcase_first), new_resource_path(resource: @resource.key, **navigation_params), class: "raa-button" %><% end %>
 </div>

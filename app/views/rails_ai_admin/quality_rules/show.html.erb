@@ -1,0 +1,23 @@
+<% rule = @report.rule %>
+<% admin_title rule.description %>
+<%= link_to t("rails_ai_admin.quality.title"), quality_rules_path(resource: @resource.key) %>
+<h1><%= rule.description %></h1>
+<p><%= t("rails_ai_admin.quality.limits", findings: rule.max_findings, records: RailsAiAdmin::Quality::Runner::MAX_RECORDS) %></p>
+<% if @report.reviews.empty? %><p><%= t("rails_ai_admin.quality.empty") %></p><% end %>
+<% @report.reviews.each do |review| %>
+  <table>
+    <caption><%= review.summary %></caption>
+    <thead><tr><th scope="col"><%= @resource.label.singularize %></th>
+      <% review.rows.first.evidence.each_key do |name| %><th scope="col"><%= @resource.fields.find { |field| field.name.to_s == name }.label %></th><% end %>
+      <th scope="col"><%= t("rails_ai_admin.resources.index.actions") %></th></tr></thead>
+    <tbody><% review.rows.each do |row| %><tr>
+      <th scope="row"><%= link_to t("rails_ai_admin.quality.record", id: row.id), resource_path(resource: @resource.key, id: row.id) %></th>
+      <% row.evidence.each_value do |value| %><td><%= value %></td><% end %>
+      <td><% if row.can_remediate && rule.remediation_operation %>
+        <%= link_to t("rails_ai_admin.quality.operation", operation: rule.remediation_operation.to_s.humanize), operation_form_path(resource: @resource.key, id: row.id, operation: rule.remediation_operation) %>
+      <% elsif row.can_remediate %>
+        <%= link_to t("rails_ai_admin.quality.edit"), edit_resource_path(resource: @resource.key, id: row.id) %>
+      <% end %></td>
+    </tr><% end %></tbody>
+  </table>
+<% end %>

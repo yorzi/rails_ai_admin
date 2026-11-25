@@ -115,7 +115,7 @@ module RailsAiAdmin
       end
 
       def tools
-        (Assistant::TOOLS + Assistant.proposal_tools).map { |klass| klass.new(session) }
+        Assistant.tools_for(session)
       end
 
       def descriptor(tool)

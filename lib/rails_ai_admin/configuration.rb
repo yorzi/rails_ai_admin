@@ -21,7 +21,7 @@ module RailsAiAdmin
     end
 
     attr_accessor :context_adapter, :authorization_adapter, :resources, :title, :intent_ttl,
-      :work_handlers, :outbox_auto_dispatch, :collection_auto_dispatch, :field_types, :authentication_path,
+      :quality_rules, :work_handlers, :outbox_auto_dispatch, :collection_auto_dispatch, :field_types, :authentication_path,
       # Opt-in rails_tool_views review Surfaces. The host loads rails_tool_views
       # and owns its global configuration; the admin never changes it.
       :surfaces,
@@ -80,6 +80,7 @@ module RailsAiAdmin
       @context_adapter = nil
       @authorization_adapter = "RailsAiAdmin::Authorization::Adapter"
       @resources = []
+      @quality_rules = []
       @title = "Administration"
       @intent_ttl = 15.minutes
       @work_handlers = {}
@@ -123,6 +124,9 @@ module RailsAiAdmin
       end
       unless resources.is_a?(Array) && resources.all? { |name| name.is_a?(String) && name.match?(CONSTANT_NAME) }
         raise ConfigurationError, "resources must contain constant name strings"
+      end
+      unless quality_rules.is_a?(Array) && quality_rules.all? { |name| name.is_a?(String) && name.match?(CONSTANT_NAME) }
+        raise ConfigurationError, "quality_rules must contain constant name strings"
       end
       unless title.is_a?(String) && title.valid_encoding? && title.length.between?(1, 120) && !title.match?(/[[:cntrl:]]/)
         raise ConfigurationError, "title must be 1 to 120 characters of plain text"
@@ -177,6 +181,7 @@ module RailsAiAdmin
       field_types.freeze
       work_handlers.each { |kind, name| kind.freeze; name.freeze }
       work_handlers.freeze
+      quality_rules.each(&:freeze).freeze
       resources.each(&:freeze)
       resources.freeze
       title.freeze

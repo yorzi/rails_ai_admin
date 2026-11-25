@@ -75,6 +75,7 @@ module RailsAiAdmin
             filters: navigation_state["filter"]).except(:order).limit(Selections::Builder::LIMIT + 1).count
         end
       end
+      @quality_rules_available = RailsAiAdmin.quality_registry.for_access(@access).any?
       @deleted_records = @resource.soft_delete? && allowed_action?(@resource, :restore)
       @bulk_operations = @selectable ? granted_collection_operations(@resource, @access) : []
       @importable = begin

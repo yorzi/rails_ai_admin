@@ -33,6 +33,20 @@ class PackagedAcceptanceTest < ActionDispatch::IntegrationTest
     assert_equal 303, response.status
   end
 
+  def test_quality_rule_in_an_installed_host
+    login
+    missing = Order.create!(account: @account, number: "QUALITY-1", total: "10.00")
+    get "/staff/orders"
+    assert_select "a[href='/staff/orders/quality/rules']"
+    get "/staff/orders/quality/rules/missing_delivery_date"
+    assert_response :success
+    assert_select "tbody tr", count: 1
+    assert_select "a[href='/staff/orders/#{missing.id}/edit']"
+    @user.update!(role: "viewer")
+    get "/staff/orders/quality/rules/missing_delivery_date"
+    assert_response :not_found
+  end
+
   if ENV["RAA_OVERRIDE_ACCEPTANCE"] == "1"
     def test_generated_host_template_precedence_and_form_contract
       login

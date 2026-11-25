@@ -36,6 +36,10 @@ require_relative "rails_ai_admin/presentation/audit_log"
 require_relative "rails_ai_admin/resource"
 require_relative "rails_ai_admin/resource_identity"
 require_relative "rails_ai_admin/registry"
+require_relative "rails_ai_admin/quality_rule"
+require_relative "rails_ai_admin/quality/registry"
+require_relative "rails_ai_admin/quality/runner"
+require_relative "rails_ai_admin/quality/checks"
 require_relative "rails_ai_admin/operations/default_handlers"
 require_relative "rails_ai_admin/operations/registry"
 require_relative "rails_ai_admin/outbox/registry"
@@ -51,7 +55,7 @@ require_relative "rails_ai_admin/navigation/saved_views"
 
 # Provides an isolated admin engine. The host supplies all authority.
 module RailsAiAdmin
-  Snapshot = Data.define(:registry, :operation_registry, :work_registry, :field_registry)
+  Snapshot = Data.define(:registry, :operation_registry, :work_registry, :field_registry, :quality_registry)
 
   class << self
     # Returns the process configuration, frozen after Rails initialization.
@@ -79,6 +83,10 @@ module RailsAiAdmin
       @snapshot&.operation_registry || (@operation_registry ||= Operations::Registry.new([]))
     end
 
+    def quality_registry
+      @snapshot&.quality_registry || (@quality_registry ||= Quality::Registry.new([], registry))
+    end
+
     def work_registry
       @snapshot&.work_registry || (@work_registry ||= Outbox::Registry.new({}))
     end
@@ -90,7 +98,8 @@ module RailsAiAdmin
       resources = Registry.new(configuration.resources)
       operations = Operations::Registry.new(resources.resources)
       work = Outbox::Registry.new(configuration.work_handlers)
-      @snapshot = Snapshot.new(registry: resources, operation_registry: operations, work_registry: work, field_registry: fields)
+      quality = Quality::Registry.new(configuration.quality_rules, resources)
+      @snapshot = Snapshot.new(registry: resources, operation_registry: operations, work_registry: work, field_registry: fields, quality_registry: quality)
     end
   end
 end

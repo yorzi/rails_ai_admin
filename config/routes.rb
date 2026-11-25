@@ -50,6 +50,8 @@ RailsAiAdmin::Engine.routes.draw do
   post ":resource/operations/:operation/execute", to: "collection_operations#execute", as: :collection_operation_execute
   post ":resource/selections", to: "selections#create", as: :capture_selection
   post ":resource/views", to: "saved_views#create", as: :saved_views
+  get ":resource/quality/rules", to: "quality_rules#index", as: :quality_rules
+  get ":resource/quality/rules/:rule", to: "quality_rules#show", as: :quality_rule
   get ":resource/deleted", to: "deleted_records#index", as: :deleted_records
   post ":resource/deleted/:id/restore", to: "deleted_records#restore", as: :restore_deleted_record
   delete ":resource/views/:id", to: "saved_views#destroy", as: :saved_view

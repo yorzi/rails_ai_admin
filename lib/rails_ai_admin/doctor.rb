@@ -126,6 +126,15 @@ module RailsAiAdmin
       "#{spend} #{kept}"
     end
 
+    def quality_rules_check
+      names = @configuration.quality_rules
+      return if names.empty?
+      Quality::Registry.new(names, @registry)
+      Check.new("quality_rules", :review, "#{names.size} quality rules registered. Verify rule grants, scope and cooperative deadlines with host data fixtures.")
+    rescue ConfigurationError => error
+      Check.new("quality_rules", :error, error.message)
+    end
+
     def checks
       config = @configuration
       collections = @registry.resources.sum { |resource| @operation_registry.custom(resource).count { |definition| definition.scope == :collection } }
@@ -139,6 +148,7 @@ module RailsAiAdmin
         assistant_check,
         mcp_check,
         files_check,
+        quality_rules_check,
         selection_check,
         saved_views_check,
         Check.new("queue", @work_registry.definitions.empty? && collections.zero? ? :closed : :review,

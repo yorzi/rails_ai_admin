@@ -1,0 +1,6 @@
+<% admin_title t("rails_ai_admin.quality.title") %>
+<%= link_to @resource.label, resources_path(resource: @resource.key) %>
+<h1><%= t("rails_ai_admin.quality.title") %></h1>
+<ul><% @rules.each do |rule| %>
+  <li><%= link_to rule.description, quality_rule_path(resource: @resource.key, rule: rule.key) %> (<%= t("rails_ai_admin.quality.severity.#{rule.severity}") %>)</li>
+<% end %></ul>

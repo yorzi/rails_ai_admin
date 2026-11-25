@@ -155,6 +155,17 @@ module RailsAiAdmin
         policy_error!(resource, error)
       end
 
+      def run_quality_rule?(context:, resource:, rule:)
+        policy = policy_class(resource)&.new(context, resource.model_class)
+        return false unless policy && policy.respond_to?(:run_quality_rule?)
+        return false if Object.ancestors.include?(policy.method(:run_quality_rule?).owner)
+        policy.run_quality_rule?(rule) == true
+      rescue Pundit::NotAuthorizedError
+        false
+      rescue StandardError => error
+        policy_error!(resource, error)
+      end
+
       def export_records?(context:, resource:)
         klass = policy_class(resource)
         return false unless klass

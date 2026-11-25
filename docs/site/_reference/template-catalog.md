@@ -29,9 +29,7 @@ outside this ERB template catalog.
 
 The current catalog contains 37 entries; the table below is generated from
 `RailsAiAdmin::Templates::Catalog::ENTRIES` and lists each revision.
-resource_index is at revision 9 (it adds `bulk_destroy`, `bulk_operations`,
-`saved_views` and `deleted_records`) and
-dashboard at revision 4 (`counts` and `widgets`). New pages for record history,
+Resource index revision 10 adds `quality_rules_available` for the Data quality link. Dashboard revision 4 supplies `counts` and `widgets`. New pages for record history,
 the audit log, search, CSV import and bulk delete start at revision 1 or, when
 they carry list navigation, revision 2. `session_links`
 (`rails_ai_admin/shared/_session.html.erb`, empty by default) holds the
@@ -90,7 +88,7 @@ legacy visible_resources still includes hidden-menu resources. See
 | `audit_log` | 1 | `rails_ai_admin/audit/index.html.erb` | `context`, `log`, `filters`, `page`, `actor_labels` | None |
 | `resource_import` | 1 | `rails_ai_admin/imports/new.html.erb` | `context`, `resource`, `import`, `report`, `problem` | None |
 | `search` | 1 | `rails_ai_admin/search/index.html.erb` | `context`, `query`, `sections` | None |
-| `resource_index` | 9 | `rails_ai_admin/resources/index.html.erb` | `context`, `resource`, `page`, `columns`, `rows`, `searchable`, `selectable`, `exportable`, `importable`, `sortable_fields`, `list_scopes`, `current_scope`, `filter_fields`, `omitted_rows`, `bulk_destroy`, `bulk_operations`, `saved_views`, `deleted_records`, `list_navigation` | None |
+| `resource_index` | 10 | `rails_ai_admin/resources/index.html.erb` | `context`, `resource`, `page`, `columns`, `rows`, `searchable`, `selectable`, `exportable`, `importable`, `sortable_fields`, `list_scopes`, `current_scope`, `filter_fields`, `omitted_rows`, `bulk_destroy`, `bulk_operations`, `saved_views`, `deleted_records`, `quality_rules_available`, `list_navigation` | None |
 | `resource_show` | 3 | `rails_ai_admin/resources/show.html.erb` | `context`, `resource`, `record`, `values`, `fields`, `operations`, `association_panels`, `list_navigation` | None |
 | `resource_history` | 2 | `rails_ai_admin/resources/history.html.erb` | `context`, `resource`, `record`, `history`, `actor_labels`, `list_navigation` | None |
 | `resource_associations` | 1 | `rails_ai_admin/resources/_associations.html.erb` | None | `panels` |

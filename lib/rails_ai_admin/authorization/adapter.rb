@@ -73,6 +73,9 @@ module RailsAiAdmin
         false
       end
 
+      # A rule can reveal membership in a sensitive cohort.
+      def run_quality_rule?(context:, resource:, rule:) = false
+
       # Downloads the current list as CSV. Rows, columns and values still come
       # from the index, show and read grants; this grant only adds the button.
       def export_records?(context:, resource:)

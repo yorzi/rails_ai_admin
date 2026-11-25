@@ -164,6 +164,13 @@ module RailsAiAdmin
         definition.handler_class.input.select { |field| names.include?(field.name) }
       end
 
+      def quality_rule_allowed?(rule)
+        authorize!(:index)
+        @adapter.respond_to?(:run_quality_rule?) && @adapter.run_quality_rule?(context: context, resource: resource, rule: rule.key) == true
+      rescue AccessDenied
+        false
+      end
+
       def authorize_export!
         authorize!(:index)
         allowed = @adapter.respond_to?(:export_records?) && @adapter.export_records?(context: context, resource: resource) == true

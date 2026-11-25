@@ -773,6 +773,16 @@ module RailsAiAdmin
 
     TOOLS = [ ListResources, DescribeResource, SearchRecords, CountRecords, AggregateRecords, GetRecord, RecordHistory ].freeze
 
+    def self.tools_for(session)
+      classes = TOOLS + proposal_tools
+      unless RailsAiAdmin.configuration.quality_rules.empty?
+        if session.resources.any? { |resource| RailsAiAdmin.quality_registry.for_access(session.access(resource)).any? }
+          classes.concat([ ListQualityRules, RunQualityRule ])
+        end
+      end
+      classes.map { |klass| klass.new(session) }
+    end
+
     # Proposal tools offered with the read tools: single reviews need
     # Surfaces; bulk reviews need a resource that declares bulk_update.
     def self.proposal_tools
