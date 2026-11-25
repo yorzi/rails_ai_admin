@@ -1,9 +1,10 @@
-# Sample data for bin/demo: two tenants, three users and awkward names that
+# Sample data for bin/demo: two tenants, four users and awkward names that
 # exercise escaping, Unicode and sorting. The password is for this local demo
 # only.
 a = Account.create!(name: "Tenant A")
 b = Account.create!(name: "Tenant B")
 User.create!(account: a, email: "admin@example.test", password: "demo-password", role: "admin")
+User.create!(account: a, email: "reviewer@example.test", password: "demo-password", role: "admin")
 User.create!(account: a, email: "viewer@example.test", password: "demo-password", role: "viewer")
 User.create!(account: b, email: "other@example.test", password: "demo-password", role: "admin")
 names = [ "Ada Lovelace", "Grace Hopper", "Zoë Müller", "O'Brien & Sons", "<script>alert(1)</script>", "100% Pure_Co", "李雷", "back\\slash" ]

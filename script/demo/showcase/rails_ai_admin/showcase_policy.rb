@@ -32,6 +32,24 @@ module ShowcasePolicy
     context.actor.role == "admin" && %i[articles tags summaries customers orders].include?(resource.key)
   end
 
+  # 0.7: reviewed_award needs a second admin; admins may undo and see Tasks.
+  def operation_fields(context:, resource:, operation:, record: nil)
+    return context.actor.role == "admin" ? [ :amount ] : [] if resource.key == :customers && operation == :reviewed_award
+    super
+  end
+
+  def read_operation_receipt?(context:, resource:, operation:, record:)
+    return context.actor.role == "admin" if resource.key == :customers && operation == :reviewed_award
+    super
+  end
+
+  def approve_operation?(context:, resource:, operation:, record: nil, proposed_by_actor_ref: nil)
+    context.actor.role == "admin" && resource.key == :customers && operation == :reviewed_award
+  end
+
+  def undo_operation?(context:, resource:, operation:, record: nil) = context.actor.role == "admin"
+  def view_tasks?(context:) = context.actor.role == "admin"
+
   def view_history?(context:, resource:, record:) = context.actor.role == "admin"
   def view_audit_log?(context:, resource:) = context.actor.role == "admin"
   def export_records?(context:, resource:) = context.actor.role == "admin"

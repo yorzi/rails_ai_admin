@@ -25,6 +25,7 @@
   <section class="card accounts" aria-labelledby="accounts">
     <h2 id="accounts">Sign in with one click</h2>
     <% [ [ "admin@example.test", "Admin", "Tenant A: edit records, review assistant changes and see the audit log" ],
+         [ "reviewer@example.test", "Reviewer", "Tenant A: approves awards another admin proposed (Tasks)" ],
          [ "viewer@example.test", "Viewer", "Tenant A, read-only" ],
          [ "other@example.test", "Other tenant", "Tenant B, which has almost no data" ] ].each do |email, label, note| %>
       <%= form_with url: "/login", local: true do |form| %>

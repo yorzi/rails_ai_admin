@@ -107,7 +107,9 @@ File.write(File.join(TARGET, "Gemfile"), %(gem "ruby_llm", ">= 2.2.0", "< 3"\nge
 File.write(File.join(TARGET, "app/controllers/application_controller.rb"), "class ApplicationController < ActionController::Base\nend\n")
 FileUtils.cp(File.join(ASSETS, "admin_assistant.rb"), File.join(TARGET, "app/rails_ai_admin"))
 edit("app/rails_ai_admin/customer_admin.rb", %(operation :award_points, handler: "AwardCustomerPoints"),
-  %(operation :award_points, handler: "AwardCustomerPoints", surface: true, assistant: true\n  assistant_changes :update, :bulk_update))
+  %(operation :award_points, handler: "AwardCustomerPoints", surface: true, assistant: true\n  ) +
+  %(operation :reviewed_award, handler: "AwardCustomerPoints", approval: :separate_actor\n  ) +
+  %(assistant_changes :update, :bulk_update\n  undoable :update))
 edit("app/rails_ai_admin/customer_admin.rb", %(integer :points, tab: "Account", panel: "Rewards"),
   %(integer :points, aggregatable: true, tab: "Account", panel: "Rewards"))
 edit("app/rails_ai_admin/order_admin.rb", %(decimal :total, required: true, nullable: false, filterable: true,),
