@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Reviewed merges and reference checks (0.8 development).** Compare duplicate candidates and their visible dependent counts, select a survivor and confirm a host-defined merge through the operation runner. Separate approvers can review the same candidates in Tasks. Quality rules can also flag unavailable `belongs_to` references. [Data quality rules](https://rails-ai-admin.wangyaodi.com/next/data-quality/).
+
 Contextual, interactive and durable operational admin (the 0.6 and 0.7 milestones on `main`). Existing hosts copy four new engine migrations with `bin/rails generate rails_ai_admin:install --skip`, run `bin/rails db:migrate`, and update layout overrides to contract 7. See the [upgrade guide](https://rails-ai-admin.wangyaodi.com/next/upgrading/).
 
 - **Data quality checks (0.8 development).** Register a host rule to check scoped records for duplicate or missing values. Operators can inspect the evidence from the resource list, correct a record through the existing form or operation, and run the check again. Chat and MCP expose read-only checks under the additional assistant grant. Resource list overrides advance to revision 10. [Data quality rules](https://rails-ai-admin.wangyaodi.com/next/data-quality/).

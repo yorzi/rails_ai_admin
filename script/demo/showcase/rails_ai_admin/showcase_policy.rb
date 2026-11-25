@@ -34,17 +34,23 @@ module ShowcasePolicy
 
   # 0.7: reviewed_award needs a second admin; admins may undo and see Tasks.
   def operation_fields(context:, resource:, operation:, record: nil)
+    return context.actor.role == "admin" ? [ :merge_review ] : [] if resource.key == :customers && operation == :combine_customers
     return context.actor.role == "admin" ? [ :amount ] : [] if resource.key == :customers && operation == :reviewed_award
     super
   end
 
   def read_operation_receipt?(context:, resource:, operation:, record:)
-    return context.actor.role == "admin" if resource.key == :customers && operation == :reviewed_award
+    return context.actor.role == "admin" if resource.key == :customers && %i[reviewed_award combine_customers].include?(operation)
     super
   end
 
   def approve_operation?(context:, resource:, operation:, record: nil, proposed_by_actor_ref: nil)
-    context.actor.role == "admin" && resource.key == :customers && operation == :reviewed_award
+    context.actor.role == "admin" && resource.key == :customers && %i[reviewed_award combine_customers].include?(operation)
+  end
+
+  def run_quality_rule?(context:, resource:, rule:)
+    return context.actor.role == "admin" if resource.key == :customers && rule == :duplicate_active_customers
+    super
   end
 
   def undo_operation?(context:, resource:, operation:, record: nil) = context.actor.role == "admin"

@@ -11,14 +11,21 @@ module RailsAiAdmin
       end
       attr_reader :outbox
 
-      def initialize(context, resource, record, run: nil, duration: 5)
+      def initialize(context, resource, record, run: nil, duration: 5, operation: nil)
         @context, @resource, @record = context, resource, record
+        @operation = operation
+        @executing = !run.nil?
         @deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + duration
         @outbox = run ? Outbox::Writer.new(context, run, resource) : PreviewOutbox.new
       end
 
       %i[actor tenant security_version time_zone actor_ref tenant_ref].each do |method|
         define_method(method) { @context.public_send(method) }
+      end
+
+      def reviewed_merge_sources(token)
+        access = Authorization::Access.new(@context, @resource)
+        Quality::MergeReview.resolve!(access, @operation, @record, token, lock: @executing)
       end
 
       def check_deadline!

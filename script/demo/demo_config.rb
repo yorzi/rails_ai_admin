@@ -9,7 +9,7 @@ RailsAiAdmin.configure do |config|
   config.authorization_adapter = "AdminPolicyAdapter"
   config.actor_label = :email
   config.sign_out_path = "/logout"
-  config.quality_rules = [ "MissingDeliveryDate" ]
+  config.quality_rules = [ "MissingDeliveryDate", "DuplicateActiveCustomers" ]
   config.resources = [ "ArticleAdmin", "TagAdmin", "SummaryAdmin", "CustomerAdmin", "OrderAdmin" ]
   config.collection_auto_dispatch = true
   config.surfaces = true

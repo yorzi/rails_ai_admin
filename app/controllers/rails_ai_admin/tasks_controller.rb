@@ -99,6 +99,10 @@ module RailsAiAdmin
       @can_dismiss = @effective_status == "awaiting_approval" && (@task.created_by_actor_ref == @context.actor_ref || @can_approve)
       @can_undo = Tasks::Coordinator.can_undo?(@context, @task)
       @approval_review = Tasks::Review.approval(context: @context, run: @run) if @can_approve
+      if @approval_review&.ready? && RailsAiAdmin.operation_registry.fetch(@resource, @run.operation).merge?
+        @merge_comparison = Quality::MergeReview.confirmed_comparison(Authorization::Access.new(@context, @resource),
+          @run.operation, @run.target_id, @run.input_payload.fetch("merge_review"))
+      end
       @undo_review = Tasks::Review.undo(context: @context, run: @run) if @can_undo
       @events = @task.events.to_a
       refs = ([ @task.created_by_actor_ref, @task.assigned_to_actor_ref, @run&.approved_by_ref ] + @events.map(&:actor_ref)).compact.uniq

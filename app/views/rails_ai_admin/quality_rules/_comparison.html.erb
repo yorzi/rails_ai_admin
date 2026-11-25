@@ -1,0 +1,16 @@
+<table>
+  <caption><%= t("rails_ai_admin.quality.compare") %></caption>
+  <thead><tr>
+    <th scope="col"><%= t("rails_ai_admin.quality.role") %></th><th scope="col"><%= resource.label.singularize %></th>
+    <% comparison.fields.each do |field| %><th scope="col"><%= field.label %></th><% end %>
+    <% panels = comparison.counts.values.flat_map(&:keys).uniq %>
+    <% panels.each do |name| %><th scope="col"><%= t("rails_ai_admin.quality.dependent_count", name: name, limit: RailsAiAdmin::Presentation::AssociationPanel::MAX_LIMIT) %></th><% end %>
+  </tr></thead>
+  <tbody><% comparison.rows.sort_by { |id, _| id == comparison.target_id ? 0 : 1 }.each do |id, values| %>
+    <tr><th scope="row"><%= t(id == comparison.target_id ? "rails_ai_admin.quality.survivor" : "rails_ai_admin.quality.source") %></th>
+      <td><%= link_to t("rails_ai_admin.quality.record", id: id), resource_path(resource: resource.key, id: id), data: { turbo_frame: "_top" } %></td>
+      <% comparison.fields.each do |field| %><td><%= field.format(values.fetch(field.name.to_s), time_zone: @context.time_zone) %></td><% end %>
+      <% panels.each do |name| %><td><%= comparison.counts.fetch(id)[name] %></td><% end %>
+    </tr>
+  <% end %></tbody>
+</table>

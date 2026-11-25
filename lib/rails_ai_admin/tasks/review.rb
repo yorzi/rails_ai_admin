@@ -88,6 +88,7 @@ module RailsAiAdmin
       # Only the input fields this viewer may supply are shown: an approver who
       # lacks one could not confirm the intent anyway.
       def values(context, access, resource, definition, record, payload)
+        return [] if definition.merge?
         granted = begin
           definition.fields(access, record)
         rescue AccessDenied

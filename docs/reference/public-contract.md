@@ -471,6 +471,8 @@ stay in `RubyLLM.context`. See ADR 0023.
 
 ## Data quality rules
 
+A `RailsAiAdmin::Quality::MergeOperation` member operation supplies `merge(context, target, sources)` and optionally `preview_merge(context, target, sources)`. The engine’s `merge_review` input binds the chosen target, reviewed source versions, actor, tenant, rule and resource identity. Confirmation reruns the rule, authorizes the records and checks all versions before invoking the host operation. The native comparison and optional `raa_merge_review` chat surface read live field projections and child counts.
+
 `config.quality_rules` accepts reloadable names of `RailsAiAdmin::QualityRule` subclasses. Each rule targets one registered resource and needs an explicit `run_quality_rule?(context:, resource:, rule:)` grant, including with the full-access preset. The adapter receives the rule key as a symbol. Native, assistant and MCP reads share the same scoped runner and per-record projections. Corrections go through existing native edit or member-operation flows. See the [rule DSL and detector limits](../site/_core_features/data-quality.md).
 
 ## Host controllers and fixed statuses

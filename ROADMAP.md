@@ -83,7 +83,7 @@ Operators can review another person’s proposal, track large bulk changes in Ta
 
 ## 0.8.0: data quality, import review and saved reports (in progress)
 
-- **Data quality (E07).** The first implementation covers registered rules, bounded duplicate and blank-field checks, native evidence review, links to authorized corrections and read-only chat/MCP tools. A dedicated multi-record merge review with source-version checks and dependent-record counts, plus an orphaned-reference helper, remain planned. [Data quality guide](docs/site/_core_features/data-quality.md)
+- **Data quality (E07).** Operators can run host checks for duplicates, missing values and unavailable references, compare records, choose a survivor and confirm a host-defined merge. Each confirmation rechecks permissions and record versions. The native UI works offline. Chat can open a live comparison, and MCP exposes the read-only checks. [Data quality guide](docs/site/_core_features/data-quality.md)
 - **CSV import (E08).** Planned work includes staged mapping and duplicate review, optional AI mapping suggestions and resumable chunked imports.
 - **Cross-resource queries and dashboards (E02-P2 and E09).** Planned work includes negated relation filters, target search, bounded cross-tab aggregates and saved queries that recheck the viewer’s permissions whenever a chart is rendered.
 

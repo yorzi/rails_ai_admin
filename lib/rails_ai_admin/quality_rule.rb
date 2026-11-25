@@ -6,6 +6,15 @@ module RailsAiAdmin
   class QualityRule
     extend Fields::HookSignatures
 
+    def run_detection(access, relation, assistant:)
+      @quality_access, @quality_assistant = access, assistant
+      detect(access.context, relation)
+    end
+
+    def orphaned_belongs_to(relation, field:)
+      Quality::Checks.orphaned_belongs_to(relation, field: field, access: @quality_access, assistant: @quality_assistant)
+    end
+
     class << self
       def key(value = nil)
         @key = value unless value.nil?

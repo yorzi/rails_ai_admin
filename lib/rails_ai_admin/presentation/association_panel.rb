@@ -45,6 +45,30 @@ module RailsAiAdmin
           parent.has_many_declarations.filter_map { |definition| panel(context, parent, record, definition) }
         end
 
+        # Counts within a bounded sample of the child policy scope. Recheck
+        # the back-reference on each row, including record-level field masks.
+        def visible_counts(context, parent, record, assistant: false)
+          parent.has_many_declarations.filter_map do |definition|
+            child = RailsAiAdmin.registry.fetch(definition.resource)
+            access = Authorization::Access.new(context, child)
+            access.authorize!(:index)
+            access.authorize_assistant! if assistant
+            field = child.fields.find { |entry| entry.name == definition.via(parent) }
+            next unless Fields::Association.validate!(child, field).model_class == parent.model_class
+            next unless access.fields(:read, view: :index).include?(field)
+            sample = Queries::List.unique_records(access.relation.where(field.column => record.id))
+              .reorder(child.model_class.primary_key => :asc).limit(MAX_LIMIT)
+            count = sample.count do |item|
+              access.authorize!(:show, item) && access.fields(:read, item, view: :index).include?(field)
+            rescue AccessDenied
+              false
+            end
+            [ definition.caption, count ]
+          rescue AccessDenied
+            nil
+          end.to_h
+        end
+
         private
 
         def panel(context, parent, record, definition)

@@ -1,0 +1,8 @@
+<% if (data = RailsAiAdmin::Integrations::ToolViews.merge_review_data(props)) %>
+  <% resource, comparison = data %>
+  <h3><%= comparison.rule.description %></h3>
+  <%= render "rails_ai_admin/quality_rules/comparison", resource: resource, comparison: comparison %>
+  <% comparison.rows.each_key do |id| %>
+    <%= link_to t("rails_ai_admin.quality.keep_named", id: id), quality_merge_path(resource: resource.key, rule: comparison.rule.key, group: comparison.group.key, id: id), data: { turbo_frame: "_top" } %>
+  <% end %>
+<% else %><p><%= t("rails_ai_admin.surfaces.no_longer_available") %></p><% end %>

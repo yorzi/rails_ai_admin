@@ -45,6 +45,30 @@ module RailsAiAdmin
         end
       end
 
+      REFERENCE_SCAN_LIMIT = 1_000
+
+      # Check the first non-null keys under the actor's scope. A missing row,
+      # a soft deletion and a target withheld by policy look identical.
+      def orphaned_belongs_to(relation, field:, access:, assistant: false)
+        declaration = access.resource.fields.find { |entry| entry.name == field && entry.scalar_type == :belongs_to }
+        raise ConfigurationError, "Expected a declared belongs_to field" unless declaration && relation.klass == access.resource.model_class
+        target = Fields::Association.validate!(access.resource, declaration)
+        target_access = Authorization::Access.new(access.context, target)
+        target_access.authorize!(:index)
+        target_access.authorize_assistant! if assistant
+        resolver = Fields::Association.new(access.context, access.resource, assistant: assistant)
+        candidates = relation.where.not(declaration.column => nil).reorder(nil).limit(REFERENCE_SCAN_LIMIT)
+        Enumerator.new do |results|
+          candidates.find_in_batches(batch_size: 100) do |records|
+            resolver.prime(declaration, records.map { |record| record[declaration.column] })
+            records.each do |record|
+              next if resolver.admissible?(declaration, record[declaration.column])
+              results << Finding.new(record.id.to_s, [ record.id ], "Referenced record unavailable", [ field ])
+            end
+          end
+        end
+      end
+
       def column_names(relation, names)
         unless names.is_a?(Array) && names.size.between?(1, Runner::MAX_FIELDS) && names.all? { |name| name.is_a?(Symbol) && relation.klass.columns_hash.key?(name.to_s) }
           raise ConfigurationError, "Checks require model column names"

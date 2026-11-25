@@ -6,6 +6,7 @@ module RailsAiAdmin
     before_action :resolve_operation
 
     def new
+      raise AccessDenied if @definition.merge?
       load_form
       @form_values, @errors = {}, {}
       render :form
@@ -25,6 +26,10 @@ module RailsAiAdmin
         end
         @proposal = proposal
         @form_values = proposal.values
+        if @definition.merge?
+          @comparison = Quality::MergeReview.confirmed_comparison(@access, @definition.key, @record.id, @form_values.fetch("merge_review"))
+          return render "rails_ai_admin/quality_rules/confirm"
+        end
         if request.format.turbo_stream?
           render turbo_stream: turbo_stream.replace(@flow_id, template: "rails_ai_admin/operations/confirmation", layout: false)
         else
@@ -94,6 +99,7 @@ module RailsAiAdmin
     end
 
     def render_failure(result, input)
+      raise AccessDenied if result.code == "NOT_FOUND"
       names = @form_fields.map { |field| field.name.to_s }
       @form_values = input.is_a?(Hash) ? input.stringify_keys.slice(*names).reject { |_, value| value.is_a?(Array) || value.is_a?(Hash) } : {}
       @errors, @failure_code = result.errors, result.code
@@ -102,7 +108,7 @@ module RailsAiAdmin
       when "CONFLICT" then :conflict
       else :service_unavailable
       end
-      render :form, status: status
+      render(@definition.merge? ? :failure : :form, status: status)
     end
   end
 end

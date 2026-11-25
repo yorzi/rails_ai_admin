@@ -113,7 +113,7 @@ module RailsAiAdmin
         nil
       end
 
-      SURFACE_TOOLS = %w[propose_operation propose_change get_record search_records aggregate_records].freeze
+      SURFACE_TOOLS = %w[propose_operation propose_change get_record search_records aggregate_records run_quality_rule].freeze
 
       def tool_entries(message)
         data = JSON.parse(message.content.to_s)

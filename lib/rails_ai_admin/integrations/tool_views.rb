@@ -102,7 +102,14 @@ module RailsAiAdmin
           }
         }
       }.freeze
+      MERGE_REVIEW_KEY = "raa_merge_review"
+      MERGE_REVIEW_SCHEMA = {
+        type: "object", additionalProperties: false, required: %w[resource rule group],
+        properties: { resource: { type: "string", pattern: RESOURCE_KEY_PATTERN }, rule: { type: "string", pattern: RESOURCE_KEY_PATTERN },
+          group: { type: "string", pattern: "^[0-9a-f]{64}$" } }
+      }.freeze
       READ_COMPONENTS = {
+        MERGE_REVIEW_KEY => { description: "Compare duplicate records for a reviewed merge", schema: MERGE_REVIEW_SCHEMA, partial: "rails_ai_admin/surfaces/merge_review" }.freeze,
         RECORD_CARD_KEY => { description: "Admin record summary card", schema: RECORD_CARD_SCHEMA, partial: RECORD_CARD_PARTIAL }.freeze,
         RECORD_TABLE_KEY => { description: "Admin bounded record table", schema: RECORD_TABLE_SCHEMA, partial: RECORD_TABLE_PARTIAL }.freeze,
         METRIC_CARD_KEY => { description: "Admin aggregate metric card", schema: METRIC_CARD_SCHEMA, partial: METRIC_CARD_PARTIAL }.freeze,
@@ -333,7 +340,10 @@ module RailsAiAdmin
           resource = RailsAiAdmin.registry.fetch(props["resource"])
           auth = Authorization::Access.new(context, resource)
           auth.authorize_assistant!
-          if props.key?("record_id")
+          if props.key?("group")
+            Quality::MergeReview.group!(auth, props.fetch("rule"), props.fetch("group"), assistant: true)
+            true
+          elsif props.key?("record_id")
             return false unless props["record_id"].is_a?(String) && auth.canonical_id?(props["record_id"])
             auth.find!(props["record_id"])
             true
@@ -357,6 +367,21 @@ module RailsAiAdmin
           end
         rescue AccessDenied, ConfigurationError, KeyError
           false
+        end
+
+        def present_merge_review(context:, resource:, rule:, group:, chat:, call_id:)
+          return unless chat && call_id.is_a?(String) && chat.current_for?(context)
+          present_read_surface(context: context, chat: chat, call_id: call_id, key: MERGE_REVIEW_KEY,
+            props: { "resource" => resource.key.to_s, "rule" => rule.key.to_s, "group" => group.key })
+        end
+
+        def merge_review_data(props)
+          resource = RailsAiAdmin.registry.fetch(props.fetch("resource"))
+          access = Authorization::Access.new(current_context, resource)
+          access.authorize_assistant!
+          [ resource, Quality::MergeReview.compare(access, props.fetch("rule"), props.fetch("group"), assistant: true) ]
+        rescue AccessDenied, ConfigurationError
+          nil
         end
 
         def present_record_card(context:, resource:, record:, chat:, call_id:)

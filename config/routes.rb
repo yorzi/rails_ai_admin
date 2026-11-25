@@ -51,6 +51,7 @@ RailsAiAdmin::Engine.routes.draw do
   post ":resource/selections", to: "selections#create", as: :capture_selection
   post ":resource/views", to: "saved_views#create", as: :saved_views
   get ":resource/quality/rules", to: "quality_rules#index", as: :quality_rules
+  get ":resource/quality/rules/:rule/merge/:group/:id", to: "quality_rules#merge", as: :quality_merge
   get ":resource/quality/rules/:rule", to: "quality_rules#show", as: :quality_rule
   get ":resource/deleted", to: "deleted_records#index", as: :deleted_records
   post ":resource/deleted/:id/restore", to: "deleted_records#restore", as: :restore_deleted_record

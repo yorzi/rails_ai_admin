@@ -29,8 +29,16 @@ module RailsAiAdmin
 
       def perform(tool_call:, resource:, rule:)
         access = @session.access(@session.resource(resource))
-        report = Quality::Runner.new(access).call(rule)
+        report = Quality::Runner.new(access, assistant: true).call(rule)
         result = { "rule" => report.rule.key.to_s, "findings" => [], "candidate_limit" => report.rule.max_findings }
+        if RailsAiAdmin.configuration.surfaces && @session.chat && tool_call && Quality::MergeReview.merge_rule?(access.resource, report.rule)
+          group = report.reviews.find { |entry| entry.rows.size > 1 && entry.rows.all?(&:can_remediate) }
+          if group
+            surface = present_read_view { Assistant.tool_views.present_merge_review(context: access.context, resource: access.resource,
+              rule: report.rule, group: group, chat: @session.chat, call_id: tool_call.id) }
+            result["surface"] = surface.id if surface
+          end
+        end
         report.reviews.each do |review|
           finding = { "summary" => review.summary, "records" => [] }
           result["findings"] << finding

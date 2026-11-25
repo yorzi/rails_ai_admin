@@ -1,0 +1,20 @@
+<% admin_title t("rails_ai_admin.quality.merge_title") %>
+<h1><%= t("rails_ai_admin.operations.confirm_title", description: @definition.description) %></h1>
+<%= render "rails_ai_admin/quality_rules/comparison", resource: @resource, comparison: @comparison %>
+<% if @proposal.changes.any? %>
+  <dl class="raa-details"><% @proposal.changes.each do |name, change| %>
+    <% field = @resource.fields.find { |entry| entry.name.to_s == name } %>
+    <dt><%= field.label %></dt><dd><%= field.format(change["before"], time_zone: @context.time_zone) %> → <%= field.format(change["after"], time_zone: @context.time_zone) %></dd>
+  <% end %></dl>
+<% end %>
+<% if @definition.approval_mode == :separate_actor %>
+  <p><%= t("rails_ai_admin.surfaces.separate_actor_note") %></p>
+  <% if (id = admin_task_for_run(@proposal.intent.id)) %><%= link_to t("rails_ai_admin.tasks.open_task"), admin_task_path(id: id) %><% end %>
+<% else %>
+  <%= form_with url: operation_execute_path(resource: @resource.key, id: @record.id, operation: @definition.key), method: :post, data: { turbo: false } do |form| %>
+    <%= hidden_field_tag :intent_ref, @proposal.intent.id %>
+    <%= hidden_field_tag :confirmed_input, @wire_input %>
+    <%= form.submit t("rails_ai_admin.operations.confirm") %>
+  <% end %>
+<% end %>
+<%= link_to t("rails_ai_admin.actions.cancel"), quality_rule_path(resource: @resource.key, rule: @comparison.rule.key) %>

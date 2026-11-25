@@ -58,7 +58,9 @@
   <% if @can_approve && @approval_review %>
     <section aria-labelledby="raa-task-review-heading">
       <h2 id="raa-task-review-heading"><%= t("rails_ai_admin.tasks.approve_heading") %></h2>
-      <% if @approval_review.values.any? %>
+      <% if @merge_comparison %>
+        <%= render "rails_ai_admin/quality_rules/comparison", comparison: @merge_comparison, resource: @resource %>
+      <% elsif @approval_review.values.any? %>
         <h3><%= t("rails_ai_admin.tasks.review.input") %></h3>
         <dl class="raa-details">
           <% @approval_review.values.each do |entry| %>

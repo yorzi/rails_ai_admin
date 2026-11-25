@@ -7,13 +7,14 @@ module RailsAiAdmin
     class Runner
       MAX_RECORDS = 20
       MAX_FIELDS = 10
-      EVIDENCE_TYPES = %i[id text textarea email url integer decimal boolean date datetime time enum select].freeze
+      EVIDENCE_TYPES = %i[id text textarea email url integer decimal boolean date datetime time enum select belongs_to].freeze
       Row = Data.define(:id, :evidence, :can_remediate)
-      Review = Data.define(:summary, :rows)
+      Review = Data.define(:key, :summary, :rows)
       Report = Data.define(:rule, :reviews)
 
-      def initialize(access)
+      def initialize(access, assistant: false)
         @access = access
+        @assistant = assistant
       end
 
       def call(key)
@@ -23,7 +24,7 @@ module RailsAiAdmin
         reviews = []
         ActiveRecord::Base.while_preventing_writes do
           relation = Queries::List.unique_records(@access.relation)
-          candidates = rule.new.detect(@access.context, relation)
+          candidates = rule.new.run_detection(@access, relation, assistant: @assistant)
           raise ConfigurationError, "Quality rule must return findings" unless candidates.is_a?(Enumerable)
           candidates.lazy.take(rule.max_findings).each do |finding|
             check_deadline!(deadline)
@@ -73,7 +74,7 @@ module RailsAiAdmin
           end
           Row.new(id, evidence, can_remediate?(rule, record))
         end
-        Review.new(finding.summary, rows)
+        Review.new(InputSchema.digest([ finding.finding_key, ids.sort ]), finding.summary, rows)
       rescue AccessDenied
         nil
       end

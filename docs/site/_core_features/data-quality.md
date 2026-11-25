@@ -9,7 +9,7 @@ description: "Find duplicates or missing values in permitted records and review 
 
 On a resource list, choose **Data quality** and open a check. A duplicate check shows matching records together with the fields used for comparison. Open **Edit record** to correct a value, then run the check again. A host can also link a finding to an existing member operation that has its own preview, confirmation and receipt.
 
-In `bin/demo`, sign in as Admin and open **Orders → Data quality → Orders missing a delivery date**. The demo includes orders with and without a delivery date.
+In `bin/demo`, sign in as Admin and open **Orders → Data quality → Orders missing a delivery date**. To try a merge, open **Customers → Data quality → Active customers with the same name**. Choose **Keep this record** for one of the two North Pier customers and preview the transfer. Sign in as Reviewer to approve it in Tasks. The demo transfers the points to the selected account and deactivates the other account. Existing orders keep their original customer links.
 
 ## Register a check
 
@@ -59,6 +59,22 @@ RailsAiAdmin::Quality::Finding.new(id.to_s, [id], "Missing settlement date", [:s
 
 The runner inspects up to `max_findings` candidates (1–100) and applies a cooperative `max_duration` of 1–30 seconds. Host Ruby runs under Active Record’s ordinary write guard, including lazy enumeration. Bound the work performed by the detector itself, use indexes appropriate to the host data and keep external effects out of detectors. A slow SQL statement can exceed the cooperative deadline before control returns to Ruby.
 
+To review unavailable references, call `orphaned_belongs_to(relation, field: :customer)` inside a rule. It inspects the first 1,000 non-null keys in primary-key order. A finding means that this viewer cannot open the referenced record. A missing target, a soft deletion and an inaccessible target produce the same evidence. An optional blank reference produces no finding.
+
+## Review a merge
+
+Register a member operation on the resource, then name it in the duplicate rule using `remediation_operation`. A merge handler inherits from `RailsAiAdmin::Quality::MergeOperation`. Implement `merge(context, target, sources)` to apply the host’s domain rules and return `success(target)`, `conflict` or `invalid(...)`. Use the optional `preview_merge(context, target, sources)` hook to return the proposed new target field values. The operation’s ordinary `verify` hook can record a post-commit check.
+
+```ruby
+# CustomerAdmin
+operation :combine_customers, handler: "CombineCustomers", approval: :separate_actor
+
+# DuplicateActiveCustomers
+remediation_operation :combine_customers
+```
+
+Grant the member action on every candidate and include `:merge_review` in the operation input grant. The engine supplies this input when the operator selects a surviving record. The review shows fields readable on all candidates and counts visible children in the first 50 scoped rows of each declared panel. The operation runner checks the finding again under the confirmer’s permissions and checks the version of each reviewed record under lock. A changed source requires a new review. For rules with separate approval, Tasks shows the second operator the records and proposed changes before confirmation.
+
 ## Ask the assistant
 
-With the assistant enabled, a person who has both the resource’s assistant grant and a rule grant can ask which checks are available and run one. The chat and MCP tools use the same runner as the native page. Tool output contains the check summary, permitted record IDs and bounded, formatted evidence. Corrections use the admin’s existing write workflow.
+With the assistant enabled, a person who has both the resource’s assistant grant and a rule grant can ask which checks are available and run one. The chat and MCP tools use the same runner as the native page. Tool output contains the check summary, permitted record IDs and bounded, formatted evidence. When chat surfaces are enabled, the first actionable duplicate group offers a live comparison with links to the native merge review.

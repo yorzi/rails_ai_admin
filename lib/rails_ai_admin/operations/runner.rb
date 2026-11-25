@@ -29,6 +29,11 @@ module RailsAiAdmin
         result = preview(context: context, resource: resource, operation: operation, target_id: target_id,
           expected_version: expected_version, input: input, origin: origin)
         return result if result.is_a?(Result)
+        if definition.merge?
+          access = Authorization::Access.new(context, resource)
+          ticket = Quality::MergeReview.ticket!(result.values.fetch("merge_review"), access, operation, result.target_id)
+          raise AccessDenied unless ticket.fetch("actor") == context.actor_ref
+        end
         mode = definition.approval_mode.to_s
         if mode != "self" && !multi_actor_supported?
           raise ConfigurationError, "Multi-actor approvals require the latest engine migrations"
@@ -359,7 +364,7 @@ module RailsAiAdmin
               undo_snap = capture_custom_undo_snapshot(context, resource, definition, record, values)
             end
             before = record.attributes_before_type_cast.deep_dup
-            context_for_handler = ExecutionContext.new(context, resource, record, run: run, duration: definition.handler_class.max_duration)
+            context_for_handler = ExecutionContext.new(context, resource, record, run: run, operation: definition.key, duration: definition.handler_class.max_duration)
             outcome = call_handler(definition, context_for_handler, record, values)
             unless outcome.is_a?(Operation::Outcome)
               raise ConfigurationError, "Operation must return success, invalid or conflict"
@@ -779,7 +784,7 @@ module RailsAiAdmin
       def field_names_by_column(resource) = resource.fields.to_h { |field| [ field.column, field.name.to_s ] }
 
       def preview_changes(access, record, definition, values)
-        handler_context = ExecutionContext.new(access.context, access.resource, record, duration: definition.handler_class.max_duration)
+        handler_context = ExecutionContext.new(access.context, access.resource, record, operation: definition.key, duration: definition.handler_class.max_duration)
         changes = ActiveRecord::Base.while_preventing_writes { definition.handler_class.new.preflight(handler_context, record, values) }
         handler_context.check_deadline!
         if changes.is_a?(Operation::Outcome) && %w[VALIDATION_FAILED CONFLICT].include?(changes.code)

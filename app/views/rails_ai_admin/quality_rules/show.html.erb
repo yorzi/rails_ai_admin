@@ -1,10 +1,12 @@
 <% rule = @report.rule %>
+<% merge_rule = RailsAiAdmin::Quality::MergeReview.merge_rule?(@resource, rule) %>
 <% admin_title rule.description %>
 <%= link_to t("rails_ai_admin.quality.title"), quality_rules_path(resource: @resource.key) %>
 <h1><%= rule.description %></h1>
 <p><%= t("rails_ai_admin.quality.limits", findings: rule.max_findings, records: RailsAiAdmin::Quality::Runner::MAX_RECORDS) %></p>
 <% if @report.reviews.empty? %><p><%= t("rails_ai_admin.quality.empty") %></p><% end %>
 <% @report.reviews.each do |review| %>
+  <% can_merge = merge_rule && review.rows.size > 1 && review.rows.all?(&:can_remediate) %>
   <table>
     <caption><%= review.summary %></caption>
     <thead><tr><th scope="col"><%= @resource.label.singularize %></th>
@@ -13,7 +15,9 @@
     <tbody><% review.rows.each do |row| %><tr>
       <th scope="row"><%= link_to t("rails_ai_admin.quality.record", id: row.id), resource_path(resource: @resource.key, id: row.id) %></th>
       <% row.evidence.each_value do |value| %><td><%= value %></td><% end %>
-      <td><% if row.can_remediate && rule.remediation_operation %>
+      <td><% if merge_rule %>
+        <% if can_merge %><%= link_to t("rails_ai_admin.quality.keep"), quality_merge_path(resource: @resource.key, rule: rule.key, group: review.key, id: row.id) %><% end %>
+      <% elsif row.can_remediate && rule.remediation_operation %>
         <%= link_to t("rails_ai_admin.quality.operation", operation: rule.remediation_operation.to_s.humanize), operation_form_path(resource: @resource.key, id: row.id, operation: rule.remediation_operation) %>
       <% elsif row.can_remediate %>
         <%= link_to t("rails_ai_admin.quality.edit"), edit_resource_path(resource: @resource.key, id: row.id) %>

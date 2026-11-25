@@ -13,6 +13,10 @@ module RailsAiAdmin
       @report = Quality::Runner.new(@access).call(params[:rule])
     end
 
+    def merge
+      @comparison = Quality::MergeReview.compare(@access, params[:rule], params[:group], params[:id])
+    end
+
     private
 
     def resolve_quality_resource

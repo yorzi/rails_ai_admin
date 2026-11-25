@@ -109,6 +109,7 @@ FileUtils.cp(File.join(ASSETS, "admin_assistant.rb"), File.join(TARGET, "app/rai
 edit("app/rails_ai_admin/customer_admin.rb", %(operation :award_points, handler: "AwardCustomerPoints"),
   %(operation :award_points, handler: "AwardCustomerPoints", surface: true, assistant: true\n  ) +
   %(operation :reviewed_award, handler: "AwardCustomerPoints", approval: :separate_actor\n  ) +
+  %(operation :combine_customers, handler: "CombineCustomers", approval: :separate_actor\n  ) +
   %(assistant_changes :update, :bulk_update\n  undoable :update))
 edit("app/rails_ai_admin/customer_admin.rb", %(integer :points, tab: "Account", panel: "Rewards"),
   %(integer :points, aggregatable: true, tab: "Account", panel: "Rewards"))

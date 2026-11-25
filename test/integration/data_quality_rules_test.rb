@@ -22,12 +22,44 @@ class DataQualityRulesTest < ActionDispatch::IntegrationTest
 
   class Policy < TestPolicy
     def allowed?(context:, action:, resource:, record: nil)
-      return false if action == :show && record && record.points == -1
+      return false if action == :show && record.is_a?(Customer) && record.points == -1
       super
     end
 
     def assistant?(context:, resource:) = context.actor.id == 1
     def run_quality_rule?(context:, resource:, rule:) = context.actor.id == 1
+
+    def fields(context:, resource:, action:, record: nil)
+      return %i[label kind amount] if resource == Orders && action == :read
+      super
+    end
+  end
+
+  class Orders < RailsAiAdmin::Resource
+    model "FilterSample"
+    key :orders
+    title :label
+    fields do
+      text :label
+      text :kind
+      decimal :amount
+    end
+  end
+
+  class MissingPayment < RailsAiAdmin::QualityRule
+    resource :orders
+    key :missing_payment
+    description "Paid orders without a matching settlement"
+
+    def detect(context, relation)
+      orders = relation.klass.arel_table
+      payments = Payment.arel_table
+      settled = Payment.where(account_id: context.tenant.id).where.not(paid_at: nil)
+        .where(payments[:reference].eq(orders[:label])).where(payments[:amount].eq(orders[:amount]))
+      relation.where(kind: "paid").where(settled.arel.exists.not).order(:id).limit(self.class.max_findings).pluck(:id).map do |id|
+        RailsAiAdmin::Quality::Finding.new(id.to_s, [ id ], "Missing matching payment", %i[label kind amount])
+      end
+    end
   end
 
   def setup
@@ -35,16 +67,33 @@ class DataQualityRulesTest < ActionDispatch::IntegrationTest
     post "/test/sign_in/1"
   end
 
-  def with_rules(*rules)
+  def with_rules(*rules, resources: [ TestResource ])
     config = RailsAiAdmin::Configuration.new
     config.context_adapter = "TestContext"
     config.authorization_adapter = Policy.name
-    config.resources = [ "TestResource" ]
+    config.resources = resources.map(&:name)
     config.quality_rules = (rules.empty? ? [ DuplicateNames ] : rules).map(&:name)
     config.finalize!
-    registry = RailsAiAdmin::Quality::Registry.new(config.quality_rules, RailsAiAdmin.registry)
+    registered = RailsAiAdmin::Registry.new(config.resources)
+    registry = RailsAiAdmin::Quality::Registry.new(config.quality_rules, registered)
     RailsAiAdmin.stub(:configuration, config) do
-      RailsAiAdmin.stub(:quality_registry, registry) { yield }
+      RailsAiAdmin.stub(:registry, registered) { RailsAiAdmin.stub(:quality_registry, registry) { yield } }
+    end
+  end
+
+  def test_custom_check_reconciles_paid_orders_against_tenant_settlements
+    with_rules(MissingPayment, resources: [ Orders ]) do
+      settled, mismatched, missing = %w[settled mismatched missing].map do |label|
+        FilterSample.create!(account_id: 1, label: label, kind: "paid", amount: 20)
+      end
+      FilterSample.create!(account_id: 1, label: "draft", kind: "draft", amount: 20)
+      FilterSample.create!(account_id: 2, label: "private", kind: "paid", amount: 20)
+      Payment.create!(account_id: 1, reference: settled.label, amount: 20, paid_at: Time.current)
+      Payment.create!(account_id: 1, reference: mismatched.label, amount: 10, paid_at: Time.current)
+      Payment.create!(account_id: 2, reference: missing.label, amount: 20, paid_at: Time.current)
+      get "/backoffice/orders/quality/rules/missing_payment"
+      assert_response :success
+      assert_equal [ mismatched.id, missing.id ].map { |id| "/backoffice/orders/#{id}" }, css_select("tbody th a").map { |link| link["href"] }
     end
   end
 

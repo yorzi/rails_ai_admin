@@ -1,0 +1,9 @@
+<% admin_title t("rails_ai_admin.quality.merge_title") %>
+<%= link_to @comparison.rule.description, quality_rule_path(resource: @resource.key, rule: @comparison.rule.key) %>
+<h1><%= t("rails_ai_admin.quality.merge_title") %></h1>
+<%= render "rails_ai_admin/quality_rules/comparison", resource: @resource, comparison: @comparison %>
+<%= form_with url: operation_preflight_path(resource: @resource.key, id: @comparison.target_id, operation: @comparison.rule.remediation_operation), method: :post, data: { turbo: false } do |form| %>
+  <%= hidden_field_tag "input[merge_review]", @comparison.token %>
+  <%= hidden_field_tag :expected_version, @comparison.versions.fetch(@comparison.target_id) %>
+  <%= form.submit t("rails_ai_admin.quality.preview") %>
+<% end %>

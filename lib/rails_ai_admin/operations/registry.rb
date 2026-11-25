@@ -12,6 +12,9 @@ module RailsAiAdmin
         def initialize(resource, key, handler_name = nil)
           @resource, @key, @handler_name = resource, key.to_s.freeze, handler_name
           handler_class.validate! if custom?
+          if merge? && (scope != :member || resource.surface_operation?(key))
+            raise ConfigurationError, "A merge operation uses a member quality review surface"
+          end
           if custom? && scope == :collection
             klass = handler_class
             unless klass.lease_duration.is_a?(Numeric) && (5..3600).cover?(klass.lease_duration) && klass.lease_duration > klass.max_duration &&
@@ -22,6 +25,7 @@ module RailsAiAdmin
           freeze
         end
 
+        def merge? = custom? && handler_class < Quality::MergeOperation
         def custom? = !handler_name.nil?
         def handler_class
           return DefaultHandlers::TYPES.fetch(key) unless custom?
@@ -57,6 +61,7 @@ module RailsAiAdmin
           if custom?
             { handler: handler_name, version: handler_class.version, input: handler_class.input.map(&:contract),
               models: handler_class.atomic_models, duration: handler_class.max_duration, scope: scope,
+              merge: merge? ? true : nil,
               approval_mode: approval_mode == :self ? nil : approval_mode,
               reversible: handler_class.reversible? ? true : nil,
               verifies: handler_class.verifies? ? true : nil,

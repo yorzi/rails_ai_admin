@@ -4,6 +4,15 @@ en:
   rails_ai_admin:
     quality:
       title: Data quality
+      keep: Keep this record
+      keep_named: "Review keeping record #%{id}"
+      compare: Compare records
+      merge_title: Review merge
+      role: Role
+      survivor: Keep
+      source: Merge into kept record
+      dependent_count: "%{name} (visible in first %{limit})"
+      preview: Preview merge
       empty: No visible findings in this check.
       limits: "Checks up to %{findings} findings and shows up to %{records} records per finding."
       record: "Record #%{id}"

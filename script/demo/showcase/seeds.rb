@@ -10,6 +10,7 @@ def showcase_png(red, green, blue, width: 96, height: 64)
 end
 
 a = Account.find_by!(name: "Tenant A")
+[ 12, 8 ].each { |points| Customer.create!(account: a, name: "North Pier", active: true, points: points) }
 tags = %w[Guide Release Security Rails Ruby].map { |name| Tag.create!(account: a, name: name) }
 palette = [ [ 21, 94, 117 ], [ 173, 37, 48 ], [ 217, 119, 6 ], [ 22, 101, 52 ], [ 91, 33, 182 ] ]
 topics = [ "Getting started", "Upgrading", "Policies", "Uploads", "Search" ]

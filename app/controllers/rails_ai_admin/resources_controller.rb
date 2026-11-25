@@ -95,7 +95,7 @@ module RailsAiAdmin
       @values = @access.project(@record, view: :show)
       @fields = @access.fields(:read, @record, view: :show)
       @association_panels = Presentation::AssociationPanel.build(@context, @resource, @record)
-      @operations = RailsAiAdmin.operation_registry.custom(@resource).select { |definition| definition.scope == :member }.select do |definition|
+      @operations = RailsAiAdmin.operation_registry.custom(@resource).select { |definition| definition.scope == :member && !definition.merge? }.select do |definition|
         @access.authorize!(definition.key, @record)
         definition.fields(@access, @record)
         true
