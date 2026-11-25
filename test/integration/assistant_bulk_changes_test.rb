@@ -346,7 +346,7 @@ class AssistantBulkChangesIntegrationTest < ActionDispatch::IntegrationTest
       drain(chat)
       bulk, single = chat.messages.where(role: "tool").order(:id).map { |message| JSON.parse(message.content)["changes"] }
       entry = bulk.find { |change| change["action"] == "bulk_update" }
-      assert_equal [ %w[name points active], 100 ], [ entry["fields"].map { |field| field["name"] }, entry["max_records"] ]
+      assert_equal [ %w[name points active], 1_000, 100 ], [ entry["fields"].map { |field| field["name"] }, entry["max_records"], entry["max_ids"] ]
       assert_equal [ "update" ], single.map { |change| change["action"] }
       tools = LLMFixture.requests.first["tools"].map { |tool| tool.dig("function", "name") }
       assert_includes tools, "propose_bulk_change"

@@ -302,7 +302,7 @@ module RailsAiAdmin
         fields = access.fields(:write, nil, operation: :update)
           .reject { |field| ProposeChange::UNSUPPORTED.include?(field.scalar_type) }
           .map { |field| field_entry(field).merge("required" => false) }
-        [ { "action" => "bulk_update", "fields" => fields, "max_records" => Selections::Builder::LIMIT } ]
+        [ { "action" => "bulk_update", "fields" => fields, "max_records" => RailsAiAdmin.configuration.async_bulk_limit, "max_ids" => Selections::Builder::LIMIT } ]
       end
 
       # Native changes this resource lets the assistant propose, with the
@@ -320,7 +320,7 @@ module RailsAiAdmin
         end
         if resource.assistant_change?(:bulk_update) && bulk_granted?(access)
           update = entries.find { |entry| entry["action"] == "update" }
-          entries << { "action" => "bulk_update", "fields" => update ? update["fields"] : [], "max_records" => Selections::Builder::LIMIT }
+          entries << { "action" => "bulk_update", "fields" => update ? update["fields"] : [], "max_records" => RailsAiAdmin.configuration.async_bulk_limit, "max_ids" => Selections::Builder::LIMIT }
         end
         entries
       end
