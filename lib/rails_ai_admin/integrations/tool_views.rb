@@ -81,6 +81,7 @@ module RailsAiAdmin
         "APPROVAL_EXPIRED" => "This review expired. Start a new review from the record.",
         "APPROVAL_INVALIDATED" => "Access or the operation changed. Start a new review from the record.",
         "APPROVAL_REQUIRED" => "This operation needs a new review.",
+        "SELF_APPROVAL_FORBIDDEN" => "This operation requires approval from another authorized reviewer.",
         "VALIDATION_FAILED" => "The operation rejected this input. Start a new review from the record.",
         "IDEMPOTENCY_CONFLICT" => "This review no longer matches the recorded operation."
       }.freeze
@@ -218,8 +219,10 @@ module RailsAiAdmin
         # Current authorized review for props, or nil. Never trusts the Surface.
         def review(context, props)
           return unless context.is_a?(Context) && props.is_a?(Hash) && props["intent"].is_a?(String)
-          run = OperationRun.find_by(id: props["intent"], actor_ref: context.actor_ref, tenant_ref: context.tenant_ref)
+          run = OperationRun.find_by(id: props["intent"], tenant_ref: context.tenant_ref)
           return unless run && run.id == props["intent"] && run.parent_run_id.nil? && run.selection_id.nil?
+          proposer = OperationRun.column_names.include?("proposed_by_actor_ref") ? run.proposed_by_actor_ref : nil
+          return unless run.actor_ref == context.actor_ref || (proposer.present? && proposer == context.actor_ref)
           resource = RailsAiAdmin.registry.fetch(run.resource_key)
           definition = RailsAiAdmin.operation_registry.fetch(resource, run.operation)
           if definition.custom?

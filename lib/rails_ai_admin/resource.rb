@@ -12,6 +12,7 @@ module RailsAiAdmin
         child.instance_variable_set(:@disabled_actions, [])
         child.instance_variable_set(:@operations, {})
         child.instance_variable_set(:@operation_scopes, {})
+        child.instance_variable_set(:@operation_approvals, {})
         child.instance_variable_set(:@surface_operations, [])
         child.instance_variable_set(:@assistant_operations, [])
         child.instance_variable_set(:@navigation, Navigation::Settings.new)
@@ -101,18 +102,22 @@ module RailsAiAdmin
       # admin-owned rails_tool_views Surface; assistant: true further lets an
       # assistant propose (never execute) it through that Surface. Neither adds
       # authority: the current policy and a human confirmation still decide.
-      def operation(key, handler:, scope: :member, confirmation: :required, surface: false, assistant: false)
+      def operation(key, handler:, scope: :member, confirmation: :required, surface: false, assistant: false, approval: nil)
         unless key.to_s.match?(/\A[a-z][a-z0-9_]*\z/) && !%w[index show create update destroy new edit].include?(key.to_s)
           raise ConfigurationError, "Custom operation needs a distinct stable key"
         end
         unless handler.is_a?(String) && handler.match?(/\A[A-Z]\w*(?:::[A-Z]\w*)*\z/) && %i[member collection].include?(scope) && confirmation == :required
           raise ConfigurationError, "Use a handler class-name string, member/collection scope and required confirmation"
         end
+        unless approval.nil? || Operation::APPROVAL_MODES.include?(approval.to_sym)
+          raise ConfigurationError, "Operation approval must be :self, :separate_actor or :any_reviewer"
+        end
         raise ConfigurationError, "Duplicate operation #{key}" if @operations.key?(key.to_sym)
         raise ConfigurationError, "Operation surface must be boolean and is only for member operations" unless [ true, false ].include?(surface) && (!surface || scope == :member)
         raise ConfigurationError, "Operation assistant must be boolean and requires surface: true" unless [ true, false ].include?(assistant) && (!assistant || surface)
         @operations[key.to_sym] = handler.freeze
         @operation_scopes[key.to_sym] = scope
+        @operation_approvals[key.to_sym] = approval.to_sym if approval
         @surface_operations << key.to_sym if surface
         @assistant_operations << key.to_sym if assistant
       end
@@ -163,6 +168,7 @@ module RailsAiAdmin
       def assistant_operation?(key) = @assistant_operations.include?(key.to_sym)
       def assistant_operations = @assistant_operations
       def operation_scopes = @operation_scopes
+      def operation_approvals = @operation_approvals
 
       def fields(&block)
         FieldBuilder.new(@fields, source: self).instance_eval(&block) if block
@@ -238,6 +244,7 @@ module RailsAiAdmin
         @disabled_actions.freeze
         @operations.freeze
         @operation_scopes.freeze
+        @operation_approvals.freeze
         @surface_operations.freeze
         @has_many.freeze
         @assistant_operations.freeze

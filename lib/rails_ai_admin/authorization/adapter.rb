@@ -42,6 +42,12 @@ module RailsAiAdmin
         false
       end
 
+      # Multi-actor review grant (ADR 0026). Required to approve any intent
+      # declared with approval: :separate_actor or :any_reviewer.
+      def approve_operation?(context:, resource:, operation:, record: nil, proposed_by_actor_ref: nil)
+        false
+      end
+
       # Named list scopes (declared tabs) this actor may use. A scope predicate can
       # reveal facts about fields the actor cannot read, so it is granted apart
       # from index/read/search/sort.

@@ -213,8 +213,9 @@ module RailsAiAdmin
       return unless adapter.is_a?(Class) && adapter <= Authorization::FullAccessAdapter
       scoped = adapter.instance_method(:scope).owner != Authorization::FullAccessAdapter
       assistant = adapter.instance_method(:assistant?).owner != Authorization::Adapter
+      approvals = adapter.instance_method(:approve_operation?).owner != Authorization::Adapter
       Check.new("policy_preset", :review, "#{adapter.name} uses the full-access preset: everyone the context adapter admits may use everything the resources declare. " \
-        "Record scope overridden=#{scoped} (without it every row of a registered model is visible, across tenants); assistant grant overridden=#{assistant}.")
+        "Record scope overridden=#{scoped} (without it every row of a registered model is visible, across tenants); assistant grant overridden=#{assistant}; multi-actor approval grant overridden=#{approvals}.")
     end
 
     # Resource classes under app/rails_ai_admin that config.resources leaves

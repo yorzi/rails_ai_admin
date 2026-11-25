@@ -40,8 +40,14 @@ module RailsAiAdmin
 
       def recent(context:)
         raise AccessDenied, "UNAUTHENTICATED" unless context.is_a?(Context)
-        refs = OperationRun.where(actor_ref: context.actor_ref, tenant_ref: context.tenant_ref, security_version: context.security_version,
-          parent_run_id: nil).where.not(selection_id: nil).where.not(status: "proposed").order(created_at: :desc, id: :desc).limit(50).pluck(:id)
+        base = OperationRun.where(tenant_ref: context.tenant_ref, parent_run_id: nil).where.not(selection_id: nil).where.not(status: "proposed")
+        scope = if OperationRun.column_names.include?("proposed_by_actor_ref")
+          base.where(actor_ref: context.actor_ref, security_version: context.security_version)
+            .or(base.where(proposed_by_actor_ref: context.actor_ref))
+        else
+          base.where(actor_ref: context.actor_ref, security_version: context.security_version)
+        end
+        refs = scope.order(created_at: :desc, id: :desc).limit(50).pluck(:id)
         refs.filter_map do |ref|
           fetch(context: context, job_ref: ref, summary: true)
         rescue AccessDenied, ConfigurationError

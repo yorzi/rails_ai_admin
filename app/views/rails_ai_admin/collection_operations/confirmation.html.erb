@@ -15,11 +15,15 @@
     <% end %>
   </section>
 <% end %>
+<% if @definition.approval_mode == :separate_actor && @proposal.intent.actor_ref == @context.actor_ref %>
+  <p class="raa-notice" role="status"><%= t("rails_ai_admin.surfaces.separate_actor_note") %></p>
+<% else %>
 <%= form_with url: collection_operation_execute_path(resource: @resource.key, operation: @definition.key), method: :post, local: true, data: { turbo: false } do |form| %>
   <%= hidden_field_tag :intent_ref, @proposal.intent.id %>
   <%= return_navigation_fields %>
   <%= hidden_field_tag :selection_ref, @proposal.intent.selection_id %>
   <%= hidden_field_tag :confirmed_input, @wire_input %>
   <%= form.submit t("rails_ai_admin.collection_operations.confirm") %>
+<% end %>
 <% end %>
 <p><%= link_to t("rails_ai_admin.collection_operations.edit_input"), collection_operation_form_path(resource: @resource.key, operation: @definition.key, selection_ref: @proposal.intent.selection_id, **navigation_params) %></p>

@@ -11,6 +11,10 @@
   <h2><%= t("rails_ai_admin.surfaces.proposed_changes") %></h2>
   <dl class="raa-details"><% @proposal.changes.each do |name, change| %><% field = @resource.fields.find { |entry| entry.name.to_s == name } %><dt><%= field.label %></dt><dd><%= field.format(change["before"], time_zone: @context.time_zone) %> → <%= field.format(change["after"], time_zone: @context.time_zone) %></dd><% end %></dl>
 <% end %>
+<% if @definition.approval_mode == :separate_actor && @proposal.intent.actor_ref == @context.actor_ref %>
+  <p class="raa-notice" role="status"><%= t("rails_ai_admin.surfaces.separate_actor_note") %></p>
+  <p><%= link_to t("rails_ai_admin.actions.cancel"), resource_path(resource: @resource.key, id: @record.id, **navigation_params) %></p>
+<% else %>
 <%= form_with url: operation_execute_path(resource: @resource.key, id: @record.id, operation: @definition.key), method: :post, local: true do |form| %>
   <%= return_navigation_fields %>
   <%= hidden_field_tag :intent_ref, @proposal.intent.id %>
@@ -18,6 +22,7 @@
   <div class="raa-actions"><%= form.submit t("rails_ai_admin.operations.confirm"), data: { turbo_submits_with: t("rails_ai_admin.operations.executing") } %>
   <%= link_to t("rails_ai_admin.operations.edit_input"), operation_form_path(resource: @resource.key, id: @record.id, operation: @definition.key, **navigation_params) %>
   <%= link_to t("rails_ai_admin.actions.cancel"), resource_path(resource: @resource.key, id: @record.id, **navigation_params) %></div>
+<% end %>
 <% end %>
 <% if admin_surface_review_available?(@resource, @definition) %>
   <%# A separate form keeps its own action-bound (per-form) CSRF token. %>

@@ -29,12 +29,27 @@ module RailsAiAdmin
         result = preview(context: context, resource: resource, operation: operation, target_id: target_id,
           expected_version: expected_version, input: input, origin: origin)
         return result if result.is_a?(Result)
-        intent = OperationRun.create!(id: intent_id || SecureRandom.uuid, actor_ref: context.actor_ref,
+        mode = definition.approval_mode.to_s
+        if mode != "self" && !multi_actor_supported?
+          raise ConfigurationError, "Multi-actor approvals require the latest engine migrations"
+        end
+        attrs = {
+          id: intent_id || SecureRandom.uuid, actor_ref: context.actor_ref,
           tenant_ref: context.tenant_ref, security_version: context.security_version,
           resource_key: resource.key.to_s, operation: operation.to_s,
           operation_version: operation_version(resource, operation), target_id: result.target_id,
           expected_version: result.expected_version, input_digest: input && InputSchema.digest(result.values),
-          origin: origin.to_s, expires_at: Time.current + RailsAiAdmin.configuration.intent_ttl)
+          origin: origin.to_s, expires_at: Time.current + RailsAiAdmin.configuration.intent_ttl
+        }
+        if multi_actor_supported?
+          attrs[:proposed_by_actor_ref] = context.actor_ref
+          attrs[:approval_mode] = mode
+          if input && (definition.custom? || mode != "self")
+            wire = wire_values(result.values)
+            attrs[:input_payload] = wire if wire && JSON.generate(wire).bytesize <= 16_384
+          end
+        end
+        intent = OperationRun.create!(**attrs)
         Proposal.new(intent, result.values, result.changes)
       end
 
@@ -172,8 +187,9 @@ module RailsAiAdmin
       # Reauthorizes and consumes a human event atomically with the domain write.
       # human_confirmed comes only from a trusted HTTP/Surface adapter, never from
       # an assistant tool parameter. Origin is audit metadata, not authority.
-      def execute(context:, intent_ref:, input:, human_confirmed: false, origin: :ui, binding: nil)
-        execute_intent(context: context, intent_ref: intent_ref, input: input, human_confirmed: human_confirmed, origin: origin, binding: binding)
+      def execute(context:, intent_ref:, input:, human_confirmed: false, origin: :ui, binding: nil, approval_note: nil)
+        execute_intent(context: context, intent_ref: intent_ref, input: input, human_confirmed: human_confirmed,
+          origin: origin, binding: binding, approval_note: approval_note)
       end
 
       # Internal worker entry: its authority is the admitted parent and lease,
@@ -187,18 +203,29 @@ module RailsAiAdmin
         Result.new(code: error.code)
       end
 
-      def execute_intent(context:, intent_ref:, input:, human_confirmed: false, origin: :ui, binding: nil, admission: nil)
+      def execute_intent(context:, intent_ref:, input:, human_confirmed: false, origin: :ui, binding: nil, admission: nil, approval_note: nil)
         run = access = definition = nil
         transaction_body_finished = false
         raise AccessDenied, "UNAUTHENTICATED" unless context.is_a?(Context)
         reject!("NOT_FOUND") unless intent_ref.is_a?(String) && intent_ref.match?(/\A[0-9a-f-]{36}\z/)
+        note = validate_approval_note!(approval_note)
         result = OperationRun.transaction(requires_new: true) do
           admission&.lock!(context)
-          run = OperationRun.lock.find_by(id: intent_ref, actor_ref: context.actor_ref, tenant_ref: context.tenant_ref)
+          run = OperationRun.lock.find_by(id: intent_ref, tenant_ref: context.tenant_ref)
           reject!("NOT_FOUND") unless run
           reject!("NOT_FOUND") if run.parent_run_id && !admission
           check_origin!(origin)
-          reject!("APPROVAL_INVALIDATED") unless run.security_version == context.security_version
+          mode = multi_actor_supported? ? run.approval_mode.to_s : "self"
+          proposer_ref = (multi_actor_supported? && run.proposed_by_actor_ref.presence) || run.actor_ref
+          if mode == "self" || admission
+            reject!("NOT_FOUND") unless run.actor_ref == context.actor_ref
+            reject!("APPROVAL_INVALIDATED") unless run.security_version == context.security_version
+          elsif run.status == "succeeded"
+            reject!("NOT_FOUND") unless run.actor_ref == context.actor_ref || proposer_ref == context.actor_ref
+            reject!("APPROVAL_INVALIDATED") if run.actor_ref == context.actor_ref && run.security_version != context.security_version
+          elsif mode == "separate_actor" && context.actor_ref == proposer_ref
+            reject!("SELF_APPROVAL_FORBIDDEN")
+          end
           reject!("APPROVAL_EXPIRED") unless run.status == "succeeded" || run.expires_at && run.expires_at > Time.current
           check_binding!(run, binding) if binding
           resource = RailsAiAdmin.registry.fetch(run.resource_key)
@@ -212,6 +239,7 @@ module RailsAiAdmin
           if definition.custom? && run.status == "succeeded"
             access.authorize_receipt!(run.operation, record)
           else
+            access.authorize_approval!(run.operation, record, proposed_by_actor_ref: proposer_ref) if mode != "self" && !admission
             access.authorize!(run.operation, record)
           end
           values = coerce!(access, record, definition, input, replay: run.status == "succeeded")
@@ -291,13 +319,28 @@ module RailsAiAdmin
           unless run.operation == "destroy" || access.relation.where(resource.model_class.primary_key => record.id).exists?
             reject!("NOT_FOUND")
           end
-          audit = AuditEvent.create!(actor_ref: context.actor_ref, tenant_ref: context.tenant_ref,
+          audit_attrs = {
+            actor_ref: context.actor_ref, tenant_ref: context.tenant_ref,
             resource_key: run.resource_key, operation: run.operation, status: "succeeded", code: "OK",
             record_id: record.id.to_s, correlation_ref: run.id, origin: origin.to_s,
-            changed_fields: changed_fields, created_at: Time.current)
+            changed_fields: changed_fields, created_at: Time.current
+          }
+          audit_attrs[:proposed_by_actor_ref] = proposer_ref if audit_proposer_supported?
+          audit = AuditEvent.create!(**audit_attrs)
           attributes = { status: "succeeded", record_id: record.id.to_s, audit_event_id: audit.id, completed_at: Time.current }
-          attributes.merge!(approved_by_ref: context.actor_ref, approved_digest: digest, confirmed_at: Time.current) unless admission
-          run.update!(attributes)
+          unless admission
+            attributes.merge!(approved_by_ref: context.actor_ref, approved_digest: digest, confirmed_at: Time.current)
+            if multi_actor_supported?
+              attributes[:proposed_by_actor_ref] = proposer_ref
+              attributes[:approver_security_version] = context.security_version
+              attributes[:approval_note] = note if note
+              if mode != "self"
+                attributes[:actor_ref] = context.actor_ref
+                attributes[:security_version] = context.security_version
+              end
+            end
+          end
+          run.update!(**attributes)
           receipt = projection(access, run, record)
           admission&.complete!(run)
           transaction_body_finished = true
@@ -695,11 +738,47 @@ module RailsAiAdmin
       end
 
       def audit_failure(context, run, code, origin)
-        return unless run && run.actor_ref == context.actor_ref && run.tenant_ref == context.tenant_ref
+        return unless run && run.tenant_ref == context.tenant_ref
+        mode = multi_actor_supported? ? run.approval_mode.to_s : "self"
+        return if mode == "self" && run.actor_ref != context.actor_ref
         return if run.parent_run_id || run.selection_id
-        AuditEvent.create!(actor_ref: context.actor_ref, tenant_ref: context.tenant_ref,
+        proposer_ref = (multi_actor_supported? && run.proposed_by_actor_ref.presence) || run.actor_ref
+        attrs = {
+          actor_ref: context.actor_ref, tenant_ref: context.tenant_ref,
           resource_key: run.resource_key, operation: run.operation, status: "rejected", code: code,
-          record_id: run.target_id, correlation_ref: run.id, origin: origin.to_s, changed_fields: [], created_at: Time.current)
+          record_id: run.target_id, correlation_ref: run.id, origin: origin.to_s, changed_fields: [], created_at: Time.current
+        }
+        attrs[:proposed_by_actor_ref] = proposer_ref if audit_proposer_supported?
+        AuditEvent.create!(**attrs)
+      end
+
+      def multi_actor_supported?
+        OperationRun.column_names.include?("approval_mode")
+      end
+
+      def audit_proposer_supported?
+        AuditEvent.column_names.include?("proposed_by_actor_ref")
+      end
+
+      def validate_approval_note!(note)
+        return nil if note.nil? || (note.is_a?(String) && note.strip.empty?)
+        unless note.is_a?(String) && note.valid_encoding? && note.strip.length.between?(1, 500) && !note.match?(Field::TEXT_CONTROLS)
+          reject!("INVALID_QUERY")
+        end
+        note.strip
+      end
+
+      def wire_values(values)
+        return nil if values.values.any? { |val| val.is_a?(Field::Secret) || val.is_a?(Fields::FileValue) || val.is_a?(Fields::RejectedUpload) }
+        values.to_h do |name, value|
+          wire = case value
+          when BigDecimal then value.to_s("F")
+          when Time, ActiveSupport::TimeWithZone then value.to_time.getutc.iso8601(6)
+          when Date then value.iso8601
+          else value
+          end
+          [ name.to_s, wire ]
+        end
       end
     end
   end

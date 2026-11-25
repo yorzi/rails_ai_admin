@@ -3,6 +3,7 @@
 module RailsAiAdmin
   # Trusted, synchronous domain code. All persistence belongs to Runner's transaction.
   class Operation
+    APPROVAL_MODES = %i[self separate_actor any_reviewer].freeze
     Outcome = Data.define(:code, :record_id, :fields)
 
     class << self
@@ -59,11 +60,18 @@ module RailsAiAdmin
       def read_only? = false
       def expose_to_ai? = false
       def approval_policy = :required
+      def approval_mode(value = nil)
+        @approval_mode = value.to_sym if value
+        @approval_mode || :self
+      end
       def idempotency_policy = :intent
       def audit_policy = :required
       def perform_arity = 3
 
       def validate!
+        unless APPROVAL_MODES.include?(approval_mode)
+          raise ConfigurationError, "Operation approval_mode must be :self, :separate_actor or :any_reviewer"
+        end
         unless version.is_a?(String) && version.match?(/\A[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}\z/)
           raise ConfigurationError, "Operation version must be a bounded string"
         end

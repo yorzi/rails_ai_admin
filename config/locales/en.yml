@@ -11,6 +11,7 @@ en:
       unauthenticated: Sign in to continue.
       invalid_query: The list settings are not available.
       approval_required: This change needs your explicit confirmation.
+      self_approval_forbidden: This operation requires approval from another authorized reviewer.
       approval_expired: This form expired before it was submitted.
       approval_invalidated: Your access or the operation changed after this form was opened.
       idempotency_conflict: This form was already submitted with different values.
@@ -391,6 +392,8 @@ en:
       native_note: >-
         Nothing has been saved yet. Confirming applies this exact target and input once, whether you confirm
         here or on the original page.
+      separate_actor_note: >-
+        This proposal is saved and requires approval from another authorized reviewer before any change is applied.
       expired: This review can no longer be confirmed. Start a new review from the record.
       unavailable: This review is unavailable.
       no_longer_available: This review is no longer available.

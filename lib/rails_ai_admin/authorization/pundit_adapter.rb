@@ -111,6 +111,19 @@ module RailsAiAdmin
         policy_error!(resource, error)
       end
 
+      def approve_operation?(context:, resource:, operation:, record: nil, proposed_by_actor_ref: nil)
+        klass = policy_class(resource)
+        return false unless klass
+        policy = klass.new(context, record || resource.model_class)
+        return false unless policy.respond_to?(:approve_operation?)
+        return false if Object.ancestors.include?(policy.method(:approve_operation?).owner)
+        policy.approve_operation?(operation.to_sym, proposed_by_actor_ref) == true
+      rescue Pundit::NotAuthorizedError
+        false
+      rescue StandardError => error
+        policy_error!(resource, error)
+      end
+
       def named_scopes(context:, resource:)
         klass = policy_class(resource)
         return [] unless klass

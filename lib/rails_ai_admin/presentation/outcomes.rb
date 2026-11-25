@@ -15,6 +15,7 @@ module RailsAiAdmin
         "UNAUTHENTICATED" => "Sign in to continue.",
         "INVALID_QUERY" => "The list settings are not available.",
         "APPROVAL_REQUIRED" => "This change needs your explicit confirmation.",
+        "SELF_APPROVAL_FORBIDDEN" => "This operation requires approval from another authorized reviewer.",
         "APPROVAL_EXPIRED" => "This form expired before it was submitted.",
         "APPROVAL_INVALIDATED" => "Your access or the operation changed after this form was opened.",
         "IDEMPOTENCY_CONFLICT" => "This form was already submitted with different values.",

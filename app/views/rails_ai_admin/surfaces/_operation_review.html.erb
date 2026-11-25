@@ -26,15 +26,23 @@
       <h3><%= t("rails_ai_admin.surfaces.proposed_changes") %></h3>
       <dl class="raa-details"><% changes.each do |field, before, after| %><dt><%= field.label %></dt><dd><%= before %> → <%= after %></dd><% end %></dl>
     <% end %>
-    <% if run.origin == "assistant" %>
-      <p><%= t("rails_ai_admin.surfaces.assistant_note") %></p>
+    <% separate_self = review.definition.approval_mode == :separate_actor && ((run.respond_to?(:proposed_by_actor_ref) && run.proposed_by_actor_ref.presence) || run.actor_ref) == review.access.context.actor_ref %>
+    <% if separate_self %>
+      <p class="raa-notice" role="status"><%= t("rails_ai_admin.surfaces.separate_actor_note") %></p>
+      <div class="raa-actions">
+        <%= admin_surface_action_form(surface, :dismiss) do |form| %><%= form.submit t("rails_ai_admin.surfaces.dismiss"), name: nil, class: "raa-secondary" %><% end %>
+      </div>
     <% else %>
-      <p><%= t("rails_ai_admin.surfaces.native_note") %></p>
+      <% if run.origin == "assistant" %>
+        <p><%= t("rails_ai_admin.surfaces.assistant_note") %></p>
+      <% else %>
+        <p><%= t("rails_ai_admin.surfaces.native_note") %></p>
+      <% end %>
+      <div class="raa-actions">
+        <%= admin_surface_action_form(surface, :confirm) do |form| %><%= form.submit native && run.operation == "destroy" ? t("rails_ai_admin.resources.delete") : t("rails_ai_admin.operations.confirm"), name: nil, class: (native && run.operation == "destroy" ? "raa-danger" : nil) %><% end %>
+        <%= admin_surface_action_form(surface, :dismiss) do |form| %><%= form.submit t("rails_ai_admin.surfaces.dismiss"), name: nil, class: "raa-secondary" %><% end %>
+      </div>
     <% end %>
-    <div class="raa-actions">
-      <%= admin_surface_action_form(surface, :confirm) do |form| %><%= form.submit native && run.operation == "destroy" ? t("rails_ai_admin.resources.delete") : t("rails_ai_admin.operations.confirm"), name: nil, class: (native && run.operation == "destroy" ? "raa-danger" : nil) %><% end %>
-      <%= admin_surface_action_form(surface, :dismiss) do |form| %><%= form.submit t("rails_ai_admin.surfaces.dismiss"), name: nil, class: "raa-secondary" %><% end %>
-    </div>
   <% else %>
     <p><%= t("rails_ai_admin.surfaces.expired") %></p>
   <% end %>

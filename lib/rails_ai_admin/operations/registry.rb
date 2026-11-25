@@ -35,6 +35,7 @@ module RailsAiAdmin
         def expose_to_ai? = false
         def side_effects? = true
         def approval_policy = custom? || key == "destroy" ? :required : :human_submit
+        def approval_mode = custom? ? (resource.operation_approvals[key.to_sym] || handler_class.approval_mode) : :self
         def idempotency_policy = :intent
         def audit_policy = :required
         def output_type = custom? && scope == :collection ? :job_ref : :record_ref
@@ -55,7 +56,8 @@ module RailsAiAdmin
         def signature
           custom? ? { handler: handler_name, version: handler_class.version, input: handler_class.input.map(&:contract),
             models: handler_class.atomic_models, duration: handler_class.max_duration, scope: scope,
-            execution: scope == :collection ? [ handler_class.lease_duration, handler_class.execution_window, handler_class.max_attempts ] : nil } : { builtin: key, version: 1 }
+            approval_mode: approval_mode == :self ? nil : approval_mode,
+            execution: scope == :collection ? [ handler_class.lease_duration, handler_class.execution_window, handler_class.max_attempts ] : nil }.compact : { builtin: key, version: 1 }
         end
       end
 

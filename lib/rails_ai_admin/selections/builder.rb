@@ -45,20 +45,25 @@ module RailsAiAdmin
 
       # Internal admission path: no title projection or domain preflight under
       # the parent lock. Only exact target checks and the given authorization run.
-      def validate_for_admission(context:, selection_ref:, resource:, manifest_digest:, &authorize_target)
-        read_snapshot(context: context, selection_ref: selection_ref, resource: resource, manifest_digest: manifest_digest, labels: false, &authorize_target)
+      def validate_for_admission(context:, selection_ref:, resource:, manifest_digest:, allow_reviewer: false, &authorize_target)
+        read_snapshot(context: context, selection_ref: selection_ref, resource: resource, manifest_digest: manifest_digest,
+          labels: false, allow_reviewer: allow_reviewer, &authorize_target)
       end
 
       private
 
-      def read_snapshot(context:, selection_ref:, resource:, manifest_digest:, labels:)
+      def read_snapshot(context:, selection_ref:, resource:, manifest_digest:, labels:, allow_reviewer: false)
         raise AccessDenied, "UNAUTHENTICATED" unless context.is_a?(Context)
         unless selection_ref.is_a?(String) && selection_ref.match?(/\A[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\z/)
           raise AccessDenied
         end
-        selection = Selection.find_by(id: selection_ref, actor_ref: context.actor_ref, tenant_ref: context.tenant_ref)
+        selection = if allow_reviewer
+          Selection.find_by(id: selection_ref, tenant_ref: context.tenant_ref)
+        else
+          Selection.find_by(id: selection_ref, actor_ref: context.actor_ref, tenant_ref: context.tenant_ref)
+        end
         raise AccessDenied unless selection
-        raise AccessDenied, "SELECTION_INVALIDATED" unless selection.security_version == context.security_version
+        raise AccessDenied, "SELECTION_INVALIDATED" if !allow_reviewer && selection.security_version != context.security_version
         raise AccessDenied, "SELECTION_EXPIRED" unless selection.expires_at > Time.current
         registered = RailsAiAdmin.registry.fetch(selection.resource_key)
         raise AccessDenied unless resource.nil? || registered.equal?(resource)

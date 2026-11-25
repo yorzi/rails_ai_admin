@@ -204,6 +204,14 @@ module RailsAiAdmin
         true
       end
 
+      def authorize_approval!(operation, record = nil, proposed_by_actor_ref:)
+        allowed = @adapter.respond_to?(:approve_operation?) &&
+          @adapter.approve_operation?(context: context, resource: resource, operation: operation.to_sym,
+            record: record, proposed_by_actor_ref: proposed_by_actor_ref) == true
+        raise AccessDenied unless allowed
+        true
+      end
+
       def authorize_receipt!(operation, record)
         allowed = @adapter.respond_to?(:read_operation_receipt?) && @adapter.read_operation_receipt?(context: context,
           resource: resource, operation: operation.to_sym, record: record) == true

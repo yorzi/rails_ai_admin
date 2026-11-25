@@ -30,12 +30,24 @@ module RailsAiAdmin
         manifest = selection.targets.map { |target| [ target.id, target.expected_version ] }
         payload = wire(values)
         raise Rejected.new("VALIDATION_FAILED", "base" => [ "input is too large" ]) if JSON.generate(payload).bytesize > 4096
-        intent = OperationRun.create!(id: SecureRandom.uuid, actor_ref: context.actor_ref, tenant_ref: context.tenant_ref,
+        mode = definition.approval_mode.to_s
+        multi_actor = OperationRun.column_names.include?("approval_mode")
+        if mode != "self" && !multi_actor
+          raise ConfigurationError, "Multi-actor approvals require the latest engine migrations"
+        end
+        attrs = {
+          id: SecureRandom.uuid, actor_ref: context.actor_ref, tenant_ref: context.tenant_ref,
           security_version: context.security_version, resource_key: resource.key.to_s, operation: definition.key,
           operation_version: Operations::RunnerFingerprint.call(resource, definition), selection_id: selection.selection_ref,
           selection_digest: selection.manifest_digest, manifest_resource_version: source.resource_version,
           manifest_payload: manifest, input_payload: payload, input_digest: InputSchema.digest(values), origin: origin.to_s,
-          expires_at: Time.current + RailsAiAdmin.configuration.intent_ttl)
+          expires_at: Time.current + RailsAiAdmin.configuration.intent_ttl
+        }
+        if multi_actor
+          attrs[:proposed_by_actor_ref] = context.actor_ref
+          attrs[:approval_mode] = mode
+        end
+        intent = OperationRun.create!(**attrs)
         Proposal.new(intent, values, targets.freeze)
       rescue Rejected => error
         error.result
@@ -46,15 +58,23 @@ module RailsAiAdmin
         Result.new(code: Contract.contention?(error) ? "CONFLICT" : "OPERATION_FAILED")
       end
 
-      def admit(context:, intent_ref:, input:, human_confirmed: false, binding: nil)
+      def admit(context:, intent_ref:, input:, human_confirmed: false, binding: nil, approval_note: nil)
         admitted = false
         Contract.ensure_outside_transaction!
+        note = validate_approval_note!(approval_note)
         result = OperationRun.transaction(requires_new: true) do
-          run = Contract.owned(context, intent_ref, lock: true)
+          run = Contract.for_admission(context, intent_ref)
           resource, definition = Contract.definition(run)
           verify_binding!(run, binding) if binding
           Contract.verify_manifest!(run)
+          multi_actor = OperationRun.column_names.include?("approval_mode")
+          mode = multi_actor ? run.approval_mode.to_s : "self"
+          proposer_ref = (multi_actor && run.proposed_by_actor_ref.presence) || run.actor_ref
           if run.status != "proposed"
+            unless run.actor_ref == context.actor_ref || proposer_ref == context.actor_ref
+              raise AccessDenied
+            end
+            raise Rejected.new("APPROVAL_INVALIDATED") if run.actor_ref == context.actor_ref && run.security_version != context.security_version
             Authorization::Access.new(context, resource).authorize_receipt!(run.operation, nil)
             raise Rejected.new("CONFLICT") unless Contract::ACTIVE.include?(run.status) || (Contract::TERMINAL.include?(run.status) && run.approved_digest)
             Contract.verify_approved!(run, definition, context)
@@ -63,10 +83,16 @@ module RailsAiAdmin
           end
           raise Rejected.new("APPROVAL_EXPIRED") unless run.expires_at > Time.current
           raise Rejected.new("APPROVAL_REQUIRED") unless human_confirmed == true
+          if mode == "separate_actor" && context.actor_ref == proposer_ref
+            raise Rejected.new("SELF_APPROVAL_FORBIDDEN")
+          end
+          access = Authorization::Access.new(context, resource)
+          access.authorize_approval!(definition.key, nil, proposed_by_actor_ref: proposer_ref) if mode != "self"
           values = collection_input(context, resource, definition, input)
           raise Rejected.new("APPROVAL_INVALIDATED") unless InputSchema.digest(values) == run.input_digest
-          access = Authorization::Access.new(context, resource)
-          selection = Selections::Builder.new.validate_for_admission(context: context, selection_ref: run.selection_id, resource: resource, manifest_digest: run.selection_digest) do |record|
+          selection = Selections::Builder.new.validate_for_admission(context: context, selection_ref: run.selection_id,
+            resource: resource, manifest_digest: run.selection_digest, allow_reviewer: mode != "self") do |record|
+            access.authorize_approval!(definition.key, record, proposed_by_actor_ref: proposer_ref) if mode != "self"
             access.authorize!(definition.key, record)
             current = InputSchema.new(definition.fields(access, record)).coerce(wire(values), time_zone: context.time_zone)
             raise Rejected.new("APPROVAL_INVALIDATED") unless current.valid? && InputSchema.digest(current.values) == run.input_digest
@@ -78,23 +104,46 @@ module RailsAiAdmin
             raise Rejected.new("APPROVAL_INVALIDATED")
           end
           now = Time.current
+          if mode != "self"
+            run.actor_ref = context.actor_ref
+            run.security_version = context.security_version
+          end
           children, items = [], []
           source_items.each do |item|
             id = SecureRandom.uuid
-            children << { id: id, parent_run_id: run.id, actor_ref: run.actor_ref, tenant_ref: run.tenant_ref,
+            child = { id: id, parent_run_id: run.id, actor_ref: run.actor_ref, tenant_ref: run.tenant_ref,
               security_version: run.security_version, resource_key: run.resource_key, operation: run.operation,
               operation_version: run.operation_version, target_id: item.target_id, expected_version: item.expected_version,
               input_digest: run.input_digest, origin: run.origin, expires_at: deadline, created_at: now, updated_at: now }
+            if multi_actor
+              child[:proposed_by_actor_ref] = proposer_ref
+              child[:approval_mode] = mode
+            end
+            children << child
             items << { id: SecureRandom.uuid, parent_run_id: run.id, operation_run_id: id, selection_item_id: item.id,
               target_id: item.target_id, expected_version: item.expected_version, position: item.position, created_at: now, updated_at: now }
           end
           OperationRun.insert_all!(children)
           BatchItem.insert_all!(items)
-          audit = AuditEvent.create!(actor_ref: run.actor_ref, tenant_ref: run.tenant_ref, resource_key: run.resource_key,
-            operation: run.operation, status: "admitted", code: "QUEUED", correlation_ref: run.id, origin: run.origin, changed_fields: [], created_at: now)
+          audit_attrs = {
+            actor_ref: run.actor_ref, tenant_ref: run.tenant_ref, resource_key: run.resource_key,
+            operation: run.operation, status: "admitted", code: "QUEUED", correlation_ref: run.id,
+            origin: run.origin, changed_fields: [], created_at: now
+          }
+          audit_attrs[:proposed_by_actor_ref] = proposer_ref if AuditEvent.column_names.include?("proposed_by_actor_ref")
+          audit = AuditEvent.create!(**audit_attrs)
           run.execution_deadline = deadline
-          run.update!(status: "queued", audit_event_id: audit.id, approved_by_ref: context.actor_ref,
-            approved_digest: Contract.approval_digest(run), confirmed_at: now, execution_deadline: deadline)
+          update_attrs = {
+            actor_ref: run.actor_ref, security_version: run.security_version,
+            status: "queued", audit_event_id: audit.id, approved_by_ref: context.actor_ref,
+            approved_digest: Contract.approval_digest(run), confirmed_at: now, execution_deadline: deadline
+          }
+          if multi_actor
+            update_attrs[:proposed_by_actor_ref] = proposer_ref
+            update_attrs[:approver_security_version] = context.security_version
+            update_attrs[:approval_note] = note if note
+          end
+          run.update!(**update_attrs)
           admitted = true
           Contract.result(run)
         end
@@ -202,6 +251,14 @@ module RailsAiAdmin
           else value
           end
         end
+      end
+
+      def validate_approval_note!(note)
+        return nil if note.nil? || (note.is_a?(String) && note.strip.empty?)
+        unless note.is_a?(String) && note.valid_encoding? && note.strip.length.between?(1, 500) && !note.match?(Field::TEXT_CONTROLS)
+          raise Rejected.new("INVALID_QUERY")
+        end
+        note.strip
       end
     end
   end

@@ -10,9 +10,26 @@ module RailsAiAdmin
         raise AccessDenied, "UNAUTHENTICATED" unless context.is_a?(Context)
         raise AccessDenied unless ref.is_a?(String) && ref.match?(/\A[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\z/)
         relation = lock ? OperationRun.lock : OperationRun.all
-        run = relation.where.not(selection_id: nil).find_by(id: ref, parent_run_id: nil, actor_ref: context.actor_ref, tenant_ref: context.tenant_ref)
+        run = relation.where.not(selection_id: nil).find_by(id: ref, parent_run_id: nil, tenant_ref: context.tenant_ref)
         raise AccessDenied unless run
-        raise AccessDenied, "APPROVAL_INVALIDATED" unless run.security_version == context.security_version
+        proposer_ref = OperationRun.column_names.include?("proposed_by_actor_ref") ? run.proposed_by_actor_ref : nil
+        unless run.actor_ref == context.actor_ref || (proposer_ref.present? && proposer_ref == context.actor_ref && run.status != "proposed")
+          raise AccessDenied
+        end
+        raise AccessDenied, "APPROVAL_INVALIDATED" if run.actor_ref == context.actor_ref && run.security_version != context.security_version
+        run
+      end
+
+      def self.for_admission(context, ref)
+        raise AccessDenied, "UNAUTHENTICATED" unless context.is_a?(Context)
+        raise AccessDenied unless ref.is_a?(String) && ref.match?(/\A[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\z/)
+        run = OperationRun.lock.where.not(selection_id: nil).find_by(id: ref, parent_run_id: nil, tenant_ref: context.tenant_ref)
+        raise AccessDenied unless run
+        mode = OperationRun.column_names.include?("approval_mode") ? run.approval_mode.to_s : "self"
+        if mode == "self"
+          raise AccessDenied unless run.actor_ref == context.actor_ref
+          raise AccessDenied, "APPROVAL_INVALIDATED" unless run.security_version == context.security_version
+        end
         run
       end
 
