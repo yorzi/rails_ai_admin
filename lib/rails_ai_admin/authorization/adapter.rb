@@ -98,6 +98,13 @@ module RailsAiAdmin
       def view_history?(context:, resource:, record:)
         false
       end
+
+      # Opens the durable Tasks & Approval Inbox workspace for the current
+      # tenant. Individual tasks are still filtered by creator, approval, and
+      # operation receipt grants on their target resource.
+      def view_tasks?(context:)
+        false
+      end
     end
   end
 end

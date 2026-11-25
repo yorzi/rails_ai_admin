@@ -374,6 +374,53 @@ en:
         action.
       cancelled: Cancellation processed. Already committed records and their follow-up work are retained.
       retry_failed: Review failed records for retry
+    tasks:
+      title: Tasks and approvals
+      intro: Pending reviews, active background jobs and completed operations for your current tenant.
+      tabs_label: Task views
+      empty: No matching tasks.
+      approved_by: Approved by
+      approval_note: Approval note
+      expires: Approval expires
+      progress: "%{succeeded} succeeded, %{failed} failed of %{total} records"
+      open_job: Open background job details
+      verification_heading: "Verification: %{status}"
+      approve_heading: Review and approve
+      approve: Approve and execute
+      approved: Approval recorded.
+      dismiss: Dismiss proposal
+      dismissed: Proposal dismissed.
+      undo: Undo operation
+      undone: Operation undone.
+      timeline: Timeline
+      no_events: No events recorded yet.
+      tabs:
+        needs_approval: Needs approval
+        active: Active
+        completed: Completed
+        mine: My tasks
+      columns:
+        task: Task
+        kind: Kind
+        status: Status
+        proposed_by: Proposed by
+        updated: Updated
+      kinds:
+        change_review: Change review
+        bulk_job: Bulk job
+        quality_remediation: Data quality
+        import: Import
+        recipe_run: Recipe run
+      statuses:
+        open: Open
+        awaiting_approval: Awaiting approval
+        executing: Executing
+        verifying: Verifying
+        succeeded: Succeeded
+        partially_failed: Partially failed
+        failed: Failed
+        cancelled: Cancelled
+        expired: Expired
     surfaces:
       native:
         create: Create %{label}
@@ -447,6 +494,7 @@ en:
       skip: Skip to content
       overview: Overview
       assistant: Assistant
+      tasks: Tasks
       collection_jobs: Collection jobs
       audit_log: Audit log
       resources_nav: Admin resources

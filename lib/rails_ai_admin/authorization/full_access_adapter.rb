@@ -77,6 +77,10 @@ module RailsAiAdmin
       def view_history?(context:, resource:, record:)
         true
       end
+
+      def view_tasks?(context:)
+        true
+      end
     end
   end
 end

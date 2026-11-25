@@ -134,6 +134,7 @@ module RailsAiAdmin
           "failed"
         end
         run.update!(status: status, completed_at: TERMINAL.include?(status) ? Time.current : nil)
+        Tasks::Coordinator.sync_from_run!(run)
         status
       end
 
@@ -141,6 +142,7 @@ module RailsAiAdmin
         BatchItem.where(parent_run_id: run.id, status: ACTIVE).update_all(status: "cancelled", last_code: code,
           completed_at: Time.current, lease_owner: nil, lease_expires_at: nil)
         run.update!(status: "reconciliation_required", completed_at: Time.current)
+        Tasks::Coordinator.sync_from_run!(run)
       end
 
       def self.stop_remaining!(run, code)

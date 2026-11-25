@@ -81,7 +81,7 @@ legacy visible_resources still includes hidden-menu resources. See
 
 | Key | Revision | Destination | Assigns | Locals |
 | --- | --- | --- | --- | --- |
-| `layout` | 6 | `layouts/rails_ai_admin/application.html.erb` | `context`, `admin_csp_nonce`, `list_navigation` | None |
+| `layout` | 7 | `layouts/rails_ai_admin/application.html.erb` | `context`, `admin_csp_nonce`, `list_navigation` | None |
 | `status_layout` | 1 | `layouts/rails_ai_admin/status.html.erb` | `admin_status` | None |
 | `status_page` | 1 | `rails_ai_admin/statuses/show.html.erb` | `admin_status`, `status_sign_in_path` | None |
 | `session_links` | 1 | `rails_ai_admin/shared/_session.html.erb` | `context` | None |

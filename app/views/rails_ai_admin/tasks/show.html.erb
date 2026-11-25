@@ -1,0 +1,99 @@
+<% admin_title @task.title, t("rails_ai_admin.tasks.title") %>
+<p><%= link_to t("rails_ai_admin.tasks.title"), admin_tasks_path %></p>
+<h1><%= @task.title %></h1>
+
+<% if @failure_code %>
+  <p class="raa-errors" role="alert"><%= admin_outcome(@failure_code) %></p>
+<% end %>
+
+<%= turbo_frame_tag "raa_task_workspace", data: (@polling ? { controller: "raa-poll", raa_poll_url_value: admin_task_path(id: @task.id) } : {}) do %>
+  <dl class="raa-details">
+    <dt><%= t("rails_ai_admin.tasks.columns.status") %></dt>
+    <dd><strong<% if @polling %> data-raa-pending="waiting"<% end %>><%= t("rails_ai_admin.tasks.statuses.#{@effective_status}", default: @effective_status.humanize) %></strong></dd>
+    <dt><%= t("rails_ai_admin.tasks.columns.kind") %></dt>
+    <dd><%= t("rails_ai_admin.tasks.kinds.#{@task.kind}", default: @task.kind.humanize) %></dd>
+    <dt><%= t("rails_ai_admin.tasks.columns.proposed_by") %></dt>
+    <dd><%= @actor_labels[@task.created_by_actor_ref] %></dd>
+    <% if @run&.approved_by_ref.present? %>
+      <dt><%= t("rails_ai_admin.tasks.approved_by") %></dt>
+      <dd><%= @actor_labels[@run.approved_by_ref] %></dd>
+    <% end %>
+    <% if @run.respond_to?(:approval_note) && @run&.approval_note.present? %>
+      <dt><%= t("rails_ai_admin.tasks.approval_note") %></dt>
+      <dd><%= @run.approval_note %></dd>
+    <% end %>
+    <% if @effective_status == "awaiting_approval" && @task.expires_at %>
+      <dt><%= t("rails_ai_admin.tasks.expires") %></dt>
+      <dd><%= @task.expires_at.in_time_zone(@context.time_zone).strftime("%Y-%m-%d %H:%M") %></dd>
+    <% end %>
+  </dl>
+
+  <% meta = @task.summary_metadata || {} %>
+  <% if meta["total_count"].to_i > 1 %>
+    <p><%= t("rails_ai_admin.tasks.progress", succeeded: meta["succeeded_count"].to_i, failed: meta["failed_count"].to_i, total: meta["total_count"].to_i) %></p>
+  <% end %>
+
+  <% if @polling %>
+    <p><%= link_to t("rails_ai_admin.collection_jobs.refresh"), admin_task_path(id: @task.id), data: { turbo_frame: "_top" } %></p>
+  <% end %>
+
+  <% if @run&.selection_id.present? && @run.status != "proposed" %>
+    <p><%= link_to t("rails_ai_admin.tasks.open_job"), collection_job_path(job_ref: @run.id), data: { turbo_frame: "_top" } %></p>
+  <% end %>
+
+  <% if @run.respond_to?(:verification_status) && @run&.verification_status.present? %>
+    <section>
+      <h2><%= t("rails_ai_admin.tasks.verification_heading", status: @run.verification_status) %></h2>
+      <% checks = Array(@run.verification_report) %>
+      <% if checks.any? %>
+        <ul>
+          <% checks.each do |check| %>
+            <li><strong><%= check["name"] %></strong> (<%= check["status"] %>): <%= check["message"] %></li>
+          <% end %>
+        </ul>
+      <% end %>
+    </section>
+  <% end %>
+
+  <% if @can_approve %>
+    <section>
+      <h2><%= t("rails_ai_admin.tasks.approve_heading") %></h2>
+      <%= form_with url: approve_admin_task_path(id: @task.id), method: :post, local: true, data: { turbo: false } do |form| %>
+        <div class="raa-field">
+          <%= label_tag :approval_note, t("rails_ai_admin.tasks.approval_note") %>
+          <%= text_field_tag :approval_note, nil, maxlength: 500 %>
+        </div>
+        <%= form.submit t("rails_ai_admin.tasks.approve") %>
+      <% end %>
+    </section>
+  <% elsif @effective_status == "awaiting_approval" %>
+    <p class="raa-notice" role="status"><%= t("rails_ai_admin.surfaces.separate_actor_note") %></p>
+  <% elsif @effective_status == "expired" %>
+    <p class="raa-notice" role="status"><%= t("rails_ai_admin.outcomes.approval_expired") %></p>
+  <% end %>
+
+  <% if @can_dismiss %>
+    <%= button_to t("rails_ai_admin.tasks.dismiss"), dismiss_admin_task_path(id: @task.id), method: :post, class: "raa-secondary", data: { turbo: false } %>
+  <% end %>
+
+  <% if @can_undo %>
+    <%= button_to t("rails_ai_admin.tasks.undo"), undo_admin_task_path(id: @task.id), method: :post, class: "raa-secondary", data: { turbo: false } %>
+  <% end %>
+
+  <section>
+    <h2><%= t("rails_ai_admin.tasks.timeline") %></h2>
+    <% if @events.empty? %>
+      <p><%= t("rails_ai_admin.tasks.no_events") %></p>
+    <% else %>
+      <ol>
+        <% @events.each do |event| %>
+          <li>
+            <span><%= event.created_at.in_time_zone(@context.time_zone).strftime("%Y-%m-%d %H:%M:%S") %></span> —
+            <strong><%= @actor_labels[event.actor_ref] %></strong>:
+            <%= event.message %>
+          </li>
+        <% end %>
+      </ol>
+    <% end %>
+  </section>
+<% end %>

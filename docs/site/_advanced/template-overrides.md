@@ -108,7 +108,7 @@ Navigation-aware templates also receive immutable `@list_navigation`; it carries
 only normalized list hints, not routing or record authority. Keep registered
 navigation helpers, hidden return fields, the recovery encoded return-state/discarded data
 and discard notices instead of routing from raw return_to. resource_index receives
-sortable_fields for permitted sort headers. The layout is revision 6; index/
+sortable_fields for permitted sort headers. The layout is revision 7; index/
 show/destroy, member and collection form/review/failure, selection and job-show
 context contracts are revision 2. See [List Navigation]({% link _core_features/list-navigation.md %}) for
 the exact helper and query/header boundaries.

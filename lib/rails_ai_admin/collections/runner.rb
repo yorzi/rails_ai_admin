@@ -61,6 +61,7 @@ module RailsAiAdmin
           attrs[:retry_of_run_id] = retry_of_run_id
         end
         intent = OperationRun.create!(**attrs)
+        Tasks::Coordinator.sync_from_run!(intent, actor_ref: context.actor_ref) if mode != "self"
         Proposal.new(intent: intent, values: values, targets: targets.freeze, total_count: selection.targets.size, sampled: sampled)
       rescue Rejected => error
         error.result
@@ -158,6 +159,7 @@ module RailsAiAdmin
             update_attrs[:approval_note] = note if note
           end
           run.update!(**update_attrs)
+          Tasks::Coordinator.sync_from_run!(run, actor_ref: context.actor_ref)
           admitted = true
           Contract.result(run)
         end
@@ -237,6 +239,7 @@ module RailsAiAdmin
             Contract.stop_remaining!(run, "CANCELLED")
           end
           if changed
+            Tasks::Coordinator.sync_from_run!(run, actor_ref: context.actor_ref)
             AuditEvent.create!(actor_ref: context.actor_ref, tenant_ref: context.tenant_ref, resource_key: run.resource_key,
               operation: run.operation, status: "cancelled", code: "CANCELLED", correlation_ref: run.id, origin: "ui", changed_fields: [], created_at: Time.current)
           end

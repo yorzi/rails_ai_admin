@@ -36,6 +36,11 @@ RailsAiAdmin::Engine.routes.draw do
   end
   get "search", to: "search#index", as: :global_search
   get "audit", to: "audit#index", as: :audit_log
+  get "tasks", to: "tasks#index", as: :admin_tasks
+  get "tasks/:id", to: "tasks#show", as: :admin_task
+  post "tasks/:id/approve", to: "tasks#approve", as: :approve_admin_task
+  post "tasks/:id/dismiss", to: "tasks#dismiss", as: :dismiss_admin_task
+  post "tasks/:id/undo", to: "tasks#undo", as: :undo_admin_task
   get "jobs", to: "collection_jobs#index", as: :collection_jobs
   get "jobs/:job_ref", to: "collection_jobs#show", as: :collection_job
   post "jobs/:job_ref/cancel", to: "collection_jobs#cancel", as: :cancel_collection_job

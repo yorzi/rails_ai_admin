@@ -200,6 +200,17 @@ module RailsAiAdmin
         policy_error!(resource, error)
       end
 
+      def view_tasks?(context:)
+        RailsAiAdmin.registry.resources.any? do |resource|
+          klass = policy_class(resource)
+          next false unless klass
+          policy = klass.new(context, resource.model_class)
+          policy.respond_to?(:view_tasks?) && policy.view_tasks? == true
+        rescue StandardError => error
+          policy_error!(resource, error)
+        end
+      end
+
       private
 
       def policy_class(resource)

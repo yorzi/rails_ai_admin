@@ -27,7 +27,7 @@ module RailsAiAdmin
     prepend_before_action :secure_headers
     before_action :authenticate_admin
     after_action :notice_discarded_list_settings
-    helper_method :resource_navigation, :admin_csp_nonce, :list_page_path, :encoded_return_state, :navigation_state, :navigation_params, :list_return_path, :list_return_label, :return_state_discarded?, :return_navigation_fields, :list_state_fields, :visible_resources, :allowed_action?, :record_label, :parent_return, :parent_return_params, :parent_return_fields, :collection_jobs_available?, :admin_associations, :assistant_available?, :searchable_resources, :audit_log_available?, :actor_labels, :assistant_for?, :assistant_page_context, :assistant_drawer_owner_digest
+    helper_method :resource_navigation, :admin_csp_nonce, :list_page_path, :encoded_return_state, :navigation_state, :navigation_params, :list_return_path, :list_return_label, :return_state_discarded?, :return_navigation_fields, :list_state_fields, :visible_resources, :allowed_action?, :record_label, :parent_return, :parent_return_params, :parent_return_fields, :collection_jobs_available?, :tasks_available?, :tasks_nav_label, :admin_associations, :assistant_available?, :searchable_resources, :audit_log_available?, :actor_labels, :assistant_for?, :assistant_page_context, :assistant_drawer_owner_digest
 
     rescue_from AccessDenied, with: :deny_access
     rescue_from ConfigurationError do
@@ -293,6 +293,16 @@ module RailsAiAdmin
           false
         end
       end
+    end
+
+    def tasks_available?
+      return @tasks_available unless @tasks_available.nil?
+      @tasks_available = Tasks::Coordinator.authorized?(@context)
+    end
+
+    def tasks_nav_label
+      count = Tasks::Coordinator.pending_approval_count(@context)
+      count.positive? ? "#{t('rails_ai_admin.layout.tasks')} (#{count})" : t("rails_ai_admin.layout.tasks")
     end
 
     # The menu link follows the same grant as the assistant pages.

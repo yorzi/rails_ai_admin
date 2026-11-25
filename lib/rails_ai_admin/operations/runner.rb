@@ -50,6 +50,7 @@ module RailsAiAdmin
           end
         end
         intent = OperationRun.create!(**attrs)
+        Tasks::Coordinator.sync_from_run!(intent, actor_ref: context.actor_ref) if mode != "self"
         Proposal.new(intent, result.values, result.changes)
       end
 
@@ -271,6 +272,7 @@ module RailsAiAdmin
           undo_run.update!(status: "succeeded", record_id: record.id.to_s, post_version: RecordVersion.of(record),
             audit_event_id: audit.id, approved_by_ref: context.actor_ref, approved_digest: undo_run.input_digest,
             confirmed_at: Time.current, completed_at: Time.current)
+          Tasks::Coordinator.record_undo!(original, undo_run: undo_run, actor_ref: context.actor_ref)
           projection(access, undo_run, record)
         end
       rescue Rejection => error
@@ -448,6 +450,7 @@ module RailsAiAdmin
             end
           end
           run.update!(**attributes)
+          Tasks::Coordinator.sync_from_run!(run, actor_ref: context.actor_ref) unless admission
           receipt = projection(access, run, record)
           admission&.complete!(run)
           transaction_body_finished = true
