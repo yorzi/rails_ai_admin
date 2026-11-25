@@ -42,7 +42,7 @@
     <% else %>
       <div class="raa-drawer-start">
         <p class="raa-drawer-intro"><%= t("rails_ai_admin.assistant.drawer.intro") %></p>
-        <%= form_with url: assistant_conversations_path, method: :post, class: "raa-chat-composer raa-drawer-composer", data: { turbo_frame: "raa_assistant_drawer" } do |form| %>
+        <%= form_with url: assistant_conversations_path, method: :post, class: "raa-chat-composer raa-drawer-composer", data: { turbo_frame: (@drawer ? "raa_assistant_drawer" : "_top") } do |form| %>
           <% if @drawer %><%= hidden_field_tag :drawer, "1", id: nil %><% end %>
           <%= hidden_field_tag :page_context, "", id: nil, data: { raa_drawer_target: "contextInput" } %>
           <%= form.label :content, t("rails_ai_admin.assistant.message"), class: "raa-visually-hidden" %>
@@ -61,7 +61,8 @@
           <ul class="raa-drawer-recent">
             <% @chats.each do |chat| %>
               <li><%= link_to t("rails_ai_admin.assistant.from", time: chat.updated_at.in_time_zone(@context.time_zone).strftime("%Y-%m-%d %H:%M")),
-                assistant_drawer_path(chat_ref: chat.ref), data: { turbo_frame: "raa_assistant_drawer" } %></li>
+                (@drawer ? assistant_drawer_path(chat_ref: chat.ref) : assistant_conversation_path(chat_ref: chat.ref)),
+                data: { turbo_frame: (@drawer ? "raa_assistant_drawer" : "_top") } %></li>
             <% end %>
           </ul>
         <% end %>

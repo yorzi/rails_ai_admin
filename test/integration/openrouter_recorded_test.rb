@@ -247,7 +247,7 @@ class OpenRouterRecordedTest < ActionDispatch::IntegrationTest
         fields = browser_fields(form)
         fields["target_ids"] = fields["target_ids"] - [ bob.id.to_s ]
         fields["values"] = { "points" => "6" }
-        post form.at_css("button[formaction]")["formaction"], params: fields
+        post form["action"], params: fields.merge("decision" => "revise")
         assert_response :see_other
         get response.location
         assert_select "tbody tr", count: 3

@@ -27,7 +27,7 @@ module RailsAiAdmin
     prepend_before_action :secure_headers
     before_action :authenticate_admin
     after_action :notice_discarded_list_settings
-    helper_method :resource_navigation, :admin_csp_nonce, :list_page_path, :encoded_return_state, :navigation_state, :navigation_params, :list_return_path, :list_return_label, :return_state_discarded?, :return_navigation_fields, :list_state_fields, :visible_resources, :allowed_action?, :record_label, :parent_return, :parent_return_params, :parent_return_fields, :collection_jobs_available?, :admin_associations, :assistant_available?, :searchable_resources, :audit_log_available?, :actor_labels, :assistant_for?, :assistant_page_context
+    helper_method :resource_navigation, :admin_csp_nonce, :list_page_path, :encoded_return_state, :navigation_state, :navigation_params, :list_return_path, :list_return_label, :return_state_discarded?, :return_navigation_fields, :list_state_fields, :visible_resources, :allowed_action?, :record_label, :parent_return, :parent_return_params, :parent_return_fields, :collection_jobs_available?, :admin_associations, :assistant_available?, :searchable_resources, :audit_log_available?, :actor_labels, :assistant_for?, :assistant_page_context, :assistant_drawer_owner_digest
 
     rescue_from AccessDenied, with: :deny_access
     rescue_from ConfigurationError do
@@ -262,6 +262,17 @@ module RailsAiAdmin
           Assistant::PageContext.issue(context: @context, resource: @resource, list_state: navigation_state)
         end
       end
+    end
+
+    # Opaque HMAC digest scoping drawer sessionStorage to the current actor,
+    # tenant and security_version so switching accounts purges pinned labels.
+    def assistant_drawer_owner_digest
+      return unless @context.is_a?(Context)
+      @assistant_drawer_owner_digest ||= OpenSSL::HMAC.hexdigest(
+        "SHA256",
+        InputSchema.secret_key,
+        JSON.generate([ @context.actor_ref, @context.tenant_ref, @context.security_version ])
+      )
     end
 
     def audit_log_available?

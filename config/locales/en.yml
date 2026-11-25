@@ -402,6 +402,7 @@ en:
           other: "%{count} records shown"
         scope: "tab: %{tab}"
         query: "search: %{query}"
+        sort: "sort: %{field} %{direction}"
         empty: No matching records are currently available to you.
         omitted:
           one: 1 record omitted under your current permissions.
@@ -409,10 +410,13 @@ en:
       metric_card:
         title_count: Record count
         title_field: "%{function} of %{field}"
+        live: Live
         records:
           one: Based on 1 matching record
           other: Based on %{count} matching records
+        filters: "filters: %{filters}"
         period: "per %{period}"
+        zone: "zone: %{zone}"
         breakdown: Breakdown
         count_col: Count
         truncated: Showing the top 25 groups.

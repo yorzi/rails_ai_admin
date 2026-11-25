@@ -87,7 +87,7 @@ module RailsAiAdmin
       Review = ::Data.define(:run, :resource, :definition, :access, :record)
       RecordCardData = ::Data.define(:resource, :record, :label, :fields)
       RecordTableData = ::Data.define(:resource, :columns, :rows, :omitted, :scope, :query, :sort, :direction)
-      MetricCardData = ::Data.define(:resource, :aggregate, :value_text, :groups, :scope, :query, :computed_at)
+      MetricCardData = ::Data.define(:resource, :aggregate, :value_text, :groups, :scope, :query, :filters_summary, :time_zone, :computed_at)
       ASSISTANT_ADAPTER = "raa_assistant"
 
       class << self
@@ -414,8 +414,10 @@ module RailsAiAdmin
             end
             { label: label, count: group.count, value_text: result.field ? format_metric_value(result.field, result.function, group.value, context) : nil }
           end
+          filters_summary = summarize_metric_filters(access, filters, any_filters, relation_filters)
+          zone = result.period && result.group_by&.scalar_type == :datetime ? context.time_zone : nil
           MetricCardData.new(resource: resource, aggregate: result, value_text: value_text, groups: groups,
-            scope: result.scope, query: props["query"], computed_at: props["computed_at"])
+            scope: result.scope, query: props["query"], filters_summary: filters_summary, time_zone: zone, computed_at: props["computed_at"])
         rescue AccessDenied, ConfigurationError, KeyError, JSON::JSONError
           nil
         end
@@ -616,6 +618,20 @@ module RailsAiAdmin
         def parse_optional_json(text)
           return nil if text.nil? || text.empty?
           JSON.parse(text, max_nesting: 8)
+        end
+
+        def summarize_metric_filters(access, filters, any_filters, relation_filters)
+          by_name = access.fields(:filter).index_by { |field| field.name.to_s }
+          parts = []
+          if filters.is_a?(Hash)
+            filters.each do |name, ops|
+              label = by_name[name.to_s]&.label || name.to_s
+              ops.each { |op, val| parts << "#{label} #{op} #{Array(val).join(',')}" } if ops.is_a?(Hash)
+            end
+          end
+          parts << "OR (#{any_filters.size})" if any_filters.is_a?(Array) && any_filters.any?
+          parts.concat(relation_filters.keys.map { |rel| "#{rel}.*" }) if relation_filters.is_a?(Hash) && relation_filters.any?
+          parts.any? ? parts.first(6).join(", ").truncate(160) : nil
         end
 
         def format_metric_value(field, function, value, context)

@@ -195,6 +195,31 @@ class InteractiveToolViewsTest < ActionDispatch::IntegrationTest
       assert_select ".raa-metric-card .raa-metric-value", text: "10"
       assert_select ".raa-metric-card .raa-surface-meta", text: /tab: active/
       assert_select ".raa-record-table .raa-surface-meta", text: /tab: active/
+      assert_select ".raa-record-table h3 a[href*='scope=active']"
+    end
+  end
+
+  def test_metric_card_and_record_table_show_provenance_and_doctor_names_read_surfaces
+    Customer.create!(account_id: 1, name: "Bob", points: 40, active: true)
+    @customer.update!(points: 10, active: true)
+    with_interactive do
+      chat = new_chat
+      ask_and_run(chat, "Filtered sum and sorted list",
+        [ "aggregate_records", { resource: "interactive_customers", function: "sum", field: "points", filters: { points: { gte: 20 } } } ],
+        [ "search_records", { resource: "interactive_customers", query: "Bob", sort: "name", direction: "desc" } ])
+
+      get "/backoffice/assistant/conversations/#{chat.ref}"
+      assert_response :success
+      assert_select ".raa-metric-card .raa-metric-value", text: "40"
+      assert_select ".raa-metric-card .raa-surface-meta", text: /Points/
+      assert_select ".raa-metric-card .raa-surface-meta", text: /Live/
+      assert_select ".raa-record-table .raa-surface-meta", text: /sort: name desc/
+      assert_select ".raa-record-table h3 a[href*='q=Bob']"
+
+      check = RailsAiAdmin::Doctor.new.surface_check
+      assert_includes check.message, "raa_record_card"
+      assert_includes check.message, "raa_record_table"
+      assert_includes check.message, "raa_metric_card"
     end
   end
 

@@ -1,6 +1,7 @@
 <% page_context = assistant_page_context %>
 <aside id="raa-assistant-drawer" class="raa-drawer" hidden aria-label="<%= t("rails_ai_admin.assistant.drawer.title") %>"
   data-raa-drawer-target="panel"
+  data-owner-digest="<%= assistant_drawer_owner_digest %>"
   data-page-context-token="<%= page_context&.token %>"
   data-page-context-label="<%= page_context&.label %>"
   data-following-label="<%= t("rails_ai_admin.assistant.drawer.following") %>"
@@ -23,7 +24,7 @@
     <span class="raa-context-mode" data-raa-drawer-target="mode"><%= t("rails_ai_admin.assistant.drawer.following") %></span>
   </div>
   <div class="raa-drawer-body">
-    <%= turbo_frame_tag "raa_assistant_drawer", data: { raa_drawer_target: "frame", src: assistant_drawer_path, action: "turbo:frame-load->raa-drawer#frameLoaded" } do %>
+    <%= turbo_frame_tag "raa_assistant_drawer", data: { raa_drawer_target: "frame", src: assistant_drawer_path, action: "turbo:frame-load->raa-drawer#frameLoaded turbo:frame-missing->raa-drawer#frameMissing" } do %>
       <p class="raa-drawer-loading"><%= t("rails_ai_admin.assistant.waiting") %></p>
     <% end %>
   </div>

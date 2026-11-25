@@ -44,6 +44,7 @@ module RailsAiAdmin
     end
 
     def create
+      return revise if params[:decision] == "revise"
       decision = params[:decision]
       raise AccessDenied, "INVALID_QUERY" unless Operations::BulkChange::DECISIONS.include?(decision)
       if decision == "dismiss"
@@ -144,7 +145,11 @@ module RailsAiAdmin
       values = submitted_values
       return false unless params[:values].nil? || values
       return true if values.nil?
-      values.all? { |name, value| @proposal.values.key?(name) && value.is_a?(String) && value == @proposal.values[name].to_s }
+      return false unless values.keys.all? { |name| @proposal.values.key?(name) } && values.values.all?(String)
+      schema = InputSchema.new(@fields, partial: true)
+      expected = schema.coerce(@proposal.values, time_zone: @context.time_zone)
+      actual = schema.coerce(@proposal.values.merge(values), time_zone: @context.time_zone)
+      expected.valid? && actual.valid? && InputSchema.digest(actual.values) == InputSchema.digest(expected.values)
     end
 
     # Shown again as the person left them when the page is rendered again.
@@ -167,7 +172,19 @@ module RailsAiAdmin
       return nil unless writable.size == allowed_names.size
       result = InputSchema.new(writable, partial: true).coerce(merged, time_zone: @context.time_zone)
       return nil unless result.valid?
-      merged
+      wire_proposal_values(result.values)
+    end
+
+    def wire_proposal_values(values)
+      values.to_h do |name, value|
+        wire = case value
+        when BigDecimal then value.to_s("F")
+        when Time, ActiveSupport::TimeWithZone then value.to_time.getutc.iso8601(6)
+        when Date then value.iso8601
+        else value
+        end
+        [ name.to_s, wire ]
+      end
     end
 
     def return_path

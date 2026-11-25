@@ -1,12 +1,14 @@
 <% table = admin_surface_record_table(props) %>
 <% if table %>
+  <% list_params = { scope: table.scope.presence, q: table.query.presence, sort: table.sort.presence, direction: (table.sort.present? ? table.direction.presence : nil) }.compact %>
   <div class="raa-surface-card raa-chat-records raa-record-table">
     <div class="raa-surface-card-header">
-      <h3><%= link_to table.resource.label, resources_path(resource: table.resource.key), data: { turbo_frame: "_top" } %></h3>
+      <h3><%= link_to table.resource.label, resources_path(resource: table.resource.key, **list_params), data: { turbo_frame: "_top" } %></h3>
       <span class="raa-surface-meta">
         <%= t("rails_ai_admin.surfaces.record_table.shown", count: table.rows.size) %>
         <% if table.scope.present? %> · <%= t("rails_ai_admin.surfaces.record_table.scope", tab: table.scope) %><% end %>
         <% if table.query.present? %> · <%= t("rails_ai_admin.surfaces.record_table.query", query: table.query) %><% end %>
+        <% if table.sort.present? %> · <%= t("rails_ai_admin.surfaces.record_table.sort", field: table.sort, direction: table.direction || "asc") %><% end %>
       </span>
     </div>
     <% if table.rows.any? %>

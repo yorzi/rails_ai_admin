@@ -27,6 +27,19 @@ class AssistantBulkChangesIntegrationTest < ActionDispatch::IntegrationTest
     assistant_changes :update, :bulk_update
   end
 
+  class NullableBulkCustomerAdmin < RailsAiAdmin::Resource
+    model "Customer"
+    key :nullable_changeable_customers
+    title :name
+    fields do
+      id :id
+      text :name, searchable: :contains
+      boolean :active, nullable: true, filterable: true
+      select :secret, choices: [ [ "Gold", "gold" ], [ "Silver", "silver" ] ], nullable: true
+    end
+    assistant_changes :update, :bulk_update
+  end
+
   class SingleCustomerAdmin < RailsAiAdmin::Resource
     model "Customer"
     key :contract_customers
@@ -44,6 +57,17 @@ class AssistantBulkChangesIntegrationTest < ActionDispatch::IntegrationTest
     class_attribute :locked_names, default: []
     class_attribute :join_duplicates, default: false
 
+    def assistant?(context:, resource:)
+      !denied && exposed && %i[contract_customers changeable_customers nullable_changeable_customers].include?(resource.key)
+    end
+
+    def fields(context:, resource:, action:, record: nil)
+      if resource.key == :nullable_changeable_customers && %i[read write].include?(action)
+        return action == :read ? %i[id name active secret] : (context.actor.id == 1 ? %i[name active secret] : [])
+      end
+      super
+    end
+
     def select_records?(context:, resource:) = selectable
     def allowed?(context:, action:, resource:, record: nil)
       return false if action.to_sym == :update && record && locked_names.include?(record.name)
@@ -56,7 +80,11 @@ class AssistantBulkChangesIntegrationTest < ActionDispatch::IntegrationTest
     end
   end
 
-  RESOURCES = %w[AssistantBulkChangesIntegrationTest::BulkCustomerAdmin AssistantBulkChangesIntegrationTest::SingleCustomerAdmin].freeze
+  RESOURCES = %w[
+    AssistantBulkChangesIntegrationTest::BulkCustomerAdmin
+    AssistantBulkChangesIntegrationTest::NullableBulkCustomerAdmin
+    AssistantBulkChangesIntegrationTest::SingleCustomerAdmin
+  ].freeze
 
   def setup
     reset_database
@@ -378,11 +406,12 @@ class AssistantBulkChangesIntegrationTest < ActionDispatch::IntegrationTest
       confirm_form = css_select("form[action$='/bulk_change']").first
       old_fields = browser_fields(confirm_form)
       review_form = css_select("form#raa-bulk-review").first
-      revise_action = review_form.at_css("button[formaction]")["formaction"]
+      revise_btn = review_form.at_css("button[name='decision'][value='revise']")
+      assert revise_btn
       change_token = review_form.css("input[name='change']").first["value"]
 
       # Untick Cara and adjust points to 7: creates a fresh preview, writes nothing.
-      post revise_action, params: { change: change_token, target_ids: [ @bob.id.to_s ], values: { points: "7" } }
+      post review_form["action"], params: { decision: "revise", change: change_token, target_ids: [ @bob.id.to_s ], values: { points: "7" } }
       assert_response :see_other
       assert_equal [ 4, 9 ], [ @bob.reload.points, @cara.reload.points ], "revising never writes records"
       refute_equal original_url, response.location
@@ -452,7 +481,7 @@ class AssistantBulkChangesIntegrationTest < ActionDispatch::IntegrationTest
       original_url = review_link(chat)
       get original_url
       review_form = css_select("form#raa-bulk-review").first
-      revise_action = review_form.at_css("button[formaction]")["formaction"]
+      revise_action = "/backoffice/selections/#{Rack::Utils.parse_query(URI(original_url).query).then { |_| original_url[%r{selections/([0-9a-f-]{36})/bulk_change}, 1] }}/bulk_change/revise"
       token = review_form.css("input[name='change']").first["value"]
 
       # Empty subset rejected without closing the original preview.
@@ -475,6 +504,76 @@ class AssistantBulkChangesIntegrationTest < ActionDispatch::IntegrationTest
       get original_url
       assert_response :success
       assert_equal [ 4, 50 ], [ @bob.reload.points, other.reload.points ]
+    end
+  end
+
+  def test_update_preview_succeeds_with_rails_per_form_csrf_tokens_enabled
+    prev_app = RailsAiAdmin::ApplicationController.allow_forgery_protection
+    prev_per_form = RailsAiAdmin::ApplicationController.per_form_csrf_tokens
+
+    open_session do |sess|
+      sess.post "/test/sign_in/1"
+      RailsAiAdmin::ApplicationController.allow_forgery_protection = true
+      RailsAiAdmin::ApplicationController.per_form_csrf_tokens = true
+
+      with_bulk do
+        chat = RailsAiAdmin::Assistant.create_chat!(context)
+        propose(chat, { resource: "changeable_customers", values: { points: 1 }, ids: [ @bob.id.to_s, @cara.id.to_s ] })
+        sess.get "/backoffice/assistant/conversations/#{chat.ref}"
+        link = sess.css_select(".raa-chat-bulk a").first["href"]
+        sess.get link
+        sess.assert_response :success
+
+        review_form = sess.css_select("form#raa-bulk-review").first
+        revise_btn = review_form.at_css("button[formaction]") || review_form.at_css("button[name='decision'][value='revise']")
+        assert revise_btn, "expected an Update preview submit button"
+        target_action = revise_btn["formaction"] || review_form["action"]
+        fields = browser_fields(review_form)
+        fields["target_ids"] = [ "", @bob.id.to_s ]
+        fields["values"] = { "points" => "7" }
+        fields[revise_btn["name"]] = revise_btn["value"] if revise_btn["name"].present?
+
+        sess.post target_action, params: fields
+        sess.assert_response :see_other
+      end
+    end
+  ensure
+    RailsAiAdmin::ApplicationController.allow_forgery_protection = prev_app
+    RailsAiAdmin::ApplicationController.per_form_csrf_tokens = prev_per_form
+  end
+
+  def test_clearing_nullable_select_or_boolean_field_confirms_and_revises_cleanly
+    @bob.update!(active: true, secret: "gold")
+    @cara.update!(active: false, secret: "silver")
+    with_bulk do
+      chat = start_chat
+      propose(chat, { resource: "nullable_changeable_customers", values: { active: nil, secret: nil }, ids: [ @bob.id.to_s, @cara.id.to_s ] })
+      get review_link(chat)
+      assert_response :success
+
+      # Confirming without opening or touching the adjust panel must succeed (not loop with 422).
+      decide("confirm")
+      assert_response :success
+      assert_nil @bob.reload.active
+      assert_nil @bob.secret
+      assert_nil @cara.reload.active
+      assert_nil @cara.secret
+
+      # Revising a non-nil proposal to blank ("") on a nullable field clears it cleanly.
+      @bob.update!(active: true, secret: "gold")
+      chat2 = start_chat
+      propose(chat2, { resource: "nullable_changeable_customers", values: { secret: "silver" }, ids: [ @bob.id.to_s ] })
+      get review_link(chat2)
+      form = css_select("form#raa-bulk-review").first
+      fields = browser_fields(form)
+      fields["values"] = { "secret" => "" }
+      post form["action"], params: fields.merge("decision" => "revise")
+      assert_response :see_other
+      get response.location
+      assert_response :success
+      decide("confirm")
+      assert_response :success
+      assert_nil @bob.reload.secret
     end
   end
 end

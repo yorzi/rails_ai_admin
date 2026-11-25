@@ -58,7 +58,8 @@ module RailsAiAdmin
       Integrations::ToolViews.check_registration!
       operations = @registry.resources.sum { |resource| resource.operation_declarations.keys.count { |key| resource.surface_operation?(key) } }
       assistant = @configuration.respond_to?(:assistant) && @configuration.assistant
-      Check.new("surfaces", :review, "#{Integrations::ToolViews::KEY} is registered for #{operations} member operations through admin-owned endpoints. " \
+      read_views = Integrations::ToolViews::READ_COMPONENTS.keys.join(", ")
+      Check.new("surfaces", :review, "#{Integrations::ToolViews::KEY} is registered for #{operations} member operations, plus read-only surfaces (#{read_views}), through admin-owned endpoints. " \
         "#{assistant ? 'Assistant proposals present it and confirmed outcomes continue their chat once.' : 'Assistant presentation is off.'}")
     rescue ConfigurationError => error
       Check.new("surfaces", :error, error.message)

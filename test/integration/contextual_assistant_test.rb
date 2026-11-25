@@ -218,6 +218,38 @@ class ContextualAssistantTest < ActionDispatch::IntegrationTest
       post "/backoffice/assistant/conversations", params: { page_context: issued.token, content: "Compare these" }
       assert_response :unprocessable_content
       assert_select "textarea[name='content']", text: "Compare these"
+      full_form = css_select("form[action='/backoffice/assistant/conversations']").first
+      assert_equal "_top", full_form["data-turbo-frame"], "non-drawer start recovery must navigate _top instead of breaking a missing drawer frame"
+      css_select(".raa-drawer-recent a").each do |link|
+        assert_equal "_top", link["data-turbo-frame"]
+        assert_match %r{\A/backoffice/assistant/conversations/}, link["href"]
+      end
+    end
+  end
+
+  def test_drawer_carries_opaque_owner_digest_that_changes_across_actors_and_epochs
+    with_contextual_assistant do
+      get "/backoffice/contextual_customers"
+      assert_response :success
+      digest_actor1 = css_select("#raa-assistant-drawer").first["data-owner-digest"]
+      assert_match(/\A[0-9a-f]{64}\z/, digest_actor1.to_s)
+      refute_includes digest_actor1, "TestActor"
+
+      get "/backoffice/contextual_customers/#{@customer.id}"
+      assert_equal digest_actor1, css_select("#raa-assistant-drawer").first["data-owner-digest"]
+
+      post "/test/sign_in/2"
+      get "/backoffice/contextual_customers"
+      digest_actor2 = css_select("#raa-assistant-drawer").first["data-owner-digest"]
+      assert_match(/\A[0-9a-f]{64}\z/, digest_actor2.to_s)
+      refute_equal digest_actor1, digest_actor2
+
+      post "/test/sign_in/1"
+      OperationJobContext.epoch = "2"
+      get "/backoffice/contextual_customers"
+      digest_epoch2 = css_select("#raa-assistant-drawer").first["data-owner-digest"]
+      assert_match(/\A[0-9a-f]{64}\z/, digest_epoch2.to_s)
+      refute_equal digest_actor1, digest_epoch2
     end
   end
 

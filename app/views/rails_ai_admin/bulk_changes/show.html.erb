@@ -46,20 +46,22 @@
       <p class="raa-field-help"><%= t("rails_ai_admin.bulk_changes.revise.note") %></p>
       <% @fields.each do |field| %>
         <% current_value = (@submitted_values || @proposal.values)[field.name.to_s] %>
+        <% allow_blank = field.options[:nullable] && !field.options[:required] %>
         <div class="raa-field">
           <%= label_tag "raa-revise-#{field.name}", field.label %>
           <% if field.scalar_type == :boolean %>
-            <%= select_tag "values[#{field.name}]", options_for_select([ [ t("rails_ai_admin.fields.yes"), "true" ], [ t("rails_ai_admin.fields.no"), "false" ] ], current_value.to_s), id: "raa-revise-#{field.name}" %>
+            <%= select_tag "values[#{field.name}]", options_for_select([ [ t("rails_ai_admin.fields.yes"), "true" ], [ t("rails_ai_admin.fields.no"), "false" ] ], current_value.to_s),
+              id: "raa-revise-#{field.name}", include_blank: (allow_blank ? t("rails_ai_admin.fields.not_set") : false) %>
           <% elsif %i[enum select].include?(field.scalar_type) %>
-            <%= select_tag "values[#{field.name}]", options_for_select(field.choice_options, current_value.to_s), id: "raa-revise-#{field.name}" %>
+            <%= select_tag "values[#{field.name}]", options_for_select(field.choice_options, current_value.to_s),
+              id: "raa-revise-#{field.name}", include_blank: (allow_blank ? t("rails_ai_admin.fields.not_set") : false) %>
           <% else %>
             <%= text_field_tag "values[#{field.name}]", current_value.to_s, id: "raa-revise-#{field.name}", maxlength: field.options[:max_length] %>
           <% end %>
         </div>
       <% end %>
       <div class="raa-actions">
-        <%= form.button t("rails_ai_admin.bulk_changes.revise.submit"), name: nil, type: "submit", class: "raa-secondary",
-          formaction: revise_bulk_change_path(selection_ref: @selection.selection_ref) %>
+        <%= form.button t("rails_ai_admin.bulk_changes.revise.submit"), name: "decision", value: "revise", type: "submit", class: "raa-secondary" %>
       </div>
     </details>
   <% end %>

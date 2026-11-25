@@ -447,7 +447,11 @@ class DrawerController extends Controller {
       if (event.key === "Escape" && !this.panelTarget.hidden) this.close();
     };
     document.addEventListener("keydown", this.onKeydown);
-    const saved = this.readState();
+    this.ownerDigest = this.panelTarget.dataset.ownerDigest || "";
+    const rawSaved = this.readState();
+    const sameOwner = this.ownerDigest && rawSaved.owner === this.ownerDigest;
+    if (!sameOwner && Object.keys(rawSaved).length > 0) this.clearStorage();
+    const saved = sameOwner ? rawSaved : {};
     this.pinned = saved.pinned === true;
     this.chatRef = typeof saved.chatRef === "string" && /^[0-9a-f-]{36}$/.test(saved.chatRef) ? saved.chatRef : null;
     const pageToken = this.panelTarget.dataset.pageContextToken || "";
@@ -552,6 +556,22 @@ class DrawerController extends Controller {
     this.frameTarget.setAttribute("src", url.pathname + url.search);
   }
 
+  frameMissing(event) {
+    // A deleted/revoked pinned context or inaccessible chat returns 404/403
+    // without the drawer frame; drop the stale state and reload cleanly.
+    const status = event.detail?.response?.status;
+    if (![403, 404].includes(status)) return;
+    event.preventDefault();
+    this.pinned = false;
+    this.contextToken = "";
+    this.contextLabel = "";
+    this.chatRef = null;
+    this.loaded = false;
+    this.renderContext();
+    this.persistState(!this.panelTarget.hidden);
+    this.loadFrame();
+  }
+
   renderContext() {
     const hasContext = Boolean(this.contextToken && this.contextLabel);
     if (this.hasContextBarTarget) this.contextBarTarget.hidden = !hasContext;
@@ -580,13 +600,17 @@ class DrawerController extends Controller {
 
   persistState(open) {
     try {
-      const state = { open: Boolean(open), pinned: Boolean(this.pinned), chatRef: this.chatRef };
+      const state = { owner: this.ownerDigest, open: Boolean(open), pinned: Boolean(this.pinned), chatRef: this.chatRef };
       if (this.pinned && this.contextToken && this.contextLabel) {
         state.token = this.contextToken;
         state.label = this.contextLabel;
       }
       sessionStorage.setItem(DrawerController.STORAGE_KEY, JSON.stringify(state));
     } catch { /* ignore storage restrictions */ }
+  }
+
+  clearStorage() {
+    try { sessionStorage.removeItem(DrawerController.STORAGE_KEY); } catch { /* ignore */ }
   }
 }
 application.register("raa-drawer", DrawerController);
