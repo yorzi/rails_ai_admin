@@ -8,7 +8,8 @@ module RailsAiAdmin
       def run(job_ref, limit: RailsAiAdmin.configuration.async_bulk_chunk_size, enqueue_continuation: RailsAiAdmin.configuration.collection_auto_dispatch)
         raise ArgumentError, "limit must be between 1 and 100" unless limit.is_a?(Integer) && (1..100).cover?(limit)
         raise ConfigurationError, "Collection execution cannot run inside an existing transaction" if OperationRun.connection.transaction_open?
-        limit.times do
+        # Integer#times returns the limit only when no claim broke the loop.
+        budget_used = limit.times do
           claim = claim_next(job_ref)
           break unless claim
           next if claim.is_a?(Result)
@@ -24,7 +25,12 @@ module RailsAiAdmin
         end
         parent = OperationRun.where.not(selection_id: nil).find_by(id: job_ref, parent_run_id: nil)
         return Result.new(code: "NOT_FOUND") unless parent
-        if enqueue_continuation && Contract::ACTIVE.include?(parent.status) && ready_items_remaining?(parent.id)
+        # Continue only after a chunk that used its whole budget. A worker that
+        # stopped early found nothing claimable (another worker's live lease,
+        # backoff or a stopped run); re-enqueueing it would spin until that
+        # lease ends. The lease holder continues, and scan_pending! recovers
+        # lost work.
+        if enqueue_continuation && budget_used == limit && Contract::ACTIVE.include?(parent.status) && ready_items_remaining?(parent.id)
           schedule_continuation(parent.id)
         end
         Contract.result(parent)
@@ -38,7 +44,9 @@ module RailsAiAdmin
         ids = queued.or(stale).group(:parent_run_id).order(BatchItem.arel_table[:created_at].minimum.asc, :parent_run_id).limit(limit).pluck(:parent_run_id)
         ids.count do |ref|
           if inline
-            run(ref)
+            # The inline drain (rake task) keeps its pre-0.7 budget of 100
+            # items per run and visit; it never enqueues jobs.
+            run(ref, limit: 100, enqueue_continuation: false)
             true
           else
             !!ExecutionJob.perform_later(ref)

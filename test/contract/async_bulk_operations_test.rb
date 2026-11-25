@@ -95,6 +95,35 @@ class AsyncBulkOperationsTest < Minitest::Test
     end
   end
 
+  # A worker that finds another worker's live lease, or nothing ready, must
+  # not re-enqueue itself: the lease holder continues and scan_pending! is the
+  # backstop. Otherwise each scan starts a job chain that spins until the
+  # lease ends.
+  def test_continuation_only_follows_a_chunk_that_used_its_whole_budget
+    with_collection do
+      ids = seed_customers(30)
+      snap = RailsAiAdmin::Selections::Builder.new.capture(context: context, resource: CollectionCustomerAdmin, target_ids: ids)
+      accepted = admit(proposal(selection_ref: snap.selection_ref))
+      assert accepted.accepted?, accepted.code
+      dispatcher = RailsAiAdmin::Collections::Dispatcher.new
+      enqueued = []
+      RailsAiAdmin::Collections::ExecutionJob.stub(:perform_later, ->(ref) { enqueued << ref; true }) do
+        item = RailsAiAdmin::BatchItem.where(parent_run_id: accepted.job_ref).order(:position).first
+        item.update!(status: "running", lease_owner: SecureRandom.uuid, lease_expires_at: 1.minute.from_now, attempts: 1, generation: 1)
+        dispatcher.run(accepted.job_ref, limit: 10, enqueue_continuation: true)
+        assert_empty enqueued, "a worker blocked by a live lease must not re-enqueue itself"
+
+        item.update!(status: "queued", lease_owner: nil, lease_expires_at: nil, attempts: 0)
+        dispatcher.run(accepted.job_ref, limit: 10, enqueue_continuation: true)
+        assert_equal [ accepted.job_ref ], enqueued
+
+        dispatcher.run(accepted.job_ref, limit: 25, enqueue_continuation: true)
+        assert_equal "succeeded", RailsAiAdmin::OperationRun.find(accepted.job_ref).status
+        assert_equal [ accepted.job_ref ], enqueued, "a chunk that drained the job does not continue"
+      end
+    end
+  end
+
   def test_native_update_async_bulk_run_supports_over_hundred_records
     with_collection do
       ids = seed_customers(120)
