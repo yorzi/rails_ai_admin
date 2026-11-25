@@ -641,8 +641,12 @@ question), it searched the customer first and then filtered her invoices.
 that is searchable but not filterable still needs those two steps. Operator
 notes that say where such records live help.
 
-Fallback models and the evaluation task have tests against a scripted provider
-but no recorded or live provider run yet. Recorded replays render the read-only
+A recording also covers fallback models: with the primary model's requests
+answered by a simulated 503, `anthropic/claude-haiku-5.5` configured as the
+fallback answered every request through OpenRouter. RubyLLM tries the primary
+model again for each request of a reply and records each failed attempt as a
+usage row with no tokens. A real provider outage has not been observed. The
+evaluation task has tests against a scripted provider only. Recorded replays render the read-only
 record card, record table and metric card. Undo of a confirmed change
 and bulk changes over more than 100 records are not available yet. Streaming is saved and polled, not pushed over WebSockets.
 

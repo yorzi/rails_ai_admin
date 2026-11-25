@@ -56,8 +56,9 @@ module RecordedProvider
   VCR.configure do |config|
     config.cassette_library_dir = CASSETTES
     config.hook_into :webmock
-    # Every other host stays under WebMock's own stubs and net-connect rule.
-    config.ignore_request { |request| URI(request.uri).host != HOST }
+    # Every other host stays under WebMock's own stubs and net-connect rule,
+    # and so does a simulated outage of one model (RecordedProvider.outage).
+    config.ignore_request { |request| URI(request.uri).host != HOST || RecordedProvider.outage?(request) }
     config.allow_http_connections_when_no_cassette = false
     config.register_request_matcher(:llm_shape) { |recorded, replayed| shape(recorded) == shape(replayed) }
     config.default_cassette_options = { record: RECORD ? :all : :none, match_requests_on: %i[method uri llm_shape],
@@ -68,6 +69,16 @@ module RecordedProvider
       interaction.request.headers.select! { |name, _| name.casecmp?("Content-Type") }
       interaction.response.headers.select! { |name, _| name.casecmp?("Content-Type") }
     end
+  end
+
+  # A model the next requests treat as down: VCR leaves its requests to the
+  # WebMock stub the test registers, so only the other models are recorded.
+  mattr_accessor :outage_model
+
+  def self.outage?(request)
+    outage_model && JSON.parse(request.body.to_s)["model"] == outage_model
+  rescue JSON::ParserError
+    false
   end
 
   # Provider settings for recorded runs. Replay sends a placeholder key that

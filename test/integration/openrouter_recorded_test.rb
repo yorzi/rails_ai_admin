@@ -265,6 +265,41 @@ class OpenRouterRecordedTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # The primary model's outage is simulated here (a 503 from a WebMock stub);
+  # the fallback's request and reply are real and recorded.
+  def test_a_fallback_model_on_another_vendor_answers_when_the_model_is_down
+    fallback = "anthropic/claude-haiku-5.5"
+    RubyLLM::ActiveRecord::Model.find_or_create_by!(model_id: fallback, provider: "openrouter") { |row| row.name = fallback }
+    with_recorded_assistant do
+      RailsAiAdmin.configuration.instance_variable_set(:@assistant_fallback_models, [ fallback ])
+      assert_equal [ fallback ], RailsAiAdmin::Assistant::Runtime.fallback_models.map(&:id)
+      RecordedProvider.outage_model = RecordedProvider::PRIMARY
+      outage = stub_request(:post, "https://openrouter.ai/api/v1/chat/completions")
+        .with { |request| RecordedProvider.outage?(request) }
+        .to_return(status: 503, body: { error: { message: "overloaded", code: 503 } }.to_json, headers: { "Content-Type" => "application/json" })
+      recorded("fallback") do
+        chat = start_chat
+        ask(chat, "How many customers are active?")
+        assert_requested outage, at_least_times: 1
+        assert_match(/\b8\b/, answer(chat))
+        # RubyLLM records every attempt: each request tries the model first,
+        # then the fallback answers. Only the fallback produced output.
+        usages = RubyLLM::ActiveRecord::Usage.where(owner: chat).to_a
+        answered, failed = usages.partition { |usage| usage.output_tokens.to_i.positive? }
+        assert answered.any?
+        assert_equal [ fallback ], answered.map(&:model).uniq
+        assert_equal [ RecordedProvider::PRIMARY ], failed.map(&:model).uniq
+        assert failed.all? { |usage| usage.total_cost.to_d.zero? || usage.total_cost.nil? }, "a failed attempt costs nothing"
+        assert_equal answered.size, failed.size, "one failed attempt before each answered request"
+        note("fallback", fallback, chat, "answer" => answer(chat).truncate(300))
+      end
+    end
+  ensure
+    RecordedProvider.outage_model = nil
+    RubyLLM::ActiveRecord::Model.where(model_id: fallback, provider: "openrouter").delete_all
+    RubyLLM.models.load_from_store
+  end
+
   # Claude through OpenRouter, so the cached instructions and tools show up
   # as cache reads once the second request of the reply repeats them.
   def test_operator_notes_define_a_term_and_the_repeated_prompt_is_read_from_the_cache

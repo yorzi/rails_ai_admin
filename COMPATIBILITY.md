@@ -14,6 +14,7 @@ recordings cover the 0.6 features. Existing cassettes were not recorded again.
 | Bulk revision | GPT-6 Luna proposed one bulk change of 4 records; the person unticked one and edited the value; the conversation received "3 of 3 records were updated." |
 | Evaluation set | 30 questions; the three new ones pass on GPT-6 Luna (`any` used for the OR count; the named-customer invoices found with a customer search and an invoice filter). 29 of 30 pass; `count-inactive` stays the recorded miss from 2026-11-22 |
 | Defect found | The recorded totals replay showed the metric card as "This view cannot be rendered": the card passed its tab name to I18n as `scope:`. Fixed in `d55b5b7` |
+| Fallback models | With the primary model's requests answered by a simulated 503 (WebMock), `anthropic/claude-haiku-5.5` as `assistant_fallback_models` answered all four requests of the reply through OpenRouter; each request first tried the primary model, and RubyLLM recorded those attempts as usage rows without tokens |
 | Cost | About US$0.02 for all new recordings |
 | Suites | SQLite and PostgreSQL 18: 759 tests / 7,089 assertions each, zero failures, run without `OPENROUTER_API_KEY` |
 

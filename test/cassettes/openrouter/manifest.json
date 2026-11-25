@@ -589,6 +589,23 @@
         ],
         "answer": "Two invoices belong to customers with at least 20 points (searched across all records, no scope applied):\n\n- INV-3 (customer: Carol Clark)\n- INV-4 (customer: Heidi Klum)"
       }
+    },
+    "fallback": {
+      "anthropic/claude-haiku-5.5": {
+        "recorded_on": "2026-11-25",
+        "requests": 8,
+        "tokens": 19837,
+        "output_tokens": 235,
+        "cache_read_tokens": 18655,
+        "cache_write_tokens": 906,
+        "cost": "0.0004183",
+        "tools": [
+          "list_resources",
+          "describe_resource",
+          "count_records"
+        ],
+        "answer": "There are **8** active customers. This count covers all customers I can see, with the Active field set to true and no scope applied."
+      }
     }
   }
 }
