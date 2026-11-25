@@ -1,7 +1,7 @@
 ---
 layout: default
 title: What's New in 0.6
-nav_order: 6
+nav_order: 8
 description: The assistant opens beside any admin page and knows which record, list or selection you are looking at, filters through related records, answers with live record and total cards, and lets you narrow or edit a bulk change before you confirm it.
 ---
 

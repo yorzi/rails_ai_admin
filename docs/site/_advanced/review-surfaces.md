@@ -131,10 +131,38 @@ no longer be confirmed. A review shown inside an admin chat returns to that
 chat after either action. The admin bundle registers rails_tool_views' own
 Stimulus controller, so the Surface's saving and failure status texts appear.
 
+## Edit Inputs Inside the Review
+
+Declare `surface: :editable` instead of `surface: true` to let the reviewer
+change the operation's inputs inside the Surface:
+
+```ruby
+operation :triage, handler: "TriageTicketOperation", surface: :editable, assistant: true
+```
+
+The native review and an assistant proposal in a chat then present
+`raa_editable_form`. **Update preview** runs the operation's pure preflight on
+the edited values, expires the shown intent and continues with a new one bound
+to the new input; it writes no records. Confirm always applies the intent the
+form currently shows. MCP sessions, which have no chat to show the form in,
+keep the ordinary review.
+
+## See the Result
+
+After a review is confirmed, the Surface shows the committed receipt: the
+changed fields you may read, the verification checks of an operation with a
+`verify` hook, queued follow-up Work, and a link to its task, where an
+undoable operation can be undone. See
+[Approvals, Verification and Undo]({% link _core_features/approvals-and-undo.md %}).
+
+The registered components are `raa_operation_review`, `raa_editable_form`,
+`raa_execution_receipt`, `raa_task_progress` and the read-only cards
+`raa_record_card`, `raa_record_table` and `raa_metric_card`. The doctor checks
+that each key is registered by the admin.
+
 ## Not Available Yet
 
-Inputs cannot be edited inside the Surface, and Surface templates are not in the
-override catalog. Assistant chats and their follow-up after a confirmation or a
+Surface templates are not in the override catalog. Assistant chats and their follow-up after a confirmation or a
 dismissal are described in [Admin Chat]({% link _advanced/admin-assistant.md %}). A review ends by
 Confirm or Dismiss; rails_tool_views' own close and retention of admin Surfaces
 are not wired up.

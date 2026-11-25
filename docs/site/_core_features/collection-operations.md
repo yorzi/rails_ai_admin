@@ -16,6 +16,7 @@ After reading this guide, you will know:
 * How fixed targets and typed input bind one parent approval.
 * How workers recheck authority and commit each target independently.
 * How to recover queued work and cancel remaining items without undoing success.
+* How to run more than 100 records and retry the records that failed.
 
 ## Register a Per-Record Handler
 
@@ -98,7 +99,10 @@ input grants must include `:amount`. A policy predicate used at class level must
 handle that target; it cannot blindly read instance attributes. Each selected
 record also needs current index/show/scope/read access for the Selection preview.
 
-The parent and every item belong to the original actor/tenant/security version.
+The parent and every item belong to the actor who admitted the run (the
+approver when the operation needs
+[a second person]({% link _core_features/approvals-and-undo.md %})), with that
+actor's tenant and security version.
 `context_adapter.resolve_job(actor_ref:, tenant_ref:, security_version:)` must
 freshly rebuild that authority from trusted refs, current actor and verified tenant
 membership. Returning a cached actor or trusting the stored security version is
@@ -280,6 +284,45 @@ the handler is rejected. Collection admission, cancellation, claim and worker
 execution must start outside an already open host transaction; they own the commit
 boundary. Keep external effects in declared post-commit Work.
 
+## Run More Than 100 Records
+
+A collection operation is not limited to the 100 records of a synchronous bulk
+action. When **Select all matching** is used to start a collection operation,
+the selection can hold up to `config.async_bulk_limit` records (default 1,000,
+at most 10,000):
+
+```ruby
+RailsAiAdmin.configure do |config|
+  config.async_bulk_limit = 2_000
+  config.async_bulk_chunk_size = 50   # items per worker job, 10..100
+end
+```
+
+Above 100 records the review previews the first 25 and checks every other
+record's scope, grant, version and input without running the handler's
+preview; the page says how many it shows. Workers then process
+`async_bulk_chunk_size` items per job. A job that used its whole chunk enqueues
+the next one after commit; a job that found another worker's live lease stops,
+and the recurring scan recovers anything left. Bulk delete stays synchronous
+and limited to 100.
+
+## Retry the Records That Failed
+
+A `failed` or `partially_succeeded` job offers **Review failed records for
+retry** to a person with the selection and operation grants. It captures a new
+selection of the failed records at their current versions (records that are
+gone or no longer accessible are left out, and the page says how many), opens
+the ordinary review with the original input, and links the new run to the old
+one through `retry_of_run_id`. Nothing runs until the retry is confirmed.
+
+From Ruby:
+
+```ruby
+retry_review = runner.retry_failed(context: context, job_ref: job_ref)
+retry_review.proposal       # a Collections::Runner::Proposal for the new selection
+retry_review.omitted_count  # failed records that could not be selected again
+```
+
 ## Cancel Remaining Items and Interpret Partial Results
 
 With the independent cancel grant, trusted host code may call:
@@ -305,14 +348,15 @@ Work can remain pending or need reconciliation after the business item succeeds;
 database durability and lease fencing do not prove downstream exactly-once effects.
 
 This is a bounded fixed-manifest implementation, not completion of the full batch
-roadmap. All-filtered/10,000-target manifests, global operations, custom CRUD
-replacement, a full job center, retention and general reconciliation remain
-planned. AI/Surface dispatch and real-provider validation remain separate work.
+roadmap. Global operations, custom CRUD replacement, retention and general
+reconciliation remain planned; the [Tasks]({% link _core_features/tasks.md %})
+page lists running and finished jobs. AI/Surface dispatch and real-provider validation remain separate work.
 All full release Gates remain open.
 
 ## Next Steps
 
 * [Fixed Selections]({% link _core_features/selections.md %}) explains exact target identity and capture expiry.
+* [Approvals, Verification and Undo]({% link _core_features/approvals-and-undo.md %}) requires another person to admit a run.
 * [Operations]({% link _core_features/operations.md %}) explains the shared per-record handler and transaction contract.
 * [Durable Outbox]({% link _advanced/durable-outbox.md %}) separates business success from external delivery.
 * [Development Status]({% link _reference/development-status.md %}) records the remaining product scope.

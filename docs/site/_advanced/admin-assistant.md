@@ -359,13 +359,16 @@ assistant_changes :update, :bulk_update
 
 The person also needs your policy's `select_records?` grant, as for the list's
 own bulk actions. `describe_resource` then lists `bulk_update` with the writable
-fields and `max_records: 100`. When the model calls `propose_bulk_change` with
-the values and either record ids or the same query, filters and scope as
-`search_records`:
+fields, `max_ids: 100` and `max_records` (`config.async_bulk_limit`, 1,000 by
+default). When the model calls `propose_bulk_change` with the values and either
+up to 100 record ids or the same query, filters, `any`, `relation_filters` and
+scope as `search_records`:
 
-1. The admin captures a fixed selection of the matching records (more than 100
-   is refused with `TOO_MANY`), checks each one with the native update's pure
-   preview (scope, update grant, version, every value) and writes nothing else.
+1. The admin captures a fixed selection of the matching records (more than
+   `max_records` is refused with `TOO_MANY`), checks each one with the native
+   update's pure preview (scope, update grant, version, every value) and writes
+   nothing else. Above 100 records only the first 25 are previewed; the rest
+   get the grant, version and value checks.
 2. The conversation shows one card, "A change to 4 records in Customers", that
    opens the review page. MCP clients receive a `review_url` instead.
 3. The review page writes nothing. It lists every record with each field's
@@ -386,6 +389,12 @@ the values and either record ids or the same query, filters and scope as
    `assistant`. The result and the conversation include skipped or failed
    records. If execution is interrupted, completed updates stay committed.
    Start a new review for the remaining records.
+7. Above 100 records, confirming queues one background
+   [collection job]({% link _core_features/collection-operations.md %}#run-more-than-100-records)
+   instead and opens its page. Workers update each record as above. With
+   `config.surfaces` on, the conversation shows the job's progress under the
+   review card. If the job cannot be queued, the review stays open so you can
+   try again or dismiss it.
 
 The proposed values travel to the review page in a token encrypted with your
 application's `secret_key_base` that expires with the selection

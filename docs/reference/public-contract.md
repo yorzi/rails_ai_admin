@@ -32,6 +32,50 @@ Custom inputs, receipts and delivery have independent default-deny methods:
 Background delivery additionally needs `context_adapter.resolve_job(actor_ref:,
 tenant_ref:, security_version:)`, which reconstructs current authority rather than
 trusting stored refs/epoch as permission.
+Approval, undo and the Tasks page add three more default-deny methods (0.7,
+ADR 0026): `approve_operation?(context:, resource:, operation:, record: nil,
+proposed_by_actor_ref: nil)`, `undo_operation?(context:, resource:, operation:,
+record: nil)` and `view_tasks?(context:)`. Pundit maps them to
+`approve_operation?(operation, proposed_by_actor_ref)` and
+`undo_operation?(operation)` on the resource policy, and `view_tasks?` on any
+resource policy. `FullAccessAdapter` grants undo and tasks, never approval.
+
+## Approvals, verification and undo (0.7)
+
+`Operation.approval_mode` is `:self` (default), `:separate_actor` or
+`:any_reviewer`; `operation ..., approval:` overrides it per resource. Native
+create/update/destroy are always `:self`. The mode is part of the operation
+fingerprint. A `:separate_actor` proposer's confirmation returns
+`SELF_APPROVAL_FORBIDDEN`. Confirmation by another actor requires
+`approve_operation?` plus the operation and input grants; the run then binds the
+approver's actor ref and security version, keeps `proposed_by_actor_ref`, and
+stores `approver_security_version` and an optional `approval_note` (1-500
+plain-text characters). Audit events carry `proposed_by_actor_ref`. Collection
+workers resolve the approver's authority.
+
+An optional `verify(context, record, input)` returns up to 20
+`check_pass`/`check_warn`/`check_fail` results or nil. It runs after commit,
+under `while_preventing_writes` and in its own savepoint; its status
+(`passed`, `warning`, `failed`, `error`) and report are stored on the run and
+returned as `Result#verification`. It never rolls back the write.
+
+`reversible true` requires public `undo_snapshot(context, record, input)` (a
+JSON-safe Hash of at most 16 KiB, taken read-only before `perform`) and
+`compensate(context, record, snapshot)` (run in the Runner transaction).
+`Resource.undoable :update, :destroy` covers native updates (scalar, enum and
+belongs_to fields; never password, file, files, rich_text, references, hidden or
+virtual fields) and soft deletes. `Runner#preflight_undo(context:, run_id:)` and
+`#execute_undo(context:, intent_ref:, human_confirmed:)` require
+`undo_operation?` plus the update or restore grant, the record at the run's
+`post_version`, and no earlier running or succeeded undo; the compensating run
+cannot execute through `execute`. Selection and collection runs are not undoable.
+
+`AdminTask` and `TaskEvent` coordinate proposals, background jobs and undoable
+runs per tenant. Their status is derived from the operation run; they grant
+nothing. `GET /tasks`, `GET /tasks/:id` and `POST /tasks/:id/approve|dismiss|undo`
+re-authorize every decision. Approve requires the reviewed `input_digest`.
+Without the 0.7 migrations, `:separate_actor`/`:any_reviewer` operations raise
+`ConfigurationError` on prepare and the Tasks page is unavailable.
 
 Resources declare `model`, `key`, `label`, `title`, optional `policy`, `readonly`, `disable`,
 `fields`, `index` table settings, named list `scopes` and explicit member `operation` handlers. Core scalar types are id/text/textarea/integer/decimal/boolean/date/datetime/enum/select.
@@ -209,15 +253,22 @@ See the Fixed Selections guide for exact snapshot fields and host examples.
 ## Collection admission and item execution
 
 Register `operation :key, handler: "ClassName", scope: :collection` for a per-target
-Operation over one fixed Selection (1–100 targets currently). `Collections::Runner`
+Operation over one fixed Selection: 1-100 targets, or up to
+`config.async_bulk_limit` (100-10,000, default 1,000) once the 0.7 bounds
+migration has run. Above 100 targets preflight previews 25 and checks the rest
+without the handler preview. Native `update` also runs as a collection for bulk
+changes above 100 records. `Runner#retry_failed(context:, job_ref:)` captures a
+new Selection of failed items linked through `retry_of_run_id`. `Collections::Runner`
 provides typed `preflight`, human `admit` and independently authorized `cancel`;
 see the operation contract and Collection Operations guide for exact signatures.
 Admission returns a queued job ref, not business success. Parent/input/manifest/
 operation/owner/deadline bindings are persisted once. Children have no independent
 approval and cannot execute through public member routes/Runner entry points.
 
-Worker infrastructure uses `Collections::Dispatcher#run(job_ref, limit: 100)` and
-`#scan_pending!(limit: 100, inline: false)`. Host `resolve_job` must reconstruct
+Worker infrastructure uses `Collections::Dispatcher#run(job_ref, limit:
+config.async_bulk_chunk_size, enqueue_continuation:)` and
+`#scan_pending!(limit: 100, inline: false)`. `ExecutionJob` enqueues the next
+chunk after commit only when its chunk used the whole limit. Host `resolve_job` must reconstruct
 current identity and membership. Every item rechecks class and record grants,
 versions and owner/generation/lease/deadline; its business/audit/receipt/outbox and
 BatchItem completion commit together through the existing Runner. Stale successes
@@ -239,8 +290,7 @@ Schedule `rails_ai_admin:collections:scan` or bounded `:drain` recovery. Optiona
 `collection_auto_dispatch = true` accelerates enqueue after commit; it does not
 replace persistent host queues and recurring scans. The job UI is an owner/tenant
 view, not a complete cross-user administration or reconciliation center. Global
-operations, custom CRUD replacement, 10,000-target materialization and retention
-remain incomplete.
+operations, custom CRUD replacement and retention remain incomplete.
 
 ## Conventional template overrides
 
@@ -367,10 +417,13 @@ input, re-registers after host resets and rejects squatting. Its policy/handler
 require the matching request-bound admin Context. Presentation requires an
 unconsumed native intent with matching input digest; confirmation runs the shared
 Runner on the same intent (`origin: surface`) inside the Surface lock, writing
-once across channels. Completed reviews need the receipt grant. No assistant
-presentation is available through the opt-in assistant below; in-Surface editing
-and Surface template overrides do not exist. See ADR 0020 and the Review Surfaces
-guide.
+once across channels. Completed reviews need the receipt grant and show the
+execution receipt. `surface: :editable` presents `raa_editable_form` instead,
+whose `update_preview` expires the shown intent and continues with a fresh one;
+confirm applies only the intent it shows. `raa_execution_receipt` and
+`raa_task_progress` render live, re-authorized run and task state; a native
+receipt needs the actor's own run or `view_history?`. Surface template overrides
+do not exist. See ADR 0020 and the Review Surfaces guide.
 
 ## Admin assistant (opt-in)
 

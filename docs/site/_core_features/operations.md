@@ -279,7 +279,8 @@ execution path or a blanket solution for existing unsafe callbacks.
 ## Inspect Results Without Assuming Rollback
 
 `Result` exposes `code`, `status`, `success?`, `retryable?`, `record_id`, `audit_ref`,
-`values`, `errors`, `replayed`, `warning` and `work_refs`. Values are an authorized projection,
+`values`, `errors`, `replayed`, `warning`, `work_refs` and `verification` (see
+[Approvals, Verification and Undo]({% link _core_features/approvals-and-undo.md %})). Values are an authorized projection,
 not an Active Record instance. Blind writes can succeed with an empty projection.
 
 The current failure codes distinguish `NOT_FOUND`, `UNAUTHENTICATED`,
@@ -302,6 +303,7 @@ status, attempts, deadlines and uncertain effects are separately tracked.
 
 ## Next Steps
 
+* [Approvals, Verification and Undo]({% link _core_features/approvals-and-undo.md %}) adds a second approver, post-commit checks and undo.
 * [Durable Outbox]({% link _advanced/durable-outbox.md %}) defines delivery authority, scanning and unknown outcomes.
 * [Host Verification]({% link _advanced/host-verification.md %}) exercises replay and scope contracts.
 * [Data and Security]({% link _advanced/data-and-security.md %}) describes audit and logging limits.

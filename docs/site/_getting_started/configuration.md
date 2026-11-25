@@ -119,6 +119,8 @@ you use; each still needs the ordinary action and field grants.
 | `view_history?(context:, resource:, record:)` | A record's History page | [Record History]({% link _core_features/record-history.md %}) |
 | `view_audit_log?(context:, resource:)` | The Audit log page | [Record History]({% link _core_features/record-history.md %}) |
 | `operation_fields`, `read_operation_receipt?`, `deliver_work?`, `cancel_operation?` | Custom operations and their receipts | [Operations]({% link _core_features/operations.md %}) |
+| `approve_operation?`, `undo_operation?` | Approving another person's proposal, undoing a run | [Approvals, Verification and Undo]({% link _core_features/approvals-and-undo.md %}) |
+| `view_tasks?(context:)` | The Tasks page and its header link | [Tasks and Approvals]({% link _core_features/tasks.md %}) |
 | `assistant?(context:, resource:)` | Admin Chat for the resource | [Admin Assistant]({% link _advanced/admin-assistant.md %}) |
 | `presentation_fields(context:, resource:, view:, record:)` | Per-view narrowing of fields | [Resources and Fields]({% link _core_features/resources-and-fields.md %}) |
 
@@ -144,6 +146,8 @@ RailsAiAdmin.configure do |config|
   config.environment_label = "Staging"        # optional header badge
   config.validation_messages = :model         # or :generic
   config.queue_name = "rails_ai_admin"        # Active Job queue for admin jobs
+  config.async_bulk_limit = 1_000             # background collection size, 100..10,000
+  config.async_bulk_chunk_size = 50           # items per worker job, 10..100
 end
 ```
 

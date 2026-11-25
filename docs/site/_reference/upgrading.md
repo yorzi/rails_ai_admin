@@ -3,7 +3,7 @@ layout: default
 title: Upgrading
 nav_order: 2
 guide: false
-description: Upgrade an existing 0.4 host to 0.5.0, apply the index migration, update layout and bulk delete overrides and add an assistant evaluation file.
+description: Upgrade an existing 0.5 host to the 0.7 development line, apply its migrations, update layout overrides and add the new approval, undo and tasks grants.
 ---
 
 # {{ page.title }}
@@ -11,9 +11,54 @@ description: Upgrade an existing 0.4 host to 0.5.0, apply the index migration, u
 {{ page.description }}
 {: .fs-6 .fw-300 }
 
+## Upgrade to 0.7.0
+
+0.7.0 is in development on `main`; this section describes that branch. It
+includes every 0.6.0 change below, so a 0.5.0 host applies both sections.
+
+```sh
+bundle update rails_ai_admin
+bin/rails generate rails_ai_admin:install --skip
+bin/rails db:migrate
+bin/rails rails_ai_admin:doctor
+```
+
+The installer copies four migrations. They add approval, verification and undo
+columns to `rails_ai_admin_operation_runs` and the proposer to
+`rails_ai_admin_audit_events`, raise the selection and batch item limits from
+100 to 10,000 rows (with `retry_of_run_id`), and create
+`rails_ai_admin_tasks` and `rails_ai_admin_task_events`. Existing rows keep
+their meaning: old runs are `:self` runs with no verification or undo. On
+SQLite the limit migration rebuilds three tables. Until the migrations run,
+operations that need a second approver raise `ConfigurationError` and the
+Tasks page stays hidden; everything else works as before.
+
+**Layout overrides.** The `layout` contract is revision 7 and adds the
+**Tasks** link. If you copied `layouts/rails_ai_admin/application.html.erb`,
+add `<% if tasks_available? %><%= link_to tasks_nav_label, admin_tasks_path %><% end %>`
+to the header navigation, as in the default layout, and set the header's
+`contract` to 7.
+
+**New grants, all denied until you add them.** `approve_operation?` to approve
+another person's proposal, `undo_operation?` to undo, and `view_tasks?` for the
+Tasks page. `FullAccessAdapter` grants `undo_operation?` and `view_tasks?`, but
+never `approve_operation?`. See
+[Approvals, Verification and Undo]({% link _core_features/approvals-and-undo.md %})
+and [Tasks and Approvals]({% link _core_features/tasks.md %}).
+
+**Background collection jobs.** A worker job now processes
+`config.async_bulk_chunk_size` items (default 50, was 100) and enqueues the next
+job itself after a full chunk. Keep the recurring
+`rails_ai_admin:collections:scan` schedule as the recovery backstop. The inline
+drain task still handles up to 100 items per run.
+
+**Assistant bulk changes.** `propose_bulk_change` can now select up to
+`config.async_bulk_limit` records by query or filters (1,000 by default).
+Lower the limit if your reviewers should not confirm that many at once.
+
 ## Upgrade to 0.6.0
 
-0.6.0 is in development on `main`; this section describes that branch.
+0.6.0 was not released on its own; its changes ship with 0.7.0.
 
 Set `gem "rails_ai_admin", "~> 0.6.0"` in your Gemfile once it is released, then
 run these commands from the host application.
