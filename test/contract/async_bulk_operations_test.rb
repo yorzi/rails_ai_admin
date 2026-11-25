@@ -43,6 +43,17 @@ class AsyncBulkOperationsTest < Minitest::Test
     end
   end
 
+  # Before the 0.7 bounds migration the tables still CHECK at most 100 rows.
+  def test_background_selections_stay_at_100_until_the_bounds_migration_runs
+    with_collection do
+      assert_equal 1_000, RailsAiAdmin::Selections::Builder.async_limit
+      columns = RailsAiAdmin::OperationRun.column_names - [ "retry_of_run_id" ]
+      RailsAiAdmin::OperationRun.stub(:column_names, columns) do
+        assert_equal 100, RailsAiAdmin::Selections::Builder.async_limit
+      end
+    end
+  end
+
   def test_large_selection_fails_sync_cap_and_succeeds_async_chunked_execution
     with_collection do
       ids = seed_customers(150)

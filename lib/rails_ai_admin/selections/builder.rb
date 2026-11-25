@@ -11,6 +11,16 @@ module RailsAiAdmin
       MAX_ASYNC_LIMIT = 10_000
       INSERT_BATCH_SIZE = 500
       Target = Data.define(:id, :expected_version, :label)
+
+      # The largest selection a background run may capture: the configured
+      # async_bulk_limit once the 0.7 bounds migration has widened the table
+      # constraints (it also adds retry_of_run_id), otherwise the old 100.
+      def self.async_limit
+        widened = OperationRun.column_names.include?("retry_of_run_id")
+        widened ? RailsAiAdmin.configuration.async_bulk_limit : LIMIT
+      rescue ActiveRecord::ActiveRecordError
+        LIMIT
+      end
       Snapshot = Data.define(:selection_ref, :resource_key, :manifest_digest, :expires_at, :targets)
 
       def capture(context:, resource:, target_ids:, max_items: LIMIT)

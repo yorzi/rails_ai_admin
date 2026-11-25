@@ -114,7 +114,7 @@ module RailsAiAdmin
       if step.is_a?(String) && (key = step[/\Aoperation:([a-z][a-z0-9_]{0,79})\z/, 1])
         access = Authorization::Access.new(@context, @resource)
         if granted_collection_operations(@resource, access).any? { |definition| definition.key.to_s == key }
-          return RailsAiAdmin.configuration.async_bulk_limit
+          return Selections::Builder.async_limit
         end
       end
       Selections::Builder::LIMIT

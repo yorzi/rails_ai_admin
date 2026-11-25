@@ -302,7 +302,7 @@ module RailsAiAdmin
         fields = access.fields(:write, nil, operation: :update)
           .reject { |field| ProposeChange::UNSUPPORTED.include?(field.scalar_type) }
           .map { |field| field_entry(field).merge("required" => false) }
-        [ { "action" => "bulk_update", "fields" => fields, "max_records" => RailsAiAdmin.configuration.async_bulk_limit, "max_ids" => Selections::Builder::LIMIT } ]
+        [ { "action" => "bulk_update", "fields" => fields, "max_records" => Selections::Builder.async_limit, "max_ids" => Selections::Builder::LIMIT } ]
       end
 
       # Native changes this resource lets the assistant propose, with the
@@ -320,7 +320,7 @@ module RailsAiAdmin
         end
         if resource.assistant_change?(:bulk_update) && bulk_granted?(access)
           update = entries.find { |entry| entry["action"] == "update" }
-          entries << { "action" => "bulk_update", "fields" => update ? update["fields"] : [], "max_records" => RailsAiAdmin.configuration.async_bulk_limit, "max_ids" => Selections::Builder::LIMIT }
+          entries << { "action" => "bulk_update", "fields" => update ? update["fields"] : [], "max_records" => Selections::Builder.async_limit, "max_ids" => Selections::Builder::LIMIT }
         end
         entries
       end
@@ -710,7 +710,7 @@ module RailsAiAdmin
         by_name = resource.fields.index_by { |field| field.name.to_s }
         raise AccessDenied, "INVALID_QUERY" if values.keys.any? { |name| ProposeChange::UNSUPPORTED.include?(by_name[name.to_s]&.scalar_type) }
         return failure("LIMIT_REACHED") if @session.tally.full?
-        limit = RailsAiAdmin.configuration.async_bulk_limit
+        limit = Selections::Builder.async_limit
         target_ids = ids || matching_ids(resource, query, filters, any, relation_filters, scope, limit)
         return failure("TOO_MANY") if target_ids.size > limit
         return failure("NOT_FOUND") if target_ids.empty?
