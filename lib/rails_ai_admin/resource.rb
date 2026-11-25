@@ -19,6 +19,7 @@ module RailsAiAdmin
         child.instance_variable_set(:@has_many, {})
         child.instance_variable_set(:@dashboard, [])
         child.instance_variable_set(:@assistant_changes, [])
+        child.instance_variable_set(:@undoable_actions, [])
       end
 
       def model(name = nil)
@@ -163,6 +164,21 @@ module RailsAiAdmin
         @assistant_changes.include?(action) && action_enabled?(action)
       end
 
+      # Opts native :update or soft-delete :destroy into single-use undo.
+      def undoable(*actions)
+        return @undoable_actions if actions.empty?
+        actions = actions.map { |action| action.to_s.to_sym }
+        unless (actions - %i[update destroy]).empty?
+          raise ConfigurationError, "undoable accepts :update and :destroy"
+        end
+        @undoable_actions = (@undoable_actions | actions).freeze
+      end
+
+      def undoable?(action)
+        sym = action.to_s.to_sym
+        @undoable_actions.include?(sym) && action_enabled?(sym) && (sym != :destroy || soft_delete?)
+      end
+
       def operation_declarations = @operations
       def surface_operation?(key) = @surface_operations.include?(key.to_sym)
       def assistant_operation?(key) = @assistant_operations.include?(key.to_sym)
@@ -228,6 +244,9 @@ module RailsAiAdmin
         if soft_delete? && @fields.values.any? { |field| field.column == soft_delete }
           raise ConfigurationError, "The soft_delete column #{soft_delete} cannot also be a field"
         end
+        if @undoable_actions.include?(:destroy) && !soft_delete?
+          raise ConfigurationError, "undoable :destroy requires soft_delete on the resource"
+        end
         raise ConfigurationError, "restore is the soft_delete action name" if @operations.key?(:restore)
         Fields::DependencyGraph.validate!(fields)
         index.validate!(fields)
@@ -249,6 +268,7 @@ module RailsAiAdmin
         @has_many.freeze
         @assistant_operations.freeze
         @assistant_changes.freeze
+        @undoable_actions.freeze
         @dashboard.freeze
         self
       end

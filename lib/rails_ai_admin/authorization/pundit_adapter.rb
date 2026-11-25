@@ -124,6 +124,19 @@ module RailsAiAdmin
         policy_error!(resource, error)
       end
 
+      def undo_operation?(context:, resource:, operation:, record: nil)
+        klass = policy_class(resource)
+        return false unless klass
+        policy = klass.new(context, record || resource.model_class)
+        return false unless policy.respond_to?(:undo_operation?)
+        return false if Object.ancestors.include?(policy.method(:undo_operation?).owner)
+        policy.undo_operation?(operation.to_sym) == true
+      rescue Pundit::NotAuthorizedError
+        false
+      rescue StandardError => error
+        policy_error!(resource, error)
+      end
+
       def named_scopes(context:, resource:)
         klass = policy_class(resource)
         return [] unless klass

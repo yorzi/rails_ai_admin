@@ -54,10 +54,16 @@ module RailsAiAdmin
         end
 
         def signature
-          custom? ? { handler: handler_name, version: handler_class.version, input: handler_class.input.map(&:contract),
-            models: handler_class.atomic_models, duration: handler_class.max_duration, scope: scope,
-            approval_mode: approval_mode == :self ? nil : approval_mode,
-            execution: scope == :collection ? [ handler_class.lease_duration, handler_class.execution_window, handler_class.max_attempts ] : nil }.compact : { builtin: key, version: 1 }
+          if custom?
+            { handler: handler_name, version: handler_class.version, input: handler_class.input.map(&:contract),
+              models: handler_class.atomic_models, duration: handler_class.max_duration, scope: scope,
+              approval_mode: approval_mode == :self ? nil : approval_mode,
+              reversible: handler_class.reversible? ? true : nil,
+              verifies: handler_class.verifies? ? true : nil,
+              execution: scope == :collection ? [ handler_class.lease_duration, handler_class.execution_window, handler_class.max_attempts ] : nil }.compact
+          else
+            { builtin: key, version: 1, undoable: resource.undoable?(key) ? true : nil }.compact
+          end
         end
       end
 

@@ -50,6 +50,10 @@ module RailsAiAdmin
         true
       end
 
+      def undo_operation?(context:, resource:, operation:, record: nil)
+        true
+      end
+
       def named_scopes(context:, resource:)
         resource.scopes.map(&:name)
       end

@@ -212,6 +212,13 @@ module RailsAiAdmin
         true
       end
 
+      def authorize_undo!(operation, record = nil)
+        allowed = @adapter.respond_to?(:undo_operation?) &&
+          @adapter.undo_operation?(context: context, resource: resource, operation: operation.to_sym, record: record) == true
+        raise AccessDenied unless allowed
+        true
+      end
+
       def authorize_receipt!(operation, record)
         allowed = @adapter.respond_to?(:read_operation_receipt?) && @adapter.read_operation_receipt?(context: context,
           resource: resource, operation: operation.to_sym, record: record) == true

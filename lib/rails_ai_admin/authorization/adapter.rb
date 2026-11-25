@@ -48,6 +48,11 @@ module RailsAiAdmin
         false
       end
 
+      # Authorizes compensating/undoing a previously committed reversible run.
+      def undo_operation?(context:, resource:, operation:, record: nil)
+        false
+      end
+
       # Named list scopes (declared tabs) this actor may use. A scope predicate can
       # reveal facts about fields the actor cannot read, so it is granted apart
       # from index/read/search/sort.

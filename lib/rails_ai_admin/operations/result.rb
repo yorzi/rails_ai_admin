@@ -4,12 +4,13 @@ module RailsAiAdmin
   module Operations
     # Returns safe refs and a current authorized projection, never an AR object.
     class Result
-      attr_reader :code, :record_id, :audit_ref, :values, :errors, :replayed, :warning, :work_refs
+      attr_reader :code, :record_id, :audit_ref, :values, :errors, :replayed, :warning, :work_refs, :verification
 
-      def initialize(code:, record_id: nil, audit_ref: nil, values: {}, errors: {}, replayed: false, warning: nil, work_refs: [])
+      def initialize(code:, record_id: nil, audit_ref: nil, values: {}, errors: {}, replayed: false, warning: nil, work_refs: [], verification: nil)
         @code, @record_id, @audit_ref, @warning = code, record_id, audit_ref, warning
         @values, @errors, @replayed = values.freeze, errors.freeze, replayed
         @work_refs = work_refs.freeze
+        @verification = verification
         freeze
       end
 

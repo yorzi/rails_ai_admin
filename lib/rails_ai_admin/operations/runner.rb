@@ -192,6 +192,93 @@ module RailsAiAdmin
           origin: origin, binding: binding, approval_note: approval_note)
       end
 
+      # Prepares an immutable undo intent for a committed reversible custom
+      # operation or an undoable native update / soft-delete destroy.
+      def preflight_undo(context:, run_id:, origin: :ui)
+        raise AccessDenied, "UNAUTHENTICATED" unless context.is_a?(Context)
+        check_origin!(origin)
+        reject!("NOT_FOUND") unless undo_supported? && run_id.is_a?(String) && run_id.match?(/\A[0-9a-f-]{36}\z/)
+        original = OperationRun.find_by(id: run_id, tenant_ref: context.tenant_ref, status: "succeeded")
+        reject!("NOT_FOUND") unless original && original.compensates_run_id.nil? && original.undo_payload.is_a?(Hash) && original.undo_payload.any?
+        resource = RailsAiAdmin.registry.fetch(original.resource_key)
+        definition = RailsAiAdmin.operation_registry.fetch(resource, original.operation)
+        ensure_connection!(resource, definition)
+        reject!("NOT_FOUND") unless undo_eligible?(resource, definition, original)
+        reject!("CONFLICT") if OperationRun.where(compensates_run_id: original.id, status: %w[running succeeded]).exists?
+        access = Authorization::Access.new(context, resource)
+        record = load_undo_target(access, resource, original)
+        access.authorize_undo!(original.operation, record)
+        reject!("CONFLICT") unless original.post_version && RecordVersion.of(record) == original.post_version
+        attrs = {
+          id: SecureRandom.uuid, actor_ref: context.actor_ref, tenant_ref: context.tenant_ref,
+          security_version: context.security_version, resource_key: resource.key.to_s,
+          operation: original.operation, operation_version: operation_version(resource, original.operation),
+          target_id: record.id.to_s, expected_version: original.post_version,
+          compensates_run_id: original.id, input_payload: original.undo_payload,
+          input_digest: InputSchema.digest(original.undo_payload), origin: origin.to_s,
+          expires_at: Time.current + RailsAiAdmin.configuration.intent_ttl
+        }
+        if multi_actor_supported?
+          attrs[:proposed_by_actor_ref] = context.actor_ref
+          attrs[:approval_mode] = "self"
+        end
+        intent = OperationRun.create!(**attrs)
+        Proposal.new(intent, original.undo_payload, {})
+      rescue Rejection => error
+        error.result
+      rescue AccessDenied => error
+        Result.new(code: error.code)
+      end
+
+      def execute_undo(context:, intent_ref:, human_confirmed: false, origin: :ui)
+        raise AccessDenied, "UNAUTHENTICATED" unless context.is_a?(Context)
+        check_origin!(origin)
+        reject!("NOT_FOUND") unless undo_supported? && intent_ref.is_a?(String) && intent_ref.match?(/\A[0-9a-f-]{36}\z/)
+        OperationRun.transaction(requires_new: true) do
+          undo_run = OperationRun.lock.find_by(id: intent_ref, actor_ref: context.actor_ref, tenant_ref: context.tenant_ref)
+          reject!("NOT_FOUND") unless undo_run && undo_run.compensates_run_id.present?
+          reject!("APPROVAL_INVALIDATED") unless undo_run.security_version == context.security_version
+          reject!("APPROVAL_EXPIRED") unless undo_run.status == "succeeded" || undo_run.expires_at && undo_run.expires_at > Time.current
+          resource = RailsAiAdmin.registry.fetch(undo_run.resource_key)
+          definition = RailsAiAdmin.operation_registry.fetch(resource, undo_run.operation)
+          ensure_connection!(resource, definition)
+          reject!("NOT_FOUND") unless undo_eligible?(resource, definition, undo_run)
+          access = Authorization::Access.new(context, resource)
+          if undo_run.status == "succeeded"
+            record = access.find!(undo_run.record_id)
+            next projection(access, undo_run, record, replayed: true)
+          end
+          reject!("CONFLICT") unless undo_run.status == "proposed"
+          reject!("APPROVAL_REQUIRED") unless human_confirmed == true
+          original = OperationRun.lock.find_by(id: undo_run.compensates_run_id, tenant_ref: context.tenant_ref, status: "succeeded")
+          reject!("NOT_FOUND") unless original && original.undo_payload.is_a?(Hash)
+          if OperationRun.where(compensates_run_id: original.id, status: %w[running succeeded]).where.not(id: undo_run.id).exists?
+            reject!("CONFLICT")
+          end
+          record = load_undo_target(access, resource, original, lock: true)
+          access.authorize_undo!(original.operation, record)
+          reject!("CONFLICT") unless original.post_version && RecordVersion.of(record) == original.post_version
+          undo_run.update!(status: "running")
+          changed_fields = perform_undo!(context, access, resource, definition, undo_run, record, original.undo_payload)
+          audit_attrs = {
+            actor_ref: context.actor_ref, tenant_ref: context.tenant_ref,
+            resource_key: undo_run.resource_key, operation: "undo_#{original.operation}", status: "succeeded", code: "OK",
+            record_id: record.id.to_s, correlation_ref: undo_run.id, origin: origin.to_s,
+            changed_fields: changed_fields, created_at: Time.current
+          }
+          audit_attrs[:proposed_by_actor_ref] = context.actor_ref if audit_proposer_supported?
+          audit = AuditEvent.create!(**audit_attrs)
+          undo_run.update!(status: "succeeded", record_id: record.id.to_s, post_version: RecordVersion.of(record),
+            audit_event_id: audit.id, approved_by_ref: context.actor_ref, approved_digest: undo_run.input_digest,
+            confirmed_at: Time.current, completed_at: Time.current)
+          projection(access, undo_run, record)
+        end
+      rescue Rejection => error
+        error.result
+      rescue AccessDenied => error
+        Result.new(code: error.code)
+      end
+
       # Internal worker entry: its authority is the admitted parent and lease,
       # never another synthetic human confirmation. No HTTP adapter calls it.
       def execute_admitted(claim:)
@@ -262,7 +349,11 @@ module RailsAiAdmin
           end
           # A write claim, not a process mutex, serializes SQLite writers too.
           run.update!(status: "running", input_digest: digest)
+          undo_snap = nil
           if definition.custom?
+            if undo_supported? && definition.handler_class.reversible?
+              undo_snap = capture_custom_undo_snapshot(context, resource, definition, record, values)
+            end
             before = record.attributes_before_type_cast.deep_dup
             context_for_handler = ExecutionContext.new(context, resource, record, run: run, duration: definition.handler_class.max_duration)
             outcome = call_handler(definition, context_for_handler, record, values)
@@ -284,6 +375,10 @@ module RailsAiAdmin
             changed_fields = resource.fields.select { |field| before[field.column] != record.attributes_before_type_cast[field.column] }.map { |field| field.name.to_s }
             WorkItem.where(operation_run_id: run.id).update_all(expected_version: RecordVersion.of(record))
           else
+            before_scalars = if undo_supported? && run.operation == "update" && resource.undoable?(:update)
+              capture_native_update_undo_before(resource, record, values)
+            end
+            undo_snap = { "restore" => true } if undo_supported? && run.operation == "destroy" && resource.undoable?(:destroy)
             lists = resource.fields.select { |field| field.scalar_type == :references && values.key?(field.name.to_s) }
             before_lists = lists.to_h { |field| [ field.name.to_s, stored_references(record, field) ] }
             record.assign_attributes(column_attributes(resource, unchanged_precision(resource, record, values))) if run.operation == "update"
@@ -315,6 +410,7 @@ module RailsAiAdmin
             reject!("VALIDATION_FAILED", errors: { "base" => [ "could not be saved" ] }) unless persisted
             external_change = changed_lists.any? || changed_files.any? || changed_single_files.any? || changed_rich_text.any?
             advance_version!(record) if run.operation == "update" && external_change && RecordVersion.of(record) == run.expected_version
+            undo_snap = before_scalars.slice(*changed_fields) if before_scalars
           end
           unless run.operation == "destroy" || access.relation.where(resource.model_class.primary_key => record.id).exists?
             reject!("NOT_FOUND")
@@ -328,6 +424,17 @@ module RailsAiAdmin
           audit_attrs[:proposed_by_actor_ref] = proposer_ref if audit_proposer_supported?
           audit = AuditEvent.create!(**audit_attrs)
           attributes = { status: "succeeded", record_id: record.id.to_s, audit_event_id: audit.id, completed_at: Time.current }
+          if undo_supported?
+            attributes[:post_version] = (run.operation == "destroy" && !resource.soft_delete?) ? nil : RecordVersion.of(record)
+            if undo_snap.is_a?(Hash) && undo_snap.any? && JSON.generate(undo_snap).bytesize <= 16_384
+              attributes[:undo_payload] = undo_snap
+            end
+          end
+          if verification_supported? && definition.custom? && definition.handler_class.verifies?
+            ver = run_verification(context, resource, definition, record, run, values)
+            attributes[:verification_status] = ver.status
+            attributes[:verification_report] = ver.checks.map { |c| { "name" => c.name, "status" => c.status, "message" => c.message } }
+          end
           unless admission
             attributes.merge!(approved_by_ref: context.actor_ref, approved_digest: digest, confirmed_at: Time.current)
             if multi_actor_supported?
@@ -710,7 +817,7 @@ module RailsAiAdmin
       end
 
       def projection(access, run, record, replayed: false)
-        values = if run.operation == "destroy"
+        values = if run.operation == "destroy" && (!access.resource.soft_delete? || run.compensates_run_id.nil?)
           {}
         else
           begin
@@ -720,7 +827,8 @@ module RailsAiAdmin
           end
         end
         Result.new(code: "OK", record_id: run.record_id, audit_ref: run.audit_event_id, values: values, replayed: replayed,
-          warning: run.warning_code, work_refs: WorkItem.where(operation_run_id: run.id).pluck(:id))
+          warning: run.warning_code, work_refs: WorkItem.where(operation_run_id: run.id).pluck(:id),
+          verification: hydrate_verification(run))
       end
 
       def committed_callback_result(context, run, body_finished)
@@ -758,6 +866,128 @@ module RailsAiAdmin
 
       def audit_proposer_supported?
         AuditEvent.column_names.include?("proposed_by_actor_ref")
+      end
+
+      def verification_supported?
+        OperationRun.column_names.include?("verification_status")
+      end
+
+      def undo_supported?
+        OperationRun.column_names.include?("compensates_run_id")
+      end
+
+      def undo_eligible?(resource, definition, run)
+        return false if run.parent_run_id || run.selection_id
+        definition.custom? ? definition.handler_class.reversible? : resource.undoable?(run.operation)
+      end
+
+      def load_undo_target(access, resource, original, lock: false)
+        if !original.operation.nil? && original.operation == "destroy" && resource.soft_delete?
+          model = resource.model_class
+          relation = access.discarded_relation
+          record = if lock
+            locked = model.unscoped.lock.find_by(model.primary_key => original.record_id)
+            raise AccessDenied unless locked && relation.where(model.primary_key => locked.id).exists?
+            locked
+          else
+            relation.find_by(model.primary_key => original.record_id) || raise(AccessDenied)
+          end
+          record
+        else
+          access.find!(original.record_id, lock: lock)
+        end
+      end
+
+      def capture_custom_undo_snapshot(context, resource, definition, record, values)
+        v_ctx = ExecutionContext.new(context, resource, record, duration: definition.handler_class.max_duration)
+        snap = ActiveRecord::Base.while_preventing_writes { definition.handler_class.new.undo_snapshot(v_ctx, record, values) }
+        v_ctx.check_deadline!
+        raise ConfigurationError, "undo_snapshot must return a JSON-serializable Hash" unless snap.is_a?(Hash)
+        wire_values(snap.stringify_keys)
+      end
+
+      UNSUPPORTED_NATIVE_UNDO_TYPES = %i[password file files rich_text references].freeze
+
+      def capture_native_update_undo_before(resource, record, values)
+        fields = resource.fields.index_by { |field| field.name.to_s }
+        values.keys.each_with_object({}) do |name, result|
+          field = fields[name]
+          next if field.nil? || field.hidden? || field.virtual? || UNSUPPORTED_NATIVE_UNDO_TYPES.include?(field.scalar_type)
+          next unless record.has_attribute?(field.column)
+          raw = record.public_send(field.column)
+          result[name] = case raw
+          when BigDecimal then raw.to_s("F")
+          when Time, ActiveSupport::TimeWithZone then raw.to_time.getutc.iso8601(6)
+          when Date then raw.iso8601
+          else field.scalar_type == :belongs_to && !raw.nil? ? raw.to_s : raw
+          end
+        end
+      end
+
+      def perform_undo!(context, access, resource, definition, undo_run, record, snapshot)
+        if definition.custom?
+          before = record.attributes_before_type_cast.deep_dup
+          exec_ctx = ExecutionContext.new(context, resource, record, run: undo_run, duration: definition.handler_class.max_duration)
+          nested_savepoint = false
+          connection = OperationRun.connection
+          listener = ->(_e, _s, _f, _i, payload) { nested_savepoint = true if payload[:connection].equal?(connection) && payload[:sql].match?(/\A(?:SAVEPOINT|RELEASE SAVEPOINT|ROLLBACK TO SAVEPOINT)\b/i) }
+          outcome = ActiveSupport::Notifications.subscribed(listener, "sql.active_record") do
+            definition.handler_class.new.compensate(exec_ctx, record, snapshot)
+          end
+          raise ConfigurationError, "Custom handlers must not open requires_new transactions" if nested_savepoint
+          exec_ctx.check_deadline!
+          raise ConfigurationError, "compensate must return success, invalid or conflict" unless outcome.is_a?(Operation::Outcome)
+          reject!(outcome.code) unless outcome.code == "OK"
+          record.reload
+          if before != record.attributes_before_type_cast && RecordVersion.of(record) == undo_run.expected_version
+            raise ConfigurationError, "Custom compensate must advance the target lock_version or updated_at"
+          end
+          resource.fields.select { |field| before[field.column] != record.attributes_before_type_cast[field.column] }.map { |field| field.name.to_s }
+        elsif undo_run.operation == "destroy" && resource.soft_delete?
+          record.public_send("#{resource.soft_delete}=", nil)
+          reject!("CONFLICT") unless record.save
+          []
+        else
+          writable = access.fields(:write, record, operation: :update)
+          coercion = InputSchema.new(writable, partial: true).coerce(snapshot, time_zone: context.time_zone)
+          reject!("VALIDATION_FAILED", errors: coercion.errors) unless coercion.valid?
+          record.assign_attributes(column_attributes(resource, unchanged_precision(resource, record, coercion.values)))
+          names = field_names_by_column(resource)
+          changed = record.changes.keys.map { |col| names.fetch(col, col) } & coercion.values.keys
+          reject!("VALIDATION_FAILED", errors: { "base" => [ "could not be saved" ] }) unless record.save
+          changed
+        end
+      end
+
+      def run_verification(context, resource, definition, record, _run, values)
+        v_ctx = ExecutionContext.new(context, resource, record, duration: definition.handler_class.max_duration)
+        raw = ActiveRecord::Base.while_preventing_writes { definition.handler_class.new.verify(v_ctx, record, values) }
+        v_ctx.check_deadline!
+        return Operation::Verification.new("passed", [].freeze) if raw.nil?
+        checks = Array(raw).first(20)
+        unless checks.all? { |item| item.is_a?(Operation::VerificationCheck) }
+          raise ConfigurationError, "verify must return VerificationCheck entries"
+        end
+        status = if checks.any? { |c| c.status == "fail" }
+          "failed"
+        elsif checks.any? { |c| c.status == "warn" }
+          "warning"
+        else
+          "passed"
+        end
+        Operation::Verification.new(status, checks.freeze)
+      rescue StandardError => error
+        Rails.error.report(error, handled: true, severity: :warning, source: "rails_ai_admin.verify") if defined?(Rails) && Rails.respond_to?(:error)
+        Operation::Verification.new("error", [].freeze)
+      end
+
+      def hydrate_verification(run)
+        return nil unless verification_supported? && run.verification_status.present?
+        checks = Array(run.verification_report).filter_map do |entry|
+          next unless entry.is_a?(Hash) && entry["name"].is_a?(String) && entry["status"].is_a?(String) && entry["message"].is_a?(String)
+          Operation::VerificationCheck.new(entry["name"], entry["status"], entry["message"])
+        end
+        Operation::Verification.new(run.verification_status, checks.freeze)
       end
 
       def validate_approval_note!(note)
