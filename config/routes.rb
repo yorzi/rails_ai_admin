@@ -59,6 +59,10 @@ RailsAiAdmin::Engine.routes.draw do
   post ":resource/exports", to: "exports#create", as: :resource_export
   get ":resource/imports/new", to: "imports#new", as: :new_resource_import
   get ":resource/imports/template", to: "imports#template", as: :resource_import_template
+  get ":resource/imports/drafts/:id", to: "imports#show", as: :resource_import_draft
+  match ":resource/imports/drafts/:id", to: "imports#update", via: [ :patch, :post ]
+  post ":resource/imports/drafts/:id/suggest", to: "imports#suggest", as: :suggest_resource_import_draft
+  post ":resource/imports/drafts/:id/confirm", to: "imports#confirm", as: :confirm_resource_import_draft
   post ":resource/imports", to: "imports#create", as: :resource_imports
   get "selections/:selection_ref", to: "selections#show", as: :selection
   get "selections/:selection_ref/destroy", to: "selections#confirm_destroy", as: :confirm_destroy_selection

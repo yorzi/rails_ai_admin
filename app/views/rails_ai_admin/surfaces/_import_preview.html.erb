@@ -1,0 +1,10 @@
+<% if (data = RailsAiAdmin::Integrations::ToolViews.import_preview_data(props)) %>
+  <% resource, draft, preview = data %>
+  <h3><%= t("rails_ai_admin.imports.review") %></h3>
+  <p><%= draft.filename %></p>
+  <p><%= t("rails_ai_admin.imports.selection_summary", selected: preview.selected.size, total: draft.row_count) %></p>
+  <p><%= t("rails_ai_admin.imports.invalid_summary", count: preview.selected.count { |row| !row.result.success? }) %></p>
+  <%= link_to t("rails_ai_admin.imports.open_review"), resource_import_draft_path(resource: resource.key, id: draft.id), data: { turbo_frame: "_top" } %>
+<% else %>
+  <p><%= t("rails_ai_admin.surfaces.no_longer_available") %></p>
+<% end %>

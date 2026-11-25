@@ -19,7 +19,7 @@ namespace :rails_ai_admin do
     days = ENV.fetch("DAYS", "7")
     abort "DAYS must be a whole number of days" unless days.match?(/\A\d{1,4}\z/)
     result = RailsAiAdmin::Prune.new(older_than: days.to_i.days).call
-    puts "Deleted #{result.intents} expired intents and #{result.selections} expired selections."
+    puts "Deleted #{result.intents} expired intents and #{result.selections} expired selections. Removed #{result.import_drafts} expired import drafts."
   end
 
   namespace :collections do

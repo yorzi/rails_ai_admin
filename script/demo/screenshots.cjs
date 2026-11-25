@@ -144,7 +144,10 @@ async function tour(page) {
   await button("Check file").click();
   await main.getByText("2 of 3 rows can be imported.", { exact: true }).waitFor();
   await field("CSV file").setInputFiles(csvFile);
-  await button("Import").click();
+  await button("Review CSV import").click();
+  await field("Exclude row 4").check();
+  await button("Update preview").click();
+  await button("Confirm creation of 2 records").click();
   await main.getByText("Created 2 of 3 records.", { exact: true }).waitFor();
   await visit("/staff/articles");
   await field("Select Article 2: Upgrading").check();

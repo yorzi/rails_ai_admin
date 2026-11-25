@@ -41,30 +41,56 @@ module RailsAiAdmin
         "﻿#{headers.join(',')}\r\n"
       end
 
-      def call(text, write:)
+      def read(text)
         @access.authorize_import!
         raise Invalid, I18n.t("rails_ai_admin.imports.too_large") if text.bytesize > MAX_BYTES
-        rows = parse(text.dup.force_encoding(Encoding::UTF_8).delete_prefix("﻿"))
+        utf8 = text.dup.force_encoding(Encoding::UTF_8)
+        raise Invalid, I18n.t("rails_ai_admin.imports.not_utf8") unless utf8.valid_encoding?
+        rows = parse(utf8.delete_prefix("﻿"))
         header = rows.shift
         raise Invalid, I18n.t("rails_ai_admin.imports.empty") if header.nil? || rows.empty?
         raise Invalid, I18n.t("rails_ai_admin.imports.too_many", limit: @limit) if rows.size > @limit
+        [ header, rows ]
+      end
+
+      def call(text, write:)
+        header, rows = read(text)
         mapping = map_columns(header)
         raise Invalid, I18n.t("rails_ai_admin.imports.no_columns") if mapping.empty?
         runner = Operations::Runner.new
-        columns_hash = @resource.model_class.columns_hash
         results = rows.each_with_index.map do |cells, index|
-          input = mapping.each_with_object({}) do |(position, field), values|
-            cell = cells[position].to_s
-            if !cell.strip.empty?
-              values[field.name.to_s] = normalize(field, cell)
-            elsif !field.options[:nullable] && (column = columns_hash[field.column]) && !column.null && column.default.nil? && !column.default_function
-              values[field.name.to_s] = ""
-            end
-          end
-          run_row(runner, index + 2, input, write)
+          run_row(runner, index + 2, row_input(cells, mapping), write)
         end
         ignored = header.each_with_index.reject { |_, position| mapping.key?(position) }.map(&:first).reject(&:blank?)
         Report.new(mapping.values.map(&:label), ignored, results, !write)
+      end
+
+      def row_input(cells, mapping)
+        columns_hash = @resource.model_class.columns_hash
+        mapping.each_with_object({}) do |(position, field), values|
+          cell = cells[position].to_s
+          if !cell.strip.empty?
+            values[field.name.to_s] = normalize(field, cell)
+          elsif !field.options[:nullable] && (column = columns_hash[field.column]) && !column.null && column.default.nil? && !column.default_function
+            values[field.name.to_s] = ""
+          end
+        end
+      end
+
+      # An exact field name can disambiguate colliding normalized labels.
+      def map_columns(header, manual: false)
+        used = {}
+        header.each_with_index.each_with_object({}) do |(cell, position), mapping|
+          matches = matching_fields(cell.to_s)
+          if matches.size > 1
+            next if manual
+            raise Invalid, I18n.t("rails_ai_admin.imports.ambiguous_column")
+          end
+          field = matches.first
+          next unless field && !used[field.name]
+          used[field.name] = true
+          mapping[position] = field
+        end
       end
 
       private
@@ -79,19 +105,6 @@ module RailsAiAdmin
         RowResult.new(number, result.code, result.errors, result.record_id)
       rescue AccessDenied => error
         RowResult.new(number, error.code, {}, nil)
-      end
-
-      # An exact field name can disambiguate colliding normalized labels.
-      def map_columns(header)
-        used = {}
-        header.each_with_index.each_with_object({}) do |(cell, position), mapping|
-          matches = matching_fields(cell.to_s)
-          raise Invalid, I18n.t("rails_ai_admin.imports.ambiguous_column") if matches.size > 1
-          field = matches.first
-          next unless field && !used[field.name]
-          used[field.name] = true
-          mapping[position] = field
-        end
       end
 
       def matching_fields(header)

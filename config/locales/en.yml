@@ -159,9 +159,43 @@ en:
       saved_with_warning: Changes saved, but a host callback failed. Review operation %{operation} before
         continuing.
     imports:
+      ai_suggest: Suggest column mapping with AI
+      ai_notice: Sends up to 50 CSV headers and permitted field names, labels and types to your configured provider. All data rows stay local.
+      ai_review: "%{count} suggested mappings. Check the selections and update the preview before confirming."
+      ai_unavailable: Mapping suggestions are unavailable. You can still map the columns manually.
+      hints:
+        iso_date: Use ISO dates such as 2026-11-25.
+        boolean_words: Boolean fields accept yes or no, true or false, and 1 or 0.
+        choice_label: Use a configured choice label or its stored value.
+      review_help: "Review up to %{limit} rows. For a larger file, check it first, then upload it again to import directly."
+      review: Review CSV import
+      mapping: Map CSV columns to fields
+      header: "Column %{position} · %{header}"
+      ignore: Ignore column
+      match: Check for duplicates using
+      no_match: Skip duplicate check
+      duplicates: When a value matches
+      skip: Skip duplicate rows
+      create_anyway: Create a new record
+      rows: Review rows
+      values: Mapped values
+      status: Findings
+      exclude: Exclude
+      duplicate: Duplicate match
+      formula: Cell starts with a spreadsheet formula character.
+      exclude_row: "Exclude row %{number}"
+      refresh: Update preview
+      confirm_count:
+        one: Confirm creation of 1 record
+        other: "Confirm creation of %{count} records"
+      selection_summary: "%{selected} of %{total} rows selected."
+      invalid_summary:
+        one: 1 selected row needs correction.
+        other: "%{count} selected rows need correction."
+      open_review: Open import review
       button: Import CSV
       title: Import %{label}
-      intro: Each row becomes a new record through the ordinary create form rules. Check the file first; nothing is saved until you import.
+      intro: Each included row creates a record under your current permissions.
       columns: "Columns: %{fields}."
       template: Download a template
       file: CSV file

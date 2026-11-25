@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Reviewed CSV imports (0.8 development).** Map unfamiliar headers, inspect validation errors and duplicate matches, and exclude rows before creating up to 100 records. Optional AI suggestions use only headers and permitted field definitions. A chat review card opens the latest draft under the operator’s current permissions. Existing hosts need the import-drafts migration and revision 2 of any upload-form override. [CSV export and import](https://rails-ai-admin.wangyaodi.com/next/csv-export/).
+
 - **Reviewed merges and reference checks (0.8 development).** Compare duplicate candidates and their visible dependent counts, select a survivor and confirm a host-defined merge through the operation runner. Separate approvers can review the same candidates in Tasks. Quality rules can also flag unavailable `belongs_to` references. [Data quality rules](https://rails-ai-admin.wangyaodi.com/next/data-quality/).
 
 Contextual, interactive and durable operational admin (the 0.6 and 0.7 milestones on `main`). Existing hosts copy four new engine migrations with `bin/rails generate rails_ai_admin:install --skip`, run `bin/rails db:migrate`, and update layout overrides to contract 7. See the [upgrade guide](https://rails-ai-admin.wangyaodi.com/next/upgrading/).

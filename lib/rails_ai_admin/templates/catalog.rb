@@ -56,6 +56,8 @@ module RailsAiAdmin
           4 # counts, widgets
         elsif key == "resource_index"
           10 # quality_rules_available
+        elsif key == "resource_import"
+          2 # reviewed upload and legacy large-file controls
         elsif key == "resource_show"
           3
         elsif %w[resource_new resource_edit resource_form].include?(key)

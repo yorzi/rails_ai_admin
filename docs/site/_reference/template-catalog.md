@@ -86,7 +86,7 @@ legacy visible_resources still includes hidden-menu resources. See
 | `resource_navigation` | 1 | `rails_ai_admin/shared/_navigation.html.erb` | None | `groups` |
 | `dashboard` | 4 | `rails_ai_admin/dashboard/index.html.erb` | `context`, `counts`, `widgets` | None |
 | `audit_log` | 1 | `rails_ai_admin/audit/index.html.erb` | `context`, `log`, `filters`, `page`, `actor_labels` | None |
-| `resource_import` | 1 | `rails_ai_admin/imports/new.html.erb` | `context`, `resource`, `import`, `report`, `problem` | None |
+| `resource_import` | 2 | `rails_ai_admin/imports/new.html.erb` | `context`, `resource`, `import`, `report`, `problem` | None |
 | `search` | 1 | `rails_ai_admin/search/index.html.erb` | `context`, `query`, `sections` | None |
 | `resource_index` | 10 | `rails_ai_admin/resources/index.html.erb` | `context`, `resource`, `page`, `columns`, `rows`, `searchable`, `selectable`, `exportable`, `importable`, `sortable_fields`, `list_scopes`, `current_scope`, `filter_fields`, `omitted_rows`, `bulk_destroy`, `bulk_operations`, `saved_views`, `deleted_records`, `quality_rules_available`, `list_navigation` | None |
 | `resource_show` | 3 | `rails_ai_admin/resources/show.html.erb` | `context`, `resource`, `record`, `values`, `fields`, `operations`, `association_panels`, `list_navigation` | None |

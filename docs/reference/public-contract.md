@@ -508,3 +508,9 @@ Unhandled action exceptions remain the host's error-handling responsibility.
 
 See ADR 0015 and the custom-controller guide for the packaged Order example,
 ordinary HTML preview/303 confirmation contract and extension trust boundary.
+
+## Reviewed CSV imports
+
+The native review accepts up to `min(100, config.import_limit)` rows per draft and the same UTF-8, byte and column bounds as the direct importer. Drafts bind the actor, tenant, security version, resource and create operation definition. The operator can map create-writable CSV fields, exclude rows and optionally check a mapped equality-filterable field against scoped records. Confirmation checks current permissions and the preview digest before opening any create intents. The selected creates and their receipts commit together. A second confirmation of the admitted digest returns its recorded count. Drafts expire after 30 minutes and the prune task removes them.
+
+When an operator requests mapping suggestions, the configured assistant receives only bounded headers and writable field descriptors. Suggested targets must be on the current allowlist. Suggestions enter the reviewed workflow through the same form as manual edits. The read-only chat component `raa_import_preview` stores only the resource key and draft identifier, checks live owner, expiry and import grants, and links to the native review. The `preview_csv_import` tool returns only the surface reference.

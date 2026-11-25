@@ -3,13 +3,17 @@ layout: default
 title: Upgrading
 nav_order: 2
 guide: false
-description: Upgrade an existing 0.5 host to the 0.7 development line, apply its migrations, update layout overrides and add the new approval, undo and tasks grants.
+description: Apply development-line migrations, update host template overrides and configure grants for new features.
 ---
 
 # {{ page.title }}
 
 {{ page.description }}
 {: .fs-6 .fw-300 }
+
+## 0.8.0 development on main
+
+For staged CSV review, run `bin/rails generate rails_ai_admin:install --skip` and `bin/rails db:migrate` to install the import-drafts table. If your host overrides `resource_import`, update its upload form to template revision 2 to expose **Review CSV import**. Schedule `bin/rails rails_ai_admin:prune` to delete expired drafts. The review uses the existing import and create grants. [CSV export and import]({% link _core_features/csv-export.md %}).
 
 ## Upgrade to 0.7.0
 

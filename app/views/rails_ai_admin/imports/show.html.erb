@@ -1,0 +1,45 @@
+<% admin_title t("rails_ai_admin.imports.review"), @resource.label %>
+<%= link_to @resource.label, resources_path(resource: @resource.key) %>
+<h1><%= t("rails_ai_admin.imports.review") %></h1>
+<p><%= @draft.filename %></p>
+<% if @problem %><p role="alert"><%= @problem %></p><% end %>
+<% if @draft.status == "admitted" %>
+  <p role="status"><%= t("rails_ai_admin.imports.created", count: @draft.created_count, total: @draft.row_count) %></p>
+<% else %>
+  <% if assistant_for?(@resource) %>
+    <%= form_with url: suggest_resource_import_draft_path(resource: @resource.key, id: @draft.id), method: :post, data: { turbo: false } do %>
+      <p><%= t("rails_ai_admin.imports.ai_notice") %></p>
+      <%= hidden_field_tag :review_digest, @preview.digest, id: nil %>
+      <%= button_tag t("rails_ai_admin.imports.ai_suggest"), type: "submit" %>
+    <% end %>
+  <% end %>
+  <% if @suggestions %><p role="status"><%= t("rails_ai_admin.imports.ai_review", count: @suggestions.size) %></p><% end %>
+  <%= form_with url: resource_import_draft_path(resource: @resource.key, id: @draft.id), method: :post, data: { turbo: false } do %>
+    <%= hidden_field_tag :review_digest, @preview.digest %>
+    <fieldset><legend><%= t("rails_ai_admin.imports.mapping") %></legend>
+      <% @preview.headers.each_with_index do |header, index| %>
+        <div class="raa-field"><%= label_tag "column-#{index}", t("rails_ai_admin.imports.header", position: index + 1, header: header.truncate(100)) %>
+        <%= select_tag "mapping[#{index}]", options_for_select(@import.fields.map { |f| [ f.label, f.name ] }, @suggestions&.dig(index, 0) || @draft.mapping[index.to_s]), include_blank: t("rails_ai_admin.imports.ignore"), id: "column-#{index}" %>
+        <% if @preview.samples[index].any? %><small><%= @preview.samples[index].join(" · ") %></small><% end %>
+        <% if (hint = @suggestions&.dig(index, 1)) %><p><%= t("rails_ai_admin.imports.hints.#{hint}") %></p><% end %></div>
+      <% end %>
+    </fieldset>
+    <div class="raa-field"><%= label_tag :match_field, t("rails_ai_admin.imports.match") %>
+      <%= select_tag :match_field, options_for_select(@review.match_fields.map { |f| [ f.label, f.name ] }, @draft.match_field), include_blank: t("rails_ai_admin.imports.no_match") %></div>
+    <div class="raa-field"><%= label_tag :duplicates, t("rails_ai_admin.imports.duplicates") %>
+      <%= select_tag :duplicates, options_for_select([[t("rails_ai_admin.imports.skip"), "skip"], [t("rails_ai_admin.imports.create_anyway"), "create"]], @draft.duplicates) %></div>
+    <div class="raa-table-scroll"><table><caption><%= t("rails_ai_admin.imports.rows") %></caption>
+      <thead><tr><% %w[row values status exclude].each do |label| %><th scope="col"><%= t("rails_ai_admin.imports.#{label}") %></th><% end %></tr></thead>
+      <tbody><% @preview.rows.each do |row| %>
+        <tr><th scope="row"><%= row.number %></th><td><%= row.input.values.map { |v| v.to_s.truncate(100) }.join(" · ") %></td>
+        <td><%= admin_outcome(row.result.code) unless row.result.success? %>
+          <% row.result.errors.each do |name, messages| %><%= name.humanize %> <%= Array(messages).join(", ") %><% end %>
+          <%= t("rails_ai_admin.imports.duplicate") if row.duplicate %>
+          <%= t("rails_ai_admin.imports.formula") if row.formula %></td>
+        <td><%= check_box_tag "excluded[]", row.number, row.excluded, id: "exclude-#{row.number}", aria: { label: t("rails_ai_admin.imports.exclude_row", number: row.number) } %></td></tr>
+      <% end %></tbody>
+    </table></div>
+    <%= button_tag t("rails_ai_admin.imports.refresh"), type: "submit" %>
+    <% if @preview.ready && !@suggestions %><%= button_tag t("rails_ai_admin.imports.confirm_count", count: @preview.selected.size), type: "submit", name: "decision", value: "confirm" %><% end %>
+  <% end %>
+<% end %>

@@ -791,10 +791,43 @@ module RailsAiAdmin
       end
     end
 
+    class PreviewCsvImport < Tool
+      description "Open the operator's most recently uploaded, unconfirmed CSV for one resource in a private review card."
+      parameters({ "type" => "object", "required" => [ "resource" ], "additionalProperties" => false,
+        "properties" => { "resource" => { "type" => "string" } } })
+
+      def self.tool_name = "preview_csv_import"
+
+      def self.available?(session)
+        return false unless session.chat && RailsAiAdmin.configuration.surfaces && ImportDraft.table_exists?
+        ImportDraft.open_for(session.context).distinct.pluck(:resource_key).any? do |key|
+          session.access(session.resource(key)).authorize_import!
+        rescue AccessDenied
+          false
+        end
+      end
+
+      private
+
+      def perform(tool_call:, resource:)
+        context = @session.context
+        raise AccessDenied unless RailsAiAdmin.configuration.surfaces && @session.chat&.current_for?(context) && tool_call && ImportDraft.table_exists?
+        resource = @session.resource(resource)
+        @session.access(resource).authorize_import!
+        id = ImportDraft.open_for(context).where(resource_key: resource.key.to_s).order(created_at: :desc, id: :desc).pick(:id)
+        raise AccessDenied unless id
+        surface = present_read_view do
+          Assistant.tool_views.present_import_preview(context: context, resource: resource, draft_id: id, chat: @session.chat, call_id: tool_call.id)
+        end
+        surface ? { "surface" => surface.id } : failure("NOT_FOUND")
+      end
+    end
+
     TOOLS = [ ListResources, DescribeResource, SearchRecords, CountRecords, AggregateRecords, GetRecord, RecordHistory ].freeze
 
     def self.tools_for(session)
       classes = TOOLS + proposal_tools
+      classes << PreviewCsvImport if PreviewCsvImport.available?(session)
       unless RailsAiAdmin.configuration.quality_rules.empty?
         if session.resources.any? { |resource| RailsAiAdmin.quality_registry.for_access(session.access(resource)).any? }
           classes.concat([ ListQualityRules, RunQualityRule ])

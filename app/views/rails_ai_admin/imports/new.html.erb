@@ -29,6 +29,12 @@
   </div>
   <div class="raa-actions">
     <%= button_tag t("rails_ai_admin.imports.check"), name: "mode", value: "check", type: "submit", class: "raa-secondary" %>
-    <%= button_tag t("rails_ai_admin.imports.import"), name: "mode", value: "import", type: "submit" %>
+    <% if RailsAiAdmin::ImportDraft.table_exists? %>
+      <%= button_tag t("rails_ai_admin.imports.review"), name: "mode", value: "review", type: "submit" %>
+      <p class="raa-field-help"><%= t("rails_ai_admin.imports.review_help", limit: [ RailsAiAdmin.configuration.import_limit, RailsAiAdmin::Presentation::ImportReview::SYNC_LIMIT ].min) %></p>
+    <% end %>
+    <% if !RailsAiAdmin::ImportDraft.table_exists? || @report&.checked && @report.rows.size > RailsAiAdmin::Presentation::ImportReview::SYNC_LIMIT %>
+      <%= button_tag t("rails_ai_admin.imports.import"), name: "mode", value: "import", type: "submit" %>
+    <% end %>
   </div>
 <% end %>

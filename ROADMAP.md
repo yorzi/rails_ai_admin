@@ -84,7 +84,7 @@ Operators can review another person’s proposal, track large bulk changes in Ta
 ## 0.8.0: data quality, import review and saved reports (in progress)
 
 - **Data quality (E07).** Operators can run host checks for duplicates, missing values and unavailable references, compare records, choose a survivor and confirm a host-defined merge. Each confirmation rechecks permissions and record versions. The native UI works offline. Chat can open a live comparison, and MCP exposes the read-only checks. [Data quality guide](docs/site/_core_features/data-quality.md)
-- **CSV import (E08).** Planned work includes staged mapping and duplicate review, optional AI mapping suggestions and resumable chunked imports.
+- **CSV import (E08).** Operators can map and review up to 100 rows, skip scoped duplicates and confirm one audited create per selected row. Optional AI mapping suggestions use headers and writable field definitions. Chat can reopen the latest draft in a private review card. Resumable large imports and failed-row download and retry remain planned.
 - **Cross-resource queries (E02-P2).** Operators can search a related resource, include or exclude records with a matching relation, and break down an aggregate by category and calendar period. Each query uses the viewer’s current grants on both resources. [Assistant query guide](docs/site/_advanced/admin-assistant.md)
 - **Saved queries and dashboards (E09).** Planned work includes saving a query, sharing it and pinning a chart to Overview. Each chart will recheck the viewer’s permissions when rendered.
 

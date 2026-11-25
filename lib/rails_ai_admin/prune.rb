@@ -9,18 +9,21 @@ module RailsAiAdmin
   class Prune
     DEFAULT_AGE = 7.days
     BATCH = 1000
-    Result = Data.define(:intents, :selections)
+    Result = Data.define(:intents, :selections, :import_drafts)
 
     def initialize(older_than: DEFAULT_AGE, now: Time.current)
       unless older_than.is_a?(ActiveSupport::Duration) || older_than.is_a?(Numeric)
         raise ConfigurationError, "older_than must be a duration"
       end
       raise ConfigurationError, "older_than must not be negative" if older_than.to_i.negative?
-      @cutoff = now - older_than
+      @now, @cutoff = now, now - older_than
     end
 
     def call
-      Result.new(prune_intents, prune_selections)
+      drafts = if ImportDraft.table_exists?
+        ImportDraft.where("expires_at <= ?", @now).in_batches(of: BATCH).delete_all
+      end
+      Result.new(prune_intents, prune_selections, drafts || 0)
     end
 
     private

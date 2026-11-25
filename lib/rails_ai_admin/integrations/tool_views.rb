@@ -103,6 +103,11 @@ module RailsAiAdmin
           }
         }
       }.freeze
+      IMPORT_PREVIEW_KEY = "raa_import_preview"
+      IMPORT_PREVIEW_SCHEMA = {
+        type: "object", additionalProperties: false, required: %w[resource draft_id],
+        properties: { resource: { type: "string", pattern: RESOURCE_KEY_PATTERN }, draft_id: { type: "string", pattern: UUID, maxLength: 36 } }
+      }.freeze
       MERGE_REVIEW_KEY = "raa_merge_review"
       MERGE_REVIEW_SCHEMA = {
         type: "object", additionalProperties: false, required: %w[resource rule group],
@@ -110,6 +115,7 @@ module RailsAiAdmin
           group: { type: "string", pattern: "^[0-9a-f]{64}$" } }
       }.freeze
       READ_COMPONENTS = {
+        IMPORT_PREVIEW_KEY => { description: "Review an existing CSV import draft", schema: IMPORT_PREVIEW_SCHEMA, partial: "rails_ai_admin/surfaces/import_preview" }.freeze,
         MERGE_REVIEW_KEY => { description: "Compare duplicate records for a reviewed merge", schema: MERGE_REVIEW_SCHEMA, partial: "rails_ai_admin/surfaces/merge_review" }.freeze,
         RECORD_CARD_KEY => { description: "Admin record summary card", schema: RECORD_CARD_SCHEMA, partial: RECORD_CARD_PARTIAL }.freeze,
         RECORD_TABLE_KEY => { description: "Admin bounded record table", schema: RECORD_TABLE_SCHEMA, partial: RECORD_TABLE_PARTIAL }.freeze,
@@ -341,7 +347,10 @@ module RailsAiAdmin
           resource = RailsAiAdmin.registry.fetch(props["resource"])
           auth = Authorization::Access.new(context, resource)
           auth.authorize_assistant!
-          if props.key?("group")
+          if props.key?("draft_id")
+            return false unless ImportDraft.table_exists?
+            Presentation::ImportReview.new(context, resource).find!(props.fetch("draft_id")).status == "draft"
+          elsif props.key?("group")
             Quality::MergeReview.group!(auth, props.fetch("rule"), props.fetch("group"), assistant: true)
             true
           elsif props.key?("record_id")
@@ -372,6 +381,23 @@ module RailsAiAdmin
           end
         rescue AccessDenied, ConfigurationError, KeyError
           false
+        end
+
+        def present_import_preview(context:, resource:, draft_id:, chat:, call_id:)
+          return unless chat && call_id.is_a?(String) && chat.current_for?(context)
+          present_read_surface(context: context, chat: chat, call_id: call_id, key: IMPORT_PREVIEW_KEY,
+            props: { "resource" => resource.key.to_s, "draft_id" => draft_id })
+        end
+
+        def import_preview_data(props)
+          context = current_context
+          resource = RailsAiAdmin.registry.fetch(props.fetch("resource"))
+          Authorization::Access.new(context, resource).authorize_assistant!
+          review = Presentation::ImportReview.new(context, resource)
+          draft = review.find!(props.fetch("draft_id"))
+          [ resource, draft, review.preview(draft) ]
+        rescue AccessDenied, ConfigurationError
+          nil
         end
 
         def present_merge_review(context:, resource:, rule:, group:, chat:, call_id:)

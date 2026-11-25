@@ -87,11 +87,21 @@ values. Dates and times use ISO format. An empty cell leaves the field at its
 default. When reusing an export, copy the writable columns into the template
 and supply target keys for any `belongs_to` columns.
 
-**Check file** runs type checks, reference checks, create policy and model
-validations against the current data without saving records. **Import** creates
-rows through the native create operation. Each row has its own validation,
-transaction and audit event. Save callbacks and database constraints apply
-during import. The report shows the first 100 row failures.
+### Review a file before creating records
+
+Choose **Review CSV import** for up to 100 data rows, or the configured import limit if lower. Match unfamiliar headers to writable fields or choose **Ignore column**. The first three values from each column help identify it. Rows report validation errors and flag cells beginning with spreadsheet formula characters.
+
+To check for duplicates, choose a mapped field that your policy allows you to filter by equality. The preview checks the current policy scope and earlier included rows in the file. Choose **Skip duplicate rows** or **Create a new record**. Exclude any other rows you want to leave out, then choose **Update preview**. The selected rows must all pass validation before you can confirm. Confirmation rechecks the preview and creates the selected records together through the native create operation. If the preview changed, reopen the draft and review it again. Repeating a successful confirmation shows the same result.
+
+The review is private to the current actor, tenant and security version and expires after 30 minutes. Rails stores the uploaded CSV encrypted and discards it when confirmation succeeds. Schedule the existing `rails_ai_admin:prune` task to remove expired drafts.
+
+With assistant access, you can choose **Suggest column mapping with AI**. This sends up to 50 headers and up to 50 writable field definitions (names, labels and types) to the host's configured provider. Data rows stay on the host. Review the suggested fields and formatting hints, then choose **Update preview** to apply your choices.
+
+If the host enables assistant Surfaces, ask chat to “open my latest CSV import for articles” after uploading a draft. The card shows how many rows are selected and how many need correction. **Open import review** returns to the native form for edits and confirmation. Only the card reference goes to the model.
+
+### Check a file or import a larger file
+
+**Check file** checks types, references, create policy and model validations using the template headers. For files above 100 rows, check the file and upload it again with **Import** to use the existing direct importer. It processes each row independently and reports the first 100 failures. Hosts that have yet to install the draft migration also use this workflow.
 
 Upload UTF-8 CSV of at most 2 MB. Quote cells containing commas or line breaks
 and double any quotation mark inside a quoted cell. The whole file is parsed
