@@ -302,7 +302,9 @@ module RailsAiAdmin
 
     def tasks_nav_label
       count = Tasks::Coordinator.pending_approval_count(@context)
-      count.positive? ? "#{t('rails_ai_admin.layout.tasks')} (#{count})" : t("rails_ai_admin.layout.tasks")
+      return t("rails_ai_admin.layout.tasks") unless count.positive?
+      shown = count >= Tasks::Coordinator::BADGE_CAP ? "#{Tasks::Coordinator::BADGE_CAP - 1}+" : count
+      "#{t('rails_ai_admin.layout.tasks')} (#{shown})"
     end
 
     # The menu link follows the same grant as the assistant pages.

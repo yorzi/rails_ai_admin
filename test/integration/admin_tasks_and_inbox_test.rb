@@ -386,4 +386,30 @@ class AdminTasksAndInboxTest < ActionDispatch::IntegrationTest
       assert_equal 20, @customer.reload.points
     end
   end
+
+  # The navigation badge renders on every admin page, so finished tasks must
+  # be filtered in SQL rather than authorized one by one.
+  def test_pending_approval_badge_authorizes_only_pending_tasks
+    with_task_inbox do
+      now = Time.current
+      rows = Array.new(40) do |i|
+        { id: SecureRandom.uuid, tenant_ref: ctx_for(1).tenant_ref, created_by_actor_ref: ctx_for(1).actor_ref,
+          kind: "change_review", status: "succeeded", title: "Done #{i}", resource_key: "task_customers",
+          operation: "adjust_points", summary_metadata: {}, completed_at: now, created_at: now, updated_at: now }
+      end
+      RailsAiAdmin::AdminTask.insert_all!(rows)
+      RailsAiAdmin::Operations::Runner.new.preflight(context: ctx_for(1), resource: TaskInboxCustomerAdmin, operation: :adjust_points,
+        target_id: @customer.id, expected_version: @customer.lock_version, input: { "points" => 3, "reason" => "Badge" })
+      loaded = 0
+      counter = ->(*, payload) { loaded += payload[:record_count] if payload[:class_name] == "RailsAiAdmin::AdminTask" }
+      count = ActiveSupport::Notifications.subscribed(counter, "instantiation.active_record") do
+        RailsAiAdmin::Tasks::Coordinator.pending_approval_count(ctx_for(2))
+      end
+      assert_equal 1, count
+      assert_equal 1, loaded, "the badge loaded and authorized #{loaded} tasks"
+      assert_equal 0, RailsAiAdmin::Tasks::Coordinator.pending_approval_count(ctx_for(1))
+      assert_equal 40, RailsAiAdmin::Tasks::Coordinator.list(context: ctx_for(1), tab: "completed").size
+      assert_equal 41, RailsAiAdmin::Tasks::Coordinator.list(context: ctx_for(1), tab: "mine").size
+    end
+  end
 end

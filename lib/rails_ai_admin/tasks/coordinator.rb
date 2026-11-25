@@ -126,39 +126,39 @@ module RailsAiAdmin
         )
       end
 
+      # Rendered on every admin page: counts at most BADGE_CAP approvable tasks.
+      BADGE_CAP = 10
+
       def pending_approval_count(context)
         return 0 unless authorized?(context)
-        list(context: context, tab: "needs_approval", limit: 50).size
+        list(context: context, tab: "needs_approval", limit: BADGE_CAP).size
       rescue AccessDenied
         0
       end
 
+      # Each tab is narrowed in SQL first; only the remaining candidates are
+      # authorized one by one, and scanning stops once `limit` are found.
       def list(context:, tab: "needs_approval", resource_key: nil, kind: nil, limit: 50)
         raise AccessDenied unless authorized?(context)
+        now = Time.current
+        tasks = AdminTask.arel_table
         scope = AdminTask.where(tenant_ref: context.tenant_ref)
         scope = scope.where(resource_key: resource_key.to_s) if resource_key.present?
         scope = scope.where(kind: kind.to_s) if kind.present? && KINDS.include?(kind.to_s)
-        candidates = ActiveRecord::Base.while_preventing_writes do
-          rows = scope.order(updated_at: :desc, id: :desc).limit(200).to_a
-          rows.select { |task| visible_to?(context, task) }
+        pending = scope.where(status: "awaiting_approval").where(tasks[:expires_at].gt(now))
+        lapsed = scope.where(status: "awaiting_approval").where(tasks[:expires_at].lteq(now))
+        scope = case tab.to_s
+        when "needs_approval" then pending
+        when "active" then scope.where(status: %w[open executing verifying]).or(pending)
+        when "completed" then scope.where(status: %w[succeeded partially_failed failed cancelled expired]).or(lapsed)
+        when "mine" then scope.where(created_by_actor_ref: context.actor_ref)
+        else scope
         end
-        now = Time.current
-        filtered = candidates.select do |task|
-          eff = effective_status(task, now: now)
-          case tab.to_s
-          when "needs_approval"
-            eff == "awaiting_approval" && can_approve?(context, task)
-          when "active"
-            %w[open awaiting_approval executing verifying].include?(eff)
-          when "completed"
-            %w[succeeded partially_failed failed cancelled expired].include?(eff)
-          when "mine"
-            task.created_by_actor_ref == context.actor_ref
-          else
-            true
-          end
+        ActiveRecord::Base.while_preventing_writes do
+          scope.order(updated_at: :desc, id: :desc).limit(200).to_a.lazy.select do |task|
+            tab.to_s == "needs_approval" ? can_approve?(context, task) : visible_to?(context, task)
+          end.first(limit)
         end
-        filtered.first(limit)
       end
 
       def find_visible!(context:, id:)
