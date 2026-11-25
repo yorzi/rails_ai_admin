@@ -20,6 +20,7 @@
         <table>
           <thead>
             <tr>
+              <% if agg.period_field %><th scope="col"><%= agg.period_field.label %></th><% end %>
               <th scope="col"><%= agg.group_by.label %></th>
               <th scope="col"><%= t("rails_ai_admin.surfaces.metric_card.count_col") %></th>
               <% if agg.field %><th scope="col"><%= agg.field.label %></th><% end %>
@@ -28,6 +29,7 @@
           <tbody>
             <% metric.groups.each do |group| %>
               <tr>
+                <% if agg.period_field %><td><%= group[:period_start]&.iso8601 || "—" %></td><% end %>
                 <td><%= group[:label] %></td>
                 <td><%= number_with_delimiter(group[:count]) %></td>
                 <% if agg.field %><td><%= group[:value_text] %></td><% end %>

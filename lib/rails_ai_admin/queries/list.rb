@@ -14,7 +14,8 @@ module RailsAiAdmin
       MAX_FILTER_CONDITIONS = 20
       MAX_OR_GROUPS = 5
       MAX_RELATION_FILTERS = 3
-      RelationFilterSpec = Data.define(:name, :resource, :kind, :fields)
+      RelationFilterSpec = Data.define(:name, :resource, :kind, :fields, :searchable)
+      RelationPredicate = Data.define(:filters, :search, :negated)
       FILTER_VALUE = ->(value) { value.is_a?(String) && value.valid_encoding? && (value.encoding == Encoding::UTF_8 || value.ascii_only?) && value.length.between?(1, 200) && !value.match?(/[\x00-\x1f\x7f]/) }
       AREL_PREDICATES = { "eq" => :eq, "gte" => :gteq, "lte" => :lteq }.freeze
       OPERATORS = Field::FILTER_OPERATORS.map(&:to_s).freeze
@@ -79,21 +80,21 @@ module RailsAiAdmin
       # Single-hop declared relations the actor may filter through (belongs_to
       # fields granted for :filter, and has_many/has_one panels whose child
       # back-reference is readable). Each target requires :index (and assistant?
-      # when assistant: true) plus at least one granted :filter field.
+      # when assistant: true) plus a granted search or filter field.
       def filterable_relations
         specs = []
         @access.fields(:filter).select { |field| field.scalar_type == :belongs_to }.each do |field|
           target = Fields::Association.target(field)
-          fields = granted_target_filter_fields(target)
-          next if fields.empty?
-          specs << RelationFilterSpec.new(name: field.name.to_s, resource: target, kind: "belongs_to", fields: fields)
+          fields, searchable = target_query_grants(target)
+          next if fields.empty? && !searchable
+          specs << RelationFilterSpec.new(name: field.name.to_s, resource: target, kind: "belongs_to", fields: fields, searchable: searchable)
         end
         @resource.has_many_declarations.each do |definition|
           child, = resolve_child_relation(definition)
           next unless child
-          fields = granted_target_filter_fields(child)
-          next if fields.empty?
-          specs << RelationFilterSpec.new(name: definition.name.to_s, resource: child, kind: definition.single ? "has_one" : "has_many", fields: fields)
+          fields, searchable = target_query_grants(child)
+          next if fields.empty? && !searchable
+          specs << RelationFilterSpec.new(name: definition.name.to_s, resource: child, kind: definition.single ? "has_one" : "has_many", fields: fields, searchable: searchable)
         end
         specs.uniq(&:name)
       end
@@ -109,15 +110,19 @@ module RailsAiAdmin
       AGGREGATE_FUNCTIONS = %w[count sum average minimum maximum].freeze
       PERIODS = %w[day week month year].freeze
       MAX_GROUPS = 25
-      Aggregate = Data.define(:function, :field, :group_by, :count, :value, :groups, :groups_truncated, :scope, :period)
+      Aggregate = Data.define(:function, :field, :group_by, :count, :value, :groups, :groups_truncated, :scope, :period, :period_field)
       Group = Data.define(:key, :count, :value)
-      def aggregate(function:, field: nil, group_by: nil, period: nil, search: nil, scope: nil, filters: nil, any_filters: nil, relation_filters: nil)
+      PeriodCell = Data.define(:key, :period_start, :count, :value)
+
+      def aggregate(function:, field: nil, group_by: nil, period: nil, period_field: nil, search: nil, scope: nil, filters: nil, any_filters: nil, relation_filters: nil)
         @access.authorize!(:index)
         raise AccessDenied, "INVALID_QUERY" unless AGGREGATE_FUNCTIONS.include?(function)
         raise AccessDenied, "INVALID_QUERY" unless period.nil? || PERIODS.include?(period) && !group_by.nil?
         measure = function == "count" ? nil : aggregate_field(field, function)
         raise AccessDenied, "INVALID_QUERY" if function == "count" && !field.nil?
-        grouping = group_by.nil? ? nil : group_field(group_by, period: !period.nil?)
+        raise AccessDenied, "INVALID_QUERY" if period_field && !period
+        date_dimension = group_field(period_field, period: true) unless period_field.nil?
+        grouping = group_field(group_by, period: period && !date_dimension) unless group_by.nil?
         relation, named = filtered_relation(search: search, scope: scope, filters: filters, any_filters: any_filters, relation_filters: relation_filters)
         model = @resource.model_class
         primary = model.primary_key
@@ -127,7 +132,9 @@ module RailsAiAdmin
         expressions << table[measure.column].public_send(AREL_AGGREGATES.fetch(function)) if measure
         count, raw = base.pick(*expressions)
         groups, truncated = [], false
-        if grouping && period
+        if date_dimension
+          groups, truncated = cross_tab(base, grouping, date_dimension, period, expressions, measure, function)
+        elsif grouping && period
           groups, truncated = period_groups(base, table[grouping.column], grouping, period, expressions, measure, function)
         elsif grouping
           column = table[grouping.column]
@@ -138,7 +145,7 @@ module RailsAiAdmin
           end
         end
         Aggregate.new(function, measure, grouping, count.to_i, measure ? aggregate_value(measure, function, raw) : nil, groups, truncated,
-          named&.name&.to_s, period)
+          named&.name&.to_s, period, date_dimension)
       end
 
       AREL_AGGREGATES = { "sum" => :sum, "average" => :average, "minimum" => :minimum, "maximum" => :maximum }.freeze
@@ -226,6 +233,32 @@ module RailsAiAdmin
       # MAX_GROUPS periods only the latest are returned. Records without a
       # date form a final group whose key is nil, beyond that limit.
       def period_groups(base, column, field, period, expressions, measure, function)
+        starts, bucket, truncated = period_buckets(base, column, field, period)
+        rows = base.group(bucket).pluck(bucket, *expressions).to_h { |index, *values| [ index.to_i, values ] }
+        groups = starts.each_with_index.map do |start, index|
+          group_count, group_raw = rows.fetch(index, [ 0, nil ])
+          Group.new(start, group_count.to_i, measure ? aggregate_value(measure, function, group_raw) : nil)
+        end
+        if (undated = rows[-1])
+          groups << Group.new(nil, undated[0].to_i, measure ? aggregate_value(measure, function, undated[1]) : nil)
+        end
+        [ groups, truncated ]
+      end
+
+      def cross_tab(base, grouping, date_field, period, expressions, measure, function)
+        table = base.klass.arel_table
+        category = table[grouping.column]
+        starts, bucket, truncated = period_buckets(base, table[date_field.column], date_field, period)
+        rows = base.where(bucket.gteq(-1)).group(bucket, category).order(bucket.desc, category.asc.nulls_last)
+          .limit(MAX_GROUPS + 1).pluck(bucket, category, *expressions)
+        cells = rows.first(MAX_GROUPS).map do |index, key, count, raw|
+          start = starts.fetch(index.to_i) if index.to_i >= 0
+          PeriodCell.new(cast(grouping, key), start, count.to_i, measure ? aggregate_value(measure, function, raw) : nil)
+        end
+        [ cells, truncated || rows.size > MAX_GROUPS ]
+      end
+
+      def period_buckets(base, column, field, period)
         zone = ActiveSupport::TimeZone[@access.context.time_zone]
         first, last = base.pick(column.minimum, column.maximum).map { |raw| cast(field, raw) }
         starts = []
@@ -248,15 +281,7 @@ module RailsAiAdmin
         end
         # Records before the returned periods fall to -2 and are left out.
         bucket = bucket.else(Arel::Nodes.build_quoted(-2))
-        rows = base.group(bucket).pluck(bucket, *expressions).to_h { |index, *values| [ index.to_i, values ] }
-        groups = starts.each_with_index.map do |start, index|
-          group_count, group_raw = rows.fetch(index, [ 0, nil ])
-          Group.new(start, group_count.to_i, measure ? aggregate_value(measure, function, group_raw) : nil)
-        end
-        if (undated = rows[-1])
-          groups << Group.new(nil, undated[0].to_i, measure ? aggregate_value(measure, function, undated[1]) : nil)
-        end
-        [ groups, truncated ]
+        [ starts, bucket, truncated ]
       end
 
       def period_start(date, period)
@@ -335,6 +360,7 @@ module RailsAiAdmin
         else granted.find { |definition| definition.name.to_s == scope }
         end
         raise AccessDenied, "INVALID_QUERY" if scope && !unscoped && !named
+        relation_filters = parse_relation_filters(relation_filters)
         validate_filter_budget!(filters, any_filters, relation_filters)
         relation = @access.relation
         relation = named.apply(relation) if named
@@ -405,15 +431,36 @@ module RailsAiAdmin
             total += filter_condition_count(group)
           end
         end
-        if relation_filters
-          raise AccessDenied, "INVALID_QUERY" unless relation_filters.is_a?(Hash) && relation_filters.size.between?(1, MAX_RELATION_FILTERS)
-          relation_filters.each do |name, nested|
-            raise AccessDenied, "INVALID_QUERY" unless (name.is_a?(String) || name.is_a?(Symbol)) && name.to_s.match?(Field::NAME)
-            raise AccessDenied, "INVALID_QUERY" unless nested.is_a?(Hash) && nested.any?
-            total += filter_condition_count(nested)
-          end
+        relation_filters.each_value do |predicate|
+          cost = filter_condition_count(predicate.filters) + (predicate.search ? 1 : 0)
+          total += [ cost, 1 ].max
         end
         raise AccessDenied, "INVALID_QUERY" if total > MAX_FILTER_CONDITIONS
+      end
+
+      def parse_relation_filters(relations)
+        return {} if relations.nil?
+        raise AccessDenied, "INVALID_QUERY" unless relations.is_a?(Hash) && relations.size.between?(1, MAX_RELATION_FILTERS)
+        relations.to_h do |name, value|
+          raise AccessDenied, "INVALID_QUERY" unless (name.is_a?(String) || name.is_a?(Symbol)) && Field::NAME.match?(name.to_s)
+          raise AccessDenied, "INVALID_QUERY" unless value.is_a?(Hash) && value.any?
+          entry = value.stringify_keys
+          if entry.key?("_exists")
+            raise AccessDenied, "INVALID_QUERY" unless entry.one? && [ true, false ].include?(entry["_exists"])
+            next [ name, RelationPredicate.new({}, nil, !entry["_exists"]) ]
+          end
+          negated = entry.key?("_none")
+          if negated
+            raise AccessDenied, "INVALID_QUERY" unless entry.one? && entry["_none"].is_a?(Hash) && entry["_none"].any?
+            entry = entry["_none"].stringify_keys
+          end
+          search = nil
+          if entry.key?("_query")
+            search = entry.delete("_query")
+            raise AccessDenied, "INVALID_QUERY" unless FILTER_VALUE.call(search) && search.present?
+          end
+          [ name, RelationPredicate.new(entry, search, negated) ]
+        end
       end
 
       def filter_condition_count(filters)
@@ -440,53 +487,60 @@ module RailsAiAdmin
         relation.where(clauses.reduce(&:or))
       end
 
-      # Single-hop relation filters compiled as IN subqueries over the target
-      # resource's own Policy::Scope + soft_delete + target :filter grants.
-      # Using IN subqueries prevents row multiplication in counts/aggregates
-      # and avoids table-name collisions on self-referential models.
+      # A subquery keeps joins in the target policy from multiplying parent rows.
       def apply_relation_filters(relation, relation_filters)
         return relation if relation_filters.nil? || relation_filters.empty?
         belongs_to_fields = @access.fields(:filter).select { |field| field.scalar_type == :belongs_to }.index_by { |field| field.name.to_s }
         panels = @resource.has_many_declarations.index_by { |definition| definition.name.to_s }
         parent_table = @resource.model_class.arel_table
         parent_pk = @resource.model_class.primary_key
-        relation_filters.reduce(relation) do |scoped, (name, nested)|
+        relation_filters.reduce(relation) do |scoped, (name, predicate)|
           key = name.to_s
           if (field = belongs_to_fields[key])
             target = Fields::Association.target(field)
-            target_relation = target_filtered_relation(target, nested)
-            target_table = target.model_class.arel_table
-            subquery = target_relation.reorder(nil).reselect(target_table[target.model_class.primary_key]).arel
-            scoped.where(parent_table[field.column].in(subquery))
+            outer = parent_table[field.column]
+            inner = target.model_class.arel_table[target.model_class.primary_key]
           elsif (definition = panels[key])
-            child, via_field = resolve_child_relation(definition)
-            raise AccessDenied, "INVALID_QUERY" unless child && via_field
-            child_relation = target_filtered_relation(child, nested)
-            fk_col = child.model_class.arel_table[via_field.column]
-            subquery = child_relation.where(fk_col.not_eq(nil)).reorder(nil).reselect(fk_col).arel
-            scoped.where(parent_table[parent_pk].in(subquery))
+            target, via_field = resolve_child_relation(definition)
+            raise AccessDenied, "INVALID_QUERY" unless target && via_field
+            outer = parent_table[parent_pk]
+            inner = target.model_class.arel_table[via_field.column]
           else
             raise AccessDenied, "INVALID_QUERY"
+          end
+          matches = target_filtered_relation(target, predicate).reorder(nil).reselect(inner)
+          if predicate.negated
+            # Correlate outside the target query so a self-reference (or a
+            # target policy joining the parent table) cannot shadow the parent.
+            alias_name = parent_table.name == "raa_related_keys" ? "raa_target_keys" : "raa_related_keys"
+            keys = matches.reselect(inner.as("match_id")).arel.as(alias_name)
+            missing = Arel::SelectManager.new.from(keys).project(Arel.sql("1")).where(keys[:match_id].eq(outer)).exists.not
+            scoped.where(missing)
+          else
+            scoped.where(outer.in(matches.arel))
           end
         end
       end
 
-      def target_filtered_relation(target, nested)
+      def target_filtered_relation(target, predicate)
         target_access = Authorization::Access.new(@access.context, target)
         target_access.authorize!(:index)
         target_access.authorize_assistant! if @assistant
-        self.class.new(@access.context, target, assistant: @assistant).relation(filters: nested, scope: NamedScope::NONE)
+        if predicate.filters.empty? && predicate.search.nil? && target_access.fields(:filter).empty?
+          raise AccessDenied, "INVALID_QUERY"
+        end
+        self.class.new(@access.context, target, assistant: @assistant).relation(filters: predicate.filters, search: predicate.search, scope: NamedScope::NONE)
       rescue AccessDenied
         raise AccessDenied, "INVALID_QUERY"
       end
 
-      def granted_target_filter_fields(target)
+      def target_query_grants(target)
         target_access = Authorization::Access.new(@access.context, target)
         target_access.authorize!(:index)
         target_access.authorize_assistant! if @assistant
-        target_access.fields(:filter)
+        [ target_access.fields(:filter), target_access.fields(:search, assistant: @assistant).any? ]
       rescue AccessDenied, ConfigurationError
-        []
+        [ [], false ]
       end
 
       def resolve_child_relation(definition)

@@ -19,6 +19,8 @@ Contextual, interactive and durable operational admin (the 0.6 and 0.7 milestone
 - **Recorded evidence for 0.6:** New OpenRouter recordings (2026-11-25) cover the drawer's record and selection context, `relation_filters` on `openai/gpt-6-luna`, `anthropic/claude-haiku-5.5` and `google/gemini-3.8-flash`, an `any` count and a revised bulk change. The evaluation set has 30 questions (new: invoices of a named customer, invoices by customer points, an OR count); the recorded run passes 29 of 30. The grader accepts `answer_none`.
 - **Subset-selectable and editable bulk change reviews:** Bulk change reviews let operators untick records and edit proposed writable values (including clearing nullable boolean/choice fields) before confirming. **Update preview** submits to the shared form action under per-form CSRF protection (`decision=revise`; `POST selections/:selection_ref/bulk_change/revise` also remains available), writes no business records, atomically supersedes and invalidates the previous review token and signature, and opens a fresh immutable preview bound to the revised subset and values. Confirming a review whose rows or values were changed on the page without **Update preview** updates nothing and asks for a new preview.
 
+- **Related searches and calendar breakdowns (0.8 development).** Filter by the presence or absence of scoped related records, search a related resource using its granted search fields, and group a metric by category and calendar period in one request.
+
 ## 0.5.0 (2026-11-22)
 
 This Public Preview adds operator notes, fallback models, prompt caching,

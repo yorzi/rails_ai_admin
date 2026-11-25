@@ -341,6 +341,7 @@ draft orders?" or "How many points do active and inactive customers hold?":
   the latest 25 periods are returned, with `groups_truncated` when earlier ones
   are left out; filter the field by date to choose another range. Records
   without a date form a last group with an empty key.
+* For a breakdown such as “average order total by status and delivery month,” use a categorical `group_by`, a granted date or datetime `period_field`, and `period: "month"`. The tool returns occupied cells from the latest 25 periods, newest first, with a maximum of 25 cells including undated groups. Each cell contains its category, period start, count and requested measure. The overall total covers every matching record.
 * It covers the same records as `count_records`: the policy relation, the
   optional search, filters and granted scope. It runs over the relation's
   primary keys, so a join in a policy scope cannot count a record twice.
@@ -646,9 +647,7 @@ miss: asked to "list the invoice numbers of Judy Jones", `openai/gpt-6-luna`
 searched invoice numbers for her name twice instead of finding the customer
 first. Recorded again on 2026-11-25 with 0.6 (the `invoices-of-named-customer`
 question), it searched the customer first and then filtered her invoices.
-`relation_filters` use only the related resource's filter fields, so a name
-that is searchable but not filterable still needs those two steps. Operator
-notes that say where such records live help.
+The current tools can express that lookup in one call with `relation_filters: { customer: { _query: "Judy Jones" } }`. The related resource applies its granted search fields and match modes. To find customers with no visible invoices, use `{ invoices: { _exists: false } }`. To exclude customers who have a matching invoice, use `{ invoices: { _none: { state: { eq: "paid" } } } }` when invoice state is filterable. A missing or inaccessible customer counts as an absent relation. The 0.6 recording predates these operators.
 
 A recording also covers fallback models: with the primary model's requests
 answered by a simulated 503, `anthropic/claude-haiku-5.5` configured as the
