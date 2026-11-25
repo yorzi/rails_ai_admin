@@ -515,11 +515,18 @@ class DrawerController extends Controller {
     this.persistState(!this.panelTarget.hidden);
   }
 
+  // Turbo replaces only the frame's children, so the loaded page's state is
+  // read from the element inside the frame, not from the frame itself.
   frameLoaded() {
-    const ref = this.frameTarget.dataset.chatRef || "";
+    const state = this.frameTarget.querySelector("[data-raa-drawer-state]");
+    if (!state) return;
+    const ref = state.dataset.chatRef || "";
     this.chatRef = /^[0-9a-f-]{36}$/.test(ref) ? ref : null;
-    const fullUrl = this.frameTarget.dataset.fullUrl;
-    if (fullUrl && this.hasFullLinkTarget) this.fullLinkTarget.setAttribute("href", fullUrl);
+    const fullUrl = state.dataset.fullUrl;
+    if (fullUrl && fullUrl.startsWith("/") && !fullUrl.startsWith("//") && this.hasFullLinkTarget) {
+      this.fullLinkTarget.setAttribute("href", fullUrl);
+    }
+    if ("contextExpired" in state.dataset) this.removeContext();
     this.syncInputs();
     this.persistState(!this.panelTarget.hidden);
   }

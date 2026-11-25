@@ -47,7 +47,13 @@ module RailsAiAdmin
     def create
       question = params[:content]
       raise AccessDenied, "INVALID_QUERY" unless question.nil? || question.is_a?(String) && question.valid_encoding?
-      context_line = resolve_page_context_line
+      begin
+        context_line = resolve_page_context_line
+      rescue AccessDenied => error
+        raise unless error.code == Assistant::PageContext::EXPIRED
+        # No conversation is started; the question is offered again.
+        return refuse_start(question)
+      end
       @chat = Assistant.create_chat!(@context)
       if question.present?
         content = [ context_line, question.strip ].compact.join("\n\n").first(Assistant::Coordinator::MAX_CONTENT)
@@ -135,7 +141,9 @@ module RailsAiAdmin
     private
 
     # Admission refusals shown on the conversation page with the text kept.
-    REFUSALS = %w[RATE_LIMITED BUDGET_EXCEEDED].freeze
+    # CONTEXT_EXPIRED is Assistant::PageContext::EXPIRED, written out because
+    # hosts without the assistant still load this class when eager loading.
+    REFUSALS = %w[RATE_LIMITED BUDGET_EXCEEDED CONTEXT_EXPIRED].freeze
 
     def drawer_request?
       params[:drawer] == "1"
@@ -159,10 +167,26 @@ module RailsAiAdmin
       when "BUDGET_EXCEEDED"
         @message_error = t("rails_ai_admin.assistant.budget_exceeded")
         render template, layout: layout, status: :too_many_requests
+      when Assistant::PageContext::EXPIRED
+        @context_expired = true
+        @message_error = t("rails_ai_admin.assistant.context_expired")
+        render template, layout: layout, status: :unprocessable_content
       else
         @message_error = t("rails_ai_admin.assistant.invalid_message", count: Assistant::Coordinator::MAX_CONTENT)
         render template, layout: layout, status: :unprocessable_content
       end
+    end
+
+    # The drawer's start form again, with the question kept, when its page
+    # context lapsed before a conversation was started.
+    def refuse_start(question)
+      @drawer = drawer_request?
+      @context_expired = true
+      @message_error = t("rails_ai_admin.assistant.context_expired")
+      @draft = question.is_a?(String) ? question.first(Assistant::Coordinator::MAX_CONTENT + 1) : ""
+      @chats = Assistant::Chat.for_owner(@context).where(status: "active").order(updated_at: :desc, id: :desc).limit(10).to_a
+      layout = @drawer && turbo_frame_request? ? "rails_ai_admin/frame" : "rails_ai_admin/application"
+      render :drawer, layout: layout, status: :unprocessable_content
     end
 
     # When a signed page_context token is supplied, it MUST verify cleanly

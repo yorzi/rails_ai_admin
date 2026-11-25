@@ -454,9 +454,34 @@ When admin Chat is available for a resource, its record and list pages show
 new conversation whose first message begins with a server-written line such as
 `Context: I am looking at Ticket 42 ("Printer offline") in the tickets resource.`
 The line is added only after the server checks the `assistant?` grant and the
-record's scope and show grant again; a list adds its search text and list tab.
-It is visible in the transcript, it is data for the model, and it grants nothing:
-the model still reads the record with its tools.
+record's scope and show grant again; a list adds its search text, list tab,
+granted filters and sort. It is visible in the transcript, it is data for the
+model, and it grants nothing: the model still reads the record with its tools.
+
+On a list, tick records and choose **Ask assistant** to ask about a fixed
+selection. The context line then names the selected record ids (up to 20, and
+how many more).
+
+### The Assistant Drawer
+
+Every admin page also has an **Assistant** button in the header that opens the
+assistant in a side drawer, so you can ask without leaving the page. On a
+record, list or selection page the drawer shows the page as a removable chip:
+
+- **Following page** means the chip changes as you move between pages.
+- **Pin context** keeps the current chip while you navigate. **×** removes it.
+- The conversation stays open in the drawer as you navigate, and **Open full
+  conversation** shows it on the assistant page.
+
+The chip carries an encrypted page context token bound to the person, tenant and
+`security_version`, valid for one hour. Each message resolves it again under
+the current grants: a filter you may no longer use is left out, and an altered,
+foreign or revoked token is refused. When the token or its selection has
+expired, the message is not sent, the text stays in the message box, and the
+drawer removes the chip; send again to ask without it, or reload the page.
+
+A layout override must render the drawer to offer it: the layout contract is
+revision 6 (see [Template Overrides]({% link _advanced/template-overrides.md %})).
 
 ## Use the Conversation
 
@@ -598,12 +623,14 @@ which the transcript shows as literal characters.
 A request that names a customer but asks for another resource's records can
 miss: asked to "list the invoice numbers of Judy Jones", `openai/gpt-6-luna`
 searched invoice numbers for her name twice instead of finding the customer
-first. Operator notes that say where such records live help.
+first. That recording predates `relation_filters`, which let one search filter
+invoices by their customer's name; no recorded or live run has checked yet
+whether models use them. Operator notes that say where such records live help.
 
-Fallback models and the evaluation task have tests against a scripted provider
-but no recorded or live provider run yet. Selection
-context, undo of a confirmed change and bulk changes over more than 100 records
-are not available yet. Streaming is saved and polled, not pushed over WebSockets.
+Fallback models, the evaluation task, the drawer, OR and relation filters and
+the read-only record, table and metric cards have tests against a scripted
+provider but no recorded or live provider run yet. Undo of a confirmed change
+and bulk changes over more than 100 records are not available yet. Streaming is saved and polled, not pushed over WebSockets.
 
 ## How It Compares
 

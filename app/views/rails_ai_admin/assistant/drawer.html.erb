@@ -1,5 +1,8 @@
-<%= turbo_frame_tag "raa_assistant_drawer", data: { chat_ref: @chat&.ref, full_url: (@chat ? assistant_conversation_path(chat_ref: @chat.ref) : assistant_path) } do %>
-  <div class="raa-drawer-conversation" data-controller="raa-conversation">
+<%# Turbo moves only a frame's children into the page, so the state the
+    drawer reads after each load sits on this inner element. %>
+<%= turbo_frame_tag "raa_assistant_drawer" do %>
+  <div class="raa-drawer-conversation" data-controller="raa-conversation" data-raa-drawer-state=""
+    data-chat-ref="<%= @chat&.ref %>" data-full-url="<%= @chat ? assistant_conversation_path(chat_ref: @chat.ref) : assistant_path %>"<% if @context_expired %> data-context-expired=""<% end %>>
     <% if @chat %>
       <div class="raa-drawer-subbar">
         <%= link_to t("rails_ai_admin.assistant.new"), assistant_drawer_path, class: "raa-drawer-link", data: { turbo_frame: "raa_assistant_drawer", action: "click->raa-drawer#resetChat" } %>
@@ -40,13 +43,15 @@
       <div class="raa-drawer-start">
         <p class="raa-drawer-intro"><%= t("rails_ai_admin.assistant.drawer.intro") %></p>
         <%= form_with url: assistant_conversations_path, method: :post, class: "raa-chat-composer raa-drawer-composer", data: { turbo_frame: "raa_assistant_drawer" } do |form| %>
-          <%= hidden_field_tag :drawer, "1", id: nil %>
+          <% if @drawer %><%= hidden_field_tag :drawer, "1", id: nil %><% end %>
           <%= hidden_field_tag :page_context, "", id: nil, data: { raa_drawer_target: "contextInput" } %>
           <%= form.label :content, t("rails_ai_admin.assistant.message"), class: "raa-visually-hidden" %>
+          <% if @message_error %><p class="raa-field-error" id="raa-drawer-start-error" role="alert"><%= @message_error %></p><% end %>
           <div class="raa-chat-input">
-            <%= form.text_area :content, rows: 2, maxlength: RailsAiAdmin::Assistant::Coordinator::MAX_CONTENT, required: true,
+            <%= form.text_area :content, value: @draft, rows: 2, maxlength: RailsAiAdmin::Assistant::Coordinator::MAX_CONTENT, required: true,
               placeholder: t("rails_ai_admin.assistant.drawer.placeholder"),
-              data: { action: "keydown->raa-conversation#submitOnEnter" } %>
+              data: { action: "keydown->raa-conversation#submitOnEnter" },
+              aria: { describedby: (@message_error ? "raa-drawer-start-error" : nil), invalid: (@message_error ? true : nil) } %>
             <%= form.submit t("rails_ai_admin.assistant.ask"), data: { turbo_submits_with: t("rails_ai_admin.assistant.sending") } %>
           </div>
           <p class="raa-chat-shortcut" hidden data-raa-conversation-target="shortcut"><%= t("rails_ai_admin.assistant.shortcut") %></p>

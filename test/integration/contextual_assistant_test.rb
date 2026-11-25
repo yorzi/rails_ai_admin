@@ -43,6 +43,7 @@ class ContextualAssistantTest < ActionDispatch::IntegrationTest
   include OperationContractHelpers
   include AssistantHelpers
   include ActiveJob::TestHelper
+  include ActiveSupport::Testing::TimeHelpers
 
   RESOURCES = %w[ContextualCustomerAdmin].freeze
 
@@ -100,7 +101,7 @@ class ContextualAssistantTest < ActionDispatch::IntegrationTest
 
       get response.location, headers: { "Turbo-Frame" => "raa_assistant_drawer" }
       assert_response :success
-      assert_select "turbo-frame#raa_assistant_drawer[data-chat-ref='#{chat_ref}']"
+      assert_select "turbo-frame#raa_assistant_drawer [data-raa-drawer-state][data-chat-ref='#{chat_ref}']"
       assert_select "form[action='/backoffice/assistant/conversations/#{chat_ref}/messages'] input[name='drawer'][value='1']"
 
       # Navigate to a record page and send a follow-up with the record's PageContext.
@@ -176,6 +177,52 @@ class ContextualAssistantTest < ActionDispatch::IntegrationTest
         RailsAiAdmin::Assistant::PageContext.resolve!(context: context, token: token)
       end
     end
+  end
+
+  # A context that lapsed while the page stayed open is not an attack: the
+  # message is not admitted, the typed text is kept and the drawer is told
+  # to drop the context.
+  def test_expired_page_context_keeps_the_draft_and_admits_nothing
+    with_contextual_assistant do
+      get "/backoffice/contextual_customers/#{@customer.id}"
+      token = css_select("#raa-assistant-drawer").first["data-page-context-token"]
+      post "/backoffice/assistant/conversations", params: { drawer: "1", content: "First question" }
+      chat_ref = response.location[/chat_ref=([0-9a-f-]{36})/, 1]
+      chat = RailsAiAdmin::Assistant::Chat.find_by!(ref: chat_ref)
+      get "/backoffice/assistant/drawer", params: { chat_ref: chat_ref }, headers: { "Turbo-Frame" => "raa_assistant_drawer" }
+      admission_key = css_select("input[name='admission_key']").first["value"]
+
+      travel RailsAiAdmin::Assistant::PageContext::TTL + 1.minute do
+        assert_no_difference -> { chat.turns.count } do
+          post "/backoffice/assistant/conversations/#{chat_ref}/messages",
+            params: { drawer: "1", admission_key: admission_key, page_context: token, content: "Who updated this?" },
+            headers: { "Turbo-Frame" => "raa_assistant_drawer" }
+        end
+        assert_response :unprocessable_content
+        assert_select "turbo-frame#raa_assistant_drawer [data-raa-drawer-state][data-context-expired]"
+        assert_select "textarea[name='content']", text: "Who updated this?"
+        assert_select "[role=alert]", text: I18n.t("rails_ai_admin.assistant.context_expired")
+
+        before = RailsAiAdmin::Assistant::Chat.count
+        post "/backoffice/assistant/conversations", params: { drawer: "1", page_context: token, content: "New question" },
+          headers: { "Turbo-Frame" => "raa_assistant_drawer" }
+        assert_response :unprocessable_content
+        assert_equal before, RailsAiAdmin::Assistant::Chat.count
+        assert_select "textarea[name='content']", text: "New question"
+        assert_select "[role=alert]", text: I18n.t("rails_ai_admin.assistant.context_expired")
+      end
+
+      selection = RailsAiAdmin::Selections::Builder.new.capture(context: context, resource: ContextualCustomerAdmin, target_ids: [ @customer.id.to_s ])
+      issued = RailsAiAdmin::Assistant::PageContext.issue(context: context, resource: ContextualCustomerAdmin, selection: selection)
+      RailsAiAdmin::Selection.where(id: selection.selection_ref).update_all(expires_at: 1.minute.ago)
+      post "/backoffice/assistant/conversations", params: { page_context: issued.token, content: "Compare these" }
+      assert_response :unprocessable_content
+      assert_select "textarea[name='content']", text: "Compare these"
+    end
+  end
+
+  def test_the_controller_refusal_list_names_the_expired_context_code
+    assert_includes RailsAiAdmin::AssistantController.const_get(:REFUSALS), RailsAiAdmin::Assistant::PageContext::EXPIRED
   end
 
   def test_expired_selection_page_context_fails_closed

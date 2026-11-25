@@ -657,6 +657,9 @@ en:
       budget_exceeded: >-
         You have reached this administration's assistant spending limit for the last 24 hours. Your message
         was not sent; try again later.
+      context_expired: >-
+        The page context for this message has expired, so the message was not sent. The context was
+        removed; send again to ask without it, or reload the page to attach the current page.
       spend:
         used: "Assistant use in the last 24 hours: %{amounts}."
         tokens: "%{used} of %{limit} tokens"

@@ -17,6 +17,8 @@ module RailsAiAdmin
       MAX_TOKEN = 8_192
       TTL = 1.hour
       MAX_IDS_IN_SUMMARY = 20
+      # Raised when an authentic context or its fixed selection has lapsed.
+      EXPIRED = "CONTEXT_EXPIRED"
 
       Issued = ::Data.define(:token, :label, :resource_key, :kind)
       Snapshot = ::Data.define(:kind, :resource, :record_id, :selection_ref, :list_state, :label, :summary)
@@ -45,6 +47,10 @@ module RailsAiAdmin
         raise AccessDenied unless context.is_a?(Context) && token.is_a?(String) &&
           token.valid_encoding? && token.bytesize.between?(1, MAX_TOKEN)
         payload = encryptor.decrypt_and_verify(token, purpose: PURPOSE)
+        # An authentic token past its lifetime decrypts to nil. That is the
+        # page staying open too long, not tampering, so callers can keep the
+        # person's text and ask them to drop or refresh the context.
+        raise AccessDenied, EXPIRED if payload.nil?
         unless payload.is_a?(Hash) && payload["v"] == VERSION &&
             same_text?(payload["a"], context.actor_ref) &&
             same_text?(payload["t"], context.tenant_ref) &&
@@ -102,7 +108,11 @@ module RailsAiAdmin
 
       def resolve_selection!(context, resource, selection_ref)
         raise AccessDenied unless selection_ref.is_a?(String) && selection_ref.present?
-        summary_obj = Selections::Builder.new.revalidate(context: context, selection_ref: selection_ref)
+        summary_obj = begin
+          Selections::Builder.new.revalidate(context: context, selection_ref: selection_ref)
+        rescue AccessDenied => error
+          raise AccessDenied, (error.code == "SELECTION_EXPIRED" ? EXPIRED : error.code)
+        end
         raise AccessDenied unless summary_obj.resource_key == resource.key.to_s && summary_obj.targets.any?
         ids = summary_obj.targets.map(&:id)
         shown = ids.first(MAX_IDS_IN_SUMMARY)
