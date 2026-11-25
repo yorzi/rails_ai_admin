@@ -30,6 +30,20 @@ class MultiActorCollectionOperation < RailsAiAdmin::Operation
   end
 end
 
+# Its approval mode is switched in a test to prove open intents are invalidated.
+class SwitchableApprovalOperation < RailsAiAdmin::Operation
+  input { text :note, required: true, nullable: false, max_length: 80 }
+
+  def preflight(_context, _record, input)
+    { name: input.fetch("note") }
+  end
+
+  def perform(_context, record, input)
+    record.update!(name: input.fetch("note"))
+    success(record)
+  end
+end
+
 class DualControlCustomerAdmin < RailsAiAdmin::Resource
   model "Customer"
   key :dual_customers
@@ -42,6 +56,7 @@ class DualControlCustomerAdmin < RailsAiAdmin::Resource
   operation :refund, handler: "MultiActorOperation", approval: :separate_actor, surface: true, assistant: true
   operation :peer_review, handler: "MultiActorOperation", approval: :any_reviewer
   operation :bulk_refund, handler: "MultiActorCollectionOperation", scope: :collection, approval: :separate_actor
+  operation :switchable, handler: "SwitchableApprovalOperation"
 end
 
 class MultiActorPolicy < OperationContractPolicy
@@ -234,6 +249,76 @@ class MultiActorApprovalTest < Minitest::Test
         RailsAiAdmin.operation_registry.fetch(DualControlCustomerAdmin, :peer_review)
       )
       refute_equal fp_separate, fp_any
+    end
+  end
+
+  # Two reviewers confirming at the same moment: the row lock serializes them,
+  # the domain write and its audit event happen once, the second gets no write.
+  def test_two_reviewers_confirming_at_once_execute_the_intent_once
+    MultiActorPolicy.allowed_actor_ids = [ 1, 2, 3 ]
+    MultiActorPolicy.reviewer_ids = [ 2, 3 ]
+    with_dual_control do
+      runner = RailsAiAdmin::Operations::Runner.new
+      proposal = runner.preflight(context: context(actor: 1), resource: DualControlCustomerAdmin, operation: :refund,
+        target_id: @customer.id, expected_version: @customer.lock_version, input: { "note" => "Race" })
+      gate = Queue.new
+      threads = [ 2, 3 ].map do |actor|
+        Thread.new do
+          ActiveRecord::Base.connection_pool.with_connection do
+            gate.pop
+            RailsAiAdmin::Operations::Runner.new.execute(context: context(actor: actor), intent_ref: proposal.intent.id,
+              input: { "note" => "Race" }, human_confirmed: true).code
+          end
+        end
+      end
+      2.times { gate << true }
+      codes = threads.map(&:value)
+      assert_equal 1, codes.count("OK"), codes.inspect
+      assert_equal 1, RailsAiAdmin::AuditEvent.where(correlation_ref: proposal.intent.id, status: "succeeded").count
+      assert_equal 1, @customer.reload.lock_version - proposal.intent.expected_version
+    end
+  end
+
+  # Workers act with the approver's live authority: revoking the approver's
+  # operation grant between chunks stops the rest, although the proposer
+  # still holds the grant.
+  def test_revoking_the_approver_between_chunks_stops_the_remaining_items
+    bob = Customer.create!(account_id: 1, name: "Bob", points: 0)
+    cara = Customer.create!(account_id: 1, name: "Cara", points: 0)
+    with_dual_control do
+      proposer, reviewer = context(actor: 1), context(actor: 2)
+      selection = RailsAiAdmin::Selections::Builder.new.capture(context: proposer, resource: DualControlCustomerAdmin,
+        target_ids: [ @customer.id.to_s, bob.id.to_s, cara.id.to_s ])
+      crunner = RailsAiAdmin::Collections::Runner.new
+      proposal = crunner.preflight(context: proposer, resource: DualControlCustomerAdmin, operation: :bulk_refund,
+        selection_ref: selection.selection_ref, input: { "note" => "Chunked" })
+      admitted = crunner.admit(context: reviewer, intent_ref: proposal.intent.id, input: { "note" => "Chunked" }, human_confirmed: true)
+      assert_equal "QUEUED", admitted.code
+
+      dispatcher = RailsAiAdmin::Collections::Dispatcher.new
+      dispatcher.run(admitted.job_ref, limit: 1)
+      assert_equal 1, Customer.where(name: "Chunked").count
+
+      MultiActorPolicy.allowed_actor_ids = [ 1 ]
+      dispatcher.run(admitted.job_ref, limit: 10)
+      assert_equal 1, Customer.where(name: "Chunked").count, "no item runs after the approver lost the grant"
+      refute_equal "succeeded", RailsAiAdmin::OperationRun.find(admitted.job_ref).status
+    end
+  end
+
+  def test_tightening_an_operations_approval_mode_invalidates_open_intents
+    with_dual_control do
+      runner = RailsAiAdmin::Operations::Runner.new
+      proposal = runner.preflight(context: context(actor: 1), resource: DualControlCustomerAdmin, operation: :switchable,
+        target_id: @customer.id, expected_version: @customer.lock_version, input: { "note" => "Self" })
+      assert_equal "self", proposal.intent.approval_mode
+      SwitchableApprovalOperation.approval_mode(:separate_actor)
+      MultiActorPolicy.reviewer_ids = [ 2 ]
+      result = runner.execute(context: context(actor: 1), intent_ref: proposal.intent.id, input: { "note" => "Self" }, human_confirmed: true)
+      assert_equal "APPROVAL_INVALIDATED", result.code
+      assert_equal "Alice", @customer.reload.name
+    ensure
+      SwitchableApprovalOperation.instance_variable_set(:@approval_mode, nil)
     end
   end
 end
