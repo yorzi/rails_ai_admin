@@ -674,9 +674,10 @@ module RailsAiAdmin
     # each record is then updated as that person, on its own, through the
     # shared Runner (Operations::BulkChange).
     class ProposeBulkChange < Tool
-      description "Propose setting the same field values on several records (up to 100) as one review. It does not change " \
-        "data: the user reviews every record and confirms or dismisses it. Name the records with ids, or with the same query, " \
-        "filters and scope as search_records. describe_resource lists bulk_update when it is allowed."
+      description "Propose setting the same field values on several records as one review. It does not change " \
+        "data: the user reviews the records and confirms or dismisses it. Name up to 100 records with ids, or select them " \
+        "with the same query, filters, any, relation_filters and scope as search_records (more than 100 run as a background " \
+        "job after confirmation, up to the admin's limit). describe_resource lists bulk_update when it is allowed."
       parameters({ "type" => "object", "required" => %w[resource values], "additionalProperties" => false,
         "properties" => {
           "resource" => { "type" => "string" },
@@ -686,6 +687,10 @@ module RailsAiAdmin
           "query" => { "type" => "string", "maxLength" => 200 },
           "filters" => { "type" => "object", "description" => "Field name to {operator: value}, as for search_records",
             "additionalProperties" => { "type" => "object", "additionalProperties" => FILTER_VALUE_SCHEMA } },
+          "any" => { "type" => "array", "maxItems" => Queries::List::MAX_OR_GROUPS,
+            "items" => { "type" => "object", "additionalProperties" => { "type" => "object", "additionalProperties" => FILTER_VALUE_SCHEMA } } },
+          "relation_filters" => { "type" => "object",
+            "additionalProperties" => { "type" => "object", "additionalProperties" => { "type" => "object", "additionalProperties" => FILTER_VALUE_SCHEMA } } },
           "scope" => { "type" => "string", "description" => "Optional scope name from describe_resource" }
         } })
 
@@ -693,28 +698,29 @@ module RailsAiAdmin
 
       private
 
-      def perform(tool_call:, resource:, values:, ids: nil, query: nil, filters: nil, scope: nil)
+      def perform(tool_call:, resource:, values:, ids: nil, query: nil, filters: nil, any: nil, relation_filters: nil, scope: nil)
         raise AccessDenied, "INVALID_QUERY" unless values.is_a?(Hash) && values.any? && values.size <= 50
         unless ids.nil? || ids.is_a?(Array) && ids.size.between?(1, Selections::Builder::LIMIT) && ids.all? { |id| id.is_a?(String) && id.match?(Field::REFERENCE) }
           raise AccessDenied, "INVALID_QUERY"
         end
-        raise AccessDenied, "INVALID_QUERY" if ids && !(query.nil? && filters.nil? && scope.nil?)
+        raise AccessDenied, "INVALID_QUERY" if ids && !(query.nil? && filters.nil? && any.nil? && relation_filters.nil? && scope.nil?)
         resource = @session.resource(resource)
         raise AccessDenied unless resource.assistant_change?(:bulk_update)
         return failure("UNAVAILABLE") unless Operations::BulkChange.available?
         by_name = resource.fields.index_by { |field| field.name.to_s }
         raise AccessDenied, "INVALID_QUERY" if values.keys.any? { |name| ProposeChange::UNSUPPORTED.include?(by_name[name.to_s]&.scalar_type) }
         return failure("LIMIT_REACHED") if @session.tally.full?
-        target_ids = ids || matching_ids(resource, query, filters, scope)
-        return failure("TOO_MANY") if target_ids.size > Selections::Builder::LIMIT
+        limit = RailsAiAdmin.configuration.async_bulk_limit
+        target_ids = ids || matching_ids(resource, query, filters, any, relation_filters, scope, limit)
+        return failure("TOO_MANY") if target_ids.size > limit
         return failure("NOT_FOUND") if target_ids.empty?
-        selection = Selections::Builder.new.capture(context: @session.context, resource: resource, target_ids: target_ids)
+        selection = Selections::Builder.new.capture(context: @session.context, resource: resource, target_ids: target_ids, max_items: limit)
         return failure("NOT_FOUND") if selection.targets.empty?
         values = values.transform_keys(&:to_s)
         access = @session.access(resource)
         model = resource.model_class
         records = access.relation.where(model.primary_key => selection.targets.map(&:id)).index_by { |record| record.id.to_s }
-        items = Operations::BulkChange.plan(context: @session.context, resource: resource, selection: selection, records: records, values: values)
+        items, = Operations::BulkChange.review_plan(context: @session.context, resource: resource, selection: selection, records: records, values: values)
         ready = items.count { |item| item.code.nil? }
         if ready.zero?
           code = items.map(&:code).find { |candidate| %w[VALIDATION_FAILED CONFLICT].include?(candidate) } || "NOT_FOUND"
@@ -730,10 +736,11 @@ module RailsAiAdmin
       end
 
       # The same records search_records would page through, one past the limit.
-      def matching_ids(resource, query, filters, scope)
+      def matching_ids(resource, query, filters, any, relation_filters, scope, limit)
         model = resource.model_class
-        Queries::List.new(@session.context, resource, assistant: true).relation(search: query.presence, filters: wire_filters(filters), scope: list_scope(scope))
-          .limit(Selections::Builder::LIMIT + 1).pluck(model.arel_table[model.primary_key]).map(&:to_s)
+        Queries::List.new(@session.context, resource, assistant: true).relation(search: query.presence, filters: wire_filters(filters),
+          any_filters: wire_any_filters(any), relation_filters: wire_relation_filters(relation_filters), scope: list_scope(scope))
+          .limit(limit + 1).pluck(model.arel_table[model.primary_key]).map(&:to_s)
       end
     end
 

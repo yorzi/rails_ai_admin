@@ -320,7 +320,8 @@ class AssistantBulkChangesIntegrationTest < ActionDispatch::IntegrationTest
       admit(chat, "Everyone")
       LLMFixture.tool("propose_bulk_change", { resource: "changeable_customers", values: { points: 0 } })
       LLMFixture.reply("Too many.")
-      drain(chat)
+      # A query may select up to config.async_bulk_limit records.
+      RailsAiAdmin.configuration.stub(:async_bulk_limit, 100) { drain(chat) }
       assert_equal "completed", chat.turns.reorder(:sequence).last.status, chat.turns.reorder(:sequence).last.error_code.inspect
       assert_equal "TOO_MANY", JSON.parse(chat.messages.where(role: "tool").order(:id).last.content)["error"]
 
@@ -574,6 +575,54 @@ class AssistantBulkChangesIntegrationTest < ActionDispatch::IntegrationTest
       decide("confirm")
       assert_response :success
       assert_nil @bob.reload.secret
+    end
+  end
+
+  def seed_points(total)
+    now = Time.current
+    Customer.insert_all!(Array.new(total) { |i| { account_id: 1, name: "Bulk #{i}", points: 7, active: true, lock_version: 0, created_at: now, updated_at: now } })
+  end
+
+  # Above 100 records a review is sampled and, once confirmed, queued as one
+  # background job. An admission failure gives the review back untouched.
+  def test_large_review_queues_a_background_job_and_survives_an_admission_failure
+    with_bulk do
+      seed_points(118)
+      chat = start_chat
+      result = propose(chat, { resource: "changeable_customers", values: { points: 1 },
+        any: [ { points: { gte: "7", lte: "7" } }, { points: { gte: "9" } } ] })
+      assert_equal [ "awaiting_human_confirmation", 119, 0 ], result.values_at("status", "records", "skipped"), result.inspect
+      link = review_link(chat)
+      get link
+      assert_response :success
+      assert_select "tbody tr", count: RailsAiAdmin::Operations::BulkChange::SAMPLE_LIMIT
+      selection = RailsAiAdmin::Selection.find(result["selection"])
+
+      form = css_select("form[action$='/bulk_change']").first
+      fields = browser_fields(form).merge("decision" => "confirm")
+      real = RailsAiAdmin::Collections::Runner.new
+      failing = Object.new
+      failing.define_singleton_method(:preflight) { |**kwargs| real.preflight(**kwargs) }
+      failing.define_singleton_method(:admit) { |**| RailsAiAdmin::Collections::Result.new(code: "CONFLICT") }
+      RailsAiAdmin::Collections::Runner.stub(:new, failing) do
+        post form["action"], params: fields
+      end
+      assert_response :conflict
+      assert_nil selection.reload.bulk_change_decision, "a failed admission keeps the review open"
+      assert_equal 0, Customer.where(account_id: 1, points: 1).count
+
+      post form["action"], params: fields
+      assert_response :see_other
+      job_ref = response.location[%r{jobs/([0-9a-f-]{36})}, 1]
+      assert job_ref, response.location
+      assert_equal "confirm", selection.reload.bulk_change_decision
+      parent = RailsAiAdmin::OperationRun.find(job_ref)
+      assert_equal "queued", parent.status
+      assert_equal 119, RailsAiAdmin::BatchItem.where(parent_run_id: job_ref).count
+      3.times { RailsAiAdmin::Collections::Dispatcher.new.run(job_ref, limit: 50) }
+      assert_equal "succeeded", parent.reload.status
+      assert_equal 119, Customer.where(account_id: 1, points: 1).count
+      assert_equal 1, chat.turns.where(kind: "continuation").count
     end
   end
 end

@@ -111,6 +111,47 @@ module RailsAiAdmin
         end
       end
 
+      # The review plan for a selection of any size. Up to 100 records every
+      # record is previewed. Above that the first SAMPLE_LIMIT are previewed
+      # and the rest get the update grant and value checks only; a larger
+      # review runs as a background collection job whose workers check each
+      # record's version again. Returns [all items, items to display].
+      SAMPLE_LIMIT = 25
+
+      def review_plan(context:, resource:, selection:, records:, values:)
+        return plan(context: context, resource: resource, selection: selection, records: records, values: values).then { |items| [ items, items ] } unless large?(selection)
+        sample = Selections::Builder::Snapshot.new(selection.selection_ref, selection.resource_key, selection.manifest_digest,
+          selection.expires_at, selection.targets.first(SAMPLE_LIMIT).freeze)
+        shown = plan(context: context, resource: resource, selection: sample, records: records, values: values)
+        access = Authorization::Access.new(context, resource)
+        rest = selection.targets.drop(SAMPLE_LIMIT).map do |target|
+          record = records[target.id]
+          code = begin
+            raise AccessDenied unless record
+            access.authorize!(:update, record)
+            if RecordVersion.of(record) != target.expected_version
+              "CONFLICT"
+            else
+              coerced = InputSchema.new(access.fields(:write, record, operation: :update), partial: true).coerce(values, time_zone: context.time_zone)
+              coerced.valid? ? nil : "VALIDATION_FAILED"
+            end
+          rescue AccessDenied
+            "NOT_FOUND"
+          end
+          Item.new(target, record, {}, 0, code)
+        end
+        [ shown + rest, shown ]
+      end
+
+      def large?(selection) = selection.targets.size > Selections::Builder::LIMIT
+
+      # Gives a claimed review back when its background job could not be
+      # admitted, so the person can try again or dismiss it.
+      def release!(selection, decision)
+        Selection.where(id: selection.selection_ref, manifest_digest: selection.manifest_digest, bulk_change_decision: decision)
+          .update_all(bulk_change_decision: nil)
+      end
+
       def changes(access, record, values)
         readable = access.fields(:read, record, view: :show).index_by { |field| field.name.to_s }
         before = access.project(record, view: :show)

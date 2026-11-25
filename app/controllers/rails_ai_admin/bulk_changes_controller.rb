@@ -64,10 +64,8 @@ module RailsAiAdmin
         @revise_error = t("rails_ai_admin.bulk_changes.revise.confirm_changed")
         return render :show, status: :unprocessable_content
       end
+      return execute_async_bulk_change(decision) if @async_mode
       Operations::BulkChange.decide!(@selection, decision)
-      if @async_mode
-        return execute_async_bulk_change
-      end
       runner = Operations::Runner.new
       outcomes = @ready.map do |item|
         code = begin
@@ -101,40 +99,24 @@ module RailsAiAdmin
       @resource = RailsAiAdmin.registry.fetch(@selection.resource_key)
       raise AccessDenied unless @resource.key.to_s == @proposal.resource_key && @resource.assistant_change?(:bulk_update)
       Operations::BulkChange.ensure_open!(@selection)
-      @async_mode = @selection.targets.size > Selections::Builder::LIMIT
-      if @async_mode
-        sample_snapshot = Selections::Builder::Snapshot.new(@selection.selection_ref, @selection.resource_key,
-          @selection.manifest_digest, @selection.expires_at, @selection.targets.first(Collections::Runner::SAMPLE_PREVIEW_LIMIT).freeze)
-        sample_items = Operations::BulkChange.plan(context: @context, resource: @resource, selection: sample_snapshot, records: records, values: @proposal.values)
-        access = Authorization::Access.new(@context, @resource)
-        tail_items = @selection.targets.drop(Collections::Runner::SAMPLE_PREVIEW_LIMIT).map do |target|
-          record = records[target.id]
-          code = begin
-            access.authorize!(:update, record)
-            coerced = InputSchema.new(access.fields(:write, record, operation: :update), partial: true).coerce(@proposal.values, time_zone: @context.time_zone)
-            coerced.valid? ? nil : "VALIDATION_FAILED"
-          rescue AccessDenied
-            "NOT_FOUND"
-          end
-          Operations::BulkChange::Item.new(target, record, {}, 0, code)
-        end
-        @items = sample_items + tail_items
-        @ready = @items.select { |item| item.code.nil? }
-        @display_ready = sample_items.select { |item| item.code.nil? }
-        @skipped = @items.reject { |item| item.code.nil? }
-      else
-        @items = Operations::BulkChange.plan(context: @context, resource: @resource, selection: @selection, records: records, values: @proposal.values)
-        @ready = @items.select { |item| item.code.nil? }
-        @display_ready = @ready
-        @skipped = @items.reject { |item| item.code.nil? }
-      end
+      @async_mode = Operations::BulkChange.large?(@selection)
+      @items, shown = Operations::BulkChange.review_plan(context: @context, resource: @resource, selection: @selection,
+        records: records, values: @proposal.values)
+      @ready = @items.select { |item| item.code.nil? }
+      @display_ready = shown.select { |item| item.code.nil? }
+      @skipped = @items.reject { |item| item.code.nil? }
       @fields = @resource.fields.select { |field| @proposal.values.key?(field.name.to_s) }
       @chat_ref = @proposal.context_ref&.then { |value| value[/\Araa:chat:([0-9a-f-]{36})\z/, 1] }
     rescue KeyError
       raise AccessDenied
     end
 
-    def execute_async_bulk_change
+    # More than 100 records run as one background collection job. The
+    # preflight runs before the review is claimed, and a job that could not
+    # be admitted gives the claim back, so a failure never consumes the review
+    # without queuing anything. The claim (decide!) still comes before
+    # admission so two tabs cannot queue the same review twice.
+    def execute_async_bulk_change(decision)
       target_selection_ref = if @skipped.any?
         Selections::Builder.new.capture(context: @context, resource: @resource,
           target_ids: @ready.map { |item| item.target.id }, max_items: RailsAiAdmin.configuration.async_bulk_limit).selection_ref
@@ -144,12 +126,22 @@ module RailsAiAdmin
       runner = Collections::Runner.new
       proposed = runner.preflight(context: @context, resource: @resource, operation: :update,
         selection_ref: target_selection_ref, input: @proposal.values, origin: :assistant)
-      raise AccessDenied, "CONFLICT" if proposed.is_a?(Collections::Result)
+      return async_bulk_change_failed(proposed.code) if proposed.is_a?(Collections::Result)
+      Operations::BulkChange.decide!(@selection, decision)
       admitted = runner.admit(context: @context, intent_ref: proposed.intent.id, input: proposed.values, human_confirmed: true)
-      raise AccessDenied, "CONFLICT" unless admitted.accepted?
+      unless admitted.accepted?
+        Operations::BulkChange.release!(@selection, decision)
+        return async_bulk_change_failed(admitted.code)
+      end
       continue_chat("confirmed", "Queued background update #{admitted.job_ref} for #{@ready.size} records.")
       redirect_to collection_job_path(job_ref: admitted.job_ref), status: :see_other,
         notice: t("rails_ai_admin.collection_operations.admitted")
+    end
+
+    def async_bulk_change_failed(code)
+      @review_signature = Operations::BulkChange.sign_review(@selection, params[:change], @ready)
+      @revise_error = helpers.admin_outcome(code)
+      render :show, status: :conflict
     end
 
     # Dismissing never mutates domain records, so it stays allowed even if a
