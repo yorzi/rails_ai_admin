@@ -606,8 +606,20 @@ instructions staying out, one bulk review, and a reviewed update with
 `openai/gpt-6-luna`, `anthropic/claude-haiku-5.5` and `google/gemini-3.8-flash`.
 Every OpenAI and Anthropic recording reads part of its prompt from the cache;
 Gemini reports no cache reads. The recorded evaluation run of `openai/gpt-6-luna`
-passes 26 of 27 questions; `count-inactive` answered correctly with
-`aggregate_records` instead of the expected `count_records`. On every replay
+passes 29 of 30 questions; `count-inactive` answered correctly with
+`aggregate_records` instead of the expected `count_records`.
+
+Recordings made on 2026-11-25 cover the 0.6 features. With the drawer's page
+context of a record, `openai/gpt-6-luna`, `anthropic/claude-haiku-5.5` and
+`google/gemini-3.8-flash` each read that record by id and found its invoices
+without the question naming the customer. All three answered "Which invoices
+belong to customers with at least 20 points?" with one `relation_filters`
+search. With a fixed selection as context, GPT-6 Luna compared exactly the
+selected customers. It counted "inactive or more than 30 points" with one `any`
+filter, and found the invoices of a customer it was given by name with a
+customer search followed by an invoice filter. In a bulk change it proposed for
+four records, the person unticked one and edited the value, and the conversation
+heard "3 of 3 records were updated". On every replay
 the admin's tools, grants, usage accounting and review flows run for real; only
 the models' replies come from the recording, so a replay shows that this
 engine still handles those replies correctly, not that a model answers the same
@@ -623,13 +635,15 @@ which the transcript shows as literal characters.
 A request that names a customer but asks for another resource's records can
 miss: asked to "list the invoice numbers of Judy Jones", `openai/gpt-6-luna`
 searched invoice numbers for her name twice instead of finding the customer
-first. That recording predates `relation_filters`, which let one search filter
-invoices by their customer's name; no recorded or live run has checked yet
-whether models use them. Operator notes that say where such records live help.
+first. Recorded again on 2026-11-25 with 0.6 (the `invoices-of-named-customer`
+question), it searched the customer first and then filtered her invoices.
+`relation_filters` use only the related resource's filter fields, so a name
+that is searchable but not filterable still needs those two steps. Operator
+notes that say where such records live help.
 
-Fallback models, the evaluation task, the drawer, OR and relation filters and
-the read-only record, table and metric cards have tests against a scripted
-provider but no recorded or live provider run yet. Undo of a confirmed change
+Fallback models and the evaluation task have tests against a scripted provider
+but no recorded or live provider run yet. Recorded replays render the read-only
+record card, record table and metric card. Undo of a confirmed change
 and bulk changes over more than 100 records are not available yet. Streaming is saved and polled, not pushed over WebSockets.
 
 ## How It Compares

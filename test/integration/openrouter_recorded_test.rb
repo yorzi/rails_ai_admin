@@ -69,6 +69,10 @@ class OpenRouterRecordedTest < ActionDispatch::IntegrationTest
         assert matched, "an aggregate_records result has the active customers' 114 points: #{totals.inspect}"
         assert_match(/\b8\b/, answer(chat))
         assert_includes answer(chat), "114"
+        get "/backoffice/assistant/conversations/#{chat.ref}"
+        # The total's card renders, including its list tab.
+        assert_select ".rails-tool-views-error", count: 0
+        assert_select ".raa-metric-card .raa-metric-value", text: "114"
 
         usages = RubyLLM::ActiveRecord::Usage.where(owner: chat).to_a
         assert usages.size >= 2, "a tool round and an answer"
@@ -151,6 +155,112 @@ class OpenRouterRecordedTest < ActionDispatch::IntegrationTest
         assert_match(/\b3\b/, answer(chat))
         assert_equal 0, RailsAiAdmin::OperationRun.where(origin: "assistant").count
         note("periods", RecordedProvider::PRIMARY, chat, "answer" => answer(chat).truncate(300))
+      end
+    end
+  end
+
+  def start_with_page_context(token, text)
+    post "/backoffice/assistant/conversations", params: { drawer: "1", page_context: token, content: text }
+    assert_response :see_other
+    chat = RailsAiAdmin::Assistant::Chat.find_by!(ref: response.location[/chat_ref=([0-9a-f-]{36})/, 1])
+    drain(chat)
+    turn = chat.turns.reorder(:sequence).last
+    assert_equal "completed", turn.status, "#{turn.error_code}: #{transcript(chat).inspect}"
+    chat
+  end
+
+  # 0.6: the drawer's page context names the record; the question never does.
+  RecordedProvider::MODELS.each do |model|
+    define_method("test_#{RecordedProvider.slug(model).tr('-', '_')}_reads_which_record_this_customer_is_from_the_page_context") do
+      with_recorded_assistant(model: model) do
+        recorded("context-record", model: model) do
+          heidi = @ids.fetch("heidi")
+          get "/backoffice/eval_customers/#{heidi}"
+          token = css_select("#raa-assistant-drawer").first["data-page-context-token"]
+          assert token.present?
+          chat = start_with_page_context(token, "How many points does this customer have, and which invoices belong to her?")
+          assert_includes chat.turns.first.content, "Context: I am looking at Customer #{heidi} (\"Heidi Klum\")"
+          assert_includes answer(chat), "40"
+          assert_includes answer(chat), "INV-4"
+          %w[INV-1 INV-2 INV-3].each { |number| refute_includes answer(chat), number }
+          get "/backoffice/assistant/conversations/#{chat.ref}"
+          # Read-only cards for the record and the invoice search, rebuilt from live data.
+          assert_select ".raa-record-card h3 a[href='/backoffice/eval_customers/#{heidi}']"
+          assert_select ".raa-record-table td.raa-cell-title a", text: "INV-4"
+          assert_equal 0, RailsAiAdmin::OperationRun.where(origin: "assistant").count
+          note("context-record", model, chat, "answer" => answer(chat).truncate(300))
+        end
+      end
+    end
+
+    # 0.6: one search_records call can filter invoices by their customer.
+    define_method("test_#{RecordedProvider.slug(model).tr('-', '_')}_finds_invoices_through_their_customers_points") do
+      with_recorded_assistant(model: model) do
+        recorded("relation", model: model) do
+          chat = start_chat
+          ask(chat, "Which invoices belong to customers with at least 20 points?")
+          %w[INV-3 INV-4].each { |number| assert_includes answer(chat), number }
+          %w[INV-1 INV-2 INV-5].each { |number| refute_includes answer(chat), number }
+          AssistantEval::FORBIDDEN.each { |value| refute_includes tool_output(chat), value }
+          note("relation", model, chat, "answer" => answer(chat).truncate(300))
+        end
+      end
+    end
+  end
+
+  # 0.6: "these customers" are a fixed selection captured from the list.
+  def test_the_page_context_names_a_fixed_selection_for_these_customers
+    with_recorded_assistant do
+      recorded("context-selection") do
+        picked = @ids.values_at("alice", "carol", "dave")
+        post "/backoffice/eval_customers/selections", params: { target_ids: picked, then: "assistant" }
+        assert_response :see_other
+        get response.location
+        token = css_select("#raa-assistant-drawer").first["data-page-context-token"]
+        assert token.present?
+        chat = start_with_page_context(token, "Compare the points of these customers.")
+        assert_includes chat.turns.first.content, "fixed selection of 3 Customers"
+        { "Alice" => "12", "Carol" => "25", "Dave" => "3" }.each do |name, points|
+          assert_includes answer(chat), name
+          assert_includes answer(chat), points
+        end
+        %w[Heidi Bob Judy].each { |name| refute_includes answer(chat), name }
+        assert_equal 0, RailsAiAdmin::OperationRun.where(origin: "assistant").count
+        note("context-selection", RecordedProvider::PRIMARY, chat, "answer" => answer(chat).truncate(300))
+      end
+    end
+  end
+
+  # 0.6: the person narrows and edits the model's bulk change before confirming.
+  def test_the_person_unticks_a_record_and_edits_the_value_before_confirming_a_bulk_change
+    with_recorded_assistant do
+      recorded("bulk-revise") do
+        chat = start_chat
+        bob = Customer.find(@ids.fetch("bob"))
+        others = Customer.where(account_id: 1, active: false).where.not(id: bob.id)
+        ask(chat, "Set the points of every inactive customer to 5.")
+        assert_equal [ "propose_bulk_change" ], called(chat).grep(/\Apropose_/)
+        get "/backoffice/assistant/conversations/#{chat.ref}"
+        get css_select(".raa-chat-bulk a").first["href"]
+        assert_select "tbody tr", count: 4
+        form = css_select("form#raa-bulk-review").first
+        fields = browser_fields(form)
+        fields["target_ids"] = fields["target_ids"] - [ bob.id.to_s ]
+        fields["values"] = { "points" => "6" }
+        post form.at_css("button[formaction]")["formaction"], params: fields
+        assert_response :see_other
+        get response.location
+        assert_select "tbody tr", count: 3
+        form = css_select("form#raa-bulk-review").first
+        post form["action"], params: browser_fields(form).merge("decision" => "confirm")
+        assert_response :success
+        assert_equal [ 0, [ 6 ] * 3 ], [ bob.reload.points, others.order(:id).pluck(:points) ]
+        drain(chat)
+        continuation = chat.turns.find_by!(kind: "continuation")
+        assert_equal "completed", continuation.status, continuation.error_code
+        assert_includes continuation.content, "3 of 3 records were updated."
+        assert answer(chat).present?
+        note("bulk-revise", RecordedProvider::PRIMARY, chat, "answer" => answer(chat).truncate(300))
       end
     end
   end

@@ -146,6 +146,7 @@ module AssistantEval
       failures << "no #{check['tool']} result with #{check['key']} = #{check['equals'].inspect}" unless matched
     end
     Array(expect["answer_all"]).each { |text| failures << "answer lacks #{text.inspect}" unless normalize.call(answer).include?(normalize.call(text)) }
+    Array(expect["answer_none"]).each { |text| failures << "answer has #{text.inspect}" if normalize.call(answer).include?(normalize.call(text)) }
     if expect["answer_any"] && expect["answer_any"].none? { |text| normalize.call(answer).include?(normalize.call(text)) }
       failures << "answer has none of #{expect['answer_any'].inspect}"
     end

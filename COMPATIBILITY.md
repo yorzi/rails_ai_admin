@@ -1,5 +1,22 @@
 # Compatibility
 
+## 2026-11-25 — 0.6.0 development recordings
+
+Not a release candidate record. On Ruby 4.0.10 with Rails 8.1.4.1, RubyLLM 2.2.3
+and the unchanged 0.5 instructions (prompt version 4), new OpenRouter
+recordings cover the 0.6 features. Existing cassettes were not recorded again.
+
+| Check | Executed result |
+| --- | --- |
+| Page context of a record | `openai/gpt-6-luna`, `anthropic/claude-haiku-5.5` and `google/gemini-3.8-flash` each called `get_record 9108` from the drawer's context line and filtered invoices by that customer; all answered 40 points and INV-4 only. The replay renders the record card and record table |
+| Relation filters | All three models answered "Which invoices belong to customers with at least 20 points?" with `search_records` and `relation_filters: {customer: {points: {gte: 20}}}` (INV-3, INV-4) |
+| Selection context | GPT-6 Luna read exactly the three selected customers and compared them |
+| Bulk revision | GPT-6 Luna proposed one bulk change of 4 records; the person unticked one and edited the value; the conversation received "3 of 3 records were updated." |
+| Evaluation set | 30 questions; the three new ones pass on GPT-6 Luna (`any` used for the OR count; the named-customer invoices found with a customer search and an invoice filter). 29 of 30 pass; `count-inactive` stays the recorded miss from 2026-11-22 |
+| Defect found | The recorded totals replay showed the metric card as "This view cannot be rendered": the card passed its tab name to I18n as `scope:`. Fixed in `d55b5b7` |
+| Cost | About US$0.02 for all new recordings |
+| Suites | SQLite and PostgreSQL 18: 759 tests / 7,089 assertions each, zero failures, run without `OPENROUTER_API_KEY` |
+
 ## 2026-11-22 — 0.5.0 release validation
 
 On Ruby 4.0.10 and 3.3.14 with Rails 8.1.4.1, the SQLite suite passed 723 tests

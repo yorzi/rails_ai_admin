@@ -69,9 +69,9 @@ class AssistantEvalTest < ActiveSupport::TestCase
     end
   end
 
-  def test_the_set_has_twenty_seven_distinct_questions
+  def test_the_set_has_thirty_distinct_questions
     ids = AssistantEval.questions.map { |question| question.fetch("id") }
-    assert_equal 27, ids.size
+    assert_equal 30, ids.size
     assert_equal ids.uniq, ids
   end
 

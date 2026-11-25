@@ -1,4 +1,4 @@
-# Admin assistant evaluation set (improvement plan, Phase 3). Twenty-seven fixed
+# Admin assistant evaluation set (improvement plan, Phase 3). Thirty fixed
 # questions over the synthetic dataset in test/support/assistant_eval.rb.
 #
 # `script` is the expected tool sequence and a reference answer. Offline, the
@@ -12,6 +12,7 @@
 #   results        { tool, key, equals } that some result of that tool satisfies
 #   answer_all     strings the final answer must all contain (case-insensitive)
 #   answer_any     at least one of these strings must appear
+#   answer_none    strings the final answer must not contain
 #   proposal       true when exactly one unconfirmed assistant intent must exist
 #   bulk_proposal  the number of records the one propose_bulk_change review must cover
 #   bulk_at_most   the most propose_bulk_change reviews allowed (default 0)
@@ -276,3 +277,35 @@
     tools: [propose_bulk_change]
     tools_absent: [propose_change, propose_operation]
     bulk_proposal: 4
+
+# 0.6: relation and OR filters (relation_filters, any).
+
+- id: invoices-of-named-customer
+  question: List the invoice numbers of Judy Jones.
+  script:
+    - { tool: search_records, args: { resource: eval_customers, query: Judy } }
+    - { tool: search_records, args: { resource: eval_invoices, filters: { customer: { eq: "{{judy}}" } } } }
+    - { reply: "Judy Jones has one invoice, INV-5." }
+  expect:
+    tools: [search_records]
+    tools_absent: [propose_operation, propose_change, propose_bulk_change]
+    answer_all: ["INV-5"]
+    answer_none: ["INV-1", "INV-3", "INV-4"]
+
+- id: invoices-by-customer-points
+  question: Which invoices belong to customers with at least 20 points?
+  script:
+    - { tool: search_records, args: { resource: eval_invoices, relation_filters: { customer: { points: { gte: 20 } } } } }
+    - { reply: "INV-3 (Carol Clark) and INV-4 (Heidi Klum)." }
+  expect:
+    tools: [search_records]
+    answer_all: ["INV-3", "INV-4"]
+    answer_none: ["INV-1", "INV-2"]
+
+- id: count-inactive-or-high-points
+  question: How many customers are inactive or have more than 30 points?
+  script:
+    - { tool: count_records, args: { resource: eval_customers, any: [{ active: { eq: false } }, { points: { gte: 31 } }] } }
+    - { reply: "5 customers are inactive or have more than 30 points." }
+  expect:
+    answer_all: ["5"]
