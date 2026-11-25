@@ -72,6 +72,10 @@ module RailsAiAdmin
 
     def show
       @drawer = drawer_request?
+      if params[:status_only] == "1"
+        prepare_turn_status
+        return render :turn_status, layout: "rails_ai_admin/frame"
+      end
       prepare_transcript
       if turbo_frame_request?
         # A complete standards-mode document; Turbo extracts the matching frame.
@@ -244,8 +248,18 @@ module RailsAiAdmin
     # A security change closes the chat: its transcript, including old tool
     # output, is no longer shown under the new authority.
     def prepare_transcript
-      @current = @chat.current_for?(@context)
+      prepare_turn_status
       @entries = @current ? Assistant::Transcript.new(@context, @chat).entries : []
+      @surface_scope = Integrations::ToolViews.scope_for(@context) if RailsAiAdmin.configuration.surfaces
+    end
+
+    def prepare_turn_status
+      @current = @chat.current_for?(@context)
+      @transcript_version = if @current
+        "#{@chat.messages.maximum(:id).to_i}:#{@chat.turns.where.not(status: Assistant::Turn::ACTIVE).count}"
+      else
+        "closed"
+      end
       last = @chat.turns.reorder(sequence: :desc).first
       @pending = @current && @chat.turns.where(status: Assistant::Turn::ACTIVE).exists?
       running = @pending ? @chat.turns.where(status: "running").reorder(:sequence).first : nil
@@ -258,7 +272,6 @@ module RailsAiAdmin
       code = @failure && (FAILURES.key?(@failure.error_code.to_s) ? @failure.error_code.to_s : "ASSISTANT_FAILED")
       @failure_message = code && t(code.downcase, scope: %i[rails_ai_admin assistant failures], default: FAILURES.fetch(code))
       @retryable = @current && @failure&.status == "failed" && RETRYABLE.include?(@failure.error_code)
-      @surface_scope = Integrations::ToolViews.scope_for(@context) if RailsAiAdmin.configuration.surfaces
       @spend = Assistant::Budget.spend(actor_ref: @chat.actor_ref, tenant_ref: @chat.tenant_ref) if @current && Assistant::Budget.limited?
     end
   end

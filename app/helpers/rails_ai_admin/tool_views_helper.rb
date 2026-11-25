@@ -56,5 +56,17 @@ module RailsAiAdmin
     def admin_surface_metric_card(props)
       Integrations::ToolViews.metric_card_data(props)
     end
+
+    def admin_surface_task_progress(props)
+      Integrations::ToolViews.task_progress_data(props)
+    end
+
+    def admin_surface_execution_receipt(props)
+      Integrations::ToolViews.execution_receipt_data(props)
+    end
+
+    def admin_surface_editable_review(props, state)
+      Integrations::ToolViews.editable_form_review(Integrations::ToolViews.current_context, props, state)
+    end
   end
 end

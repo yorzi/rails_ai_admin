@@ -107,7 +107,7 @@ module RailsAiAdmin
     def reject(error)
       case error.code
       when "NOT_FOUND", "NOT_ALLOWED", "INVALID_SCOPE", "SURFACE_PURGED" then admin_status(:not_found)
-      when "CONFLICT", "IDEMPOTENCY_CONFLICT", "SURFACE_CLOSED", "OPERATION_FAILED", "RATE_LIMITED"
+      when "CONFLICT", "IDEMPOTENCY_CONFLICT", "SURFACE_CLOSED", "OPERATION_FAILED", "RATE_LIMITED", "VALIDATION_FAILED"
         @surface = ::RailsToolViews.restore(params[:surface_id], scope: admin_scope)
         @surface_scope = admin_scope
         @surface_error = error

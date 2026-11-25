@@ -1,0 +1,53 @@
+<% pair = admin_surface_editable_review(props, local_assigns[:state]) %>
+<% if pair %>
+  <% review, active_wire = pair %>
+  <% run = review.run %>
+  <% native = !review.definition.custom? %>
+  <% parsed_values = JSON.parse(active_wire) rescue {} %>
+  <div class="raa-editable-form">
+    <h2><%= native ? t(run.operation, scope: %i[rails_ai_admin surfaces native], label: review.resource.label.singularize.downcase_first) : review.definition.description %></h2>
+    <% if review.record&.persisted? %>
+      <p><%= t("rails_ai_admin.operations.target_html", label: link_to(record_label(review.resource, review.record), resource_path(resource: review.resource.key, id: review.record.id))) %></p>
+    <% end %>
+
+    <% if local_assigns[:state].is_a?(Hash) && state["outcome"] == "dismissed" %>
+      <p><%= t("rails_ai_admin.surfaces.dismissed") %></p>
+    <% elsif run.status == "succeeded" %>
+      <p><%= t("rails_ai_admin.surfaces.completed_html", run: tag.code(run.id)) %></p>
+    <% elsif run.status == "proposed" && run.expires_at > Time.current && run.security_version == review.access.context.security_version %>
+      <% changes = admin_surface_changes(review, active_wire) %>
+      <% if changes.any? %>
+        <h3><%= t("rails_ai_admin.surfaces.proposed_changes") %></h3>
+        <dl class="raa-details"><% changes.each do |field, before, after| %><dt><%= field.label %></dt><dd><%= before %> → <%= after %></dd><% end %></dl>
+      <% end %>
+
+      <% editable_fields = review.definition.fields(review.access, review.record) rescue [] %>
+      <% if editable_fields.any? %>
+        <%= admin_surface_action_form(surface, :update_preview) do |form| %>
+          <% editable_fields.each do |field| %>
+            <div class="raa-field">
+              <%= hidden_field_tag "arguments[entries][][name]", field.name, id: nil %>
+              <%= label_tag "#{surface.dom_id}_entry_#{field.name}", field.label %>
+              <%= text_field_tag "arguments[entries][][value]", parsed_values[field.name.to_s].to_s, id: "#{surface.dom_id}_entry_#{field.name}" %>
+            </div>
+          <% end %>
+          <%= form.submit t("rails_ai_admin.bulk_changes.revise.submit"), name: nil, class: "raa-secondary" %>
+        <% end %>
+      <% end %>
+
+      <div class="raa-actions">
+        <%= admin_surface_action_form(surface, :confirm) do |form| %>
+          <%= hidden_field_tag "arguments[confirmed_intent]", run.id, id: nil %>
+          <%= form.submit t("rails_ai_admin.operations.confirm"), name: nil %>
+        <% end %>
+        <%= admin_surface_action_form(surface, :dismiss) do |form| %>
+          <%= form.submit t("rails_ai_admin.surfaces.dismiss"), name: nil, class: "raa-secondary" %>
+        <% end %>
+      </div>
+    <% else %>
+      <p><%= t("rails_ai_admin.surfaces.expired") %></p>
+    <% end %>
+  </div>
+<% else %>
+  <p><%= t("rails_ai_admin.surfaces.unavailable") %></p>
+<% end %>

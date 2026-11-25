@@ -278,13 +278,32 @@ class ConversationController extends Controller {
   }
 }
 class PollController extends Controller {
-  static values = { url: String };
+  static values = { url: String, statusFrame: String, statusUrl: String };
   connect() {
-    this.loaded = () => this.schedule();
+    this.knownVersion = this.statusElement()?.dataset.transcriptVersion || null;
+    this.loaded = (event) => {
+      const statusEl = this.statusElement();
+      if (statusEl && event?.target === statusEl) {
+        const nextVersion = statusEl.dataset.transcriptVersion || null;
+        if (this.knownVersion && nextVersion && nextVersion !== this.knownVersion) {
+          this.knownVersion = nextVersion;
+          if (this.element.getAttribute("src")) this.element.reload();
+          else this.element.setAttribute("src", this.urlValue);
+          return;
+        }
+        this.knownVersion = nextVersion || this.knownVersion;
+      } else if (statusEl) {
+        this.knownVersion = statusEl.dataset.transcriptVersion || this.knownVersion;
+      }
+      this.schedule();
+    };
     this.changed = () => this.schedule(1000, true);
     this.element.addEventListener("turbo:frame-load", this.loaded);
     this.element.addEventListener("turbo:submit-end", this.changed);
     this.schedule();
+  }
+  statusElement() {
+    return this.hasStatusFrameValue ? this.element.querySelector(`#${CSS.escape(this.statusFrameValue)}`) : null;
   }
   schedule(delay = null, force = false) {
     clearTimeout(this.timer);
@@ -292,8 +311,15 @@ class PollController extends Controller {
     // A reply that is streaming refreshes faster than a queued one.
     if (delay === null) delay = this.element.querySelector("[data-raa-pending=streaming]") ? 700 : 2000;
     this.timer = setTimeout(() => {
-      if (this.element.getAttribute("src")) this.element.reload();
-      else this.element.setAttribute("src", this.urlValue);
+      const statusEl = this.statusElement();
+      if (statusEl && this.hasStatusUrlValue) {
+        if (statusEl.getAttribute("src")) statusEl.reload();
+        else statusEl.setAttribute("src", this.statusUrlValue);
+      } else if (this.element.getAttribute("src")) {
+        this.element.reload();
+      } else {
+        this.element.setAttribute("src", this.urlValue);
+      }
     }, delay);
   }
   // Frame reloads replace children only, so the flag lives inside.

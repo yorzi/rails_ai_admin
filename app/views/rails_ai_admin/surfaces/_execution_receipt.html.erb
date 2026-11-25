@@ -1,0 +1,30 @@
+<% receipt = admin_surface_execution_receipt(props) %>
+<% if receipt %>
+  <div class="raa-read-surface raa-execution-receipt">
+    <div class="raa-surface-header">
+      <h3><%= receipt.operation_label %> — <%= receipt.record_label %></h3>
+      <span class="raa-surface-badge"><%= admin_state_name(receipt.run.status) %></span>
+    </div>
+    <% if receipt.changed_fields.any? %>
+      <p class="raa-surface-meta"><%= t("rails_ai_admin.history.fields") %>: <%= receipt.changed_fields.join(", ") %></p>
+    <% end %>
+    <% if receipt.verification_status.present? %>
+      <p class="raa-surface-meta"><strong><%= t("rails_ai_admin.tasks.verification_heading", status: receipt.verification_status) %></strong></p>
+      <% if receipt.verification_checks.any? %>
+        <ul>
+          <% receipt.verification_checks.each do |check| %>
+            <li><strong><%= check["name"] %></strong> (<%= check["status"] %>): <%= check["message"] %></li>
+          <% end %>
+        </ul>
+      <% end %>
+    <% end %>
+    <% if receipt.work_statuses.any? %>
+      <p class="raa-surface-meta"><%= admin_state_counts(receipt.work_statuses) %></p>
+    <% end %>
+    <% if receipt.task_id %>
+      <p><%= link_to t("rails_ai_admin.tasks.title"), admin_task_path(id: receipt.task_id), data: { turbo_frame: "_top" } %></p>
+    <% end %>
+  </div>
+<% else %>
+  <p><%= t("rails_ai_admin.surfaces.unavailable") %></p>
+<% end %>

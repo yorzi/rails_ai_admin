@@ -1,0 +1,21 @@
+<% progress = admin_surface_task_progress(props) %>
+<% if progress %>
+  <div class="raa-read-surface raa-task-progress">
+    <div class="raa-surface-header">
+      <h3><%= link_to progress.task.title, admin_task_path(id: progress.task.id), data: { turbo_frame: "_top" } %></h3>
+      <span class="raa-surface-badge"><%= t("rails_ai_admin.tasks.statuses.#{progress.effective_status}", default: progress.effective_status.humanize) %></span>
+    </div>
+    <p class="raa-surface-meta">
+      <%= t("rails_ai_admin.tasks.progress", succeeded: progress.succeeded_count, failed: progress.failed_count, total: progress.total_count) %>
+    </p>
+    <% if progress.can_cancel && !(local_assigns[:state].is_a?(Hash) && state["outcome"] == "cancelled") %>
+      <div class="raa-actions">
+        <%= admin_surface_action_form(surface, :cancel) do |form| %>
+          <%= form.submit t("rails_ai_admin.collection_jobs.cancel"), name: nil, class: "raa-secondary" %>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+<% else %>
+  <p><%= t("rails_ai_admin.surfaces.unavailable") %></p>
+<% end %>

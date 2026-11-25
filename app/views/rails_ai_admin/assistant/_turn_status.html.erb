@@ -1,0 +1,24 @@
+<%= turbo_frame_tag "raa_assistant_turn_status", data: { transcript_version: @transcript_version } do %>
+  <% if @current && @streaming_text %>
+    <ul class="raa-chat-log raa-chat-live" role="list">
+      <li class="raa-chat-message raa-chat-assistant raa-chat-streaming" aria-busy="true"><span class="raa-chat-role"><%= t("rails_ai_admin.assistant.roles.assistant") %></span><div class="raa-chat-text"><%= h(@streaming_text) %></div></li>
+    </ul>
+  <% end %>
+  <% if @pending %>
+    <div class="raa-chat-turn">
+      <p class="raa-chat-status" role="status" data-raa-pending="<%= @streaming_text ? "streaming" : "waiting" %>">
+        <%= @retry_status || (@running ? t("rails_ai_admin.assistant.working") : t("rails_ai_admin.assistant.waiting")) %>
+      </p>
+      <%= button_to t("rails_ai_admin.assistant.stop"), cancel_assistant_conversation_path(chat_ref: @chat.ref), method: :post, params: (@drawer ? { drawer: "1" } : {}), class: "raa-secondary", form: { data: { turbo_frame: (@drawer ? "raa_assistant_drawer" : "_top") } } %>
+      <%= link_to t("rails_ai_admin.assistant.refresh"), (@drawer ? assistant_drawer_path(chat_ref: @chat.ref) : assistant_conversation_path(chat_ref: @chat.ref)), data: { turbo_frame: (@drawer ? "raa_assistant_drawer" : "_top") } %>
+    </div>
+  <% elsif @failure %>
+    <div class="raa-chat-turn">
+      <p class="raa-chat-status raa-chat-failure" role="status"><%= @failure_message %></p>
+      <% if @retryable %><%= button_to t("rails_ai_admin.assistant.try_again"), retry_assistant_conversation_path(chat_ref: @chat.ref), method: :post, params: (@drawer ? { drawer: "1" } : {}), class: "raa-secondary", form: { data: { turbo_frame: (@drawer ? "raa_assistant_drawer" : "_top") } } %><% end %>
+    </div>
+  <% end %>
+  <% if @spend %>
+    <p class="raa-chat-budget<%= " raa-chat-budget-reached" if @spend.exceeded? %>" id="raa-chat-budget"><%= assistant_spend_text(@spend) %></p>
+  <% end %>
+<% end %>
