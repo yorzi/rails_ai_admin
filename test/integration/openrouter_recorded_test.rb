@@ -125,8 +125,7 @@ class OpenRouterRecordedTest < ActionDispatch::IntegrationTest
         get css_select(".raa-chat-bulk a").first["href"]
         assert_select "tbody tr", count: 4
         form = css_select("form[action$='/bulk_change']").first
-        fields = form.css("input[type=hidden]").to_h { |input| [ input["name"], input["value"] ] }
-        post form["action"], params: fields.merge("decision" => "confirm")
+        post form["action"], params: browser_fields(form).merge("decision" => "confirm")
         assert_response :success
         assert_select "[role=status]", text: "Updated 4 records."
         assert_equal [ 5 ] * 4, inactive.order(:id).pluck(:points)

@@ -371,11 +371,17 @@ the values and either record ids or the same query, filters and scope as
 3. The review page writes nothing. It lists every record with each field's
    before → after under the person's current read grants, and the records that
    will be skipped, with the reason.
-4. Choose **Update N records** or **Dismiss**. The first accepted decision
+4. To change the plan, untick records or edit the proposed values under
+   **Adjust records or values before confirming**, then choose **Update
+   preview**. That closes the old review and opens a new one for the chosen
+   records and values; it writes no records. Confirming a review whose rows or
+   values were changed on the page without **Update preview** updates nothing
+   and asks you to update the preview first.
+5. Choose **Update N records** or **Dismiss**. The first accepted decision
    closes the review. If a selected record changed after the proposal, or
    the set of writable records changed since you opened the page, open a
    fresh review before confirming.
-5. Confirmation uses the native update operation for each record. Each update
+6. Confirmation uses the native update operation for each record. Each update
    has its own transaction, version check and audit event with origin
    `assistant`. The result and the conversation include skipped or failed
    records. If execution is interrupted, completed updates stay committed.

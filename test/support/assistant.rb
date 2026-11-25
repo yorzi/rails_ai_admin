@@ -110,6 +110,27 @@ class ProductMessage < ActiveRecord::Base
 end
 
 module AssistantHelpers
+  # The params a browser sends for a form as rendered: hidden and text
+  # inputs, checked boxes and selected options, without any submit button.
+  def browser_fields(form)
+    pairs = form.css("input, select, textarea").filter_map do |input|
+      name = input["name"]
+      next if name.nil? || input["disabled"]
+      case input.name
+      when "select"
+        option = input.at_css("option[selected]") || input.at_css("option")
+        [ name, option ? option["value"].to_s : "" ]
+      when "textarea" then [ name, input.text ]
+      else
+        type = input["type"].to_s
+        next if %w[submit button image].include?(type)
+        next if %w[checkbox radio].include?(type) && !input["checked"]
+        [ name, input["value"].to_s ]
+      end
+    end
+    Rack::Utils.parse_nested_query(URI.encode_www_form(pairs))
+  end
+
   def self.prepare_schema
     ActiveRecord::Migration.verbose = false
     CreateRailsAiAdminAssistant.new.migrate(:up) unless ActiveRecord::Base.connection.table_exists?(:rails_ai_admin_assistant_turns)

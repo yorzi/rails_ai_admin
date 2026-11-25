@@ -288,6 +288,9 @@ en:
         submit: Update preview
         empty_selection: Select at least one record to update the preview.
         invalid_values: One or more edited values are not valid for this resource.
+        confirm_changed: >-
+          You changed the records or values in this review. Nothing was updated; choose Update preview to
+          review the changed plan, then confirm it.
     saved_views:
       title: Saved views
       save_current: Save this view

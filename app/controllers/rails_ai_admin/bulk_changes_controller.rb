@@ -18,8 +18,9 @@ module RailsAiAdmin
     # preview without writing any business records.
     def revise
       load_plan
-      selected_ids = Array(params[:target_ids]).select { |id| id.is_a?(String) && id.present? }.uniq
+      selected_ids = submitted_target_ids || []
       ready_ids = @ready.map { |item| item.target.id }
+      remember_submission
       if selected_ids.empty?
         @review_signature = Operations::BulkChange.sign_review(@selection, params[:change], @ready) if @ready.any?
         @revise_error = t("rails_ai_admin.bulk_changes.revise.empty_selection")
@@ -54,6 +55,14 @@ module RailsAiAdmin
       load_plan
       Operations::BulkChange.verify_review!(params[:review_signature], params[:change], @ready)
       raise AccessDenied if @ready.empty?
+      # Unticked rows or edited values must go through a new preview first;
+      # confirming applies only the review as it was shown, or nothing.
+      unless submission_matches_review?
+        remember_submission
+        @review_signature = Operations::BulkChange.sign_review(@selection, params[:change], @ready)
+        @revise_error = t("rails_ai_admin.bulk_changes.revise.confirm_changed")
+        return render :show, status: :unprocessable_content
+      end
       Operations::BulkChange.decide!(@selection, decision)
       runner = Operations::Runner.new
       outcomes = @ready.map do |item|
@@ -115,6 +124,34 @@ module RailsAiAdmin
       @chat_ref = @proposal.context_ref&.then { |value| value[/\Araa:chat:([0-9a-f-]{36})\z/, 1] }
     rescue KeyError
       raise AccessDenied
+    end
+
+    # nil when the form did not send the rows (an override older than this
+    # check); the empty marker field otherwise makes "none ticked" explicit.
+    def submitted_target_ids
+      return unless params.key?(:target_ids)
+      Array(params[:target_ids]).select { |id| id.is_a?(String) && id.present? }.uniq
+    end
+
+    def submitted_values
+      raw = params[:values]
+      raw.is_a?(ActionController::Parameters) ? raw.to_unsafe_h : nil
+    end
+
+    def submission_matches_review?
+      ids = submitted_target_ids
+      return false unless ids.nil? || ids.sort == @ready.map { |item| item.target.id.to_s }.sort
+      values = submitted_values
+      return false unless params[:values].nil? || values
+      return true if values.nil?
+      values.all? { |name, value| @proposal.values.key?(name) && value.is_a?(String) && value == @proposal.values[name].to_s }
+    end
+
+    # Shown again as the person left them when the page is rendered again.
+    def remember_submission
+      @submitted_target_ids = submitted_target_ids
+      values = submitted_values
+      @submitted_values = values && @proposal.values.merge(values.slice(*@proposal.values.keys).select { |_, value| value.is_a?(String) })
     end
 
     def revised_input_values

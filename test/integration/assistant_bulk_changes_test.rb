@@ -96,8 +96,7 @@ class AssistantBulkChangesIntegrationTest < ActionDispatch::IntegrationTest
 
   def decide(decision)
     form = css_select("form[action$='/bulk_change']").first
-    fields = form.css("input[type=hidden]").to_h { |input| [ input["name"], input["value"] ] }
-    post form["action"], params: fields.merge("decision" => decision)
+    post form["action"], params: browser_fields(form).merge("decision" => decision)
   end
 
   def test_confirmation_does_not_add_records_that_became_writable_after_review
@@ -122,7 +121,7 @@ class AssistantBulkChangesIntegrationTest < ActionDispatch::IntegrationTest
       propose(chat, { resource: "changeable_customers", values: { points: @bob.points }, ids: [ @bob.id.to_s ] })
       get review_link(chat)
       form = css_select("form[action$='/bulk_change']").first
-      fields = form.css("input[type=hidden]").to_h { |input| [ input["name"], input["value"] ] }
+      fields = browser_fields(form)
       post form["action"], params: fields.merge("decision" => "confirm")
       assert_response :success
       assert_equal @bob.lock_version, Customer.find(@bob.id).lock_version
@@ -374,15 +373,16 @@ class AssistantBulkChangesIntegrationTest < ActionDispatch::IntegrationTest
       get original_url
       assert_response :success
       assert_select "table.raa-bulk-review tbody tr", count: 2
-      assert_select "input[type=checkbox][name='target_ids[]'][form='raa-bulk-revise']", count: 2
+      assert_select "form#raa-bulk-review input[type=checkbox][name='target_ids[]']", count: 2
 
       confirm_form = css_select("form[action$='/bulk_change']").first
-      old_fields = confirm_form.css("input[type=hidden]").to_h { |input| [ input["name"], input["value"] ] }
-      revise_form = css_select("form#raa-bulk-revise").first
-      change_token = revise_form.css("input[name='change']").first["value"]
+      old_fields = browser_fields(confirm_form)
+      review_form = css_select("form#raa-bulk-review").first
+      revise_action = review_form.at_css("button[formaction]")["formaction"]
+      change_token = review_form.css("input[name='change']").first["value"]
 
       # Untick Cara and adjust points to 7: creates a fresh preview, writes nothing.
-      post revise_form["action"], params: { change: change_token, target_ids: [ @bob.id.to_s ], values: { points: "7" } }
+      post revise_action, params: { change: change_token, target_ids: [ @bob.id.to_s ], values: { points: "7" } }
       assert_response :see_other
       assert_equal [ 4, 9 ], [ @bob.reload.points, @cara.reload.points ], "revising never writes records"
       refute_equal original_url, response.location
@@ -407,6 +407,43 @@ class AssistantBulkChangesIntegrationTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # The row checkboxes and the value fields belong to the form that confirms,
+  # so a review the operator changed on screen never applies the old plan.
+  def test_confirming_after_unticking_rows_or_editing_values_writes_nothing
+    with_bulk do
+      chat = start_chat
+      propose(chat, { resource: "changeable_customers", values: { points: 1 }, ids: [ @bob.id.to_s, @cara.id.to_s ] })
+      get review_link(chat)
+      assert_response :success
+      confirm_form = css_select("form[action$='/bulk_change']").first
+      assert confirm_form.at_css("button[name='decision'][value='confirm']")
+      assert_select "form#raa-bulk-review input[type=hidden][name='target_ids[]'][value='']", count: 1
+      boxes = css_select("input[type=checkbox][name='target_ids[]']")
+      assert_equal 2, boxes.size
+      boxes.each do |box|
+        assert box["form"].nil? ? box.ancestors("form").include?(confirm_form) : box["form"] == confirm_form["id"],
+          "each row checkbox is submitted with the confirmation"
+      end
+      fields = browser_fields(confirm_form).except("target_ids", "values")
+
+      post confirm_form["action"], params: fields.merge("decision" => "confirm", "target_ids" => [ "", @bob.id.to_s ])
+      assert_response :unprocessable_content
+      post confirm_form["action"], params: fields.merge("decision" => "confirm", "target_ids" => [ "" ])
+      assert_response :unprocessable_content
+      post confirm_form["action"], params: fields.merge("decision" => "confirm",
+        "target_ids" => [ "", @bob.id.to_s, @cara.id.to_s ], "values" => { "points" => "7" })
+      assert_response :unprocessable_content
+      assert_equal [ 4, 9 ], [ @bob.reload.points, @cara.reload.points ]
+      assert_empty RailsAiAdmin::OperationRun.all
+
+      # The unchanged review still confirms both records.
+      post confirm_form["action"], params: fields.merge("decision" => "confirm",
+        "target_ids" => [ "", @bob.id.to_s, @cara.id.to_s ], "values" => { "points" => "1" })
+      assert_response :success
+      assert_equal [ 1, 1 ], [ @bob.reload.points, @cara.reload.points ]
+    end
+  end
+
   def test_revise_rejects_empty_selection_unselected_ids_unproposed_fields_and_invalid_values
     with_bulk do
       other = Customer.create!(account_id: 2, name: "Foreign", points: 50)
@@ -414,23 +451,24 @@ class AssistantBulkChangesIntegrationTest < ActionDispatch::IntegrationTest
       propose(chat, { resource: "changeable_customers", values: { points: 1 }, ids: [ @bob.id.to_s ] })
       original_url = review_link(chat)
       get original_url
-      revise_form = css_select("form#raa-bulk-revise").first
-      token = revise_form.css("input[name='change']").first["value"]
+      review_form = css_select("form#raa-bulk-review").first
+      revise_action = review_form.at_css("button[formaction]")["formaction"]
+      token = review_form.css("input[name='change']").first["value"]
 
       # Empty subset rejected without closing the original preview.
-      post revise_form["action"], params: { change: token, target_ids: [], values: { points: "2" } }
+      post revise_action, params: { change: token, target_ids: [], values: { points: "2" } }
       assert_response :unprocessable_content
 
       # Unselected / foreign ID rejected.
-      post revise_form["action"], params: { change: token, target_ids: [ @bob.id.to_s, other.id.to_s ], values: { points: "2" } }
+      post revise_action, params: { change: token, target_ids: [ @bob.id.to_s, other.id.to_s ], values: { points: "2" } }
       assert_response :unprocessable_content
 
       # Unproposed field smuggling rejected.
-      post revise_form["action"], params: { change: token, target_ids: [ @bob.id.to_s ], values: { points: "2", name: "Hacked" } }
+      post revise_action, params: { change: token, target_ids: [ @bob.id.to_s ], values: { points: "2", name: "Hacked" } }
       assert_response :unprocessable_content
 
       # Invalid typed value rejected.
-      post revise_form["action"], params: { change: token, target_ids: [ @bob.id.to_s ], values: { points: "not-a-number" } }
+      post revise_action, params: { change: token, target_ids: [ @bob.id.to_s ], values: { points: "not-a-number" } }
       assert_response :unprocessable_content
 
       # Original preview remains open and unmodified.

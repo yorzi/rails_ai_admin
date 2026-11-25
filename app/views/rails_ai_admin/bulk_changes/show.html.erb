@@ -4,53 +4,48 @@
 <p><%= t("rails_ai_admin.bulk_changes.intro") %></p>
 <% if @revise_error %><p class="raa-field-error" role="alert"><%= @revise_error %></p><% end %>
 <p><strong><%= t("rails_ai_admin.bulk_changes.question", count: @ready.size) %></strong></p>
-<% if @ready.any? %>
-  <div class="raa-table-scroll"><table class="raa-bulk-review">
-    <caption class="raa-visually-hidden"><%= t("rails_ai_admin.bulk_changes.caption", count: @ready.size) %></caption>
-    <thead><tr>
-      <th scope="col"><span class="raa-visually-hidden"><%= t("rails_ai_admin.bulk_changes.revise.include") %></span></th>
-      <th scope="col"><%= t("rails_ai_admin.collection_jobs.record") %></th>
-      <% @fields.each do |field| %><th scope="col"><%= field.label %></th><% end %>
-    </tr></thead>
-    <tbody><% @ready.each_with_index do |item, index| %><tr>
-      <td><%= check_box_tag "target_ids[]", item.target.id, true, id: "raa-bulk-target-#{index}", form: "raa-bulk-revise",
-        aria: { label: t("rails_ai_admin.bulk_changes.revise.select_row", label: item.target.label.to_s.truncate(120)) } %></td>
-      <th scope="row"><%= link_to item.target.label, resource_path(resource: @resource.key, id: item.target.id) %></th>
-      <% @fields.each do |field| %><td>
-        <% if (change = item.changes[field.name.to_s]) %>
-          <%= admin_field_value(field, change[0], view: :index, record_id: item.target.id) %> → <%= admin_field_value(field, change[1], view: :index, record_id: item.target.id) %>
-        <% else %>
-          <span class="raa-muted"><%= t("rails_ai_admin.bulk_changes.hidden_value") %></span>
-        <% end %>
-      </td><% end %>
-    </tr><% end %></tbody>
-  </table></div>
-<% end %>
-<% if @skipped.any? %>
-  <h2><%= t("rails_ai_admin.bulk_changes.skipped", count: @skipped.size) %></h2>
-  <ul><% @skipped.each do |item| %><li><%= item.target.label %>: <%= admin_outcome(item.code) %></li><% end %></ul>
-<% end %>
-<p><%= t("rails_ai_admin.bulk_changes.each_note") %></p>
-<%# The result page renders with 200, which Turbo would drop after a form post. %>
-<%= form_with url: apply_bulk_change_path(selection_ref: @selection.selection_ref), method: :post, local: true, data: { turbo: false } do |form| %>
+<%# One form holds the rows, the edited values and every decision, so what is
+    confirmed is always what the page shows. The result page renders with
+    200, which Turbo would drop after a form post. %>
+<%= form_with url: apply_bulk_change_path(selection_ref: @selection.selection_ref), method: :post, local: true, id: "raa-bulk-review", data: { turbo: false } do |form| %>
   <%= hidden_field_tag :change, params[:change], id: nil %>
   <%= hidden_field_tag :review_signature, @review_signature, id: nil if @review_signature %>
-  <div class="raa-actions">
-    <% if @ready.any? %>
-      <%= form.button t("rails_ai_admin.bulk_changes.submit", count: @ready.size), name: "decision", value: "confirm", type: "submit",
-        data: { turbo_submits_with: t("rails_ai_admin.bulk_changes.updating") } %>
-    <% end %>
-    <%= form.button t("rails_ai_admin.bulk_changes.dismiss"), name: "decision", value: "dismiss", type: "submit", class: "raa-secondary" %>
-  </div>
-<% end %>
-<% if @ready.any? %>
-  <details class="raa-bulk-revise-panel"<%= " open" if @revise_error %>>
-    <summary><%= t("rails_ai_admin.bulk_changes.revise.heading") %></summary>
-    <p class="raa-field-help"><%= t("rails_ai_admin.bulk_changes.revise.note") %></p>
-    <%= form_with url: revise_bulk_change_path(selection_ref: @selection.selection_ref), method: :post, local: true, id: "raa-bulk-revise", data: { turbo: false } do |form| %>
-      <%= hidden_field_tag :change, params[:change], id: nil %>
+  <% if @ready.any? %>
+    <%# Sent even when every row is unticked, so an empty choice is never read as "all". %>
+    <%= hidden_field_tag "target_ids[]", "", id: nil %>
+    <div class="raa-table-scroll"><table class="raa-bulk-review">
+      <caption class="raa-visually-hidden"><%= t("rails_ai_admin.bulk_changes.caption", count: @ready.size) %></caption>
+      <thead><tr>
+        <th scope="col"><span class="raa-visually-hidden"><%= t("rails_ai_admin.bulk_changes.revise.include") %></span></th>
+        <th scope="col"><%= t("rails_ai_admin.collection_jobs.record") %></th>
+        <% @fields.each do |field| %><th scope="col"><%= field.label %></th><% end %>
+      </tr></thead>
+      <tbody><% @ready.each_with_index do |item, index| %><tr>
+        <td><%= check_box_tag "target_ids[]", item.target.id, @submitted_target_ids.nil? || @submitted_target_ids.include?(item.target.id.to_s), id: "raa-bulk-target-#{index}",
+          aria: { label: t("rails_ai_admin.bulk_changes.revise.select_row", label: item.target.label.to_s.truncate(120)) } %></td>
+        <th scope="row"><%= link_to item.target.label, resource_path(resource: @resource.key, id: item.target.id) %></th>
+        <% @fields.each do |field| %><td>
+          <% if (change = item.changes[field.name.to_s]) %>
+            <%= admin_field_value(field, change[0], view: :index, record_id: item.target.id) %> → <%= admin_field_value(field, change[1], view: :index, record_id: item.target.id) %>
+          <% else %>
+            <span class="raa-muted"><%= t("rails_ai_admin.bulk_changes.hidden_value") %></span>
+          <% end %>
+        </td><% end %>
+      </tr><% end %></tbody>
+    </table></div>
+  <% end %>
+  <% if @skipped.any? %>
+    <h2><%= t("rails_ai_admin.bulk_changes.skipped", count: @skipped.size) %></h2>
+    <ul><% @skipped.each do |item| %><li><%= item.target.label %>: <%= admin_outcome(item.code) %></li><% end %></ul>
+  <% end %>
+  <p><%= t("rails_ai_admin.bulk_changes.each_note") %></p>
+  <% if @ready.any? %>
+    <%# Before the decisions, so pressing Enter in a value updates the preview. %>
+    <details class="raa-bulk-revise-panel"<%= " open" if @revise_error %>>
+      <summary><%= t("rails_ai_admin.bulk_changes.revise.heading") %></summary>
+      <p class="raa-field-help"><%= t("rails_ai_admin.bulk_changes.revise.note") %></p>
       <% @fields.each do |field| %>
-        <% current_value = @proposal.values[field.name.to_s] %>
+        <% current_value = (@submitted_values || @proposal.values)[field.name.to_s] %>
         <div class="raa-field">
           <%= label_tag "raa-revise-#{field.name}", field.label %>
           <% if field.scalar_type == :boolean %>
@@ -63,8 +58,16 @@
         </div>
       <% end %>
       <div class="raa-actions">
-        <%= form.submit t("rails_ai_admin.bulk_changes.revise.submit"), name: nil, class: "raa-secondary" %>
+        <%= form.button t("rails_ai_admin.bulk_changes.revise.submit"), name: nil, type: "submit", class: "raa-secondary",
+          formaction: revise_bulk_change_path(selection_ref: @selection.selection_ref) %>
       </div>
+    </details>
+  <% end %>
+  <div class="raa-actions">
+    <% if @ready.any? %>
+      <%= form.button t("rails_ai_admin.bulk_changes.submit", count: @ready.size), name: "decision", value: "confirm", type: "submit",
+        data: { turbo_submits_with: t("rails_ai_admin.bulk_changes.updating") } %>
     <% end %>
-  </details>
+    <%= form.button t("rails_ai_admin.bulk_changes.dismiss"), name: "decision", value: "dismiss", type: "submit", class: "raa-secondary" %>
+  </div>
 <% end %>
