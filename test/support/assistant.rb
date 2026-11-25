@@ -170,6 +170,10 @@ module AssistantHelpers
     ProductChat.delete_all
     # One registry row avoids importing RubyLLM's whole model catalog.
     RubyLLM::ActiveRecord::Model.find_or_create_by!(model_id: "gpt-4.1-mini", provider: "openai") { |model| model.name = "GPT-4.1 mini" }
+    # RubyLLM keeps one registry per process. Reload it from the rows above so
+    # no test inherits another's catalog (an empty store falls back to the
+    # bundled, priced one, which adds costs to usage and summaries).
+    RubyLLM.models.load_from_store
     [ RailsToolViews::AgentInteraction, RailsToolViews::ActionExecution, RailsToolViews::Presentation, RailsToolViews::Surface ].each(&:delete_all)
     AssistantPolicy.exposed = true
     TestAssistant.available = true

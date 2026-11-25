@@ -26,6 +26,31 @@ class AssistantEvaluationTest < ActiveSupport::TestCase
     ]
   end
 
+  # An earlier test may leave RubyLLM's bundled, priced catalog loaded; each
+  # test starts again from the one stored model row, which has no pricing.
+  def test_the_summary_does_not_depend_on_the_registry_an_earlier_test_left
+    RubyLLM.models.load_from_json
+    reset_assistant
+    with_assistant do
+      LLMFixture.tool("count_records", { resource: "contract_customers" })
+      LLMFixture.reply("There is 1 customer.")
+      report = Evaluation.for(context, dataset: cases.first(1)).run
+      assert_equal "1 of 1 passed.", Evaluation.summary(report).last
+    end
+  end
+
+  def test_the_summary_adds_the_cost_when_the_model_is_priced
+    with_assistant do
+      RubyLLM.models.load_from_json
+      LLMFixture.tool("count_records", { resource: "contract_customers" })
+      LLMFixture.reply("There is 1 customer.")
+      report = Evaluation.for(context, dataset: cases.first(1)).run
+      assert_match(/\A1 of 1 passed, US\$\d+\.\d{4}\.\z/, Evaluation.summary(report).last)
+    end
+  ensure
+    reset_assistant
+  end
+
   def test_each_case_is_a_new_archived_conversation_checked_against_its_metadata
     with_assistant do
       LLMFixture.tool("count_records", { resource: "contract_customers" })
