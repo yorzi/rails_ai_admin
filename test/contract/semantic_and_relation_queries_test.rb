@@ -48,6 +48,8 @@ class SemanticQueryPolicy < RailsAiAdmin::Authorization::Adapter
   class_attribute :expose_invoices, default: true
   class_attribute :expose_categories, default: true
   class_attribute :allow_customer_name_filter, default: true
+  class_attribute :allow_customer_search, default: true
+  class_attribute :allow_customer_filters, default: true
   class_attribute :allow_invoice_customer_read, default: true
 
   def scope(context:, resource:, relation:)
@@ -70,9 +72,10 @@ class SemanticQueryPolicy < RailsAiAdmin::Authorization::Adapter
   def fields(context:, resource:, action:, record: nil)
     case resource.key
     when :semantic_customers
+      return [] if action == :filter && !allow_customer_filters
       case action
       when :read then %i[id name points active]
-      when :search then [ :name ]
+      when :search then allow_customer_search ? [ :name ] : []
       when :filter then allow_customer_name_filter ? %i[name points active] : %i[points active]
       else []
       end
@@ -121,6 +124,8 @@ class SemanticAndRelationQueriesTest < Minitest::Test
   end
 
   def teardown
+    SemanticQueryPolicy.allow_customer_search = true
+    SemanticQueryPolicy.allow_customer_filters = true
     SemanticQueryPolicy.expose_customers = true
     SemanticQueryPolicy.expose_invoices = true
     SemanticQueryPolicy.expose_categories = true
@@ -296,6 +301,53 @@ class SemanticAndRelationQueriesTest < Minitest::Test
         relation_filters: { "invoices" => { "number" => { "contains" => "INV-10" } } }
       )
       assert_equal "INVALID_QUERY", denied["error"]
+    end
+  end
+
+  def test_no_related_record_is_scoped_null_safe_and_correlates_self_references
+    with_semantic_assistant do
+      optional = Invoice.create!(account_id: 1, number: "NO-CUSTOMER")
+      Invoice.create!(account_id: 2, number: "PRIVATE", customer: @carol)
+      invoices = RailsAiAdmin::Queries::List.new(context, SemanticInvoiceAdmin, assistant: true)
+      relation = invoices.relation(relation_filters: { customer: { _exists: false } })
+      assert_match(/NOT\s*\(?EXISTS/i, relation.to_sql)
+      assert_equal [ @inv_cross.id, optional.id ].sort, relation.pluck(:id).sort
+      count = RailsAiAdmin::Assistant::CountRecords.new(session_for)
+      assert_equal 2, count.execute(resource: "semantic_customers", relation_filters: { "invoices" => { "_exists" => false } })["count"]
+      assert_equal 3, count.execute(resource: "semantic_customers", relation_filters: { "invoices" => { "_none" => { "number" => { "eq" => "INV-101" } } } })["count"]
+      root = Category.create!(account_id: 1, name: "Top")
+      Category.create!(account_id: 1, name: "Child", parent: root)
+      list = RailsAiAdmin::Queries::List.new(context, SemanticCategoryAdmin)
+      assert_equal [ root.id ], list.relation(relation_filters: { parent: { _none: { name: { eq: "Top" } } } }).pluck(:id)
+      SemanticQueryPolicy.expose_invoices = false
+      assert_equal "INVALID_QUERY", count.execute(resource: "semantic_customers", relation_filters: { "invoices" => { "_exists" => false } })["error"]
+    end
+  end
+
+  def test_target_search_uses_its_search_grant_and_refuses_ambiguous_negations
+    with_semantic_assistant do
+      tool = RailsAiAdmin::Assistant::CountRecords.new(session_for)
+      search = ->(predicate) { tool.execute(resource: "semantic_invoices", relation_filters: { "customer" => predicate }) }
+      SemanticQueryPolicy.allow_customer_name_filter = false
+      statements = []
+      track = ->(event) { statements << event.payload[:sql] if event.payload[:sql].match?(/\bFROM "(?:invoices|customers)"/i) }
+      ActiveSupport::Notifications.subscribed(track, "sql.active_record") do
+        assert_equal 2, search.call({ "_query" => "dy Jon" })["count"]
+      end
+      assert_equal 1, statements.size
+      SemanticQueryPolicy.allow_customer_filters = false
+      description = RailsAiAdmin::Assistant::DescribeResource.new(session_for).execute(resource: "semantic_invoices")
+      relation = description.fetch("filter_relations").sole
+      assert relation.fetch("searchable")
+      assert_empty relation.fetch("filters")
+      assert_equal 2, search.call({ "_query" => "Judy Jones" })["count"]
+      assert_equal "INVALID_QUERY", search.call({ "_exists" => false })["error"]
+      assert_equal 0, search.call({ "_query" => "%Judy" })["count"]
+      [ { "_query" => "" }, { "_exists" => "false" }, { "_none" => {} }, { "_exists" => false, "_query" => "Judy" } ].each do |invalid|
+        assert_equal "INVALID_QUERY", search.call(invalid)["error"]
+      end
+      SemanticQueryPolicy.allow_customer_search = false
+      assert_equal "INVALID_QUERY", search.call({ "_query" => "Judy" })["error"]
     end
   end
 end

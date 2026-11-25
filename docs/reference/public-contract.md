@@ -377,6 +377,10 @@ reject undeclared names with 422. TestKit offers `named_scope_grants` and
 
 ## Typed list filters
 
+`relation_filters` accepts one hop through a declared relation. Use `_query` for a search under the target’s current search grants, optionally alongside target field filters. Use `_exists: true` or `_exists: false` alone for presence, or wrap conditions in `_none` to exclude parents with any matching target. An existence check requires at least one target filter grant. Negation uses a correlated `NOT EXISTS` against the scoped target, including for nullable and self-referential keys.
+
+`aggregate_records` accepts a categorical `group_by` paired with a temporal `period_field` and `period`. Both fields require their own filter grant. Each occupied cell has a category and a `period_start` in the viewer’s calendar. The response bounds the breakdown to 25 cells and reports truncation. The metric card rechecks the same dimensions on refresh.
+
 `filterable: true` selects `eq` for id/text/textarea/enum/select/boolean and
 inclusive `gte`/`lte` for integer/decimal/date/datetime; an Array narrows to
 allowed operators (range types also allow `eq`). Virtual/hidden fields cannot

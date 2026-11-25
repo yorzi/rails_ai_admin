@@ -66,6 +66,7 @@ module RailsAiAdmin
           function: { type: "string", enum: %w[count sum average minimum maximum] },
           field: { type: %w[string null], maxLength: 100 },
           group_by: { type: %w[string null], maxLength: 100 },
+          period_field: { type: %w[string null], maxLength: 100 },
           period: { type: %w[string null], enum: [ "day", "week", "month", "year", nil ] },
           scope: { type: %w[string null], maxLength: 100 },
           query: { type: %w[string null], maxLength: 200 },
@@ -347,7 +348,11 @@ module RailsAiAdmin
               return false unless field&.aggregate_functions&.include?(props["function"].to_sym)
             end
             if props["group_by"].present?
-              allowed_types = props["period"].present? ? Field::PERIOD_TYPES : Field::GROUP_TYPES
+              if props["period_field"].present?
+                date_field = auth.fields(:filter).find { |candidate| candidate.name.to_s == props["period_field"] }
+                return false unless date_field && Field::PERIOD_TYPES.include?(date_field.scalar_type)
+              end
+              allowed_types = props["period"].present? && props["period_field"].blank? ? Field::PERIOD_TYPES : Field::GROUP_TYPES
               group = auth.fields(:filter).find { |candidate| candidate.name.to_s == props["group_by"] }
               return false unless group && allowed_types.include?(group.scalar_type)
             end
@@ -391,6 +396,7 @@ module RailsAiAdmin
               "function" => result.function.to_s,
               "field" => result.field&.name&.to_s,
               "group_by" => result.group_by&.name&.to_s,
+              "period_field" => result.period_field&.name&.to_s,
               "period" => result.period&.to_s,
               "scope" => result.scope&.to_s,
               "query" => query.presence&.to_s&.first(200),
@@ -750,7 +756,7 @@ module RailsAiAdmin
           scope_arg = props["scope"].present? ? props["scope"] : Queries::NamedScope::NONE
           result = Queries::List.new(context, resource, assistant: true).aggregate(
             function: props["function"].to_s, field: props["field"].presence, group_by: props["group_by"].presence,
-            period: props["period"].presence, search: props["query"].presence, scope: scope_arg,
+            period: props["period"].presence, period_field: props["period_field"].presence, search: props["query"].presence, scope: scope_arg,
             filters: filters, any_filters: any_filters, relation_filters: relation_filters
           )
           resolver = Fields::Association.new(context, resource, assistant: true)
@@ -759,15 +765,15 @@ module RailsAiAdmin
           end
           value_text = result.field ? format_metric_value(result.field, result.function, result.value, context) : result.count.to_s
           groups = result.groups.map do |group|
-            label = if result.period
+            label = if result.period && !result.period_field
               group.key ? group.key.iso8601 : "—"
             else
               native_text(result.group_by, group.key, resolver, context)
             end
-            { label: label, count: group.count, value_text: result.field ? format_metric_value(result.field, result.function, group.value, context) : nil }
+            { label: label, period_start: result.period_field && group.period_start, count: group.count, value_text: result.field ? format_metric_value(result.field, result.function, group.value, context) : nil }
           end
           filters_summary = summarize_metric_filters(access, filters, any_filters, relation_filters)
-          zone = result.period && result.group_by&.scalar_type == :datetime ? context.time_zone : nil
+          zone = result.period && (result.period_field || result.group_by)&.scalar_type == :datetime ? context.time_zone : nil
           MetricCardData.new(resource: resource, aggregate: result, value_text: value_text, groups: groups,
             scope: result.scope, query: props["query"], filters_summary: filters_summary, time_zone: zone, computed_at: props["computed_at"])
         rescue AccessDenied, ConfigurationError, KeyError, JSON::JSONError

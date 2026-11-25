@@ -57,6 +57,14 @@ module RailsAiAdmin
       # One filter value: a scalar, or a list of scalars for "in".
       FILTER_VALUE_SCHEMA = { "anyOf" => [ { "type" => %w[string number boolean] },
         { "type" => "array", "maxItems" => Field::MAX_IN_VALUES, "items" => { "type" => %w[string number boolean] } } ] }.freeze
+      RELATED_TERMS_SCHEMA = { "type" => "object", "minProperties" => 1, "additionalProperties" => false,
+        "properties" => { "_query" => { "type" => "string", "minLength" => 1, "maxLength" => 200 } },
+        "patternProperties" => { "^[a-z][a-z0-9_]*$" => { "type" => "object", "additionalProperties" => FILTER_VALUE_SCHEMA } } }.freeze
+      RELATION_FILTERS_SCHEMA = { "type" => "object", "maxProperties" => Queries::List::MAX_RELATION_FILTERS,
+        "description" => "Single-hop relations from describe_resource. Use target field filters and/or _query for target search, _exists for presence, or _none around terms to exclude matches.",
+        "additionalProperties" => { "oneOf" => [ RELATED_TERMS_SCHEMA,
+          { "type" => "object", "required" => [ "_exists" ], "additionalProperties" => false, "properties" => { "_exists" => { "type" => "boolean" } } },
+          { "type" => "object", "required" => [ "_none" ], "additionalProperties" => false, "properties" => { "_none" => RELATED_TERMS_SCHEMA } } ] } }.freeze
       MESSAGES = {
         "NOT_FOUND" => "Not found or not available to this user.",
         "INVALID_QUERY" => "The request was not valid for this resource.",
@@ -206,10 +214,24 @@ module RailsAiAdmin
         return nil if relations.nil? || relations == {}
         raise AccessDenied, "INVALID_QUERY" unless relations.is_a?(Hash) && relations.size.between?(1, Queries::List::MAX_RELATION_FILTERS)
         relations.to_h do |name, nested|
-          parsed = wire_filters(nested)
-          raise AccessDenied, "INVALID_QUERY" unless parsed&.any?
+          raise AccessDenied, "INVALID_QUERY" unless nested.is_a?(Hash) && nested.any?
+          nested = nested.stringify_keys
+          parsed = if nested.key?("_none")
+            raise AccessDenied, "INVALID_QUERY" unless nested.one?
+            { "_none" => wire_related_terms(nested["_none"]) }
+          elsif nested.key?("_exists")
+            nested
+          else
+            wire_related_terms(nested)
+          end
           [ name.to_s, parsed ]
         end
+      end
+
+      def wire_related_terms(terms)
+        raise AccessDenied, "INVALID_QUERY" unless terms.is_a?(Hash) && terms.any?
+        terms = terms.stringify_keys
+        terms.slice("_query").merge(wire_filters(terms.except("_query")) || {})
       end
 
       def present_read_view
@@ -285,7 +307,7 @@ module RailsAiAdmin
         relations = Queries::List.new(@session.context, resource, assistant: true).filterable_relations
         if relations.any?
           result["filter_relations"] = relations.map do |spec|
-            { "relation" => spec.name, "resource" => spec.resource.key.to_s, "kind" => spec.kind,
+            { "relation" => spec.name, "resource" => spec.resource.key.to_s, "kind" => spec.kind, "searchable" => spec.searchable,
               "filters" => spec.fields.map { |field| { "field" => field.name.to_s, "operators" => field.filter_operators.map(&:to_s) } } }
           end
         end
@@ -365,9 +387,7 @@ module RailsAiAdmin
           "any" => { "type" => "array", "maxItems" => Queries::List::MAX_OR_GROUPS,
             "description" => "Optional OR filter groups (up to #{Queries::List::MAX_OR_GROUPS}); each item is a filters object whose conditions are ANDed, and the groups are ORed together",
             "items" => { "type" => "object", "additionalProperties" => { "type" => "object", "additionalProperties" => FILTER_VALUE_SCHEMA } } },
-          "relation_filters" => { "type" => "object",
-            "description" => "Optional single-hop filters over related resources from describe_resource filter_relations: {relation_name: {target_field: {operator: value}}}",
-            "additionalProperties" => { "type" => "object", "additionalProperties" => { "type" => "object", "additionalProperties" => FILTER_VALUE_SCHEMA } } },
+          "relation_filters" => RELATION_FILTERS_SCHEMA,
           "scope" => { "type" => "string", "description" => "Optional scope name from describe_resource" },
           "sort" => { "type" => "string", "description" => "Optional sortable field from describe_resource" },
           "direction" => { "type" => "string", "enum" => %w[asc desc] },
@@ -450,8 +470,7 @@ module RailsAiAdmin
             "additionalProperties" => { "type" => "object", "additionalProperties" => FILTER_VALUE_SCHEMA } },
           "any" => { "type" => "array", "maxItems" => Queries::List::MAX_OR_GROUPS,
             "items" => { "type" => "object", "additionalProperties" => { "type" => "object", "additionalProperties" => FILTER_VALUE_SCHEMA } } },
-          "relation_filters" => { "type" => "object",
-            "additionalProperties" => { "type" => "object", "additionalProperties" => { "type" => "object", "additionalProperties" => FILTER_VALUE_SCHEMA } } },
+          "relation_filters" => RELATION_FILTERS_SCHEMA,
           "scope" => { "type" => "string", "description" => "Optional scope name from describe_resource" }
         } })
 
@@ -482,14 +501,14 @@ module RailsAiAdmin
           "function" => { "type" => "string", "enum" => Queries::List::AGGREGATE_FUNCTIONS },
           "field" => { "type" => "string", "description" => "An aggregatable field from describe_resource; omit for count" },
           "group_by" => { "type" => "string", "description" => "Optional group_by field, or a group_by_period field with period" },
+          "period_field" => { "type" => "string", "description" => "Optional group_by_period field for a calendar breakdown of each categorical group_by value (up to 25 cells)" },
           "period" => { "type" => "string", "enum" => Queries::List::PERIODS, "description" => "Calendar period for a group_by_period field" },
           "query" => { "type" => "string", "maxLength" => 200 },
           "filters" => { "type" => "object", "description" => "Field name to {operator: value}, as for search_records",
             "additionalProperties" => { "type" => "object", "additionalProperties" => FILTER_VALUE_SCHEMA } },
           "any" => { "type" => "array", "maxItems" => Queries::List::MAX_OR_GROUPS,
             "items" => { "type" => "object", "additionalProperties" => { "type" => "object", "additionalProperties" => FILTER_VALUE_SCHEMA } } },
-          "relation_filters" => { "type" => "object",
-            "additionalProperties" => { "type" => "object", "additionalProperties" => { "type" => "object", "additionalProperties" => FILTER_VALUE_SCHEMA } } },
+          "relation_filters" => RELATION_FILTERS_SCHEMA,
           "scope" => { "type" => "string", "description" => "Optional scope name from describe_resource" }
         } })
 
@@ -497,13 +516,13 @@ module RailsAiAdmin
 
       private
 
-      def perform(tool_call:, resource:, function:, field: nil, group_by: nil, period: nil, query: nil, filters: nil, any: nil, relation_filters: nil, scope: nil)
+      def perform(tool_call:, resource:, function:, field: nil, group_by: nil, period: nil, period_field: nil, query: nil, filters: nil, any: nil, relation_filters: nil, scope: nil)
         resource = @session.resource(resource)
-        unless function.is_a?(String) && [ field, group_by, period ].all? { |value| value.nil? || value.is_a?(String) }
+        unless function.is_a?(String) && [ field, group_by, period, period_field ].all? { |value| value.nil? || value.is_a?(String) }
           raise AccessDenied, "INVALID_QUERY"
         end
         result = Queries::List.new(@session.context, resource, assistant: true).aggregate(function: function, field: field, group_by: group_by,
-          period: period, search: query.presence, filters: wire_filters(filters), any_filters: wire_any_filters(any),
+          period: period, period_field: period_field, search: query.presence, filters: wire_filters(filters), any_filters: wire_any_filters(any),
           relation_filters: wire_relation_filters(relation_filters), scope: list_scope(scope))
         references = reference_resolver(@session.access(resource))
         if result.group_by&.scalar_type == :belongs_to
@@ -515,12 +534,14 @@ module RailsAiAdmin
         if result.group_by
           entry["group_by"] = result.group_by.name.to_s
           if result.period
+            entry["period_field"] = result.period_field.name.to_s if result.period_field
             entry["period"] = result.period
-            entry["time_zone"] = @session.context.time_zone if result.group_by.scalar_type == :datetime
+            entry["time_zone"] = @session.context.time_zone if (result.period_field || result.group_by).scalar_type == :datetime
           end
           entry["groups"] = result.groups.map do |group|
-            key = result.period ? group.key&.iso8601 : typed(result.group_by, group.key, references)
+            key = result.period && !result.period_field ? group.key&.iso8601 : typed(result.group_by, group.key, references)
             item = { "group" => key, "count" => group.count }
+            item["period_start"] = group.period_start&.iso8601 if result.period_field
             item["value"] = measure(result.field, function, group.value) if result.field
             item
           end
@@ -689,8 +710,7 @@ module RailsAiAdmin
             "additionalProperties" => { "type" => "object", "additionalProperties" => FILTER_VALUE_SCHEMA } },
           "any" => { "type" => "array", "maxItems" => Queries::List::MAX_OR_GROUPS,
             "items" => { "type" => "object", "additionalProperties" => { "type" => "object", "additionalProperties" => FILTER_VALUE_SCHEMA } } },
-          "relation_filters" => { "type" => "object",
-            "additionalProperties" => { "type" => "object", "additionalProperties" => { "type" => "object", "additionalProperties" => FILTER_VALUE_SCHEMA } } },
+          "relation_filters" => RELATION_FILTERS_SCHEMA,
           "scope" => { "type" => "string", "description" => "Optional scope name from describe_resource" }
         } })
 

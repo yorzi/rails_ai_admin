@@ -149,6 +149,28 @@ class AggregatesTest < ActiveSupport::TestCase
 
   def periods(result) = result.groups.map { |group| [ group.key, group.count, group.value ] }
 
+  def test_cross_tab_requires_both_dimensions_and_returns_only_bounded_cells
+    with_resources do
+      options = { function: "average", field: "amount", group_by: "kind", period_field: "due_on", period: "month" }
+      assert_invalid(**options)
+      Policy.filter = Policy.filter.merge(agg_samples: %i[kind due_on])
+      result = aggregate(**options)
+      cells = result.groups.to_h { |cell| [ [ cell.period_start&.iso8601, cell.key ], [ cell.count, cell.value ] ] }
+      assert_equal({ [ "2026-11-01", "standard" ] => [ 2, BigDecimal("7.375") ], [ "2026-10-01", "priority" ] => [ 1, BigDecimal("100") ], [ nil, "rush" ] => [ 1, nil ] }, cells)
+      assert_equal 4, result.count
+      assert_empty aggregate(**options, filters: { kind: { eq: "rush" }, due_on: { gte: "2030-01-01" } }).groups
+      15.times do |n|
+        %w[standard priority].each { |kind| sample("Cohort", kind: kind, due_on: Date.new(2026, 11, 21) + n) }
+      end
+      truncated = aggregate(**options.merge(period: "day"))
+      assert_equal 25, truncated.groups.size
+      assert truncated.groups_truncated
+      assert_equal 34, truncated.count
+      Policy.filter = Policy.filter.merge(agg_samples: [ :due_on ])
+      assert_invalid(**options)
+    end
+  end
+
   def test_periods_run_oldest_first_with_empty_periods_and_undated_records
     Policy.filter = Policy.filter.merge(agg_samples: %i[kind due_on seen_at])
     with_resources do
@@ -288,7 +310,7 @@ class AggregatesTest < ActiveSupport::TestCase
   end
 
   def test_the_tool_returns_periods_as_first_days_with_the_time_zone_for_datetimes
-    Policy.filter = Policy.filter.merge(agg_samples: %i[due_on seen_at])
+    Policy.filter = Policy.filter.merge(agg_samples: %i[kind due_on seen_at])
     with_resources do
       chat = new_chat
       admit(chat, "Total amount per month?")
@@ -296,9 +318,10 @@ class AggregatesTest < ActiveSupport::TestCase
       LLMFixture.tool("aggregate_records", { resource: "agg_samples", function: "sum", field: "amount", group_by: "due_on", period: "month" })
       LLMFixture.tool("aggregate_records", { resource: "agg_samples", function: "count", group_by: "seen_at", period: "week" })
       LLMFixture.tool("aggregate_records", { resource: "agg_samples", function: "count", group_by: "kind", period: "week" })
+      LLMFixture.tool("aggregate_records", { resource: "agg_samples", function: "count", group_by: "kind", period: "week", period_field: "seen_at" })
       LLMFixture.reply("Done.")
       drain(chat)
-      described, months, weeks, invalid = chat.messages.where(role: "tool").order(:id).map { |message| JSON.parse(message.content) }
+      described, months, weeks, invalid, cohorts = chat.messages.where(role: "tool").order(:id).map { |message| JSON.parse(message.content) }
       assert_equal %w[due_on seen_at], described["group_by_period"]
       assert_equal({ "resource" => "agg_samples", "applied_scope" => nil, "function" => "sum", "field" => "amount", "count" => 4, "value" => "114.75",
         "group_by" => "due_on", "period" => "month", "groups" => [ { "group" => "2026-10-01", "count" => 1, "value" => "100.00" },
@@ -308,6 +331,15 @@ class AggregatesTest < ActiveSupport::TestCase
       assert_equal [ "week", "UTC", [ [ "2026-10-26", 1 ], [ "2026-11-02", 1 ], [ nil, 2 ] ] ],
         [ weeks["period"], weeks["time_zone"], weeks["groups"].map { |group| [ group["group"], group["count"] ] } ]
       assert_equal "INVALID_QUERY", invalid["error"]
+      assert_equal "UTC", cohorts.fetch("time_zone")
+      assert_includes cohorts.fetch("groups"), { "group" => "priority", "period_start" => "2026-11-02", "count" => 1 }
+      props = RailsToolViews::Surface.find(cohorts.fetch("surface")).props
+      views = RailsAiAdmin::Integrations::ToolViews
+      views.with_context(context) do
+        assert_equal :seen_at, views.metric_card_data(props).aggregate.period_field.name
+        Policy.filter = Policy.filter.merge(agg_samples: [ :kind ])
+        assert_nil views.metric_card_data(props)
+      end
     end
   end
 
