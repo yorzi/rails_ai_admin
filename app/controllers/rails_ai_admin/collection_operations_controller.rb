@@ -37,7 +37,11 @@ module RailsAiAdmin
     def resolve_operation
       @resource = RailsAiAdmin.registry.fetch(params[:resource])
       @definition = RailsAiAdmin.operation_registry.fetch(@resource, params[:operation])
-      raise AccessDenied unless @definition.custom? && @definition.scope == :collection
+      if action_name == "execute"
+        raise AccessDenied unless Collections::Contract.supported_definition?(@definition)
+      else
+        raise AccessDenied unless @definition.custom? && @definition.scope == :collection
+      end
       @access = Authorization::Access.new(@context, @resource)
       resolve_list_navigation
     end

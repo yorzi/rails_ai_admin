@@ -12,6 +12,9 @@
 <% if @job.can_cancel %>
   <%= button_to t("rails_ai_admin.collection_jobs.cancel"), cancel_collection_job_path(job_ref: @job.job_ref), method: :post, params: navigation_params, data: { turbo: false } %>
 <% end %>
+<% if @job.can_retry_failed %>
+  <%= button_to t("rails_ai_admin.collection_jobs.retry_failed"), retry_failed_collection_job_path(job_ref: @job.job_ref), method: :post, params: navigation_params, data: { turbo: false } %>
+<% end %>
 <p><%= t("rails_ai_admin.collection_jobs.committed_note") %></p>
 <div class="raa-table-scroll" role="region" aria-label="<%= t("rails_ai_admin.collection_jobs.items") %>" tabindex="0"><table>
 <caption><%= t("rails_ai_admin.collection_jobs.items") %></caption>

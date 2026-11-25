@@ -185,6 +185,10 @@ module DatabaseHelpers
     Invoice.delete_all
     Customer.delete_all
     RailsAiAdmin::WorkItem.delete_all
+    self_fks = { parent_run_id: nil }
+    self_fks[:compensates_run_id] = nil if RailsAiAdmin::OperationRun.column_names.include?("compensates_run_id")
+    self_fks[:retry_of_run_id] = nil if RailsAiAdmin::OperationRun.column_names.include?("retry_of_run_id")
+    RailsAiAdmin::OperationRun.update_all(self_fks)
     RailsAiAdmin::OperationRun.delete_all
     RailsAiAdmin::SelectionItem.delete_all
     RailsAiAdmin::Selection.delete_all

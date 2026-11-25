@@ -15,8 +15,7 @@ module RailsAiAdmin
     end
 
     def cancel
-      run = OperationRun.find_by(id: params[:job_ref], actor_ref: @context.actor_ref, tenant_ref: @context.tenant_ref)
-      raise AccessDenied unless run
+      run = Collections::Contract.owned(@context, params[:job_ref])
       @resource = RailsAiAdmin.registry.fetch(run.resource_key)
       resolve_list_navigation
       result = Collections::Runner.new.cancel(context: @context, job_ref: params[:job_ref])
@@ -28,6 +27,21 @@ module RailsAiAdmin
       raise AccessDenied unless result.job_ref
       redirect_to collection_job_path(job_ref: result.job_ref, **navigation_params), status: :see_other,
         notice: t("rails_ai_admin.collection_jobs.cancelled")
+    end
+
+    def retry_failed
+      run = Collections::Contract.owned(@context, params[:job_ref])
+      @resource, @definition = Collections::Contract.definition(run)
+      resolve_list_navigation
+      outcome = Collections::Runner.new.retry_failed(context: @context, job_ref: params[:job_ref])
+      if outcome.is_a?(Collections::Result)
+        return redirect_to collection_job_path(job_ref: run.id, **navigation_params), status: :see_other,
+          notice: admin_outcome(outcome.code)
+      end
+      @proposal = outcome.proposal
+      @retry_omitted_count = outcome.omitted_count
+      @wire_input = @proposal.intent.input_payload.to_json
+      render "rails_ai_admin/collection_operations/confirmation"
     end
   end
 end

@@ -5,7 +5,7 @@ module RailsAiAdmin
     class ExecutionJob < ActiveJob::Base
       queue_as { RailsAiAdmin.configuration.queue_name }
       def perform(job_ref)
-        Dispatcher.new.run(job_ref)
+        Dispatcher.new.run(job_ref, enqueue_continuation: true)
       end
     end
   end

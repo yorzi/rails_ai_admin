@@ -4,25 +4,33 @@
 <p><%= t("rails_ai_admin.bulk_changes.intro") %></p>
 <% if @revise_error %><p class="raa-field-error" role="alert"><%= @revise_error %></p><% end %>
 <p><strong><%= t("rails_ai_admin.bulk_changes.question", count: @ready.size) %></strong></p>
+<% if @async_mode %>
+  <p class="raa-notice" role="status"><%= t("rails_ai_admin.collection_operations.sampled_preview", shown: (@display_ready || @ready).size, total: @ready.size) %></p>
+<% end %>
 <%# One form holds the rows, the edited values and every decision, so what is
     confirmed is always what the page shows. The result page renders with
     200, which Turbo would drop after a form post. %>
 <%= form_with url: apply_bulk_change_path(selection_ref: @selection.selection_ref), method: :post, local: true, id: "raa-bulk-review", data: { turbo: false } do |form| %>
   <%= hidden_field_tag :change, params[:change], id: nil %>
   <%= hidden_field_tag :review_signature, @review_signature, id: nil if @review_signature %>
-  <% if @ready.any? %>
-    <%# Sent even when every row is unticked, so an empty choice is never read as "all". %>
-    <%= hidden_field_tag "target_ids[]", "", id: nil %>
+  <% shown_items = @display_ready || @ready %>
+  <% if shown_items.any? %>
+    <% unless @async_mode %>
+      <%# Sent even when every row is unticked, so an empty choice is never read as "all". %>
+      <%= hidden_field_tag "target_ids[]", "", id: nil %>
+    <% end %>
     <div class="raa-table-scroll"><table class="raa-bulk-review">
       <caption class="raa-visually-hidden"><%= t("rails_ai_admin.bulk_changes.caption", count: @ready.size) %></caption>
       <thead><tr>
-        <th scope="col"><span class="raa-visually-hidden"><%= t("rails_ai_admin.bulk_changes.revise.include") %></span></th>
+        <% unless @async_mode %><th scope="col"><span class="raa-visually-hidden"><%= t("rails_ai_admin.bulk_changes.revise.include") %></span></th><% end %>
         <th scope="col"><%= t("rails_ai_admin.collection_jobs.record") %></th>
         <% @fields.each do |field| %><th scope="col"><%= field.label %></th><% end %>
       </tr></thead>
-      <tbody><% @ready.each_with_index do |item, index| %><tr>
-        <td><%= check_box_tag "target_ids[]", item.target.id, @submitted_target_ids.nil? || @submitted_target_ids.include?(item.target.id.to_s), id: "raa-bulk-target-#{index}",
-          aria: { label: t("rails_ai_admin.bulk_changes.revise.select_row", label: item.target.label.to_s.truncate(120)) } %></td>
+      <tbody><% shown_items.each_with_index do |item, index| %><tr>
+        <% unless @async_mode %>
+          <td><%= check_box_tag "target_ids[]", item.target.id, @submitted_target_ids.nil? || @submitted_target_ids.include?(item.target.id.to_s), id: "raa-bulk-target-#{index}",
+            aria: { label: t("rails_ai_admin.bulk_changes.revise.select_row", label: item.target.label.to_s.truncate(120)) } %></td>
+        <% end %>
         <th scope="row"><%= link_to item.target.label, resource_path(resource: @resource.key, id: item.target.id) %></th>
         <% @fields.each do |field| %><td>
           <% if (change = item.changes[field.name.to_s]) %>

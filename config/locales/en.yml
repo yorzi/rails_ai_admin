@@ -373,6 +373,7 @@ en:
         Cancellation outcome is unknown. Refresh this existing run after recovery before taking further
         action.
       cancelled: Cancellation processed. Already committed records and their follow-up work are retained.
+      retry_failed: Review failed records for retry
     surfaces:
       native:
         create: Create %{label}
@@ -594,6 +595,12 @@ en:
         other: "%{count} fixed targets. Review before queueing changes."
       review: Review changes
       admitted: Run admitted. Each record is executed separately; queued work is not a completed change.
+      sampled_preview: >-
+        Sample preview of %{shown} of %{total} records; execution runs asynchronously in background chunks
+        with per-record authorization and version checks.
+      retry_omitted:
+        one: 1 failed record is no longer accessible or eligible and was omitted from this retry selection.
+        other: "%{count} failed records are no longer accessible or eligible and were omitted from this retry selection."
     assistant:
       ask: Ask
       ask_record: Ask the assistant about this record

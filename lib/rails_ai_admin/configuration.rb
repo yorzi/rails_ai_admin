@@ -65,6 +65,9 @@ module RailsAiAdmin
       # Most data rows one CSV import may contain (1..5,000). Each row is its
       # own synchronous create.
       :import_limit,
+      # Maximum targets in an asynchronous collection operation or bulk change
+      # (100..10,000), and items processed per worker job chunk (10..100).
+      :async_bulk_limit, :async_bulk_chunk_size,
       # Opt-in MCP server for outside agents; requires the assistant setup.
       :mcp,
       # Header identity (all optional). actor_label names a public method of
@@ -100,6 +103,8 @@ module RailsAiAdmin
       @assistant_streaming = true
       @export_limit = 10_000
       @import_limit = 500
+      @async_bulk_limit = 1_000
+      @async_bulk_chunk_size = 50
       @mcp = false
       @actor_label = nil
       @sign_out_path = nil
@@ -135,6 +140,8 @@ module RailsAiAdmin
       raise ConfigurationError, "validation_messages must be :model or :generic" unless %i[model generic].include?(validation_messages)
       raise ConfigurationError, "export_limit must be an Integer from 1 to 100000" unless export_limit.is_a?(Integer) && export_limit.between?(1, 100_000)
       raise ConfigurationError, "import_limit must be an Integer from 1 to 5000" unless import_limit.is_a?(Integer) && import_limit.between?(1, 5_000)
+      raise ConfigurationError, "async_bulk_limit must be an Integer from 100 to 10000" unless async_bulk_limit.is_a?(Integer) && async_bulk_limit.between?(100, 10_000)
+      raise ConfigurationError, "async_bulk_chunk_size must be an Integer from 10 to 100" unless async_bulk_chunk_size.is_a?(Integer) && async_bulk_chunk_size.between?(10, 100)
       unless (queue_name.is_a?(String) || queue_name.is_a?(Symbol)) && queue_name.to_s.match?(/\A[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}\z/)
         raise ConfigurationError, "queue_name must be a short queue name"
       end

@@ -6,7 +6,9 @@ module RailsAiAdmin
       Entry = Data.define(:record_id, :label, :status, :code, :audit_ref, :warning, :work_statuses)
       # waiting_since: when the oldest still-queued item of an active run was
       # queued, so a page can say that nothing has picked it up (RAA-020).
-      Snapshot = Data.define(:job_ref, :resource_key, :operation, :description, :status, :counts, :entries, :hidden_count, :can_cancel, :warning, :waiting_since)
+      Snapshot = Data.define(:job_ref, :resource_key, :operation, :description, :status, :counts, :entries, :hidden_count, :can_cancel, :warning, :waiting_since, :can_retry_failed) do
+        def initialize(job_ref:, resource_key:, operation:, description:, status:, counts:, entries:, hidden_count:, can_cancel:, warning:, waiting_since:, can_retry_failed: false) = super
+      end
 
       def fetch(context:, job_ref:, summary: false)
         ActiveRecord::Base.while_preventing_writes do
@@ -16,7 +18,7 @@ module RailsAiAdmin
           access.authorize_receipt!(parent.operation, nil)
           Contract.verify_manifest!(parent)
           Contract.verify_approved!(parent, definition, context) if parent.approved_digest
-          items = BatchItem.where(parent_run_id: parent.id).order(:position).limit(Selections::Builder::LIMIT + 1).to_a
+          items = BatchItem.where(parent_run_id: parent.id).order(:position).limit(Selections::Builder::MAX_ASYNC_LIMIT + 1).to_a
           if parent.approved_digest && items.size != parent.manifest_payload.size
             raise ConfigurationError, "Collection result manifest is inconsistent"
           end
@@ -28,10 +30,22 @@ module RailsAiAdmin
           rescue AccessDenied
             false
           end
+          retryable = begin
+            %w[partially_succeeded failed].include?(parent.status) && counts.fetch("failed", 0) > 0 &&
+              begin
+                access.authorize_selection!
+                access.authorize!(parent.operation)
+                true
+              end
+          rescue AccessDenied
+            false
+          end
           waiting = Contract::ACTIVE.include?(parent.status) && items.none? { |item| item.status == "running" } ?
             items.select { |item| item.status == "queued" }.map(&:created_at).compact.min : nil
-          Snapshot.new(parent.id, resource.key.to_s, parent.operation, definition.description, parent.status, counts,
-            entries.freeze, summary ? 0 : items.size - entries.size, cancellable, parent.warning_code, waiting)
+          Snapshot.new(job_ref: parent.id, resource_key: resource.key.to_s, operation: parent.operation,
+            description: definition.description, status: parent.status, counts: counts, entries: entries.freeze,
+            hidden_count: summary ? 0 : items.size - entries.size, can_cancel: cancellable, warning: parent.warning_code,
+            waiting_since: waiting, can_retry_failed: retryable)
         end
       rescue StandardError => error
         raise if error.is_a?(AccessDenied) || error.is_a?(ConfigurationError)

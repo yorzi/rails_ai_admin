@@ -5,7 +5,7 @@ module RailsAiAdmin
     # Executes bounded, independently committed database items. A recurring host
     # scan recovers queue loss and expired leases; no scheduler is installed.
     class Dispatcher
-      def run(job_ref, limit: 100)
+      def run(job_ref, limit: RailsAiAdmin.configuration.async_bulk_chunk_size, enqueue_continuation: RailsAiAdmin.configuration.collection_auto_dispatch)
         raise ArgumentError, "limit must be between 1 and 100" unless limit.is_a?(Integer) && (1..100).cover?(limit)
         raise ConfigurationError, "Collection execution cannot run inside an existing transaction" if OperationRun.connection.transaction_open?
         limit.times do
@@ -23,7 +23,11 @@ module RailsAiAdmin
           break if !result.success? && !finish_rejected(claim, result)
         end
         parent = OperationRun.where.not(selection_id: nil).find_by(id: job_ref, parent_run_id: nil)
-        parent ? Contract.result(parent) : Result.new(code: "NOT_FOUND")
+        return Result.new(code: "NOT_FOUND") unless parent
+        if enqueue_continuation && Contract::ACTIVE.include?(parent.status) && ready_items_remaining?(parent.id)
+          schedule_continuation(parent.id)
+        end
+        Contract.result(parent)
       end
 
       def scan_pending!(limit: 100, inline: false)
@@ -66,13 +70,13 @@ module RailsAiAdmin
           expired = BatchItem.where(parent_run_id: parent.id, status: "running").where("lease_expires_at IS NULL OR lease_expires_at <= ?", now)
           item = ready.or(expired).order(:position).lock.first
           next unless item
-          if item.attempts >= definition.handler_class.max_attempts
+          if item.attempts >= Contract.max_attempts(definition)
             item.update!(status: "failed", last_code: "ATTEMPTS_EXHAUSTED", completed_at: now)
             Contract.refresh!(parent)
             next Result.new(code: "ATTEMPTS_EXHAUSTED", job_ref: parent.id, status: parent.status)
           end
           item.update!(status: "running", lease_owner: SecureRandom.uuid, generation: item.generation + 1,
-            attempts: item.attempts + 1, lease_expires_at: now + definition.handler_class.lease_duration, next_attempt_at: nil)
+            attempts: item.attempts + 1, lease_expires_at: now + Contract.lease_duration(definition), next_attempt_at: nil)
           parent.update!(status: "running")
           Claim.new(item)
         end
@@ -82,6 +86,20 @@ module RailsAiAdmin
       end
 
       private
+
+      def ready_items_remaining?(parent_id)
+        BatchItem.where(parent_run_id: parent_id, status: "queued")
+          .where("next_attempt_at IS NULL OR next_attempt_at <= ?", Time.current)
+          .exists?
+      end
+
+      def schedule_continuation(job_ref)
+        ActiveRecord.after_all_transactions_commit do
+          ExecutionJob.perform_later(job_ref)
+        rescue StandardError
+          nil
+        end
+      end
 
       def finish_rejected(claim, result)
         OperationRun.transaction(requires_new: true) do
@@ -117,7 +135,7 @@ module RailsAiAdmin
 
       def current_attempt_limit(parent)
         _resource, definition = Contract.definition(parent)
-        definition.handler_class.max_attempts
+        Contract.max_attempts(definition)
       rescue AccessDenied
         0
       end

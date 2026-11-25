@@ -41,7 +41,7 @@ module RailsAiAdmin
           ActiveRecord::Base.while_preventing_writes do
             access = Authorization::Access.new(context, @resource)
             access.authorize!(@parent.operation)
-            current = InputSchema.new(@definition.fields(access, nil)).coerce(@parent.input_payload, time_zone: context.time_zone)
+            current = Contract.input_schema(@definition, access, nil).coerce(@parent.input_payload, time_zone: context.time_zone)
             raise AccessDenied unless current.valid? && InputSchema.digest(current.values) == @parent.input_digest
           end
         rescue AccessDenied
@@ -53,7 +53,7 @@ module RailsAiAdmin
       end
 
       def validate_child!(run, resource, definition)
-        unless resource.equal?(@resource) && definition.scope == :collection && run.parent_run_id == parent_ref &&
+        unless resource.equal?(@resource) && Contract.supported_definition?(definition) && run.parent_run_id == parent_ref &&
             run.selection_id.nil? && run.target_id == @item.target_id && run.expected_version == @item.expected_version &&
             run.actor_ref == @parent.actor_ref && run.tenant_ref == @parent.tenant_ref && run.security_version == @parent.security_version &&
             run.resource_key == @parent.resource_key && run.operation == @parent.operation && run.operation_version == @parent.operation_version &&

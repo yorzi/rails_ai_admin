@@ -13,11 +13,12 @@ module RailsAiAdmin
       else
         resolve_list_navigation
       end
+      limit = max_selection_items
       target_ids = if params[:all_matching] == "1"
         Authorization::Access.new(@context, @resource).authorize_selection!
-        ids = matching_ids
-        if ids.size > Selections::Builder::LIMIT
-          redirect_to list_return_path, status: :see_other, notice: t("rails_ai_admin.selections.too_many", count: Selections::Builder::LIMIT)
+        ids = matching_ids(limit: limit)
+        if ids.size > limit
+          redirect_to list_return_path, status: :see_other, notice: t("rails_ai_admin.selections.too_many", count: limit)
           return
         end
         ids
@@ -30,7 +31,7 @@ module RailsAiAdmin
         redirect_to list_return_path, status: :see_other, notice: t("rails_ai_admin.selections.empty")
         return
       end
-      selection = Selections::Builder.new.capture(context: @context, resource: @resource, target_ids: target_ids)
+      selection = Selections::Builder.new.capture(context: @context, resource: @resource, target_ids: target_ids, max_items: limit)
       redirect_to next_step_path(selection.selection_ref), status: :see_other
     end
 
@@ -95,17 +96,28 @@ module RailsAiAdmin
     # Every record the list shows across its pages, from the same normalized
     # search, tab, sort and filters, bounded one past the selection limit.
     # The builder then checks each of them again.
-    def matching_ids
+    def matching_ids(limit: Selections::Builder::LIMIT)
       state = navigation_state
       access = Authorization::Access.new(@context, @resource)
       records = Queries::List.new(@context, @resource).relation(search: state["q"], sort: state["sort"], direction: state.fetch("direction", "asc"),
-        scope: state["scope"], filters: state["filter"]).limit(Selections::Builder::LIMIT + 1).to_a
+        scope: state["scope"], filters: state["filter"]).limit(limit + 1).to_a
       records.filter_map do |record|
         access.authorize!(:show, record)
         record.id.to_s
       rescue AccessDenied
         nil
       end
+    end
+
+    def max_selection_items
+      step = params[:then]
+      if step.is_a?(String) && (key = step[/\Aoperation:([a-z][a-z0-9_]{0,79})\z/, 1])
+        access = Authorization::Access.new(@context, @resource)
+        if granted_collection_operations(@resource, access).any? { |definition| definition.key.to_s == key }
+          return RailsAiAdmin.configuration.async_bulk_limit
+        end
+      end
+      Selections::Builder::LIMIT
     end
 
     def sign_destroy_review(selection, targets)
@@ -149,7 +161,8 @@ module RailsAiAdmin
 
     def load_deletable(manifest_digest: nil)
       records = {}
-      @selection = Selections::Builder.new.revalidate(context: @context, selection_ref: params[:selection_ref], manifest_digest: manifest_digest) do |record|
+      @selection = Selections::Builder.new.revalidate(context: @context, selection_ref: params[:selection_ref],
+        manifest_digest: manifest_digest, max_items: Selections::Builder::LIMIT) do |record|
         records[record.id.to_s] = record
       end
       @resource = RailsAiAdmin.registry.fetch(@selection.resource_key)

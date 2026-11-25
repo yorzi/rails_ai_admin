@@ -5,6 +5,39 @@ module RailsAiAdmin
     module Contract
       ACTIVE = %w[queued running].freeze
       TERMINAL = %w[succeeded failed partially_succeeded cancelled reconciliation_required].freeze
+      DEFAULT_LEASE_DURATION = 30
+      DEFAULT_EXECUTION_WINDOW = 3600
+      DEFAULT_MAX_ATTEMPTS = 2
+
+      def self.supported_definition?(definition)
+        (definition.custom? && definition.scope == :collection) || (!definition.custom? && definition.key == "update")
+      end
+
+      def self.lease_duration(definition)
+        definition.custom? ? definition.handler_class.lease_duration : DEFAULT_LEASE_DURATION
+      end
+
+      def self.execution_window(definition)
+        definition.custom? ? definition.handler_class.execution_window : DEFAULT_EXECUTION_WINDOW
+      end
+
+      def self.max_attempts(definition)
+        definition.custom? ? definition.handler_class.max_attempts : DEFAULT_MAX_ATTEMPTS
+      end
+
+      def self.input_schema(definition, access = nil, record = nil)
+        if definition.custom?
+          fields = access ? definition.fields(access, record) : definition.handler_class.input
+          InputSchema.new(fields)
+        else
+          fields = if access
+            definition.fields(access, record)
+          else
+            definition.resource.fields.reject { |field| %i[id password file files].include?(field.scalar_type) || !field.writable?(:update) || field.virtual? }
+          end
+          InputSchema.new(fields, partial: true)
+        end
+      end
 
       def self.owned(context, ref, lock: false)
         raise AccessDenied, "UNAUTHENTICATED" unless context.is_a?(Context)
@@ -36,7 +69,7 @@ module RailsAiAdmin
       def self.definition(run)
         resource = RailsAiAdmin.registry.fetch(run.resource_key)
         definition = RailsAiAdmin.operation_registry.fetch(resource, run.operation)
-        unless definition.custom? && definition.scope == :collection && run.operation_version == Operations::RunnerFingerprint.call(resource, definition)
+        unless supported_definition?(definition) && run.operation_version == Operations::RunnerFingerprint.call(resource, definition)
           raise AccessDenied, "APPROVAL_INVALIDATED"
         end
         ensure_pool!(resource)
@@ -57,7 +90,8 @@ module RailsAiAdmin
 
       def self.verify_manifest!(run)
         manifest = run.manifest_payload
-        unless manifest.is_a?(Array) && manifest.size.between?(1, Selections::Builder::LIMIT) && manifest.all? { |pair| pair.is_a?(Array) && pair.size == 2 && pair[0].is_a?(String) && pair[0].bytesize.between?(1, 150) && pair[1].is_a?(Integer) && pair[1] >= 0 } &&
+        unless manifest.is_a?(Array) && manifest.size.between?(1, Selections::Builder::MAX_ASYNC_LIMIT) &&
+            manifest.all? { |pair| pair.is_a?(Array) && pair.size == 2 && pair[0].is_a?(String) && pair[0].bytesize.between?(1, 150) && pair[1].is_a?(Integer) && pair[1] >= 0 } &&
             manifest.map(&:first).uniq.size == manifest.size && manifest.sort_by(&:first) == manifest &&
             InputSchema.digest(resource_version: run.manifest_resource_version, targets: manifest) == run.selection_digest
           raise AccessDenied, "APPROVAL_INVALIDATED"
@@ -74,7 +108,7 @@ module RailsAiAdmin
 
       def self.verify_approved!(run, definition, context)
         verify_manifest!(run)
-        values = InputSchema.new(definition.handler_class.input).coerce(run.input_payload, time_zone: context.time_zone)
+        values = input_schema(definition).coerce(run.input_payload, time_zone: context.time_zone)
         unless run.confirmed_at && run.approved_by_ref == run.actor_ref && run.approved_digest == approval_digest(run) &&
             run.execution_deadline && values.valid? && InputSchema.digest(values.values) == run.input_digest
           raise AccessDenied, "APPROVAL_INVALIDATED"

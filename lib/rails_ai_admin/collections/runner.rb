@@ -6,8 +6,14 @@ module RailsAiAdmin
     # admission, and can execute solely through an admitted worker lease.
     class Runner
       PREFLIGHT_BUDGET = 30
+      SAMPLE_PREVIEW_LIMIT = 25
+      INSERT_BATCH_SIZE = 500
       Target = Data.define(:id, :label, :changes)
-      Proposal = Data.define(:intent, :values, :targets)
+      Proposal = Data.define(:intent, :values, :targets, :total_count, :sampled) do
+        def initialize(intent:, values:, targets:, total_count: targets.size, sampled: false) = super
+      end
+      RetryProposal = Data.define(:proposal, :selection, :omitted_count, :source_job_ref)
+
       class Rejected < StandardError
         attr_reader :result
         def initialize(code, errors = {})
@@ -16,15 +22,19 @@ module RailsAiAdmin
         end
       end
 
-      def preflight(context:, resource:, operation:, selection_ref:, input:, origin: :ui)
+      def preflight(context:, resource:, operation:, selection_ref:, input:, origin: :ui, retry_of_run_id: nil)
         deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + PREFLIGHT_BUDGET
         raise ConfigurationError, "Unsupported origin" unless Operations::Runner::ORIGINS.include?(origin.to_s)
         definition = RailsAiAdmin.operation_registry.fetch(resource, operation)
-        raise ConfigurationError, "Expected a collection operation" unless definition.custom? && definition.scope == :collection
+        raise ConfigurationError, "Expected a collection operation" unless Contract.supported_definition?(definition)
         Contract.ensure_pool!(resource)
-        selection = Selections::Builder.new.revalidate(context: context, selection_ref: selection_ref, resource: resource)
+        records_by_id = {}
+        selection = Selections::Builder.new.revalidate(context: context, selection_ref: selection_ref,
+          resource: resource, max_items: RailsAiAdmin.configuration.async_bulk_limit) { |record| records_by_id[record.id.to_s] = record }
         values = collection_input(context, resource, definition, input)
-        targets = previews(context, resource, definition, selection, values, deadline: deadline)
+        sampled = selection.targets.size > Selections::Builder::LIMIT
+        targets = previews(context, resource, definition, selection, values, records_by_id: records_by_id,
+          sampled: sampled, deadline: deadline)
         raise Rejected.new("VALIDATION_FAILED", "base" => [ "preview is too large" ]) if JSON.generate(targets.map(&:changes)).bytesize > 262_144
         source = Selection.find(selection.selection_ref)
         manifest = selection.targets.map { |target| [ target.id, target.expected_version ] }
@@ -47,8 +57,11 @@ module RailsAiAdmin
           attrs[:proposed_by_actor_ref] = context.actor_ref
           attrs[:approval_mode] = mode
         end
+        if retry_of_run_id && OperationRun.column_names.include?("retry_of_run_id")
+          attrs[:retry_of_run_id] = retry_of_run_id
+        end
         intent = OperationRun.create!(**attrs)
-        Proposal.new(intent, values, targets.freeze)
+        Proposal.new(intent: intent, values: values, targets: targets.freeze, total_count: selection.targets.size, sampled: sampled)
       rescue Rejected => error
         error.result
       rescue AccessDenied => error
@@ -91,15 +104,16 @@ module RailsAiAdmin
           values = collection_input(context, resource, definition, input)
           raise Rejected.new("APPROVAL_INVALIDATED") unless InputSchema.digest(values) == run.input_digest
           selection = Selections::Builder.new.validate_for_admission(context: context, selection_ref: run.selection_id,
-            resource: resource, manifest_digest: run.selection_digest, allow_reviewer: mode != "self") do |record|
+            resource: resource, manifest_digest: run.selection_digest, allow_reviewer: mode != "self",
+            max_items: RailsAiAdmin.configuration.async_bulk_limit) do |record|
             access.authorize_approval!(definition.key, record, proposed_by_actor_ref: proposer_ref) if mode != "self"
             access.authorize!(definition.key, record)
-            current = InputSchema.new(definition.fields(access, record)).coerce(wire(values), time_zone: context.time_zone)
+            current = Contract.input_schema(definition, access, record).coerce(wire(values), time_zone: context.time_zone)
             raise Rejected.new("APPROVAL_INVALIDATED") unless current.valid? && InputSchema.digest(current.values) == run.input_digest
           end
           raise Rejected.new("APPROVAL_INVALIDATED") unless selection.targets.map { |target| [ target.id, target.expected_version ] } == run.manifest_payload
-          deadline = Time.current + definition.handler_class.execution_window
-          source_items = SelectionItem.where(selection_id: run.selection_id).order(:position).limit(Selections::Builder::LIMIT + 1).to_a
+          deadline = Time.current + Contract.execution_window(definition)
+          source_items = SelectionItem.where(selection_id: run.selection_id).order(:position).limit(Selections::Builder::MAX_ASYNC_LIMIT + 1).to_a
           unless source_items.map { |item| [ item.target_id, item.expected_version ] } == run.manifest_payload && source_items.map(&:position) == (0...source_items.size).to_a
             raise Rejected.new("APPROVAL_INVALIDATED")
           end
@@ -123,8 +137,8 @@ module RailsAiAdmin
             items << { id: SecureRandom.uuid, parent_run_id: run.id, operation_run_id: id, selection_item_id: item.id,
               target_id: item.target_id, expected_version: item.expected_version, position: item.position, created_at: now, updated_at: now }
           end
-          OperationRun.insert_all!(children)
-          BatchItem.insert_all!(items)
+          children.each_slice(INSERT_BATCH_SIZE) { |slice| OperationRun.insert_all!(slice) }
+          items.each_slice(INSERT_BATCH_SIZE) { |slice| BatchItem.insert_all!(slice) }
           audit_attrs = {
             actor_ref: run.actor_ref, tenant_ref: run.tenant_ref, resource_key: run.resource_key,
             operation: run.operation, status: "admitted", code: "QUEUED", correlation_ref: run.id,
@@ -165,6 +179,47 @@ module RailsAiAdmin
         end
         raise if error.is_a?(ConfigurationError)
         Result.new(code: Contract.contention?(error) ? "CONFLICT" : "OPERATION_FAILED")
+      end
+
+      def retry_failed(context:, job_ref:, origin: :ui)
+        Contract.ensure_outside_transaction!
+        source = Contract.owned(context, job_ref)
+        raise Rejected.new("CONFLICT") unless %w[partially_succeeded failed].include?(source.status)
+        resource, definition = Contract.definition(source)
+        Contract.verify_manifest!(source)
+        Contract.verify_approved!(source, definition, context) if source.approved_digest
+        failed_ids = BatchItem.where(parent_run_id: source.id, status: "failed").order(:position).pluck(:target_id)
+        raise Rejected.new("NOT_FOUND") if failed_ids.empty?
+
+        eligible_ids = ActiveRecord::Base.while_preventing_writes do
+          access = Authorization::Access.new(context, resource)
+          access.authorize_selection!
+          access.authorize!(definition.key)
+          model = resource.model_class
+          pk = model.arel_table[model.primary_key]
+          records = access.relation.where(pk.in(failed_ids)).to_a.index_by { |record| record.id.to_s }
+          failed_ids.select do |target_id|
+            record = records[target_id]
+            next false unless record
+            access.authorize!(:show, record)
+            access.authorize!(definition.key, record)
+            true
+          rescue AccessDenied
+            false
+          end
+        end
+        raise Rejected.new("NOT_FOUND") if eligible_ids.empty?
+        omitted = failed_ids.size - eligible_ids.size
+        selection = Selections::Builder.new.capture(context: context, resource: resource, target_ids: eligible_ids,
+          max_items: RailsAiAdmin.configuration.async_bulk_limit)
+        proposed = preflight(context: context, resource: resource, operation: definition.key,
+          selection_ref: selection.selection_ref, input: source.input_payload, origin: origin, retry_of_run_id: source.id)
+        return proposed if proposed.is_a?(Result)
+        RetryProposal.new(proposal: proposed, selection: selection, omitted_count: omitted, source_job_ref: source.id)
+      rescue Rejected => error
+        error.result
+      rescue AccessDenied => error
+        Result.new(code: error.code)
       end
 
       def cancel(context:, job_ref:)
@@ -213,7 +268,7 @@ module RailsAiAdmin
       end
 
       def verify_input!(run, definition, context, input, replay: false)
-        coercion = InputSchema.new(definition.handler_class.input).coerce(input, time_zone: context.time_zone)
+        coercion = Contract.input_schema(definition).coerce(input, time_zone: context.time_zone)
         raise Rejected.new(replay ? "IDEMPOTENCY_CONFLICT" : "APPROVAL_INVALIDATED") unless coercion.valid? && InputSchema.digest(coercion.values) == run.input_digest
       end
 
@@ -221,7 +276,7 @@ module RailsAiAdmin
         ActiveRecord::Base.while_preventing_writes do
           access = Authorization::Access.new(context, resource)
           access.authorize!(definition.key)
-          coercion = InputSchema.new(definition.fields(access, nil)).coerce(input, time_zone: context.time_zone)
+          coercion = Contract.input_schema(definition, access, nil).coerce(input, time_zone: context.time_zone)
           raise Rejected.new("VALIDATION_FAILED", coercion.errors) unless coercion.valid?
           coercion.values
         end
@@ -229,17 +284,44 @@ module RailsAiAdmin
         raise ConfigurationError, "Collection input resolution must be read-only", cause: nil
       end
 
-      def previews(context, resource, definition, selection, values, deadline:)
+      def previews(context, resource, definition, selection, values, records_by_id:, sampled:, deadline:)
         runner = Operations::Runner.new
-        selection.targets.map do |target|
+        preview_targets = sampled ? selection.targets.first(SAMPLE_PREVIEW_LIMIT) : selection.targets
+        rendered = preview_targets.map do |target|
           raise Rejected.new("TIMEOUT") if Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
           preview = runner.preview(context: context, resource: resource, operation: definition.key,
             target_id: target.id, expected_version: target.expected_version, input: wire(values))
           raise Rejected.new(preview.code, preview.errors) if preview.is_a?(Operations::Result)
           raise Rejected.new("TIMEOUT") if Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
           raise Rejected.new("APPROVAL_INVALIDATED") unless InputSchema.digest(preview.values) == InputSchema.digest(values)
-          Target.new(target.id, target.label, preview.changes)
+          changes = if !definition.custom? && definition.key == "update"
+            record = records_by_id[target.id]
+            access = Authorization::Access.new(context, resource)
+            diff, = Operations::BulkChange.changes(access, record, preview.values)
+            diff.transform_values { |pair| { "before" => pair[0], "after" => pair[1] } }
+          else
+            preview.changes
+          end
+          Target.new(target.id, target.label, changes)
         end
+
+        if sampled
+          ActiveRecord::Base.while_preventing_writes do
+            access = Authorization::Access.new(context, resource)
+            payload = wire(values)
+            expected_digest = InputSchema.digest(values)
+            selection.targets.drop(SAMPLE_PREVIEW_LIMIT).each do |target|
+              raise Rejected.new("TIMEOUT") if Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
+              record = records_by_id.fetch(target.id) { raise AccessDenied }
+              access.authorize!(definition.key, record)
+              raise Rejected.new("CONFLICT") unless RecordVersion.of(record) == target.expected_version
+              coerced = Contract.input_schema(definition, access, record).coerce(payload, time_zone: context.time_zone)
+              raise Rejected.new("VALIDATION_FAILED", coerced.errors) unless coerced.valid?
+              raise Rejected.new("APPROVAL_INVALIDATED") unless InputSchema.digest(coerced.values) == expected_digest
+            end
+          end
+        end
+        rendered
       end
 
       def wire(values)

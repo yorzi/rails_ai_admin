@@ -39,6 +39,7 @@ RailsAiAdmin::Engine.routes.draw do
   get "jobs", to: "collection_jobs#index", as: :collection_jobs
   get "jobs/:job_ref", to: "collection_jobs#show", as: :collection_job
   post "jobs/:job_ref/cancel", to: "collection_jobs#cancel", as: :cancel_collection_job
+  post "jobs/:job_ref/retry_failed", to: "collection_jobs#retry_failed", as: :retry_failed_collection_job
   get ":resource/operations/:operation", to: "collection_operations#new", as: :collection_operation_form
   post ":resource/operations/:operation/preflight", to: "collection_operations#preflight", as: :collection_operation_preflight
   post ":resource/operations/:operation/execute", to: "collection_operations#execute", as: :collection_operation_execute
