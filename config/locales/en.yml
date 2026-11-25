@@ -394,6 +394,19 @@ en:
       undone: Operation undone.
       timeline: Timeline
       no_events: No events recorded yet.
+      review:
+        input: Proposed input
+        targets:
+          one: Target record
+          other: "Target records (%{count})"
+        sampled: "Showing the first %{shown} of %{total} records. Each record is checked again when the job runs."
+        unavailable_target: Record not visible to you
+        no_visible_changes: No changes to fields you can read.
+        not_ready: This proposal cannot be approved as shown. Ask the proposer for a new one.
+        undo_heading: Undo this operation
+        undo_compensate: Undo runs the operation's own compensation step for this record.
+        undo_restore: Undo restores the deleted record.
+        undo_update: Undo restores the previous values of the fields this operation changed.
       tabs:
         needs_approval: Needs approval
         active: Active

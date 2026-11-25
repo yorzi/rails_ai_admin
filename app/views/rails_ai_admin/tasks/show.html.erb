@@ -55,15 +55,49 @@
     </section>
   <% end %>
 
-  <% if @can_approve %>
-    <section>
-      <h2><%= t("rails_ai_admin.tasks.approve_heading") %></h2>
-      <%= form_with url: approve_admin_task_path(id: @task.id), method: :post, local: true, data: { turbo: false } do |form| %>
-        <div class="raa-field">
-          <%= label_tag :approval_note, t("rails_ai_admin.tasks.approval_note") %>
-          <%= text_field_tag :approval_note, nil, maxlength: 500 %>
-        </div>
-        <%= form.submit t("rails_ai_admin.tasks.approve") %>
+  <% if @can_approve && @approval_review %>
+    <section aria-labelledby="raa-task-review-heading">
+      <h2 id="raa-task-review-heading"><%= t("rails_ai_admin.tasks.approve_heading") %></h2>
+      <% if @approval_review.values.any? %>
+        <h3><%= t("rails_ai_admin.tasks.review.input") %></h3>
+        <dl class="raa-details">
+          <% @approval_review.values.each do |entry| %>
+            <dt><%= entry.field.label %></dt><dd><%= entry.field.format(entry.value, time_zone: @context.time_zone) %></dd>
+          <% end %>
+        </dl>
+      <% end %>
+      <h3><%= t("rails_ai_admin.tasks.review.targets", count: @approval_review.total_count) %></h3>
+      <% if @approval_review.sampled? %>
+        <p class="raa-notice" role="status"><%= t("rails_ai_admin.tasks.review.sampled", shown: @approval_review.targets.size, total: @approval_review.total_count) %></p>
+      <% end %>
+      <% @approval_review.targets.each do |target| %>
+        <section>
+          <h4><%= target.label.presence || t("rails_ai_admin.tasks.review.unavailable_target") %></h4>
+          <% if target.code %>
+            <p class="raa-errors"><%= admin_outcome(target.code) %></p>
+          <% elsif target.changes.any? %>
+            <dl class="raa-details">
+              <% target.changes.each do |change| %>
+                <dt><%= change.field.label %></dt>
+                <dd><%= change.field.format(change.before, time_zone: @context.time_zone) %> → <%= change.field.format(change.after, time_zone: @context.time_zone) %></dd>
+              <% end %>
+            </dl>
+          <% else %>
+            <p><%= t("rails_ai_admin.tasks.review.no_visible_changes") %></p>
+          <% end %>
+        </section>
+      <% end %>
+      <% if @approval_review.ready? %>
+        <%= form_with url: approve_admin_task_path(id: @task.id), method: :post, local: true, data: { turbo: false } do |form| %>
+          <%= hidden_field_tag :reviewed_digest, @run.input_digest %>
+          <div class="raa-field">
+            <%= label_tag :approval_note, t("rails_ai_admin.tasks.approval_note") %>
+            <%= text_field_tag :approval_note, nil, maxlength: 500 %>
+          </div>
+          <%= form.submit t("rails_ai_admin.tasks.approve") %>
+        <% end %>
+      <% else %>
+        <p class="raa-notice" role="status"><%= t("rails_ai_admin.tasks.review.not_ready") %></p>
       <% end %>
     </section>
   <% elsif @effective_status == "awaiting_approval" %>
@@ -76,8 +110,23 @@
     <%= button_to t("rails_ai_admin.tasks.dismiss"), dismiss_admin_task_path(id: @task.id), method: :post, class: "raa-secondary", data: { turbo: false } %>
   <% end %>
 
-  <% if @can_undo %>
-    <%= button_to t("rails_ai_admin.tasks.undo"), undo_admin_task_path(id: @task.id), method: :post, class: "raa-secondary", data: { turbo: false } %>
+  <% if @can_undo && @undo_review %>
+    <section aria-labelledby="raa-task-undo-heading">
+      <h2 id="raa-task-undo-heading"><%= t("rails_ai_admin.tasks.review.undo_heading") %></h2>
+      <% if @undo_review.label %><p><%= @undo_review.label %></p><% end %>
+      <% if @undo_review.kind == :update && @undo_review.changes.any? %>
+        <dl class="raa-details">
+          <% @undo_review.changes.each do |change| %>
+            <dt><%= change.field.label %></dt>
+            <dd><%= change.field.format(change.before, time_zone: @context.time_zone) %> → <%= change.field.format(change.after, time_zone: @context.time_zone) %></dd>
+          <% end %>
+        </dl>
+      <% else %>
+        <p><%= t("rails_ai_admin.tasks.review.undo_#{@undo_review.kind}") %></p>
+      <% end %>
+      <%# Undo refuses unless the record is still at the version this run left. %>
+      <%= button_to t("rails_ai_admin.tasks.undo"), undo_admin_task_path(id: @task.id), method: :post, class: "raa-secondary", data: { turbo: false } %>
+    </section>
   <% end %>
 
   <section>

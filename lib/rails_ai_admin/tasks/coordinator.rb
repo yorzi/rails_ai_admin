@@ -37,7 +37,9 @@ module RailsAiAdmin
         return nil unless available? && run && run.parent_run_id.nil? && run.compensates_run_id.nil?
         mode = OperationRun.column_names.include?("approval_mode") ? run.approval_mode.to_s : "self"
         existing = AdminTask.find_by(operation_run_id: run.id)
-        track = force || existing.present? || mode != "self" || (run.selection_id.present? && run.status != "proposed")
+        # Undoable runs are tracked so the Completed tab offers their undo.
+        undoable = run.status == "succeeded" && OperationRun.column_names.include?("undo_payload") && run.undo_payload.present?
+        track = force || existing.present? || mode != "self" || undoable || (run.selection_id.present? && run.status != "proposed")
         return nil unless track
 
         proposer = (OperationRun.column_names.include?("proposed_by_actor_ref") && run.proposed_by_actor_ref.presence) || run.actor_ref

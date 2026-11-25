@@ -64,6 +64,8 @@ class TaskInboxCustomerAdmin < RailsAiAdmin::Resource
   end
   operation :adjust_points, handler: "TaskInboxOperation"
   operation :grant_bonus, handler: "TaskInboxCollectionOperation", scope: :collection
+  operation :reviewed_bonus, handler: "TaskInboxCollectionOperation", scope: :collection, approval: :separate_actor
+  undoable :update
 end
 
 class TaskInboxHiddenAdmin < RailsAiAdmin::Resource
@@ -99,7 +101,7 @@ class TaskInboxPolicy < RailsAiAdmin::Authorization::Adapter
   end
 
   def operation_fields(context:, resource:, operation:, record: nil)
-    operation.to_sym == :grant_bonus ? [ :bonus ] : %i[points reason]
+    %i[grant_bonus reviewed_bonus].include?(operation.to_sym) ? [ :bonus ] : %i[points reason]
   end
 
   def select_records?(context:, resource:) = [ 1, 2 ].include?(context.actor.id)
@@ -190,7 +192,8 @@ class AdminTasksAndInboxTest < ActionDispatch::IntegrationTest
       refute_includes proposer_sess.response.body, "/backoffice/tasks/#{task.id}/approve"
 
       # Self-approval POST by proposer is rejected
-      proposer_sess.post "/backoffice/tasks/#{task.id}/approve", params: { approval_note: "Trying self-approve" }
+      digest = proposal.intent.reload.input_digest
+      proposer_sess.post "/backoffice/tasks/#{task.id}/approve", params: { approval_note: "Trying self-approve", reviewed_digest: digest }
       assert_equal 409, proposer_sess.response.status
       assert_equal 0, @customer.reload.points
 
@@ -204,8 +207,24 @@ class AdminTasksAndInboxTest < ActionDispatch::IntegrationTest
       reviewer_sess.get "/backoffice/tasks/#{task.id}"
       assert_equal 200, reviewer_sess.response.status
       assert_includes reviewer_sess.response.body, "/backoffice/tasks/#{task.id}/approve"
+      # The approver sees exactly what will execute: the intent's input, the
+      # target and the change recomputed under the approver's grants.
+      page = Nokogiri::HTML(reviewer_sess.response.body)
+      review = page.at_css("section[aria-labelledby='raa-task-review-heading']")
+      assert review, "approval review section"
+      assert_includes review.text, "Loyalty tier adjustment"
+      assert_includes review.text, @customer.name
+      assert_match(/Points\s*0\s*→\s*75/, review.text.squish)
+      assert_equal digest, review.at_css("input[name='reviewed_digest']")["value"]
 
-      reviewer_sess.post "/backoffice/tasks/#{task.id}/approve", params: { approval_note: "Verified customer tier" }
+      # A decision without the reviewed digest, or with another one, changes nothing.
+      reviewer_sess.post "/backoffice/tasks/#{task.id}/approve", params: { approval_note: "No digest" }
+      assert_equal 0, @customer.reload.points
+      reviewer_sess.post "/backoffice/tasks/#{task.id}/approve", params: { reviewed_digest: "0" * 64 }
+      assert_equal 0, @customer.reload.points
+      assert_equal "proposed", proposal.intent.reload.status
+
+      reviewer_sess.post "/backoffice/tasks/#{task.id}/approve", params: { approval_note: "Verified customer tier", reviewed_digest: digest }
       assert_equal 303, reviewer_sess.response.status
       assert_equal 75, @customer.reload.points
       assert_equal "succeeded", task.reload.status
@@ -216,6 +235,8 @@ class AdminTasksAndInboxTest < ActionDispatch::IntegrationTest
       assert_equal 200, reviewer_sess.response.status
       assert_includes reviewer_sess.response.body, "points_applied"
       assert_includes reviewer_sess.response.body, "/backoffice/tasks/#{task.id}/undo"
+      undo_section = Nokogiri::HTML(reviewer_sess.response.body).at_css("section[aria-labelledby='raa-task-undo-heading']")
+      assert_includes undo_section.text, "compensation step"
 
       reviewer_sess.post "/backoffice/tasks/#{task.id}/undo"
       assert_equal 303, reviewer_sess.response.status
@@ -254,7 +275,7 @@ class AdminTasksAndInboxTest < ActionDispatch::IntegrationTest
       assert_equal 200, reviewer_sess.response.status
       assert_includes reviewer_sess.response.body.downcase, "expired"
 
-      reviewer_sess.post "/backoffice/tasks/#{task.id}/approve"
+      reviewer_sess.post "/backoffice/tasks/#{task.id}/approve", params: { reviewed_digest: proposal.intent.reload.input_digest }
       assert_equal 409, reviewer_sess.response.status
       assert_equal 0, @customer.reload.points
 
@@ -290,6 +311,49 @@ class AdminTasksAndInboxTest < ActionDispatch::IntegrationTest
       RailsAiAdmin::Collections::Dispatcher.new.run(admitted.job_ref)
       assert_equal "succeeded", bulk_task.reload.status
       assert_equal 2, bulk_task.summary_metadata["succeeded_count"]
+    end
+  end
+
+  def test_collection_approval_review_shows_targets_and_native_undo_shows_restored_values
+    with_task_inbox do
+      proposer_ctx = ctx_for(1)
+      snap = RailsAiAdmin::Selections::Builder.new.capture(context: proposer_ctx, resource: TaskInboxCustomerAdmin,
+        target_ids: [ @customer.id, @second.id ])
+      proposal = RailsAiAdmin::Collections::Runner.new.preflight(context: proposer_ctx, resource: TaskInboxCustomerAdmin,
+        operation: :reviewed_bonus, selection_ref: snap.selection_ref, input: { "bonus" => 15 })
+      task = RailsAiAdmin::AdminTask.find_by!(operation_run_id: proposal.intent.id)
+
+      reviewer = open_session
+      reviewer.post "/test/sign_in/2"
+      reviewer.get "/backoffice/tasks/#{task.id}"
+      review = Nokogiri::HTML(reviewer.response.body).at_css("section[aria-labelledby='raa-task-review-heading']")
+      assert review, "collection approval review"
+      text = review.text.squish
+      assert_match(/Bonus\s*15/, text)
+      assert_includes text, "Target records (2)"
+      assert_match(/Points\s*0\s*→\s*15/, text)
+      assert_match(/Points\s*5\s*→\s*20/, text)
+
+      # A target that changed after the proposal is reported and blocks approval.
+      @second.update!(points: 6)
+      reviewer.get "/backoffice/tasks/#{task.id}"
+      review = Nokogiri::HTML(reviewer.response.body).at_css("section[aria-labelledby='raa-task-review-heading']")
+      assert_nil review.at_css("input[name='reviewed_digest']")
+      assert_includes review.text, "cannot be approved as shown"
+
+      # Native update undo previews current → restored values.
+      runner = RailsAiAdmin::Operations::Runner.new
+      prop = runner.preflight(context: proposer_ctx, resource: TaskInboxCustomerAdmin, operation: :update,
+        target_id: @customer.id, expected_version: @customer.reload.lock_version, input: { "points" => 42 })
+      done = runner.execute(context: proposer_ctx, intent_ref: prop.intent.id, input: { "points" => 42 }, human_confirmed: true)
+      assert_equal "OK", done.code
+      run = RailsAiAdmin::OperationRun.find(prop.intent.id)
+      undo_task = RailsAiAdmin::AdminTask.find_by!(operation_run_id: run.id)
+      assert_equal "succeeded", undo_task.status
+      reviewer.get "/backoffice/tasks/#{undo_task.id}"
+      undo = Nokogiri::HTML(reviewer.response.body).at_css("section[aria-labelledby='raa-task-undo-heading']")
+      assert undo, "undo review"
+      assert_match(/Points\s*42\s*→\s*0/, undo.text.squish)
     end
   end
 end

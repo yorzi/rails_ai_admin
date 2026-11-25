@@ -21,6 +21,10 @@ module RailsAiAdmin
       @task = Tasks::Coordinator.find_visible!(context: @context, id: params[:id])
       run = @task.operation_run_id && OperationRun.find_by(id: @task.operation_run_id, tenant_ref: @context.tenant_ref)
       raise AccessDenied unless run
+      # The form carries the digest of the intent it showed, so a decision
+      # always applies to the reviewed values.
+      raise AccessDenied, "APPROVAL_INVALIDATED" unless params[:reviewed_digest].is_a?(String) &&
+        ActiveSupport::SecurityUtils.secure_compare(params[:reviewed_digest], run.input_digest.to_s)
 
       if run.status == "proposed" && run.expires_at && run.expires_at <= Time.current
         Tasks::Coordinator.sync_from_run!(run, actor_ref: @context.actor_ref)
@@ -97,6 +101,8 @@ module RailsAiAdmin
       @can_approve = Tasks::Coordinator.can_approve?(@context, @task)
       @can_dismiss = @effective_status == "awaiting_approval" && (@task.created_by_actor_ref == @context.actor_ref || @can_approve)
       @can_undo = Tasks::Coordinator.can_undo?(@context, @task)
+      @approval_review = Tasks::Review.approval(context: @context, run: @run) if @can_approve
+      @undo_review = Tasks::Review.undo(context: @context, run: @run) if @can_undo
       @events = @task.events.to_a
       refs = ([ @task.created_by_actor_ref, @task.assigned_to_actor_ref, @run&.approved_by_ref ] + @events.map(&:actor_ref)).compact.uniq
       @actor_labels = actor_labels(refs)
