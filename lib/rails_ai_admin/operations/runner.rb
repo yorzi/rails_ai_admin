@@ -293,7 +293,7 @@ module RailsAiAdmin
       end
 
       def execute_intent(context:, intent_ref:, input:, human_confirmed: false, origin: :ui, binding: nil, admission: nil, approval_note: nil)
-        run = access = definition = nil
+        run = access = definition = pending_verification = nil
         transaction_body_finished = false
         raise AccessDenied, "UNAUTHENTICATED" unless context.is_a?(Context)
         reject!("NOT_FOUND") unless intent_ref.is_a?(String) && intent_ref.match?(/\A[0-9a-f-]{36}\z/)
@@ -433,9 +433,7 @@ module RailsAiAdmin
             end
           end
           if verification_supported? && definition.custom? && definition.handler_class.verifies?
-            ver = run_verification(context, resource, definition, record, run, values)
-            attributes[:verification_status] = ver.status
-            attributes[:verification_report] = ver.checks.map { |c| { "name" => c.name, "status" => c.status, "message" => c.message } }
+            pending_verification = [ resource, definition, record, values ]
           end
           unless admission
             attributes.merge!(approved_by_ref: context.actor_ref, approved_digest: digest, confirmed_at: Time.current)
@@ -455,6 +453,10 @@ module RailsAiAdmin
           admission&.complete!(run)
           transaction_body_finished = true
           receipt
+        end
+        if result && pending_verification
+          result = verify_committed(context, run, result, admission: admission, resource: pending_verification[0],
+            definition: pending_verification[1], record: pending_verification[2], values: pending_verification[3])
         end
         result || committed_callback_result(context, run, transaction_body_finished) || reject!("VALIDATION_FAILED", errors: { "base" => [ "transaction was rolled back" ] })
       rescue StandardError => error
@@ -962,7 +964,33 @@ module RailsAiAdmin
         end
       end
 
-      def run_verification(context, resource, definition, record, _run, values)
+      # Runs after the business transaction has committed (ADR 0026 / E04-A):
+      # a failing, slow or impure verify hook never rolls the write back. The
+      # hook runs in its own savepoint so a database error inside it cannot
+      # poison an enclosing host transaction either (PostgreSQL aborts the
+      # whole transaction on any statement error).
+      def verify_committed(context, run, result, admission:, resource:, definition:, record:, values:)
+        verification = nil
+        OperationRun.transaction(requires_new: true) do
+          verification = run_verification(context, resource, definition, record, values)
+          raise ActiveRecord::Rollback
+        end
+        verification ||= Operation::Verification.new("error", [].freeze)
+        report = verification.checks.map { |check| { "name" => check.name, "status" => check.status, "message" => check.message } }
+        OperationRun.where(id: run.id).update_all(verification_status: verification.status, verification_report: report, updated_at: Time.current)
+        unless admission
+          run.reload
+          Tasks::Coordinator.sync_from_run!(run, actor_ref: context.actor_ref)
+        end
+        Result.new(code: result.code, record_id: result.record_id, audit_ref: result.audit_ref, values: result.values,
+          errors: result.errors, replayed: result.replayed, warning: result.warning, work_refs: result.work_refs,
+          verification: verification)
+      rescue StandardError => error
+        Rails.error.report(error, handled: true, severity: :warning, source: "rails_ai_admin.verify") if defined?(Rails) && Rails.respond_to?(:error)
+        result
+      end
+
+      def run_verification(context, resource, definition, record, values)
         v_ctx = ExecutionContext.new(context, resource, record, duration: definition.handler_class.max_duration)
         raw = ActiveRecord::Base.while_preventing_writes { definition.handler_class.new.verify(v_ctx, record, values) }
         v_ctx.check_deadline!

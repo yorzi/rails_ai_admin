@@ -45,6 +45,9 @@ class MergeCustomersTestOperation < RailsAiAdmin::Operation
     when :impure_write
       target.update!(name: "Forbidden write in verify")
       [ check_pass("noop", "Should never reach") ]
+    when :bad_sql
+      ActiveRecord::Base.connection.select_value("SELECT no_such_column FROM customers")
+      []
     when :warn
       [ check_pass("invoices_moved", "Invoices reassigned"), check_warn("zero_balance", "Target had zero prior points") ]
     when :fail
@@ -190,6 +193,37 @@ class OperationVerifyAndUndoTest < Minitest::Test
         target_id: @customer.id, expected_version: @customer.reload.lock_version, input: { "source" => dup3.id.to_s })
       res3 = runner.execute(context: context, intent_ref: prop3.intent.id, input: { "source" => dup3.id.to_s }, human_confirmed: true)
       assert_equal "warning", res3.verification.status
+    end
+  end
+
+  # PostgreSQL aborts a transaction on any statement error, so verify must run
+  # after the business commit and in its own savepoint.
+  def test_verify_database_error_keeps_the_committed_write
+    with_verify_and_undo do
+      runner = RailsAiAdmin::Operations::Runner.new
+      @customer.update!(points: 10)
+      dup = Customer.create!(account_id: 1, name: "Dup", points: 5, active: true)
+      MergeCustomersTestOperation.verify_mode = :bad_sql
+      prop = runner.preflight(context: context, resource: VerifiableCustomerAdmin, operation: :merge_from,
+        target_id: @customer.id, expected_version: @customer.reload.lock_version, input: { "source" => dup.id.to_s })
+      res = runner.execute(context: context, intent_ref: prop.intent.id, input: { "source" => dup.id.to_s }, human_confirmed: true)
+      assert_equal "OK", res.code
+      assert_equal "error", res.verification.status
+      assert_equal 15, @customer.reload.points
+      run = RailsAiAdmin::OperationRun.find(prop.intent.id)
+      assert_equal "succeeded", run.status
+      assert_equal "error", run.verification_status
+
+      # The same failure inside a host transaction leaves that transaction usable.
+      dup2 = Customer.create!(account_id: 1, name: "Dup 2", points: 1, active: true)
+      prop2 = runner.preflight(context: context, resource: VerifiableCustomerAdmin, operation: :merge_from,
+        target_id: @customer.id, expected_version: @customer.reload.lock_version, input: { "source" => dup2.id.to_s })
+      ActiveRecord::Base.transaction do
+        res2 = runner.execute(context: context, intent_ref: prop2.intent.id, input: { "source" => dup2.id.to_s }, human_confirmed: true)
+        assert_equal "OK", res2.code
+        assert_equal 16, Customer.where(id: @customer.id).pick(:points)
+      end
+      assert_equal 16, @customer.reload.points
     end
   end
 
