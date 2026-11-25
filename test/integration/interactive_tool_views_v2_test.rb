@@ -350,4 +350,23 @@ class InteractiveToolViewsV2Test < ActionDispatch::IntegrationTest
       assert_empty customer_queries, "status_only streaming poll must not re-query domain tables for older surfaces"
     end
   end
+
+  # A native write's receipt names who changed which fields: other actors need
+  # the record history grant, not just list access.
+  def test_native_execution_receipt_is_for_the_actor_or_history_readers
+    with_v2 do
+      runner = RailsAiAdmin::Operations::Runner.new
+      prop = runner.preflight(context: context, resource: InteractiveV2CustomerAdmin, operation: :update,
+        target_id: @second.id, expected_version: @second.lock_version, input: { "points" => 11 })
+      assert_equal "OK", runner.execute(context: context, intent_ref: prop.intent.id, input: { "points" => 11 }, human_confirmed: true).code
+      other = RailsAiAdmin::Context.new(actor: TestActor.new(2), tenant: TestTenant.new(1), security_version: "1")
+      surfaces = RailsAiAdmin::Integrations::ToolViews
+      assert surfaces.send(:execution_receipt_authorized?, context, prop.intent.id)
+      refute surfaces.send(:execution_receipt_authorized?, other, prop.intent.id)
+      InteractiveV2Policy.class_eval { def view_history?(context:, resource:, record:) = true }
+      assert surfaces.send(:execution_receipt_authorized?, other, prop.intent.id)
+    ensure
+      InteractiveV2Policy.class_eval { remove_method :view_history? if method_defined?(:view_history?, false) }
+    end
+  end
 end

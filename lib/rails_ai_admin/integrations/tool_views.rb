@@ -622,10 +622,21 @@ module RailsAiAdmin
           access = Authorization::Access.new(context, resource)
           definition = RailsAiAdmin.operation_registry.fetch(resource, run.operation)
           record = run.record_id ? access.find!(run.record_id) : nil
-          definition.custom? ? access.authorize_receipt!(run.operation, record) : access.authorize!(:index)
+          authorize_execution_receipt!(context, access, definition, run, record)
           true
         rescue AccessDenied, ConfigurationError, KeyError
           false
+        end
+
+        # A custom operation's receipt follows read_operation_receipt?. A
+        # native write's receipt shows who changed which fields, so another
+        # actor needs the record history grant, as on the record's History.
+        def authorize_execution_receipt!(context, access, definition, run, record)
+          return access.authorize_receipt!(run.operation, record) if definition.custom?
+          raise AccessDenied unless record
+          proposer = OperationRun.column_names.include?("proposed_by_actor_ref") ? run.proposed_by_actor_ref : nil
+          return true if run.actor_ref == context.actor_ref || proposer == context.actor_ref
+          access.authorize_history!(record)
         end
 
         def execution_receipt_data(props)
@@ -637,7 +648,7 @@ module RailsAiAdmin
           definition = RailsAiAdmin.operation_registry.fetch(resource, run.operation)
           access = Authorization::Access.new(context, resource)
           record = run.record_id ? access.find!(run.record_id) : nil
-          definition.custom? ? access.authorize_receipt!(run.operation, record) : access.authorize!(:index)
+          authorize_execution_receipt!(context, access, definition, run, record)
           readable_names = access.fields(:read, record, view: :show).map { |f| f.name.to_s }
           audit = run.audit_event_id ? AuditEvent.find_by(id: run.audit_event_id) : nil
           changed = Array(audit&.changed_fields).map(&:to_s) & readable_names

@@ -100,8 +100,10 @@ end
 
 class VerifyAndUndoPolicy < OperationContractPolicy
   class_attribute :allow_undo, default: true
+  class_attribute :deny_restore, default: false
 
   def allowed?(context:, action:, resource:, record: nil)
+    return false if action.to_sym == :restore && deny_restore
     return !denied && context.actor.id == 1 if resource.operation_declarations.key?(action.to_sym)
     !denied && context.actor.id == 1
   end
@@ -132,6 +134,7 @@ class OperationVerifyAndUndoTest < Minitest::Test
     reset_database
     VerifyAndUndoPolicy.denied = false
     VerifyAndUndoPolicy.allow_undo = true
+    VerifyAndUndoPolicy.deny_restore = false
     MergeCustomersTestOperation.verify_mode = :pass
   end
 
@@ -301,6 +304,10 @@ class OperationVerifyAndUndoTest < Minitest::Test
       refute saved_run.undo_payload.key?("secret")
 
       undo_prop = runner.preflight_undo(context: context, run_id: saved_run.id)
+      # The compensating intent runs only through execute_undo.
+      forward = runner.execute(context: context, intent_ref: undo_prop.intent.id, input: saved_run.undo_payload, human_confirmed: true)
+      assert_equal "NOT_FOUND", forward.code
+      assert_equal "proposed", undo_prop.intent.reload.status
       undo_res = runner.execute_undo(context: context, intent_ref: undo_prop.intent.id, human_confirmed: true)
       assert_equal "OK", undo_res.code
       assert_equal [ "Before Name", 7 ], [ @customer.reload.name, @customer.points ]
@@ -311,6 +318,14 @@ class OperationVerifyAndUndoTest < Minitest::Test
         target_id: memo.id, expected_version: memo.lock_version, input: {})
       runner.execute(context: context, intent_ref: dprop.intent.id, input: {}, human_confirmed: true)
       assert memo.reload.discarded_at.present?
+
+      # Undoing a soft delete needs the restore grant, like the Restore action.
+      VerifyAndUndoPolicy.deny_restore = true
+      denied_prop = runner.preflight_undo(context: context, run_id: dprop.intent.id)
+      denied = runner.execute_undo(context: context, intent_ref: denied_prop.intent.id, human_confirmed: true)
+      assert_equal "NOT_FOUND", denied.code
+      assert memo.reload.discarded_at.present?
+      VerifyAndUndoPolicy.deny_restore = false
 
       restore_prop = runner.preflight_undo(context: context, run_id: dprop.intent.id)
       restore_res = runner.execute_undo(context: context, intent_ref: restore_prop.intent.id, human_confirmed: true)

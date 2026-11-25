@@ -303,6 +303,8 @@ module RailsAiAdmin
           run = OperationRun.lock.find_by(id: intent_ref, tenant_ref: context.tenant_ref)
           reject!("NOT_FOUND") unless run
           reject!("NOT_FOUND") if run.parent_run_id && !admission
+          # A compensating run executes only through execute_undo.
+          reject!("NOT_FOUND") if undo_supported? && run.compensates_run_id.present?
           check_origin!(origin)
           mode = multi_actor_supported? ? run.approval_mode.to_s : "self"
           proposer_ref = (multi_actor_supported? && run.proposed_by_actor_ref.presence) || run.actor_ref
@@ -949,10 +951,17 @@ module RailsAiAdmin
           end
           resource.fields.select { |field| before[field.column] != record.attributes_before_type_cast[field.column] }.map { |field| field.name.to_s }
         elsif undo_run.operation == "destroy" && resource.soft_delete?
+          # Undoing a soft delete is a restore: it needs the same grant as the
+          # Restore action and must land the record back in the policy scope.
+          raise AccessDenied unless resource.action_enabled?(:restore)
+          access.authorize!(:restore, record)
           record.public_send("#{resource.soft_delete}=", nil)
           reject!("CONFLICT") unless record.save
+          reject!("NOT_FOUND") unless access.relation.where(resource.model_class.primary_key => record.id).exists?
           []
         else
+          # Restoring previous values is an update under current grants.
+          access.authorize!(:update, record)
           writable = access.fields(:write, record, operation: :update)
           coercion = InputSchema.new(writable, partial: true).coerce(snapshot, time_zone: context.time_zone)
           reject!("VALIDATION_FAILED", errors: coercion.errors) unless coercion.valid?
