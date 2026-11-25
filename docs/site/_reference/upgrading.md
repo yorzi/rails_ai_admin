@@ -11,6 +11,41 @@ description: Upgrade an existing 0.4 host to 0.5.0, apply the index migration, u
 {{ page.description }}
 {: .fs-6 .fw-300 }
 
+## Upgrade to 0.6.0
+
+0.6.0 is in development on `main`; this section describes that branch.
+
+Set `gem "rails_ai_admin", "~> 0.6.0"` in your Gemfile once it is released, then
+run these commands from the host application.
+
+```sh
+bundle update rails_ai_admin
+bin/rails rails_ai_admin:doctor
+```
+
+There is no new migration. Install 0.5.0 and run its migration first if the
+host is on 0.4.x or earlier.
+
+**Layout overrides.** The `layout` contract is revision 6 and adds the
+assistant drawer. If you copied `layouts/rails_ai_admin/application.html.erb`,
+the doctor reports it as `STALE_CONTRACT`. Where `assistant_available?` is true
+outside the assistant's own pages, add `data-controller="raa-drawer"` to
+`<body>`, the header's `raa-drawer-toggle` button and
+`<%= render "rails_ai_admin/assistant/drawer" %>` after `<main>`, as in the
+default layout, and set the header's `contract` to 6. Without them the pages
+work; they only lack the drawer. See
+[Template Overrides]({% link _advanced/template-overrides.md %}).
+
+**Relation filters.** The assistant and MCP can now filter one resource through
+a declared `belongs_to` field or `has_many`/`has_one` panel. They use the
+related resource's scope, soft delete, `assistant?` grant and filter grants, so
+review the filter grants of resources reached that way.
+
+**Bulk change review overrides.** The review page now holds the rows, the edited
+values and the decisions in one form. A host copy of
+`bulk_changes/show.html.erb` that submits no `target_ids[]` keeps confirming
+every ready record; copy the new template to offer narrowing and editing.
+
 ## Upgrade to 0.5.0
 
 Set `gem "rails_ai_admin", "~> 0.5.0"` in your Gemfile and run these commands
@@ -61,7 +96,7 @@ fields it does not know, set `config.assistant_prompt_caching = false`.
   `config/rails_ai_admin/assistant_eval.yml` when it is missing, and keeps your
   adapter and migrations; then run `bin/rails rails_ai_admin:assistant:eval`.
 
-See [What's New in 0.5]({% link _getting_started/whats-new-in-0-5.md %}) and the
+See [What's New in 0.5]({% link _reference/whats-new-in-0-5.md %}) and the
 [Admin Assistant]({% link _advanced/admin-assistant.md %}) guide.
 
 If you are upgrading from an earlier version, see the

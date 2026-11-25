@@ -35,7 +35,7 @@ the [upgrade guide]({% link _reference/upgrading.md %}).
 0.5.0 adds operator notes for the assistant, fallback models, prompt caching,
 totals by calendar period and an evaluation task for a host's own questions.
 Existing hosts need an index migration and should check their template overrides.
-See [What's New in 0.5]({% link _getting_started/whats-new-in-0-5.md %}).
+See [What's New in 0.5]({% link _reference/whats-new-in-0-5.md %}).
 
 The engine already includes conventional CRUD, typed fields, associations, CSV
 import/export, audit/history, dashboards and optional reviewed assistant changes.

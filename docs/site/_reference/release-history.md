@@ -18,7 +18,7 @@ This is the development documentation. Use the source installation in
 
 | Version | Notes |
 | --- | --- |
-| 0.5.0 (Public Preview, 2026-11-22) | [What's New in 0.5]({% link _getting_started/whats-new-in-0-5.md %}). Operator notes, fallback models, prompt caching, calendar-period totals and host evaluations. [Apply the index migration and check template overrides]({% link _reference/upgrading.md %}). |
+| 0.5.0 (Public Preview, 2026-11-22) | [What's New in 0.5]({% link _reference/whats-new-in-0-5.md %}). Operator notes, fallback models, prompt caching, calendar-period totals and host evaluations. [Apply the index migration and check template overrides]({% link _reference/upgrading.md %}). |
 | 0.4.1 (Public Preview, 2026-11-18) | [Release notes](https://github.com/yorzi/rails_ai_admin/releases/tag/v0.4.1). Single-use bulk reviews, distinct list counts, stricter CSV imports and cleanup for rejected uploads. [0.4.1 upgrade guide](https://github.com/yorzi/rails_ai_admin/blob/v0.4.1/docs/site/_reference/upgrading.md). |
 | 0.4.0 (Public Preview, 2026-11-15) | [What's New in 0.4]({% link _reference/whats-new-in-0-4.md %}): assistant totals, one reviewed change for many records, spending limits, conversation retention and tests recorded with real models. |
 | 0.3.0 (Public Preview, 2026-11-14) | [What's New in 0.3]({% link _reference/whats-new-in-0-3.md %}): richer list filters, reference sorting, saved views, bulk actions and soft delete with restore. |

@@ -1,7 +1,8 @@
 ---
 layout: default
 title: What's New in 0.5
-nav_order: 6
+parent: Release History
+nav_order: 5
 description: The assistant learns your business terms, falls back to other models, caches its repeated prompt, totals by calendar period and can be checked on your own questions before rollout.
 ---
 
@@ -156,7 +157,7 @@ scripted provider only; native OpenAI and Anthropic APIs are still unchecked.
 
 See [Development Status]({% link _reference/development-status.md %}) for the
 full list, and [What's New in 0.4]({% link _reference/whats-new-in-0-4.md %}) for
-the previous release.
+the previous release and [What's New in 0.6]({% link _getting_started/whats-new-in-0-6.md %}) for the next.
 
 ## Next Steps
 

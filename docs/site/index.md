@@ -99,5 +99,5 @@ The pictures come from `bin/demo`, a single local admin with seeded data, an off
 
 ## Version {{ site.version }}
 
-This release is a Public Preview. Read [what's new in 0.5]({% link _getting_started/whats-new-in-0-5.md %})
+This release is a Public Preview. Read [what's new in 0.5]({% link _reference/whats-new-in-0-5.md %})
 and the [current limitations]({% link _reference/development-status.md %}) before adopting it.

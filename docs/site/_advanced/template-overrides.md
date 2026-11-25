@@ -108,7 +108,7 @@ Navigation-aware templates also receive immutable `@list_navigation`; it carries
 only normalized list hints, not routing or record authority. Keep registered
 navigation helpers, hidden return fields, the recovery encoded return-state/discarded data
 and discard notices instead of routing from raw return_to. resource_index receives
-sortable_fields for permitted sort headers. The layout is revision 5; index/
+sortable_fields for permitted sort headers. The layout is revision 6; index/
 show/destroy, member and collection form/review/failure, selection and job-show
 context contracts are revision 2. See [List Navigation]({% link _core_features/list-navigation.md %}) for
 the exact helper and query/header boundaries.
@@ -146,6 +146,13 @@ under the first page's policy. Trix loaded first on an edit page reached by a Tu
 visit reads that page's new nonce, which the browser does not enforce, so its styles
 are refused and the link dialog shows open. A layout without the helper still gets
 Trix beside each editor, with that limitation.
+
+Layout revision 6 adds the contextual assistant drawer. When
+`assistant_available?` is true outside the assistant's own pages, keep
+`data-controller="raa-drawer"` on `<body>`, the header's `raa-drawer-toggle`
+button and `<%= render "rails_ai_admin/assistant/drawer" %>` after `<main>`, as
+the default layout does. A layout without them still works; it only lacks the
+drawer.
 
 Use normal Rails form helpers and keep CSRF, endpoint/method and server-issued
 intent bindings. Retain `intent_ref`, applicable `expected_version`, reviewed
