@@ -69,6 +69,7 @@ class AssistantBulkChangesIntegrationTest < ActionDispatch::IntegrationTest
     end
 
     def select_records?(context:, resource:) = selectable
+    def view_tasks?(context:) = !denied
     def allowed?(context:, action:, resource:, record: nil)
       return false if action.to_sym == :update && record && locked_names.include?(record.name)
       super
@@ -623,6 +624,27 @@ class AssistantBulkChangesIntegrationTest < ActionDispatch::IntegrationTest
       assert_equal "succeeded", parent.reload.status
       assert_equal 119, Customer.where(account_id: 1, points: 1).count
       assert_equal 1, chat.turns.where(kind: "continuation").count
+    end
+  end
+
+  def test_a_queued_large_review_shows_its_job_progress_in_the_chat
+    with_assistant(surfaces: true, resources: RESOURCES, policy: "AssistantBulkChangesIntegrationTest::Policy") do
+      seed_points(101)
+      chat = start_chat
+      result = propose(chat, { resource: "changeable_customers", values: { points: 2 }, filters: { points: { gte: "7", lte: "7" } } })
+      assert_equal 101, result["records"]
+      get review_link(chat)
+      decide("confirm")
+      assert_response :see_other
+      job_ref = response.location[%r{jobs/([0-9a-f-]{36})}, 1]
+
+      get "/backoffice/assistant/conversations/#{chat.ref}"
+      assert_select ".raa-chat-bulk + .raa-chat-surface .raa-task-progress", 1
+      assert_select ".raa-task-progress", text: /0 succeeded, 0 failed of 101 records/
+
+      3.times { RailsAiAdmin::Collections::Dispatcher.new.run(job_ref, limit: 50) }
+      get "/backoffice/assistant/conversations/#{chat.ref}"
+      assert_select ".raa-task-progress", text: /101 succeeded, 0 failed of 101 records/
     end
   end
 end

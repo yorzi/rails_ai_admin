@@ -63,7 +63,8 @@ class InteractiveV2CustomerAdmin < RailsAiAdmin::Resource
     integer :points, filterable: true, aggregatable: true
     boolean :active, filterable: true
   end
-  operation :adjust, handler: "EditableSurfaceOperation", surface: true, assistant: true
+  operation :adjust, handler: "EditableSurfaceOperation", surface: :editable, assistant: true
+  operation :plain_adjust, handler: "EditableSurfaceOperation", surface: true
   operation :bulk_bonus, handler: "V2CollectionOperation", scope: :collection
 end
 
@@ -82,7 +83,7 @@ class InteractiveV2Policy < AssistantPolicy
   end
 
   def allowed?(context:, action:, resource:, record: nil)
-    return !denied && context.actor.id == 1 if %i[adjust bulk_bonus].include?(action.to_sym)
+    return !denied && context.actor.id == 1 if %i[adjust plain_adjust bulk_bonus].include?(action.to_sym)
     super
   end
 
@@ -367,6 +368,34 @@ class InteractiveToolViewsV2Test < ActionDispatch::IntegrationTest
       assert surfaces.send(:execution_receipt_authorized?, other, prop.intent.id)
     ensure
       InteractiveV2Policy.class_eval { remove_method :view_history? if method_defined?(:view_history?, false) }
+    end
+  end
+
+  # surface: :editable presents the editable form from the native review, and a
+  # confirmed review of either kind shows the committed receipt.
+  def test_opted_in_operations_get_the_editable_form_and_confirmed_reviews_show_the_receipt
+    with_v2 do
+      { adjust: "raa_editable_form", plain_adjust: "raa_operation_review" }.each do |operation, component|
+        @customer.reload
+        proposal = RailsAiAdmin::Operations::Runner.new.preflight(context: context, resource: InteractiveV2CustomerAdmin,
+          operation: operation, target_id: @customer.id, expected_version: @customer.lock_version,
+          input: { "points" => 30, "note" => "Via #{operation}" })
+        wire = RailsAiAdmin::Integrations::ToolViews.wire_input(proposal.values).to_json
+        post "/backoffice/v2_customers/#{@customer.id}/operations/#{operation}/surface",
+          params: { intent_ref: proposal.intent.id, confirmed_input: wire }
+        assert_response :see_other
+        surface = RailsToolViews::Surface.find(response.location[%r{surfaces/([^/?]+)}, 1])
+        assert_equal component, surface.component_key
+
+        arguments = component == "raa_editable_form" ? { confirmed_intent: proposal.intent.id } : {}
+        post "/backoffice/assistant/surfaces/#{surface.id}/actions", params: { action_name: "confirm",
+          base_revision: surface.revision.to_s, idempotency_key: SecureRandom.uuid, source_component: component, arguments: arguments }
+        assert_response :see_other
+        get "/backoffice/assistant/surfaces/#{surface.id}"
+        assert_select ".raa-execution-receipt", 1
+        assert_includes response.body, "points_verified"
+        @customer.reload.update!(points: 0)
+      end
     end
   end
 end

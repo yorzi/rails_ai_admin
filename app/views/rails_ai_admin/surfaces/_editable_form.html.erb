@@ -14,6 +14,10 @@
       <p><%= t("rails_ai_admin.surfaces.dismissed") %></p>
     <% elsif run.status == "succeeded" %>
       <p><%= t("rails_ai_admin.surfaces.completed_html", run: tag.code(run.id)) %></p>
+      <%# The committed outcome: changed fields, verification and undo. %>
+      <% if (receipt = admin_surface_execution_receipt({ "run_id" => run.id })) %>
+        <%= render "rails_ai_admin/surfaces/execution_receipt", props: { "run_id" => run.id }, receipt: receipt %>
+      <% end %>
     <% elsif run.status == "proposed" && run.expires_at > Time.current && run.security_version == review.access.context.security_version %>
       <% changes = admin_surface_changes(review, active_wire) %>
       <% if changes.any? %>
@@ -21,6 +25,7 @@
         <dl class="raa-details"><% changes.each do |field, before, after| %><dt><%= field.label %></dt><dd><%= before %> → <%= after %></dd><% end %></dl>
       <% end %>
 
+      <% separate_self = review.definition.approval_mode == :separate_actor && ((run.respond_to?(:proposed_by_actor_ref) && run.proposed_by_actor_ref.presence) || run.actor_ref) == review.access.context.actor_ref %>
       <% editable_fields = review.definition.fields(review.access, review.record) rescue [] %>
       <% if editable_fields.any? %>
         <%= admin_surface_action_form(surface, :update_preview) do |form| %>
@@ -35,10 +40,15 @@
         <% end %>
       <% end %>
 
+      <% if separate_self %>
+        <p class="raa-notice" role="status"><%= t("rails_ai_admin.surfaces.separate_actor_note") %></p>
+      <% end %>
       <div class="raa-actions">
-        <%= admin_surface_action_form(surface, :confirm) do |form| %>
-          <%= hidden_field_tag "arguments[confirmed_intent]", run.id, id: nil %>
-          <%= form.submit t("rails_ai_admin.operations.confirm"), name: nil %>
+        <% unless separate_self %>
+          <%= admin_surface_action_form(surface, :confirm) do |form| %>
+            <%= hidden_field_tag "arguments[confirmed_intent]", run.id, id: nil %>
+            <%= form.submit t("rails_ai_admin.operations.confirm"), name: nil %>
+          <% end %>
         <% end %>
         <%= admin_surface_action_form(surface, :dismiss) do |form| %>
           <%= form.submit t("rails_ai_admin.surfaces.dismiss"), name: nil, class: "raa-secondary" %>

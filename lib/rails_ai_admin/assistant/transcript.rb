@@ -124,12 +124,19 @@ module RailsAiAdmin
         if message.ruby_llm_parent_tool_call&.name == "propose_bulk_change" && data["bulk_change"].is_a?(String) && data["selection"].is_a?(String)
           resource = exposed(data["resource"])
           return [] unless resource && data["records"].is_a?(Integer)
-          return [ entry(:bulk_review, nil, message, review: BulkReview.new(data["selection"], data["bulk_change"], data["records"], resource.label)) ]
+          return [ entry(:bulk_review, nil, message, review: BulkReview.new(data["selection"], data["bulk_change"], data["records"], resource.label),
+            surface_id: bulk_progress_surface(data["selection"])) ]
         end
         links = record_links(data["resource"], data["records"])
         links.empty? ? [] : [ entry(:records, nil, message, links: links) ]
       rescue JSON::ParserError
         []
+      end
+
+      # The progress Surface of the background job a large review queued.
+      def bulk_progress_surface(selection_ref)
+        return unless RailsAiAdmin.configuration.surfaces
+        Integrations::ToolViews.assistant_surface(@context, @chat, "bulk:#{selection_ref}")&.id
       end
 
       # Only records the actor can still see, labelled through current grants.

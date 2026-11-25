@@ -226,6 +226,12 @@ module RailsAiAdmin
             raise AccessDenied unless (chat || assistant_call) && resource.assistant_change?(definition.key)
           end
           raise AccessDenied if chat && assistant_call
+          # An MCP session has no chat to show an editable form in, so it
+          # gets the ordinary review.
+          if definition.custom? && resource.editable_surface_operation?(definition.key) && !assistant_call
+            return present_editable_form(context: context, resource: resource, definition: definition, record: record,
+              intent_ref: intent_ref, input: input, chat: chat, call_id: call_id)
+          end
           origin = chat || assistant_call ? "assistant" : "ui"
           raise AccessDenied if assistant_call && definition.custom? && !resource.assistant_operation?(definition.key)
           raise AccessDenied unless intent_ref.is_a?(String) && intent_ref.match?(/\A[0-9a-f-]{36}\z/)
@@ -475,6 +481,7 @@ module RailsAiAdmin
             .where(OperationRun.arel_table[:expires_at].gt(now))
             .update_all(expires_at: now - 1.second, updated_at: now)
           raise ::RailsToolViews::Error.new("CONFLICT", status: 409, message: "This review was already decided.") unless expired == 1
+          sync_expired_task(rev.run.id)
 
           proposal = Operations::Runner.new.preflight(
             context: context,
@@ -541,6 +548,7 @@ module RailsAiAdmin
             .where(OperationRun.arel_table[:expires_at].gt(now))
             .update_all(expires_at: now - 1.second, updated_at: now)
           raise ::RailsToolViews::Error.new("CONFLICT", status: 409, message: "This review was already decided.") unless expired == 1
+          sync_expired_task(rev.run.id)
           continue_chat(context, request, rev, "Nothing was changed.", decision: "dismissed")
           ::RailsToolViews::Transition.new(state: state.merge("outcome" => "dismissed", "message" => "Dismissed. Nothing was changed."), agent: false)
         end
@@ -834,6 +842,7 @@ module RailsAiAdmin
             .where(OperationRun.arel_table[:expires_at].gt(now))
             .update_all(expires_at: now - 1.second, updated_at: now)
           raise ::RailsToolViews::Error.new("CONFLICT", status: 409, message: "This review was already decided.") unless expired == 1
+          sync_expired_task(review.run.id)
           continue_chat(context, request, review, "Nothing was changed.", decision: "dismissed")
           ::RailsToolViews::Transition.new(state: { "outcome" => "dismissed", "message" => "Dismissed. Nothing was changed." }, agent: false)
         end
@@ -948,6 +957,12 @@ module RailsAiAdmin
         rescue ::RailsToolViews::Error => error
           raise unless error.code == "UNKNOWN_COMPONENT"
           yield
+        end
+
+        # A replaced or dismissed intent ends its approval task too.
+        def sync_expired_task(run_id)
+          run = OperationRun.find_by(id: run_id)
+          Tasks::Coordinator.sync_from_run!(run) if run
         end
 
         def present_read_surface(context:, chat:, call_id:, key:, props:)

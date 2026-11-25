@@ -1,4 +1,4 @@
-<% receipt = admin_surface_execution_receipt(props) %>
+<% receipt = local_assigns[:receipt] || admin_surface_execution_receipt(props) %>
 <% if receipt %>
   <div class="raa-read-surface raa-execution-receipt">
     <div class="raa-surface-header">

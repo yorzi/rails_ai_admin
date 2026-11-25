@@ -14,6 +14,7 @@ module RailsAiAdmin
         child.instance_variable_set(:@operation_scopes, {})
         child.instance_variable_set(:@operation_approvals, {})
         child.instance_variable_set(:@surface_operations, [])
+        child.instance_variable_set(:@editable_surface_operations, [])
         child.instance_variable_set(:@assistant_operations, [])
         child.instance_variable_set(:@navigation, Navigation::Settings.new)
         child.instance_variable_set(:@has_many, {})
@@ -114,12 +115,15 @@ module RailsAiAdmin
           raise ConfigurationError, "Operation approval must be :self, :separate_actor or :any_reviewer"
         end
         raise ConfigurationError, "Duplicate operation #{key}" if @operations.key?(key.to_sym)
-        raise ConfigurationError, "Operation surface must be boolean and is only for member operations" unless [ true, false ].include?(surface) && (!surface || scope == :member)
+        unless [ true, false, :editable ].include?(surface) && (!surface || scope == :member)
+          raise ConfigurationError, "Operation surface must be true, false or :editable and is only for member operations"
+        end
         raise ConfigurationError, "Operation assistant must be boolean and requires surface: true" unless [ true, false ].include?(assistant) && (!assistant || surface)
         @operations[key.to_sym] = handler.freeze
         @operation_scopes[key.to_sym] = scope
         @operation_approvals[key.to_sym] = approval.to_sym if approval
         @surface_operations << key.to_sym if surface
+        @editable_surface_operations << key.to_sym if surface == :editable
         @assistant_operations << key.to_sym if assistant
       end
 
@@ -181,6 +185,9 @@ module RailsAiAdmin
 
       def operation_declarations = @operations
       def surface_operation?(key) = @surface_operations.include?(key.to_sym)
+      # surface: :editable lets the reviewer change the inputs inside the
+      # Surface; each change replaces the intent with a freshly checked one.
+      def editable_surface_operation?(key) = @editable_surface_operations.include?(key.to_sym)
       def assistant_operation?(key) = @assistant_operations.include?(key.to_sym)
       def assistant_operations = @assistant_operations
       def operation_scopes = @operation_scopes
@@ -265,6 +272,7 @@ module RailsAiAdmin
         @operation_scopes.freeze
         @operation_approvals.freeze
         @surface_operations.freeze
+        @editable_surface_operations.freeze
         @has_many.freeze
         @assistant_operations.freeze
         @assistant_changes.freeze

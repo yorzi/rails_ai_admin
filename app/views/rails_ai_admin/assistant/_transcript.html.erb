@@ -36,6 +36,9 @@
           <p><%= link_to t("rails_ai_admin.assistant.bulk_review.open", count: entry.review.records),
             bulk_change_path(selection_ref: entry.review.selection_ref, change: entry.review.token), data: { turbo_frame: "_top" } %></p>
         </div></li>
+        <% if entry.surface_id && @surface_scope %>
+          <li class="raa-chat-surface"><%= admin_assistant_surface(entry.surface_id, scope: @surface_scope) %></li>
+        <% end %>
       <% when :surface %>
         <li class="raa-chat-surface"><%= admin_assistant_surface(entry.surface_id, scope: @surface_scope) if @surface_scope %></li>
       <% end %>

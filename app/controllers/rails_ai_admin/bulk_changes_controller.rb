@@ -134,8 +134,23 @@ module RailsAiAdmin
         return async_bulk_change_failed(admitted.code)
       end
       continue_chat("confirmed", "Queued background update #{admitted.job_ref} for #{@ready.size} records.")
+      present_job_progress(admitted.job_ref)
       redirect_to collection_job_path(job_ref: admitted.job_ref), status: :see_other,
         notice: t("rails_ai_admin.collection_operations.admitted")
+    end
+
+    # The chat that proposed the change shows the job's progress under its
+    # review card (Transcript looks it up by the same "bulk:" reference).
+    def present_job_progress(job_ref)
+      return unless @chat_ref && RailsAiAdmin.configuration.assistant && RailsAiAdmin.configuration.surfaces && Tasks::Coordinator.available?
+      require "rails_ai_admin/assistant"
+      chat = Assistant::Chat.owned(@context, @chat_ref)
+      task = AdminTask.find_by(operation_run_id: job_ref)
+      return unless chat&.current_for?(@context) && task
+      Integrations::ToolViews.present_task_progress(context: @context, task_id: task.id, chat: chat,
+        call_id: "bulk:#{@selection.selection_ref}")
+    rescue AccessDenied, ::RailsToolViews::Error
+      nil
     end
 
     def async_bulk_change_failed(code)

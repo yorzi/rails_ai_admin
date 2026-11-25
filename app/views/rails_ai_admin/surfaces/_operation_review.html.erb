@@ -17,6 +17,10 @@
     <p><%= t("rails_ai_admin.surfaces.dismissed") %></p>
   <% elsif run.status == "succeeded" %>
     <p><%= t("rails_ai_admin.surfaces.completed_html", run: tag.code(run.id)) %></p>
+    <%# The committed outcome: changed fields, verification and undo. %>
+    <% if (receipt = admin_surface_execution_receipt({ "run_id" => run.id })) %>
+      <%= render "rails_ai_admin/surfaces/execution_receipt", props: { "run_id" => run.id }, receipt: receipt %>
+    <% end %>
   <% elsif run.status == "proposed" && run.expires_at > Time.current && run.security_version == review.access.context.security_version %>
     <% if native && run.operation == "destroy" %>
       <p><strong><%= t("rails_ai_admin.surfaces.destroy_note") %></strong></p>
