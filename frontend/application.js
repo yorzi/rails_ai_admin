@@ -484,10 +484,15 @@ class DrawerController extends Controller {
     this.toggleTarget.setAttribute("aria-expanded", "true");
     this.loadFrame();
     this.persistState(true);
-    if (focus) requestAnimationFrame(() => (this.panelTarget.querySelector("textarea") || this.closeTarget)?.focus());
+    if (!focus) return;
+    // The conversation loads into the frame after opening; until it has,
+    // focus waits on Close and moves to the message box when it arrives.
+    this.focusPending = !this.panelTarget.querySelector("textarea");
+    requestAnimationFrame(() => (this.panelTarget.querySelector("textarea") || this.closeTarget)?.focus());
   }
 
   close() {
+    this.focusPending = false;
     this.panelTarget.hidden = true;
     this.element.removeAttribute("data-raa-drawer-open");
     this.toggleTarget.setAttribute("aria-expanded", "false");
@@ -529,6 +534,11 @@ class DrawerController extends Controller {
     if ("contextExpired" in state.dataset) this.removeContext();
     this.syncInputs();
     this.persistState(!this.panelTarget.hidden);
+    if (this.focusPending && !this.panelTarget.hidden) {
+      this.focusPending = false;
+      const box = this.frameTarget.querySelector("textarea");
+      if (box && (document.activeElement === this.closeTarget || !this.panelTarget.contains(document.activeElement))) box.focus();
+    }
   }
 
   loadFrame() {
