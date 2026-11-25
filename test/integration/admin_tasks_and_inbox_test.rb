@@ -356,4 +356,34 @@ class AdminTasksAndInboxTest < ActionDispatch::IntegrationTest
       assert_match(/Points\s*42\s*→\s*0/, undo.text.squish)
     end
   end
+
+  def test_dismiss_is_audited_and_conflicts_with_a_decided_proposal
+    with_task_inbox do
+      runner = RailsAiAdmin::Operations::Runner.new
+      first = runner.preflight(context: ctx_for(1), resource: TaskInboxCustomerAdmin, operation: :adjust_points,
+        target_id: @customer.id, expected_version: @customer.lock_version, input: { "points" => 10, "reason" => "Withdrawn" })
+      task = RailsAiAdmin::AdminTask.find_by!(operation_run_id: first.intent.id)
+      proposer = open_session
+      proposer.post "/test/sign_in/1"
+      proposer.post "/backoffice/tasks/#{task.id}/dismiss"
+      assert_equal 303, proposer.response.status
+      assert_equal "cancelled", first.intent.reload.status
+      assert_equal "cancelled", task.reload.status
+      event = RailsAiAdmin::AuditEvent.find_by!(correlation_ref: first.intent.id, status: "cancelled")
+      assert_equal ctx_for(1).actor_ref, event.actor_ref
+      assert_equal ctx_for(1).actor_ref, event.proposed_by_actor_ref
+
+      second = runner.preflight(context: ctx_for(1), resource: TaskInboxCustomerAdmin, operation: :adjust_points,
+        target_id: @customer.id, expected_version: @customer.reload.lock_version, input: { "points" => 20, "reason" => "Approved" })
+      second_task = RailsAiAdmin::AdminTask.find_by!(operation_run_id: second.intent.id)
+      reviewer = open_session
+      reviewer.post "/test/sign_in/2"
+      reviewer.post "/backoffice/tasks/#{second_task.id}/approve", params: { reviewed_digest: second.intent.reload.input_digest }
+      assert_equal 303, reviewer.response.status
+      proposer.post "/backoffice/tasks/#{second_task.id}/dismiss"
+      assert_equal 409, proposer.response.status
+      assert_equal "succeeded", second.intent.reload.status
+      assert_equal 20, @customer.reload.points
+    end
+  end
 end

@@ -53,19 +53,16 @@ module RailsAiAdmin
 
     def dismiss
       @task = Tasks::Coordinator.find_visible!(context: @context, id: params[:id])
-      run = @task.operation_run_id && OperationRun.find_by(id: @task.operation_run_id, tenant_ref: @context.tenant_ref)
       unless @task.created_by_actor_ref == @context.actor_ref || Tasks::Coordinator.can_approve?(@context, @task)
         raise AccessDenied
       end
-      if run && run.status == "proposed"
-        OperationRun.transaction do
-          run.update!(status: "cancelled", completed_at: Time.current)
-          Tasks::Coordinator.sync_from_run!(run, actor_ref: @context.actor_ref)
-        end
-      elsif @task.status == "awaiting_approval"
-        @task.update!(status: "cancelled", completed_at: Time.current)
-        Tasks::Coordinator.append_event!(@task, actor_ref: @context.actor_ref, event_type: "cancelled",
-          code: "CANCELLED", message: "Dismissed")
+      begin
+        Tasks::Coordinator.dismiss!(context: @context, task: @task)
+      rescue AccessDenied => error
+        raise unless error.code == "CONFLICT"
+        load_task_workspace
+        @failure_code = "CONFLICT"
+        return render :show, status: :conflict
       end
       redirect_to admin_task_path(id: @task.id), status: :see_other, notice: t("rails_ai_admin.tasks.dismissed")
     end

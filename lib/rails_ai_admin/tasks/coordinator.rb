@@ -97,6 +97,24 @@ module RailsAiAdmin
           message: "Compensated by operation #{undo_run.id}")
       end
 
+      # Withdraws a pending proposal under a row lock, so it serializes with a
+      # concurrent approval, and records who withdrew it in the audit log.
+      def dismiss!(context:, task:)
+        OperationRun.transaction(requires_new: true) do
+          run = task.operation_run_id && OperationRun.lock.find_by(id: task.operation_run_id, tenant_ref: context.tenant_ref)
+          raise AccessDenied, "CONFLICT" unless run && run.status == "proposed"
+          run.update!(status: "cancelled", completed_at: Time.current)
+          attrs = { actor_ref: context.actor_ref, tenant_ref: context.tenant_ref, resource_key: run.resource_key,
+            operation: run.operation, status: "cancelled", code: "CANCELLED", record_id: run.target_id,
+            correlation_ref: run.id, origin: "ui", changed_fields: [], created_at: Time.current }
+          if AuditEvent.column_names.include?("proposed_by_actor_ref")
+            attrs[:proposed_by_actor_ref] = run.proposed_by_actor_ref.presence || run.actor_ref
+          end
+          AuditEvent.create!(**attrs)
+          sync_from_run!(run, actor_ref: context.actor_ref)
+        end
+      end
+
       def append_event!(task, actor_ref:, event_type:, message:, code: nil)
         TaskEvent.create!(
           task_id: task.id,
