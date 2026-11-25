@@ -27,7 +27,7 @@ module RailsAiAdmin
     prepend_before_action :secure_headers
     before_action :authenticate_admin
     after_action :notice_discarded_list_settings
-    helper_method :resource_navigation, :admin_csp_nonce, :list_page_path, :encoded_return_state, :navigation_state, :navigation_params, :list_return_path, :list_return_label, :return_state_discarded?, :return_navigation_fields, :list_state_fields, :visible_resources, :allowed_action?, :record_label, :parent_return, :parent_return_params, :parent_return_fields, :collection_jobs_available?, :tasks_available?, :tasks_nav_label, :admin_associations, :assistant_available?, :searchable_resources, :audit_log_available?, :actor_labels, :assistant_for?, :assistant_page_context, :assistant_drawer_owner_digest
+    helper_method :resource_navigation, :admin_csp_nonce, :list_page_path, :encoded_return_state, :navigation_state, :navigation_params, :list_return_path, :list_return_label, :return_state_discarded?, :return_navigation_fields, :list_state_fields, :visible_resources, :allowed_action?, :record_label, :parent_return, :parent_return_params, :parent_return_fields, :collection_jobs_available?, :tasks_available?, :tasks_nav_label, :admin_task_for_run, :admin_associations, :assistant_available?, :searchable_resources, :audit_log_available?, :actor_labels, :assistant_for?, :assistant_page_context, :assistant_drawer_owner_digest
 
     rescue_from AccessDenied, with: :deny_access
     rescue_from ConfigurationError do
@@ -298,6 +298,12 @@ module RailsAiAdmin
     def tasks_available?
       return @tasks_available unless @tasks_available.nil?
       @tasks_available = Tasks::Coordinator.authorized?(@context)
+    end
+
+    # The task a proposal waits in, when the person may open the Tasks page.
+    def admin_task_for_run(run_id)
+      return unless tasks_available?
+      AdminTask.where(operation_run_id: run_id, tenant_ref: @context.tenant_ref).pick(:id)
     end
 
     def tasks_nav_label

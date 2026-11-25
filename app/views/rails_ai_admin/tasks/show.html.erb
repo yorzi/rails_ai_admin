@@ -14,7 +14,7 @@
     <dd><%= t("rails_ai_admin.tasks.kinds.#{@task.kind}", default: @task.kind.humanize) %></dd>
     <dt><%= t("rails_ai_admin.tasks.columns.proposed_by") %></dt>
     <dd><%= @actor_labels[@task.created_by_actor_ref] %></dd>
-    <% if @run&.approved_by_ref.present? %>
+    <% if @run&.approved_by_ref.present? && @run.approved_by_ref != @task.created_by_actor_ref %>
       <dt><%= t("rails_ai_admin.tasks.approved_by") %></dt>
       <dd><%= @actor_labels[@run.approved_by_ref] %></dd>
     <% end %>
@@ -72,7 +72,7 @@
       <% end %>
       <% @approval_review.targets.each do |target| %>
         <section>
-          <h4><%= target.label.presence || t("rails_ai_admin.tasks.review.unavailable_target") %></h4>
+          <h4><%= target.label.present? ? link_to(target.label, resource_path(resource: @resource.key, id: target.id), data: { turbo_frame: "_top" }) : t("rails_ai_admin.tasks.review.unavailable_target") %></h4>
           <% if target.code %>
             <p class="raa-errors"><%= admin_outcome(target.code) %></p>
           <% elsif target.changes.any? %>

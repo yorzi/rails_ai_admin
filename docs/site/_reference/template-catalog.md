@@ -107,10 +107,10 @@ legacy visible_resources still includes hidden-menu resources. See
 | `field_row` | 1 | `rails_ai_admin/fields/_row.html.erb` | None | `form`, `entry`, `errors` |
 | `input_fields` | 2 | `rails_ai_admin/shared/_input_fields.html.erb` | `resource` | `form`, `fields`, `values`, `errors`, `plan` |
 | `operation_form` | 2 | `rails_ai_admin/operations/form.html.erb` | `context`, `resource`, `record`, `definition`, `flow_id`, `form_fields`, `form_values`, `errors`, `failure_code`, `needs_reload`, `list_navigation` | None |
-| `operation_confirmation` | 2 | `rails_ai_admin/operations/confirmation.html.erb` | `context`, `resource`, `record`, `definition`, `flow_id`, `proposal`, `form_fields`, `form_values`, `wire_input`, `list_navigation` | None |
+| `operation_confirmation` | 3 | `rails_ai_admin/operations/confirmation.html.erb` | `context`, `resource`, `record`, `definition`, `flow_id`, `proposal`, `form_fields`, `form_values`, `wire_input`, `list_navigation` | None |
 | `operation_failure` | 2 | `rails_ai_admin/operations/failure.html.erb` | `context`, `resource`, `failure_code`, `list_navigation` | None |
 | `collection_form` | 2 | `rails_ai_admin/collection_operations/new.html.erb` | `context`, `resource`, `definition`, `selection`, `form_fields`, `form_values`, `errors`, `failure_code`, `list_navigation` | None |
-| `collection_confirmation` | 2 | `rails_ai_admin/collection_operations/confirmation.html.erb` | `context`, `resource`, `definition`, `proposal`, `wire_input`, `list_navigation` | None |
+| `collection_confirmation` | 3 | `rails_ai_admin/collection_operations/confirmation.html.erb` | `context`, `resource`, `definition`, `proposal`, `wire_input`, `list_navigation` | None |
 | `collection_failure` | 2 | `rails_ai_admin/collection_operations/failure.html.erb` | `context`, `resource`, `failure_code`, `uncertain_job_ref`, `list_navigation` | None |
 | `job_index` | 1 | `rails_ai_admin/collection_jobs/index.html.erb` | `context`, `jobs` | None |
 | `job_show` | 2 | `rails_ai_admin/collection_jobs/show.html.erb` | `context`, `resource`, `job`, `list_navigation` | None |

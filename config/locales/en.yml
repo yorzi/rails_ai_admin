@@ -384,6 +384,7 @@ en:
       expires: Approval expires
       progress: "%{succeeded} succeeded, %{failed} failed of %{total} records"
       open_job: Open background job details
+      open_task: Follow this proposal in Tasks
       verification_heading: "Verification: %{status}"
       approve_heading: Review and approve
       approve: Approve and execute

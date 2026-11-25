@@ -64,6 +64,8 @@ module RailsAiAdmin
           3 # intent_ref; outcome sentences and RESTRICTED
         elsif key == "selection_destroy"
           3 # review_signature binds the confirmation to the records shown
+        elsif %w[operation_confirmation collection_confirmation].include?(key)
+          3 # 0.7: second-approver notice, task link, sampled total and retry notices
         elsif navigation || %w[input_fields field_form].include?(key)
           2
         else

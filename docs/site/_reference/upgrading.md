@@ -39,6 +39,15 @@ add `<% if tasks_available? %><%= link_to tasks_nav_label, admin_tasks_path %><%
 to the header navigation, as in the default layout, and set the header's
 `contract` to 7.
 
+**Operation confirmation overrides.** `operation_confirmation` and
+`collection_confirmation` are revision 3. The defaults hide Confirm from the
+proposer of an operation that needs another approver and link to its task, and
+the collection page states the full target count (`@proposal.total_count`) with
+a notice when only a sample is previewed or a retry left records out. A copied
+template still works, but it shows a Confirm button the server refuses for such
+proposers and counts only the previewed records; copy the new defaults and set
+the header's `contract` to 3.
+
 **New grants, all denied until you add them.** `approve_operation?` to approve
 another person's proposal, `undo_operation?` to undo, and `view_tasks?` for the
 Tasks page. `FullAccessAdapter` grants `undo_operation?` and `view_tasks?`, but

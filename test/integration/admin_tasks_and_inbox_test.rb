@@ -412,4 +412,25 @@ class AdminTasksAndInboxTest < ActionDispatch::IntegrationTest
       assert_equal 41, RailsAiAdmin::Tasks::Coordinator.list(context: ctx_for(1), tab: "mine").size
     end
   end
+
+  def test_proposer_is_linked_to_the_waiting_task_and_the_approver_to_the_target
+    with_task_inbox do
+      proposer = open_session
+      proposer.post "/test/sign_in/1"
+      proposer.post "/backoffice/task_customers/#{@customer.id}/operations/adjust_points/preflight",
+        params: { expected_version: @customer.lock_version, input: { points: 12, reason: "Linked" } }
+      assert_equal 200, proposer.response.status
+      page = Nokogiri::HTML(proposer.response.body)
+      assert_empty page.css("input[name=intent_ref]"), "no Confirm form for the proposer"
+      task = RailsAiAdmin::AdminTask.order(:created_at).last
+      assert page.at_css("a[href='/backoffice/tasks/#{task.id}']"), "link to the waiting task"
+
+      reviewer = open_session
+      reviewer.post "/test/sign_in/2"
+      reviewer.get "/backoffice/tasks/#{task.id}"
+      review = Nokogiri::HTML(reviewer.response.body).at_css("section[aria-labelledby='raa-task-review-heading']")
+      assert review.at_css("h4 a[href='/backoffice/task_customers/#{@customer.id}']")
+      refute_includes reviewer.response.body, "Approved by"
+    end
+  end
 end

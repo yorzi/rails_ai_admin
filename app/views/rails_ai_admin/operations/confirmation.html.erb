@@ -13,6 +13,9 @@
 <% end %>
 <% if @definition.approval_mode == :separate_actor && @proposal.intent.actor_ref == @context.actor_ref %>
   <p class="raa-notice" role="status"><%= t("rails_ai_admin.surfaces.separate_actor_note") %></p>
+  <% if (task_id = admin_task_for_run(@proposal.intent.id)) %>
+    <p><%= link_to t("rails_ai_admin.tasks.open_task"), admin_task_path(id: task_id) %></p>
+  <% end %>
   <p><%= link_to t("rails_ai_admin.actions.cancel"), resource_path(resource: @resource.key, id: @record.id, **navigation_params) %></p>
 <% else %>
 <%= form_with url: operation_execute_path(resource: @resource.key, id: @record.id, operation: @definition.key), method: :post, local: true do |form| %>
