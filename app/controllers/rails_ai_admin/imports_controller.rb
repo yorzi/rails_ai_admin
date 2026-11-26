@@ -5,12 +5,13 @@ module RailsAiAdmin
   class ImportsController < ApplicationController
     before_action :load_import
 
-    before_action :load_draft, only: %i[show update confirm suggest]
+    before_action :load_draft, only: %i[show update confirm suggest failed retry_failed]
 
     def new; end
 
     def show
       @preview = @review.preview(@draft) if @draft.status == "draft"
+      @counts = @draft.rows.group(:status).count if @draft.try(:execution_zone)
     end
 
     def suggest
@@ -43,6 +44,17 @@ module RailsAiAdmin
 
     def confirm
       @review.confirm!(@draft, params[:review_digest], choices: params.key?(:mapping) ? choices : nil)
+      dispatch_batch
+      redirect_to resource_import_draft_path(resource: @resource.key, id: @draft.id), status: :see_other
+    end
+
+    def failed
+      send_data Presentation::ImportBatch.failed_csv(@review, @draft), filename: "#{@resource.key}-failed.csv", type: "text/csv; charset=utf-8"
+    end
+
+    def retry_failed
+      Presentation::ImportBatch.retry!(@review, @draft, params[:review_digest])
+      dispatch_batch
       redirect_to resource_import_draft_path(resource: @resource.key, id: @draft.id), status: :see_other
     end
 
@@ -75,6 +87,10 @@ module RailsAiAdmin
     end
 
     private
+
+    def dispatch_batch
+      ImportBatchJob.perform_later(@draft.id) if @draft.try(:execution_zone) && @draft.rows.where(status: "queued").exists?
+    end
 
     def choices
       mapping = params[:mapping]

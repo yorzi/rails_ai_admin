@@ -86,6 +86,47 @@ class ImportDraftsTest < ActionDispatch::IntegrationTest
     end
   end
 
+  def test_confirmed_large_import_resumes_downloads_and_retries_only_failed_rows
+    with_essential_resources(resources: [ CheckedArticles.name ], policy: Policy.name, context_adapter: "ImportDraftsTest::JobContext") do
+      upload("Title\n" + (1..100).map { |i| "Batch #{i}\n" }.join + "Cannot save\n")
+      assert_response :see_other
+      path = response.location
+      follow_redirect!
+      token = digest
+      2.times { post "#{path}/confirm", params: { review_digest: token } }
+      draft = RailsAiAdmin::ImportDraft.sole
+      assert_equal 101, draft.rows.count
+      assert_equal 1, Article.count
+      assert_nil draft.payload_blob
+      assert RailsAiAdmin::Presentation::ImportBatch.process(draft.id)
+      assert_equal 25, draft.reload.created_count
+      4.times { RailsAiAdmin::Presentation::ImportBatch.process(draft.id) }
+      assert_equal 100, draft.reload.created_count
+      assert_equal 1, draft.rows.where(status: "failed").count
+      assert_nil draft.rows.find_by!(status: "created").input_blob
+      get "#{path}/failed"
+      assert_response :success
+      assert_includes response.body, "Cannot save"
+      refute_includes response.body, "Batch 1"
+      get path
+      retry_token = css_select("form[action$='/retry'] input[name=review_digest]").first["value"]
+      post "#{path}/retry", params: { review_digest: retry_token }
+      assert_response :see_other
+      RailsAiAdmin::Presentation::ImportBatch.process(draft.id)
+      assert_equal 2, draft.rows.find_by!(number: 102).attempts
+      assert_equal 100, draft.reload.created_count
+      post "#{path}/retry", params: { review_digest: retry_token }
+      assert_response :conflict
+      post "/test/sign_in/2"
+      get "#{path}/failed"
+      assert_response :not_found
+    end
+  end
+
+  class JobContext < TestContext
+    def resolve_job(**args) = OperationJobContext.new.resolve_job(**args)
+  end
+
   def test_failed_save_rolls_back_every_create_and_the_draft_claim
     with_essential_resources(resources: [ CheckedArticles.name ], policy: Policy.name) do
       upload("Title\nWould save\nCannot save\n")

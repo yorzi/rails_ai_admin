@@ -10,7 +10,8 @@ module RailsAiAdmin
       def initialize(context, resource)
         @context, @resource = context, resource
         @access = Authorization::Access.new(context, resource)
-        @import = CsvImport.new(context, resource, limit: [ SYNC_LIMIT, RailsAiAdmin.configuration.import_limit ].min)
+        limit = RailsAiAdmin.configuration.import_limit
+        @import = CsvImport.new(context, resource, limit: ImportBatch.available? ? limit : [ SYNC_LIMIT, limit ].min)
         @runner = Operations::Runner.new
       end
 
@@ -97,6 +98,10 @@ module RailsAiAdmin
           raise AccessDenied, "INVALID_QUERY" unless current.ready
           # Take a write claim before the first domain change, including on SQLite.
           draft.update!(status: "admitted", confirmed_digest: digest)
+          if current.selected.size > SYNC_LIMIT
+            ImportBatch.admit!(draft, @context, current.selected)
+            next
+          end
           current.selected.each do |row|
             intent = @runner.prepare(context: @context, resource: @resource, operation: :create)
             result = @runner.execute(context: @context, intent_ref: intent.id, input: row.input, human_confirmed: true)
@@ -104,6 +109,26 @@ module RailsAiAdmin
           end
           draft.update!(created_count: current.selected.size, payload_blob: nil)
         end
+      end
+
+      def batch_fields(draft)
+        resolve_mapping(draft.mapping, CsvImport::MAX_COLUMNS).values
+      end
+
+      def authorize_batch!(draft)
+        @access.authorize_import!
+        @access.authorize!(:create, @access.relation.new)
+        raise AccessDenied unless draft.status == "admitted" && draft.expires_at.future? && draft.execution_zone == @context.time_zone &&
+          owner.all? { |key, value| draft[key] == value } && draft.resource_signature == signature
+        batch_fields(draft)
+      end
+
+      def duplicate_now?(draft, input)
+        return false unless draft.match_field && draft.duplicates == "skip"
+        field = match_fields.find { |entry| entry.name.to_s == draft.match_field }
+        raise AccessDenied unless field
+        wire = input[field.name.to_s]
+        wire.present? && existing_match?(field, wire)
       end
 
       def check_digest!(expected, supplied)

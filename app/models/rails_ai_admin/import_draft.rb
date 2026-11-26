@@ -4,6 +4,8 @@ module RailsAiAdmin
   class ImportDraft < ApplicationRecord
     self.table_name = "rails_ai_admin_import_drafts"
 
+    has_many :rows, class_name: "RailsAiAdmin::ImportRow", foreign_key: :draft_id
+
     def self.open_for(context)
       where(actor_ref: context.actor_ref, tenant_ref: context.tenant_ref, security_version: context.security_version, status: "draft")
         .where("expires_at > ?", Time.current)

@@ -25,7 +25,7 @@ module RailsAiAdmin
         return Result.new(nil, 0, [], true) if relation.except(:order).limit(@limit + 1).count > @limit
         fields = @access.fields(:read, nil, view: :show)
         references = Fields::Association.new(@context, @resource)
-        lines = [ line(fields.map(&:label)) ]
+        lines = [ self.class.line(fields.map(&:label)) ]
         # Preload associations for visible columns once per batch instead of per row.
         model = @resource.model_class
         preloads = fields.filter_map do |field|
@@ -54,7 +54,7 @@ module RailsAiAdmin
           end
           records.each do |record|
             values = @access.project(record, view: :show)
-            lines << line(fields.map { |field| values.key?(field.name.to_s) ? cell(field, values[field.name.to_s], references) : "" })
+            lines << self.class.line(fields.map { |field| values.key?(field.name.to_s) ? cell(field, values[field.name.to_s], references) : "" })
             rows += 1
           rescue AccessDenied
             # Left out like an unavailable row on the list page (RAA-001).
@@ -90,7 +90,7 @@ module RailsAiAdmin
         (field.plugin? || !NUMERIC.include?(field.scalar_type)) && text.match?(FORMULA) ? "'#{text}" : text
       end
 
-      def line(cells)
+      def self.line(cells)
         "#{cells.map { |cell| %("#{cell.to_s.gsub('"', '""')}") }.join(',')}\r\n"
       end
     end

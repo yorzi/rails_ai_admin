@@ -68,6 +68,8 @@ RailsAiAdmin::Engine.routes.draw do
   get ":resource/imports/drafts/:id", to: "imports#show", as: :resource_import_draft
   match ":resource/imports/drafts/:id", to: "imports#update", via: [ :patch, :post ]
   post ":resource/imports/drafts/:id/suggest", to: "imports#suggest", as: :suggest_resource_import_draft
+  get ":resource/imports/drafts/:id/failed", to: "imports#failed", as: :failed_resource_import
+  post ":resource/imports/drafts/:id/retry", to: "imports#retry_failed", as: :retry_resource_import
   post ":resource/imports/drafts/:id/confirm", to: "imports#confirm", as: :confirm_resource_import_draft
   post ":resource/imports", to: "imports#create", as: :resource_imports
   get "selections/:selection_ref", to: "selections#show", as: :selection

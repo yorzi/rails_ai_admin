@@ -89,7 +89,7 @@ and supply target keys for any `belongs_to` columns.
 
 ### Review a file before creating records
 
-Choose **Review CSV import** for up to 100 data rows, or the configured import limit if lower. Match unfamiliar headers to writable fields or choose **Ignore column**. The first three values from each column help identify it. Rows report validation errors and flag cells beginning with spreadsheet formula characters.
+Choose **Review CSV import** for up to the configured import limit. A host without background identity resolution or the import-rows migration can review up to 100 rows. Match unfamiliar headers to writable fields or choose **Ignore column**. The first three values from each column help identify it. Rows report validation errors and flag cells beginning with spreadsheet formula characters.
 
 To check for duplicates, choose a mapped field that your policy allows you to filter by equality. The preview checks the current policy scope and earlier included rows in the file. Choose **Skip duplicate rows** or **Create a new record**. Exclude any other rows you want to leave out, then choose **Update preview**. The selected rows must all pass validation before you can confirm. Confirmation rechecks the preview and creates the selected records together through the native create operation. If the preview changed, reopen the draft and review it again. Repeating a successful confirmation shows the same result.
 
@@ -101,7 +101,7 @@ If the host enables assistant Surfaces, ask chat to “open my latest CSV import
 
 ### Check a file or import a larger file
 
-**Check file** checks types, references, create policy and model validations using the template headers. For files above 100 rows, check the file and upload it again with **Import** to use the existing direct importer. It processes each row independently and reports the first 100 failures. Hosts that have yet to install the draft migration also use this workflow.
+**Check file** checks types, references, create policy and model validations using the template headers. Confirming more than 100 selected rows queues an import. Workers re-resolve the operator and check permissions, duplicate matches and field contracts on each row. Each committed create and its progress marker share a transaction. Refresh the review for progress, download failed rows, or retry just those rows under current grants. Schedule `bin/rails rails_ai_admin:imports:scan` to recover missed job deliveries. Admitted batches stay available for 24 hours. The **Import** button uses the synchronous direct importer. It processes each row independently and reports the first 100 failures. Hosts that have yet to install the draft migration also use this workflow.
 
 Upload UTF-8 CSV of at most 2 MB. Quote cells containing commas or line breaks
 and double any quotation mark inside a quoted cell. The whole file is parsed

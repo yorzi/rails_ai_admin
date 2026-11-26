@@ -180,6 +180,10 @@ en:
       saved_with_warning: Changes saved, but a host callback failed. Review operation %{operation} before
         continuing.
     imports:
+      batch_status: "%{pending} waiting · %{failed} failed · %{skipped} skipped"
+      batch_refresh: Refresh progress
+      batch_download: Download failed rows
+      batch_retry: Retry failed rows
       ai_suggest: Suggest column mapping with AI
       ai_notice: Sends up to 50 CSV headers and permitted field names, labels and types to your configured provider. All data rows stay local.
       ai_review: "%{count} suggested mappings. Check the selections and update the preview before confirming."

@@ -1,6 +1,13 @@
 # frozen_string_literal: true
 
 namespace :rails_ai_admin do
+  namespace :imports do
+    desc "Resume admitted CSV imports after an interrupted job"
+    task scan: :environment do
+      RailsAiAdmin::ImportRow.where(status: "queued").distinct.limit(100).pluck(:draft_id).each { |id| RailsAiAdmin::ImportBatchJob.perform_later(id) }
+    end
+  end
+
   namespace :recipes do
     desc "Admit due recipes and enqueue pending runs"
     task scan: :environment do
