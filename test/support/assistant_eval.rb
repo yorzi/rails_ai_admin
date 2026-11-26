@@ -175,6 +175,18 @@ module AssistantEval
       matched = results.any? { |tool, data| tool == check["tool"] && data.is_a?(Hash) && data[check["key"]] == check["equals"] }
       failures << "no #{check['tool']} result with #{check['key']} = #{check['equals'].inspect}" unless matched
     end
+    if (alternatives = expect["result_alternatives"])
+      matched = messages.any? do |message|
+        call = message.ruby_llm_parent_tool_call if message.role == "tool"
+        next unless call
+        data = JSON.parse(message.content.to_s)
+        alternatives.any? do |option|
+          call.name == option.fetch("tool") && call.arguments == option.fetch("args") &&
+            data.is_a?(Hash) && option.fetch("output").all? { |key, value| data[key] == value }
+        end
+      end
+      failures << "no permitted query produced the required result" unless matched
+    end
     Array(expect["answer_all"]).each { |text| failures << "answer lacks #{text.inspect}" unless normalize.call(answer).include?(normalize.call(text)) }
     Array(expect["answer_none"]).each { |text| failures << "answer has #{text.inspect}" if normalize.call(answer).include?(normalize.call(text)) }
     if expect["answer_any"] && expect["answer_any"].none? { |text| normalize.call(answer).include?(normalize.call(text)) }

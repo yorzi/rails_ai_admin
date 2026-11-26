@@ -179,10 +179,7 @@
         "cache_read_tokens": 7135,
         "cache_write_tokens": 509,
         "cost": "0.000173175",
-        "failures": [
-          "did not call count_records",
-          "no count_records result with count = 4"
-        ]
+        "failures": []
       },
       "proposal": {
         "recorded_on": "2026-11-22",

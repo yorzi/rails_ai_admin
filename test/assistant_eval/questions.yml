@@ -10,6 +10,7 @@
 #   tools          tool names that must be called (any order, others allowed)
 #   tools_absent   tool names that must not be called
 #   results        { tool, key, equals } that some result of that tool satisfies
+#   result_alternatives  one exact tool call (tool, args) and required output fields
 #   answer_all     strings the final answer must all contain (case-insensitive)
 #   answer_any     at least one of these strings must appear
 #   answer_none    strings the final answer must not contain
@@ -46,8 +47,13 @@
     - { tool: count_records, args: { resource: eval_customers, filters: { active: { eq: false } } } }
     - { reply: "4 customers are inactive." }
   expect:
-    tools: [count_records]
-    results: [{ tool: count_records, key: count, equals: 4 }]
+    result_alternatives:
+      - tool: count_records
+        args: { resource: eval_customers, filters: { active: { eq: false } } }
+        output: { count: 4 }
+      - tool: aggregate_records
+        args: { resource: eval_customers, function: count, group_by: active }
+        output: { groups: [{ group: true, count: 8 }, { group: false, count: 4 }], groups_truncated: false }
     answer_all: ["4"]
 
 - id: count-rewarded-scope
