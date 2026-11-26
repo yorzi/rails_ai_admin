@@ -37,6 +37,8 @@ RailsAiAdmin::Engine.routes.draw do
   get "search", to: "search#index", as: :global_search
   get "audit", to: "audit#index", as: :audit_log
   get "tasks", to: "tasks#index", as: :admin_tasks
+  get "tasks/recipes/library", to: "recipes#index", as: :admin_recipes
+  post "tasks/recipes/:slug/run", to: "recipes#create", as: :trigger_admin_recipe
   get "tasks/:id", to: "tasks#show", as: :admin_task
   post "tasks/:id/approve", to: "tasks#approve", as: :approve_admin_task
   post "tasks/:id/dismiss", to: "tasks#dismiss", as: :dismiss_admin_task

@@ -6,7 +6,7 @@ module RailsAiAdmin
   module Operations
     # Executes registered database operations through one atomic boundary.
     class Runner
-      ORIGINS = %w[ui surface assistant].freeze
+      ORIGINS = %w[ui surface assistant recipe].freeze
       Proposal = Data.define(:intent, :values, :changes)
       Preview = Data.define(:target_id, :expected_version, :values, :changes)
 
@@ -194,8 +194,10 @@ module RailsAiAdmin
       # human_confirmed comes only from a trusted HTTP/Surface adapter, never from
       # an assistant tool parameter. Origin is audit metadata, not authority.
       def execute(context:, intent_ref:, input:, human_confirmed: false, origin: :ui, binding: nil, approval_note: nil)
-        execute_intent(context: context, intent_ref: intent_ref, input: input, human_confirmed: human_confirmed,
-          origin: origin, binding: binding, approval_note: approval_note)
+        Recipes::Origin.set(recipe: Recipes::Origin.recipe) do
+          execute_intent(context: context, intent_ref: intent_ref, input: input, human_confirmed: human_confirmed,
+            origin: origin, binding: binding, approval_note: approval_note)
+        end
       end
 
       # Prepares an immutable undo intent for a committed reversible custom
@@ -337,6 +339,10 @@ module RailsAiAdmin
           else
             access.authorize_approval!(run.operation, record, proposed_by_actor_ref: proposer_ref) if mode != "self" && !admission
             access.authorize!(run.operation, record)
+          end
+          if run.origin == "recipe" && run.status == "proposed"
+            Recipes.check_approval!(run)
+            Recipes::Origin.recipe = true
           end
           values = coerce!(access, record, definition, input, replay: run.status == "succeeded")
           assign_create!(access, record, values) if run.operation == "create"

@@ -1,6 +1,13 @@
 # frozen_string_literal: true
 
 namespace :rails_ai_admin do
+  namespace :recipes do
+    desc "Admit due recipes and enqueue pending runs"
+    task scan: :environment do
+      RailsAiAdmin::Recipes.scan
+    end
+  end
+
   desc "Report fail-closed installation and supported runtime boundaries (ONLY=errors or ONLY=review narrows the lines)"
   task doctor: :environment do
     require "rails_ai_admin/doctor"

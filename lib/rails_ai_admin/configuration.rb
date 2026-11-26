@@ -75,7 +75,12 @@ module RailsAiAdmin
       # sign_out_path is the host's sign-out route and sign_out_method its verb.
       :actor_label, :sign_out_path, :sign_out_method
 
+    attr_accessor :recipe_events, :recipe_daily_token_limit, :recipe_daily_cost_limit
+
     def initialize
+      @recipe_events = []
+      @recipe_daily_token_limit = 20_000
+      @recipe_daily_cost_limit = BigDecimal("1.0")
       @authentication_path = nil
       @context_adapter = nil
       @authorization_adapter = "RailsAiAdmin::Authorization::Adapter"
@@ -159,6 +164,13 @@ module RailsAiAdmin
       if surfaces && (problem = surfaces_parent_controller_problem)
         raise ConfigurationError, problem
       end
+      unless recipe_events.is_a?(Array) && recipe_events.all? { |name| name.is_a?(String) && name.match?(/\A[a-z][a-z0-9_.-]{0,99}\z/) }
+        raise ConfigurationError, "recipe_events must contain stable event names"
+      end
+      unless recipe_daily_token_limit.is_a?(Integer) && recipe_daily_token_limit.positive? && cost_limit?(recipe_daily_cost_limit)
+        raise ConfigurationError, "Recipe token and cost limits must both be positive"
+      end
+      recipe_events.each(&:freeze).freeze
       validate_assistant!
       raise ConfigurationError, "mcp must be boolean" unless [ true, false ].include?(mcp)
       raise ConfigurationError, "assistant_streaming must be boolean" unless [ true, false ].include?(assistant_streaming)

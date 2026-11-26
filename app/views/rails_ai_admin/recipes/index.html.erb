@@ -1,0 +1,18 @@
+<% admin_title t("rails_ai_admin.recipes.title") %>
+<h1><%= t("rails_ai_admin.recipes.title") %></h1>
+<%= link_to t("rails_ai_admin.tasks.title"), admin_tasks_path %>
+<% if @recipes.empty? %><p><%= t("rails_ai_admin.recipes.empty") %></p><% end %>
+<% @recipes.each do |recipe, runs| %>
+  <section>
+    <h2><%= recipe.name %></h2>
+    <p><%= recipe.instructions %></p>
+    <p>v<%= recipe.version %> · <%= recipe.trigger_kind.humanize %> · <%= recipe.enabled? ? t("rails_ai_admin.recipes.enabled") : t("rails_ai_admin.recipes.paused") %></p>
+    <% if recipe.next_run_at %><p><%= t("rails_ai_admin.recipes.next", time: recipe.next_run_at.in_time_zone(recipe.time_zone).iso8601) %></p><% end %>
+    <% if recipe.enabled? && recipe.trigger_kind == "manual" %>
+      <%= button_to t("rails_ai_admin.recipes.run"), trigger_admin_recipe_path(slug: recipe.slug), params: { occurrence: SecureRandom.uuid } %>
+    <% end %>
+    <ul><% runs.each do |run| %><li><%= run.created_at.in_time_zone(@context.time_zone).iso8601 %> · v<%= run.recipe_version %> · <%= run.status.humanize %>
+      <% if run.task_id %><%= link_to t("rails_ai_admin.recipes.task"), admin_task_path(id: run.task_id) %><% end %>
+    </li><% end %></ul>
+  </section>
+<% end %>

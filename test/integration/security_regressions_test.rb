@@ -41,7 +41,7 @@ class SecurityRegressionsTest < ActionDispatch::IntegrationTest
   end
 
   def sample_path(route)
-    values = { resource: "customers", id: @customer.id.to_s, operation: "review", job_ref: SecureRandom.uuid,
+    values = { slug: "order_monitor", resource: "customers", id: @customer.id.to_s, operation: "review", job_ref: SecureRandom.uuid,
       selection_ref: SecureRandom.uuid, surface_id: SecureRandom.uuid, chat_ref: SecureRandom.uuid }
     "/backoffice" + route.path.spec.to_s.sub("(.:format)", "").gsub(/:(\w+)/) { values.fetch(Regexp.last_match(1).to_sym) }
   end

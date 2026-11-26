@@ -104,6 +104,18 @@ module RailsAiAdmin
           @run.operation, @run.target_id, @run.input_payload.fetch("merge_review"))
       end
       @undo_review = Tasks::Review.undo(context: @context, run: @run) if @can_undo
+      if @task.kind == "recipe_run" && !@run
+        recipe_run = RecipeRun.find_by(task_id: @task.id, id: @task.summary_metadata["recipe_run_id"])
+        recipe = recipe_run&.recipe
+        if recipe&.enabled? && recipe.version == recipe_run.recipe_version
+          begin
+            Recipes.authorize!(@context, recipe)
+            @recipe_observation = ActiveRecord::Base.while_preventing_writes { Recipes::Plan.observe(@context, recipe, recipe_run.target_id) }
+          rescue AccessDenied
+            @recipe_observation = nil
+          end
+        end
+      end
       @events = @task.events.to_a
       refs = ([ @task.created_by_actor_ref, @task.assigned_to_actor_ref, @run&.approved_by_ref ] + @events.map(&:actor_ref)).compact.uniq
       @actor_labels = actor_labels(refs)

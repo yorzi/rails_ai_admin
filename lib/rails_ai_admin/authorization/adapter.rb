@@ -102,6 +102,8 @@ module RailsAiAdmin
         false
       end
 
+      def run_recipe?(context:, resource:, slug:) = false
+
       def share_reports?(context:, resource:) = false
 
       # Opens the durable Tasks & Approval Inbox workspace for the current

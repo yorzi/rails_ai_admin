@@ -26,6 +26,7 @@ Gem::Specification.new do |spec|
   # Rails 8.1 from its patched 8.1.4.1 release. The upper bound moves when a
   # newer series passes the suite.
   spec.add_dependency "rails", ">= 8.1.4.1", "< 8.2"
+  spec.add_dependency "fugit", "~> 1.14"
   spec.add_dependency "json_schemer", "~> 2.5"
   # allow_duplicate_key (template override headers) arrived in json 2.13.
   spec.add_dependency "json", ">= 2.13", "< 4"

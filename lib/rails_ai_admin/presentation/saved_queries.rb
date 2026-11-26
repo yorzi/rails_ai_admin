@@ -24,18 +24,19 @@ module RailsAiAdmin
         adapter.respond_to?(:share_reports?) && adapter.share_reports?(context: context, resource: resource) == true
       end
 
-      def evaluate(context, report)
+      def evaluate(context, report, assistant: false)
         raise AccessDenied unless report.owned_by?(context) || report.shared? && report.tenant_ref == context.tenant_ref
         resource = RailsAiAdmin.registry.fetch(report.resource_key)
         access = Authorization::Access.new(context, resource)
         access.authorize!(:index)
+        access.authorize_assistant! if assistant
         ast = report.query_ast
         raise AccessDenied, "INVALID_QUERY" unless report.ast_version == 1 && ast.is_a?(Hash) && ast.to_json.bytesize <= 8192
         kind = ast["kind"]
         keys = OPTIONS[kind]
         raise AccessDenied, "INVALID_QUERY" unless keys && (ast.keys - COMMON - keys - [ "kind" ]).empty?
         args = ast.except("kind").symbolize_keys
-        list = Queries::List.new(context, resource)
+        list = Queries::List.new(context, resource, assistant: assistant)
         if kind == "list"
           page = list.call(**args)
           rows = page.records.filter_map do |record|
@@ -47,7 +48,7 @@ module RailsAiAdmin
           Report.new(report, resource, nil, rows, page.has_next, Time.current)
         else
           aggregate = list.aggregate(**args.reverse_merge(function: "count"))
-          resolver = Fields::Association.new(context, resource)
+          resolver = Fields::Association.new(context, resource, assistant: assistant)
           dimension = aggregate.group_by
           resolver.prime(dimension, aggregate.groups.map(&:key)) if dimension&.scalar_type == :belongs_to
           rows = aggregate.groups.map do |group|

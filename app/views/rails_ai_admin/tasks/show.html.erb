@@ -28,6 +28,7 @@
     <% end %>
   </dl>
 
+  <% if @recipe_observation %><p><%= t("rails_ai_admin.recipes.observation") %> · <%= @recipe_observation.count %></p><% end %>
   <% meta = @task.summary_metadata || {} %>
   <% if meta["total_count"].to_i > 1 %>
     <p><%= t("rails_ai_admin.tasks.progress", succeeded: meta["succeeded_count"].to_i, failed: meta["failed_count"].to_i, total: meta["total_count"].to_i) %></p>

@@ -2,6 +2,10 @@
 <h1><%= t("rails_ai_admin.tasks.title") %></h1>
 <p><%= t("rails_ai_admin.tasks.intro") %></p>
 
+<% if RailsAiAdmin::Recipe.table_exists? && RailsAiAdmin::Recipe.exists?(tenant_ref: @context.tenant_ref, owner_ref: @context.actor_ref) %>
+  <p><%= link_to t("rails_ai_admin.recipes.title"), admin_recipes_path %></p>
+<% end %>
+
 <nav aria-label="<%= t("rails_ai_admin.tasks.tabs_label") %>">
   <ul class="raa-tabs">
     <% RailsAiAdmin::Tasks::Coordinator::TABS.each do |tab| %>

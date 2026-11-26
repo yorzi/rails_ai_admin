@@ -2,6 +2,15 @@
 # Add a locale by copying this file; missing keys fall back as Rails I18n configures.
 en:
   rails_ai_admin:
+    recipes:
+      title: Recipes
+      empty: No recipes are available.
+      enabled: Enabled
+      paused: Paused
+      next: "Next run %{time}"
+      run: Run for review
+      task: Open task
+      observation: "Current result under your permissions"
     reports:
       title: Saved reports
       save: Save report
