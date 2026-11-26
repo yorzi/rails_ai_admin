@@ -58,6 +58,11 @@ module RailsAiAdmin
             finding.summary.is_a?(String) && finding.summary.valid_encoding? && finding.summary.length.between?(1, 300) && !finding.summary.match?(Field::TEXT_CONTROLS)
           raise ConfigurationError, "Invalid quality finding"
         end
+        # A field no grant can ever show would withhold every finding silently.
+        showable = @access.resource.fields.reject(&:hidden?).select { |field| EVIDENCE_TYPES.include?(field.scalar_type) }.map(&:name)
+        unless (finding.evidence_fields - showable).empty?
+          raise ConfigurationError, "Quality evidence must name declared, visible scalar fields"
+        end
         ids = finding.record_ids.map(&:to_s).uniq
         records = relation.where(relation.klass.primary_key => ids).index_by { |record| record.id.to_s }
         return unless records.size == ids.size

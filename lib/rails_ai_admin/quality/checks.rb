@@ -20,6 +20,11 @@ module RailsAiAdmin
         end
         keys = relation.reorder(nil).group(*groups).having(table[relation.klass.primary_key].count.gt(1))
         groups.each { |group| keys = keys.where(group.not_eq(nil)) }
+        # An empty or space-only text value is missing, not a match (see blank_fields).
+        names.each do |name|
+          next unless %i[string text].include?(relation.klass.type_for_attribute(name.to_s).type)
+          keys = keys.where(Arel::Nodes::NamedFunction.new("TRIM", [ table[name] ]).not_eq(""))
+        end
         keys.order(*groups).limit(100).pluck(*groups).lazy.filter_map do |key|
           matches = groups.zip(Array(key)).reduce(relation) { |rows, (group, value)| rows.where(group.eq(value)) }
           pk = relation.klass.primary_key

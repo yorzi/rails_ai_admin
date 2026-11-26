@@ -197,6 +197,50 @@ class DataQualityRulesTest < ActionDispatch::IntegrationTest
     assert_equal false, RailsAiAdmin::Authorization::Adapter.new.run_quality_rule?(context: context, resource: TestResource, rule: :duplicate_names)
   end
 
+  class ExactDuplicateNames < RailsAiAdmin::QualityRule
+    key :exact_duplicate_names
+    resource :customers
+    description "Exactly duplicated customer names"
+
+    def detect(_context, relation)
+      RailsAiAdmin::Quality::Checks.duplicates_by(relation, columns: [ :name ])
+    end
+  end
+
+  class UndeclaredEvidence < RailsAiAdmin::QualityRule
+    key :undeclared_evidence
+    resource :customers
+    description "Customers grouped by an undeclared column"
+
+    def detect(_context, relation)
+      RailsAiAdmin::Quality::Checks.duplicates_by(relation, columns: [ :account_id ])
+    end
+  end
+
+  def test_blank_and_space_only_values_are_not_duplicates
+    with_rules(DuplicateNames, ExactDuplicateNames) do
+      blanks = [ "", "", "   ", "  " ].map { |name| Customer.create!(account_id: 1, name: "placeholder").tap { |record| record.update_column(:name, name) } }
+      duplicate = Customer.create!(account_id: 1, name: " #{@customer.name.upcase} ")
+      exact = Customer.create!(account_id: 1, name: @customer.name)
+      get "/backoffice/customers/quality/rules/duplicate_names"
+      assert_response :success
+      assert_equal [ [ @customer.id, duplicate.id, exact.id ].map { |id| "/backoffice/customers/#{id}" } ], css_select("tbody").map { |body| body.css("th a").map { |link| link["href"] } }
+      get "/backoffice/customers/quality/rules/exact_duplicate_names"
+      assert_response :success
+      assert_equal [ @customer.id, exact.id ].map { |id| "/backoffice/customers/#{id}" }, css_select("tbody th a").map { |link| link["href"] }
+      blanks.each { |record| assert_select "a[href='/backoffice/customers/#{record.id}']", count: 0 }
+    end
+  end
+
+  def test_evidence_fields_must_be_declared_and_showable
+    with_rules(UndeclaredEvidence) do
+      Customer.create!(account_id: 1, name: "Another")
+      get "/backoffice/customers/quality/rules/undeclared_evidence"
+      assert_response :service_unavailable
+      refute_includes response.body, "No visible findings"
+    end
+  end
+
   def test_withholds_duplicate_group_with_one_unshowable_record
     with_rules do
       Customer.create!(account_id: 1, name: @customer.name, points: -1)
