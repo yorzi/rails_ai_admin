@@ -1,4 +1,5 @@
-<%= turbo_frame_tag "raa_assistant_turn_status", data: { transcript_version: @transcript_version } do %>
+<%= turbo_frame_tag "raa_assistant_turn_status" do %>
+  <span hidden data-transcript-version="<%= @transcript_version %>"></span>
   <% if @current && @streaming_text %>
     <ul class="raa-chat-log raa-chat-live" role="list">
       <li class="raa-chat-message raa-chat-assistant raa-chat-streaming" aria-busy="true"><span class="raa-chat-role"><%= t("rails_ai_admin.assistant.roles.assistant") %></span><div class="raa-chat-text"><%= h(@streaming_text) %></div></li>

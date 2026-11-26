@@ -280,11 +280,11 @@ class ConversationController extends Controller {
 class PollController extends Controller {
   static values = { url: String, statusFrame: String, statusUrl: String };
   connect() {
-    this.knownVersion = this.statusElement()?.dataset.transcriptVersion || null;
+    this.knownVersion = this.transcriptVersion();
     this.loaded = (event) => {
       const statusEl = this.statusElement();
       if (statusEl && event?.target === statusEl) {
-        const nextVersion = statusEl.dataset.transcriptVersion || null;
+        const nextVersion = this.transcriptVersion();
         if (this.knownVersion && nextVersion && nextVersion !== this.knownVersion) {
           this.knownVersion = nextVersion;
           if (this.element.getAttribute("src")) this.element.reload();
@@ -293,7 +293,7 @@ class PollController extends Controller {
         }
         this.knownVersion = nextVersion || this.knownVersion;
       } else if (statusEl) {
-        this.knownVersion = statusEl.dataset.transcriptVersion || this.knownVersion;
+        this.knownVersion = this.transcriptVersion() || this.knownVersion;
       }
       this.schedule();
     };
@@ -301,6 +301,10 @@ class PollController extends Controller {
     this.element.addEventListener("turbo:frame-load", this.loaded);
     this.element.addEventListener("turbo:submit-end", this.changed);
     this.schedule();
+  }
+  transcriptVersion() {
+    // Turbo replaces the frame contents and retains the frame element.
+    return this.statusElement()?.querySelector("[data-transcript-version]")?.dataset.transcriptVersion || null;
   }
   statusElement() {
     return this.hasStatusFrameValue ? this.element.querySelector(`#${CSS.escape(this.statusFrameValue)}`) : null;

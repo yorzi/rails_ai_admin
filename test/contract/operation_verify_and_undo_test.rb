@@ -133,6 +133,7 @@ class OperationVerifyAndUndoTest < Minitest::Test
   def setup
     reset_database
     VerifyAndUndoPolicy.denied = false
+    VerifyAndUndoPolicy.receipt_grant = true
     VerifyAndUndoPolicy.allow_undo = true
     VerifyAndUndoPolicy.deny_restore = false
     MergeCustomersTestOperation.verify_mode = :pass
