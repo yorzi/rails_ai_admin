@@ -42,6 +42,11 @@
         <p class="raa-surface-meta"><%= t("rails_ai_admin.surfaces.metric_card.truncated") %></p>
       <% end %>
     <% end %>
+    <% if RailsAiAdmin::SavedQuery.table_exists? %>
+      <% definition = props.slice("function", "field", "group_by", "period", "period_field").merge("kind" => "metric", "scope" => props["scope"] || RailsAiAdmin::Queries::NamedScope::NONE, "search" => props["query"]) %>
+      <% { "filters" => "filters_json", "any_filters" => "any_json", "relation_filters" => "relation_filters_json" }.each { |key, prop| definition[key] = JSON.parse(props[prop]) if props[prop] } %>
+      <%= render "rails_ai_admin/saved_queries/save", resource: metric.resource, context: RailsAiAdmin::Integrations::ToolViews.current_context, definition: definition.compact %>
+    <% end %>
   </div>
 <% else %>
   <p><%= t("rails_ai_admin.surfaces.no_longer_available") %></p>

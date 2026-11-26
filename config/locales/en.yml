@@ -2,6 +2,18 @@
 # Add a locale by copying this file; missing keys fall back as Rails I18n configures.
 en:
   rails_ai_admin:
+    reports:
+      title: Saved reports
+      save: Save report
+      name: Report name
+      share: Share with this tenant
+      pin: Pin to Overview
+      unpin: Remove from Overview
+      delete: Delete report
+      value: Value
+      empty: No reports are available.
+      definition: Query definition
+      truncated: Only the first results are shown.
     quality:
       title: Data quality
       keep: Keep this record

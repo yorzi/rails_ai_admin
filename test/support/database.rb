@@ -181,6 +181,7 @@ module DatabaseHelpers
   def reset_database
     UuidCustomer.delete_all
     ActiveRecord::MigrationContext.new(File.expand_path("../../db/migrate", __dir__)).migrate
+    RailsAiAdmin::SavedQuery.delete_all
     RailsAiAdmin::ImportDraft.delete_all
     RailsAiAdmin::BatchItem.delete_all
     Invoice.delete_all

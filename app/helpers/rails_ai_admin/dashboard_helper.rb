@@ -9,11 +9,16 @@ module RailsAiAdmin
     CHART_HEIGHT = 120
 
     def admin_trend_chart(trend)
-      count = trend.days.size
+      admin_bar_chart(trend.days)
+    end
+
+    def admin_bar_chart(rows)
+      count = rows.size
+      max = [ rows.map(&:last).max, 1 ].max
       gap = 2.0
       bar = (CHART_WIDTH - gap * (count - 1)) / count
-      bars = trend.days.each_with_index.map do |(_day, value), index|
-        height = value.zero? ? 0 : [ (value.fdiv(trend.max) * (CHART_HEIGHT - 4)).round(1), 2 ].max
+      bars = rows.each_with_index.map do |(_day, value), index|
+        height = value.zero? ? 0 : [ (value.fdiv(max) * (CHART_HEIGHT - 4)).round(1), 2 ].max
         tag.rect(x: (index * (bar + gap)).round(2), y: (CHART_HEIGHT - height).round(2), width: bar.round(2), height: height, rx: 1, class: "raa-bar")
       end
       baseline = tag.line(x1: 0, y1: CHART_HEIGHT - 0.5, x2: CHART_WIDTH, y2: CHART_HEIGHT - 0.5, class: "raa-axis")

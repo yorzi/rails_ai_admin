@@ -7,6 +7,7 @@ module RailsAiAdmin
     def index
       visible = RailsAiAdmin.registry.resources.reject { |resource| resource.navigation.hidden }
       @widgets = Presentation::Dashboard.build(@context, visible)
+      @reports = SavedQuery.table_exists? ? Presentation::SavedQueries.renderable(@context, SavedQuery.visible(@context).where(pinned: true)) : []
       @counts = visible.each_with_object({}) do |resource, counts|
         next unless resource.index.count == :exact
         counts[resource.key.to_s] = Queries::List.new(@context, resource).count

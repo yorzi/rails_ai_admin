@@ -14,7 +14,7 @@ module RailsAiAdmin
         "status_page" => [ "rails_ai_admin/statuses/show.html.erb", %i[admin_status status_sign_in_path], [] ],
         "session_links" => [ "rails_ai_admin/shared/_session.html.erb", %i[context], [] ],
         "resource_navigation" => [ "rails_ai_admin/shared/_navigation.html.erb", [], %i[groups] ],
-        "dashboard" => [ "rails_ai_admin/dashboard/index.html.erb", %i[context counts widgets], [] ],
+        "dashboard" => [ "rails_ai_admin/dashboard/index.html.erb", %i[context counts widgets reports], [] ],
         "audit_log" => [ "rails_ai_admin/audit/index.html.erb", %i[context log filters page actor_labels], [] ],
         "resource_import" => [ "rails_ai_admin/imports/new.html.erb", %i[context resource import report problem], [] ],
         "search" => [ "rails_ai_admin/search/index.html.erb", %i[context query sections], [] ],
@@ -53,9 +53,9 @@ module RailsAiAdmin
         revision = if key == "layout"
           7 # 6: contextual assistant drawer; 7: durable tasks & approval inbox nav link
         elsif key == "dashboard"
-          4 # counts, widgets
+          5 # pinned saved reports
         elsif key == "resource_index"
-          10 # quality_rules_available
+          11 # save the current list as a report
         elsif key == "resource_import"
           2 # reviewed upload and legacy large-file controls
         elsif key == "resource_show"

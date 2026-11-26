@@ -56,6 +56,7 @@ module RailsAiAdmin
           query: { type: %w[string null], maxLength: 200 },
           sort: { type: %w[string null], maxLength: 100 },
           direction: { type: %w[string null], enum: [ "asc", "desc", nil ] },
+          report_definition: { type: "string", maxLength: 8192 },
           omitted: { type: "integer", minimum: 0 }
         }
       }.freeze
@@ -421,7 +422,7 @@ module RailsAiAdmin
             props: { "resource" => resource.key.to_s, "record_id" => record.id.to_s })
         end
 
-        def present_record_table(context:, resource:, ids:, scope:, query:, sort:, direction:, omitted:, chat:, call_id:)
+        def present_record_table(context:, resource:, ids:, scope:, query:, sort:, direction:, omitted:, chat:, call_id:, report_definition: nil)
           return unless chat && call_id.is_a?(String) && chat.current_for?(context)
           present_read_surface(context: context, chat: chat, call_id: call_id, key: RECORD_TABLE_KEY,
             props: {
@@ -431,8 +432,9 @@ module RailsAiAdmin
               "query" => query.presence&.to_s&.first(200),
               "sort" => sort&.to_s,
               "direction" => %w[asc desc].include?(direction) ? direction : nil,
-              "omitted" => omitted.to_i
-            })
+              "omitted" => omitted.to_i,
+              "report_definition" => report_definition
+            }.compact)
         end
 
         def present_metric_card(context:, resource:, result:, query:, filters:, any_filters:, relation_filters:, chat:, call_id:)

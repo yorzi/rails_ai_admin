@@ -102,6 +102,8 @@ module RailsAiAdmin
         false
       end
 
+      def share_reports?(context:, resource:) = false
+
       # Opens the durable Tasks & Approval Inbox workspace for the current
       # tenant. Individual tasks are still filtered by creator, approval, and
       # operation receipt grants on their target resource.

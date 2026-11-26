@@ -417,9 +417,11 @@ module RailsAiAdmin
           "page" => result.number, "offset" => offset, "has_more" => result.has_next,
           "omitted" => omitted, "records" => records }
         if RailsAiAdmin.configuration.surfaces && @session.chat && tool_call && records.any?
+          definition = { kind: "list", search: query.presence, scope: list_scope(scope), sort: result.sort, direction: result.direction,
+            filters: wire_filters(filters), any_filters: wire_any_filters(any), relation_filters: wire_relation_filters(relation_filters) }.compact.to_json
           surface = present_read_view { Assistant.tool_views.present_record_table(context: @session.context, resource: resource,
             ids: records.map { |entry| entry["id"] }, scope: result.scope, query: query.presence, sort: result.sort,
-            direction: result.direction, omitted: omitted, chat: @session.chat, call_id: tool_call.id) }
+            direction: result.direction, omitted: omitted, report_definition: (definition if definition.bytesize <= 8192), chat: @session.chat, call_id: tool_call.id) }
           payload["surface"] = surface.id if surface
         end
         payload

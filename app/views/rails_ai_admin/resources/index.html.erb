@@ -34,6 +34,10 @@
   </ul></nav>
   <% if navigation_state["scope"] == RailsAiAdmin::Queries::NamedScope::NONE %><p class="raa-notice" role="status"><%= t("rails_ai_admin.resources.index.no_list_tab") %></p><% end %>
 <% end %>
+<% if RailsAiAdmin::SavedQuery.table_exists? %>
+  <%= link_to t("rails_ai_admin.reports.title"), saved_queries_path(resource: @resource.key) %>
+  <%= render "rails_ai_admin/saved_queries/save", resource: @resource, context: @context, definition: { kind: "list", search: navigation_state["q"], filters: navigation_state["filter"], sort: navigation_state["sort"], direction: navigation_state["direction"], scope: @current_scope || RailsAiAdmin::Queries::NamedScope::NONE }.compact %>
+<% end %>
 <% if @saved_views %>
   <%# Saved views stay one line of links; saving folds away like filters. %>
   <% current_view = navigation_state.except("page") %>

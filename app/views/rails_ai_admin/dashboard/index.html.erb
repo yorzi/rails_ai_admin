@@ -8,6 +8,7 @@
   <% end %>
 </ul>
 <% if resource_navigation.empty? %><p><%= t("rails_ai_admin.dashboard.empty") %></p><% end %>
+<% @reports.each do |report| %><%= render "rails_ai_admin/saved_queries/report", report: report %><% end %>
 <% @widgets.each do |section| %>
 <section class="raa-dashboard-section" aria-labelledby="raa-dashboard-<%= section.resource.key %>">
   <h2 id="raa-dashboard-<%= section.resource.key %>"><%= link_to section.resource.label, resources_path(resource: section.resource.key) %></h2>

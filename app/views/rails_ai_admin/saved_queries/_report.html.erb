@@ -1,0 +1,19 @@
+<section class="raa-dashboard-section">
+  <h2><%= report.query.name %></h2>
+  <p><%= report.resource.label %> · <%= @context.time_zone %> · <%= l(report.evaluated_at.in_time_zone(@context.time_zone), format: :short) %></p>
+  <% list = report.query.query_ast["kind"] == "list" %>
+  <% unless list %><p class="raa-metric-value"><%= report.value.nil? ? "—" : number_with_delimiter(report.value) %></p><% end %>
+  <% if report.rows.any? %>
+    <% if !list && report.rows.all? { |_, value| value.is_a?(Numeric) && value >= 0 } %>
+      <%= admin_bar_chart(report.rows) %>
+    <% end %>
+    <table><caption><%= report.query.name %></caption><thead><tr><th scope="col"><%= report.resource.label %></th><% unless list %><th scope="col"><%= t("rails_ai_admin.reports.value") %></th><% end %></tr></thead>
+      <tbody><% report.rows.each do |label, value| %><tr>
+        <% if list %><td><%= link_to label, resource_path(resource: report.resource.key, id: value) %></td>
+        <% else %><th scope="row"><%= label %></th><td><%= value.nil? ? "—" : number_with_delimiter(value) %></td><% end %>
+      </tr><% end %></tbody>
+    </table>
+  <% end %>
+  <% if report.truncated %><p><%= t("rails_ai_admin.reports.truncated") %></p><% end %>
+  <details><summary><%= t("rails_ai_admin.reports.definition") %></summary><code><%= report.query.query_ast.to_json %></code></details>
+</section>

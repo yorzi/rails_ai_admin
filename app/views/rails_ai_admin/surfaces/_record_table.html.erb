@@ -42,6 +42,9 @@
     <% if table.omitted.positive? %>
       <p class="raa-surface-meta"><%= t("rails_ai_admin.surfaces.record_table.omitted", count: table.omitted) %></p>
     <% end %>
+    <% if props["report_definition"] && RailsAiAdmin::SavedQuery.table_exists? %>
+      <%= render "rails_ai_admin/saved_queries/save", resource: table.resource, context: RailsAiAdmin::Integrations::ToolViews.current_context, definition: JSON.parse(props.fetch("report_definition")) %>
+    <% end %>
   </div>
 <% else %>
   <p><%= t("rails_ai_admin.surfaces.no_longer_available") %></p>

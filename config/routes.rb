@@ -49,6 +49,10 @@ RailsAiAdmin::Engine.routes.draw do
   post ":resource/operations/:operation/preflight", to: "collection_operations#preflight", as: :collection_operation_preflight
   post ":resource/operations/:operation/execute", to: "collection_operations#execute", as: :collection_operation_execute
   post ":resource/selections", to: "selections#create", as: :capture_selection
+  get ":resource/reports", to: "saved_queries#index", as: :saved_queries
+  post ":resource/reports", to: "saved_queries#create"
+  patch ":resource/reports/:id", to: "saved_queries#update", as: :saved_query
+  delete ":resource/reports/:id", to: "saved_queries#destroy"
   post ":resource/views", to: "saved_views#create", as: :saved_views
   get ":resource/quality/rules", to: "quality_rules#index", as: :quality_rules
   get ":resource/quality/rules/:rule/merge/:group/:id", to: "quality_rules#merge", as: :quality_merge
