@@ -55,23 +55,27 @@ class AssistantEvalTest < ActiveSupport::TestCase
     options.merge!(adapter: "AssistantEvalTest::LiveAssistant", model: ENV.fetch("RAA_EVAL_MODEL")) if LIVE
     with_assistant(**options) do
       RailsAiAdmin.configuration.assistant_provider = ENV.fetch("RAA_EVAL_PROVIDER", "openai") if LIVE
-      chat = new_chat
-      unless LIVE
-        question.fetch("script").each do |step|
-          step.key?("tool") ? LLMFixture.tool(step["tool"], AssistantEval.interpolate(step["args"], @ids)) : LLMFixture.reply(step.fetch("reply"))
-        end
-      end
-      before = AssistantEval.business_digest
-      turn = admit(chat, question.fetch("question"))
-      drain(chat)
-      assert_equal "completed", turn.reload.status, "#{question['id']}: #{turn.error_code}"
-      AssistantEval.grade(question, chat, before)
+      AssistantEval.with_quality(question) { graded(question) }
     end
   end
 
-  def test_the_set_has_thirty_distinct_questions
+  def graded(question)
+    chat = new_chat
+    unless LIVE
+      question.fetch("script").each do |step|
+        step.key?("tool") ? LLMFixture.tool(step["tool"], AssistantEval.interpolate(step["args"], @ids)) : LLMFixture.reply(step.fetch("reply"))
+      end
+    end
+    before = AssistantEval.business_digest
+    turn = admit(chat, question.fetch("question"))
+    drain(chat)
+    assert_equal "completed", turn.reload.status, "#{question['id']}: #{turn.error_code}"
+    AssistantEval.grade(question, chat, before)
+  end
+
+  def test_the_set_has_thirty_three_distinct_questions
     ids = AssistantEval.questions.map { |question| question.fetch("id") }
-    assert_equal 30, ids.size
+    assert_equal 33, ids.size
     assert_equal ids.uniq, ids
   end
 

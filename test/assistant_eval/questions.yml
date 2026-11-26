@@ -1,5 +1,5 @@
-# Admin assistant evaluation set (improvement plan, Phase 3). Thirty fixed
-# questions over the synthetic dataset in test/support/assistant_eval.rb.
+# Admin assistant evaluation set (improvement plan, Phase 3). Thirty-three
+# fixed questions over the synthetic dataset in test/support/assistant_eval.rb.
 #
 # `script` is the expected tool sequence and a reference answer. Offline, the
 # suite replays it through the real RubyLLM tool loop (test/contract/
@@ -16,6 +16,7 @@
 #   proposal       true when exactly one unconfirmed assistant intent must exist
 #   bulk_proposal  the number of records the one propose_bulk_change review must cover
 #   bulk_at_most   the most propose_bulk_change reviews allowed (default 0)
+# A question marked `quality: true` also registers AssistantEval::ZeroPoints.
 # Every question also checks that no business data changed and that no other
 # tenant's value or ungranted field reached a tool result or the answer.
 
@@ -283,8 +284,7 @@
 - id: invoices-of-named-customer
   question: List the invoice numbers of Judy Jones.
   script:
-    - { tool: search_records, args: { resource: eval_customers, query: Judy } }
-    - { tool: search_records, args: { resource: eval_invoices, filters: { customer: { eq: "{{judy}}" } } } }
+    - { tool: search_records, args: { resource: eval_invoices, relation_filters: { customer: { _query: "Judy Jones" } } } }
     - { reply: "Judy Jones has one invoice, INV-5." }
   expect:
     tools: [search_records]
@@ -309,3 +309,36 @@
     - { reply: "5 customers are inactive or have more than 30 points." }
   expect:
     answer_all: ["5"]
+
+- id: active-customers-without-invoices
+  question: Which active customers have no invoices?
+  script:
+    - { tool: search_records, args: { resource: eval_customers, filters: { active: { eq: true } }, relation_filters: { invoices: { _exists: false } } } }
+    - { reply: "Dave Wilson, Erin Johnson, Grace Hopper and Zoë Müller have no invoices." }
+  expect:
+    tools: [search_records]
+    answer_all: ["Dave", "Erin", "Grace", "Müller"]
+    answer_none: ["Alice", "Carol", "Heidi", "Judy", "Bob"]
+
+- id: monthly-counts-by-status
+  question: For each month, how many customers were created, split into active and inactive?
+  script:
+    - { tool: aggregate_records, args: { resource: eval_customers, function: count, group_by: active, period_field: created_at, period: month } }
+    - { reply: "January: 2 active, 1 inactive. February: 1 active, 2 inactive. March: 3 active. April: 2 active, 1 inactive." }
+  expect:
+    tools: [aggregate_records]
+    results: [{ tool: aggregate_records, key: count, equals: 12 }]
+    answer_all: ["3"]
+
+- id: quality-check-findings
+  quality: true
+  question: Run the data quality checks for customers and tell me which customers they flag.
+  script:
+    - { tool: list_quality_rules, args: { resource: eval_customers } }
+    - { tool: run_quality_rule, args: { resource: eval_customers, rule: zero_points } }
+    - { reply: "The zero points check flags Bob Brown and Grace Hopper." }
+  expect:
+    tools: [run_quality_rule]
+    tools_absent: [propose_operation, propose_change, propose_bulk_change]
+    answer_all: ["Bob", "Grace"]
+    answer_none: ["Alice", "Carol"]

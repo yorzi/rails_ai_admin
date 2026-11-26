@@ -1,5 +1,15 @@
 # Compatibility
 
+## 2026-11-26 — 0.8 development recordings
+
+Not a release candidate record. On Ruby 4.0.10 with Rails 8.1.4.1, RubyLLM 2.2.3 and the unchanged prompt version 4, new OpenRouter recordings cover the 0.8 assistant features. Only the cassettes named here were recorded again.
+
+| Check | Executed result |
+| --- | --- |
+| Relation filter schema | The relation scenario was recorded again so the tool definitions carry the 0.8 `relation_filters` schema (`oneOf`, `patternProperties`, `minProperties`). OpenRouter accepted it for `openai/gpt-6-luna`, `anthropic/claude-haiku-5.5` and `google/gemini-3.8-flash`; all three answered INV-3 and INV-4 only. GPT-6 Luna and Claude Haiku used `relation_filters`; Gemini searched customers by points and then listed invoices |
+| Evaluation set | 33 questions. GPT-6 Luna answered the three new ones correctly: `relation_filters: {invoices: {_exists: false}}` for active customers without invoices, one `aggregate_records` cross-tab with `period_field` for monthly counts by status, and `list_quality_rules` then `run_quality_rule`. The named-customer invoices were found with a customer search and an invoice filter, not `_query`. 32 of 33 pass; `count-inactive` stays the recorded miss |
+| Cost | About US$0.03 for all new recordings |
+
 ## 2026-11-25 — 0.6.0 development recordings
 
 Not a release candidate record. On Ruby 4.0.10 with Rails 8.1.4.1, RubyLLM 2.2.3

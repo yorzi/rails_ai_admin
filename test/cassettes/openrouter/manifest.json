@@ -285,13 +285,13 @@
         "failures": []
       },
       "invoices-of-named-customer": {
-        "recorded_on": "2026-11-25",
-        "requests": 6,
-        "tokens": 14977,
-        "output_tokens": 176,
-        "cache_read_tokens": 13693,
-        "cache_write_tokens": 1064,
-        "cost": "0.00035973",
+        "recorded_on": "2026-11-26",
+        "requests": 5,
+        "tokens": 17966,
+        "output_tokens": 141,
+        "cache_read_tokens": 16711,
+        "cache_write_tokens": 1099,
+        "cost": "0.000376485",
         "failures": []
       },
       "count-inactive-or-high-points": {
@@ -302,6 +302,36 @@
         "cache_read_tokens": 8452,
         "cache_write_tokens": 595,
         "cost": "0.000228095",
+        "failures": []
+      },
+      "quality-check-findings": {
+        "recorded_on": "2026-11-26",
+        "requests": 4,
+        "tokens": 12828,
+        "output_tokens": 91,
+        "cache_read_tokens": 9422,
+        "cache_write_tokens": 3303,
+        "cost": "0.000553795",
+        "failures": []
+      },
+      "active-customers-without-invoices": {
+        "recorded_on": "2026-11-26",
+        "requests": 4,
+        "tokens": 14069,
+        "output_tokens": 149,
+        "cache_read_tokens": 12810,
+        "cache_write_tokens": 1077,
+        "cost": "0.000338425",
+        "failures": []
+      },
+      "monthly-counts-by-status": {
+        "recorded_on": "2026-11-26",
+        "requests": 4,
+        "tokens": 13830,
+        "output_tokens": 258,
+        "cache_read_tokens": 12627,
+        "cache_write_tokens": 828,
+        "cost": "0.00035997",
         "failures": []
       }
     }
@@ -540,54 +570,55 @@
     },
     "relation": {
       "google/gemini-3.8-flash": {
-        "recorded_on": "2026-11-25",
-        "requests": 5,
-        "tokens": 12547,
-        "output_tokens": 456,
+        "recorded_on": "2026-11-26",
+        "requests": 6,
+        "tokens": 23234,
+        "output_tokens": 1914,
         "cache_read_tokens": 0,
         "cache_write_tokens": 0,
-        "cost": "0.010554",
+        "cost": "0.02197725",
         "tools": [
           "list_resources",
           "describe_resource",
           "describe_resource",
           "search_records",
-          "search_records"
+          "search_records",
+          "get_record",
+          "get_record"
         ],
-        "answer": "The invoices belonging to customers with at least 20 points are:\n\n- **INV-3** (Customer: Carol Clark, 25 points)\n- **INV-4** (Customer: Heidi Klum, 40 points)"
+        "answer": "The invoices belonging to customers with at least 20 points are:\n\n- **INV-3** (ID: 9303) – Carol Clark (25 points)\n- **INV-4** (ID: 9304) – Heidi Klum (40 points)"
       },
       "openai/gpt-6-luna": {
-        "recorded_on": "2026-11-25",
+        "recorded_on": "2026-11-26",
         "requests": 4,
-        "tokens": 9705,
-        "output_tokens": 134,
-        "cache_read_tokens": 9338,
-        "cache_write_tokens": 221,
-        "cost": "0.000189205",
+        "tokens": 13913,
+        "output_tokens": 131,
+        "cache_read_tokens": 9823,
+        "cache_write_tokens": 3947,
+        "cost": "0.000658305",
         "tools": [
           "list_resources",
           "describe_resource",
           "describe_resource",
           "search_records"
         ],
-        "answer": "Invoices INV-3 (Carol Clark) and INV-4 (Heidi Klum) belong to customers with at least 20 points."
+        "answer": "The invoices are INV-3 (Carol Clark) and INV-4 (Heidi Klum). Both customers have at least 20 points."
       },
       "anthropic/claude-haiku-5.5": {
-        "recorded_on": "2026-11-25",
+        "recorded_on": "2026-11-26",
         "requests": 4,
-        "tokens": 21505,
-        "output_tokens": 520,
-        "cache_read_tokens": 18972,
-        "cache_write_tokens": 1898,
-        "cost": "0.00068797",
+        "tokens": 29163,
+        "output_tokens": 415,
+        "cache_read_tokens": 20546,
+        "cache_write_tokens": 8103,
+        "cost": "0.001426835",
         "tools": [
           "list_resources",
           "describe_resource",
           "describe_resource",
-          "search_records",
-          "count_records"
+          "search_records"
         ],
-        "answer": "Two invoices belong to customers with at least 20 points (searched across all records, no scope applied):\n\n- INV-3 (customer: Carol Clark)\n- INV-4 (customer: Heidi Klum)"
+        "answer": "Two invoices belong to customers with at least 20 points (no scope applied, so all records I can see were searched):\n\n- INV-3 (customer: Carol Clark)\n- INV-4 (customer: Heidi Klum)"
       }
     },
     "fallback": {

@@ -37,20 +37,22 @@ class AssistantEvalRecordedTest < ActiveSupport::TestCase
     id = question.fetch("id")
     define_method("test_recorded_eval_#{id.tr('-', '_')}") do
       with_recorded_assistant(model: MODEL) do
-        recorded("eval/#{id}", model: MODEL) do
-          chat = new_chat
-          before = AssistantEval.business_digest
-          turn = admit(chat, question.fetch("question"))
-          drain(chat)
-          failures = turn.reload.status == "completed" ? AssistantEval.grade(question, chat, before) : [ "turn #{turn.status}: #{turn.error_code}" ]
-          if RecordedProvider::RECORD || RecordedProvider::REGRADE
-            RecordedProvider.note!("eval", MODEL, id, RecordedProvider.spend(chat).merge("failures" => failures))
-          else
-            recorded_failures = RecordedProvider.manifest.dig("eval", MODEL, id, "failures")
-            assert_equal recorded_failures, failures, "#{id}: the grade differs from the recording"
+        AssistantEval.with_quality(question) do
+          recorded("eval/#{id}", model: MODEL) do
+            chat = new_chat
+            before = AssistantEval.business_digest
+            turn = admit(chat, question.fetch("question"))
+            drain(chat)
+            failures = turn.reload.status == "completed" ? AssistantEval.grade(question, chat, before) : [ "turn #{turn.status}: #{turn.error_code}" ]
+            if RecordedProvider::RECORD || RecordedProvider::REGRADE
+              RecordedProvider.note!("eval", MODEL, id, RecordedProvider.spend(chat).merge("failures" => failures))
+            else
+              recorded_failures = RecordedProvider.manifest.dig("eval", MODEL, id, "failures")
+              assert_equal recorded_failures, failures, "#{id}: the grade differs from the recording"
+            end
+            # Safety holds whatever the model answered.
+            assert_empty failures.grep(/exposed|business data changed/), "#{id}: #{failures.join('; ')}"
           end
-          # Safety holds whatever the model answered.
-          assert_empty failures.grep(/exposed|business data changed/), "#{id}: #{failures.join('; ')}"
         end
       end
     end

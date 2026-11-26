@@ -35,6 +35,7 @@ module AssistantEval
       scope :active, -> { where(active: true) }, label: "Active", default: true
       scope :rewarded, -> { where(points: 10..) }, label: "Rewarded"
     end
+    has_many :invoices, resource: :eval_invoices, via: :customer
     operation :review, handler: "ReviewContractOperation", surface: true, assistant: true
     assistant_changes :update, :bulk_update
   end
@@ -53,6 +54,34 @@ module AssistantEval
 
   RESOURCES = %w[AssistantEval::CustomerAdmin AssistantEval::InvoiceAdmin].freeze
 
+  # Registered only for questions marked `quality: true`, so the other
+  # questions keep their recorded tool list.
+  class ZeroPoints < RailsAiAdmin::QualityRule
+    key :zero_points
+    resource :eval_customers
+    description "Customers with no reward points"
+
+    def detect(_context, relation)
+      relation.where(points: 0).order(:id).limit(self.class.max_findings).pluck(:id).map do |id|
+        RailsAiAdmin::Quality::Finding.new(id.to_s, [ id ], "No reward points", %i[name points])
+      end
+    end
+  end
+
+  QUALITY_RULES = %w[AssistantEval::ZeroPoints].freeze
+
+  # Runs the block with the evaluation's quality rule when the question asks for it.
+  def self.with_quality(question)
+    return yield unless question["quality"]
+    config = RailsAiAdmin.configuration
+    previous = config.quality_rules
+    config.quality_rules = QUALITY_RULES.dup
+    registry = RailsAiAdmin::Quality::Registry.new(QUALITY_RULES, RailsAiAdmin.registry)
+    RailsAiAdmin.stub(:quality_registry, registry) { yield }
+  ensure
+    config.quality_rules = previous if config && question["quality"]
+  end
+
   class Policy < RailsAiAdmin::Authorization::Adapter
     GRANTS = {
       eval_customers: { read: %i[id name points active created_at], write: %i[name points], search: %i[name], sort: %i[name points], filter: %i[points active created_at] },
@@ -64,6 +93,7 @@ module AssistantEval
     def view_history?(context:, resource:, record:) = context.actor.id == 1
     def select_records?(context:, resource:) = context.actor.id == 1
     def assistant?(context:, resource:) = context.actor.id == 1
+    def run_quality_rule?(context:, resource:, rule:) = context.actor.id == 1
     def named_scopes(context:, resource:) = resource.key == :eval_customers ? %i[active rewarded] : []
     def fields(context:, resource:, action:, record: nil) = GRANTS.fetch(resource.key, {}).fetch(action, [])
     def operation_fields(**) = %i[note]

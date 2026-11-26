@@ -619,6 +619,8 @@ Gemini reports no cache reads. The recorded evaluation run of `openai/gpt-6-luna
 passes 29 of 30 questions; `count-inactive` answered correctly with
 `aggregate_records` instead of the expected `count_records`.
 
+Recordings made on 2026-11-26 send the 0.8 relation filter schema to all three models, which answer the relation question correctly. GPT-6 Luna found active customers without invoices with `_exists: false`, split monthly counts by status with one `period_field` cross-tab and ran a quality check; the recorded evaluation passes 32 of 33 questions.
+
 Recordings made on 2026-11-25 cover the 0.6 features. With the drawer's page
 context of a record, `openai/gpt-6-luna`, `anthropic/claude-haiku-5.5` and
 `google/gemini-3.8-flash` each read that record by id and found its invoices
