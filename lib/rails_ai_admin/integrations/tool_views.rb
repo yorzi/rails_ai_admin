@@ -17,6 +17,7 @@ module RailsAiAdmin
       KEY = "raa_operation_review"
       RECORD_CARD_KEY = "raa_record_card"
       RECORD_TABLE_KEY = "raa_record_table"
+      CHART_VIEW_KEY = "raa_chart_view"
       METRIC_CARD_KEY = "raa_metric_card"
       TASK_PROGRESS_KEY = "raa_task_progress"
       EXECUTION_RECEIPT_KEY = "raa_execution_receipt"
@@ -120,6 +121,7 @@ module RailsAiAdmin
         MERGE_REVIEW_KEY => { description: "Compare duplicate records for a reviewed merge", schema: MERGE_REVIEW_SCHEMA, partial: "rails_ai_admin/surfaces/merge_review" }.freeze,
         RECORD_CARD_KEY => { description: "Admin record summary card", schema: RECORD_CARD_SCHEMA, partial: RECORD_CARD_PARTIAL }.freeze,
         RECORD_TABLE_KEY => { description: "Admin bounded record table", schema: RECORD_TABLE_SCHEMA, partial: RECORD_TABLE_PARTIAL }.freeze,
+        CHART_VIEW_KEY => { description: "Admin chart with a live data table", schema: METRIC_CARD_SCHEMA, partial: METRIC_CARD_PARTIAL }.freeze,
         METRIC_CARD_KEY => { description: "Admin aggregate metric card", schema: METRIC_CARD_SCHEMA, partial: METRIC_CARD_PARTIAL }.freeze,
         EXECUTION_RECEIPT_KEY => { description: "Admin committed execution receipt", schema: EXECUTION_RECEIPT_SCHEMA, partial: EXECUTION_RECEIPT_PARTIAL }.freeze
       }.freeze
@@ -443,7 +445,7 @@ module RailsAiAdmin
           any_json = any_filters&.any? ? JSON.generate(any_filters) : nil
           relation_filters_json = relation_filters&.any? ? JSON.generate(relation_filters) : nil
           return if [ filters_json, any_json, relation_filters_json ].any? { |text| text && text.bytesize > 4096 }
-          present_read_surface(context: context, chat: chat, call_id: call_id, key: METRIC_CARD_KEY,
+          present_read_surface(context: context, chat: chat, call_id: call_id, key: result.group_by ? CHART_VIEW_KEY : METRIC_CARD_KEY,
             props: {
               "resource" => resource.key.to_s,
               "function" => result.function.to_s,

@@ -102,6 +102,7 @@ module RailsAiAdmin
           end
           access = Authorization::Access.new(context, resource)
           access.authorize_approval!(definition.key, nil, proposed_by_actor_ref: proposer_ref) if mode != "self"
+          Recipes.check_approval!(run) if run.origin == "recipe"
           values = collection_input(context, resource, definition, input)
           raise Rejected.new("APPROVAL_INVALIDATED") unless InputSchema.digest(values) == run.input_digest
           selection = Selections::Builder.new.validate_for_admission(context: context, selection_ref: run.selection_id,

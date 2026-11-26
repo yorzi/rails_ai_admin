@@ -16,17 +16,19 @@ module RailsAiAdmin
         end
         attrs.each_slice(100) { |slice| ImportRow.insert_all!(slice) }
         draft.update!(created_count: 0, execution_zone: context.time_zone, payload_blob: nil, expires_at: 24.hours.from_now)
+        sync_task!(draft)
       end
 
       def process(id)
         draft = ImportDraft.find_by(id: id)
         return unless draft
-        CHUNK.times do
+        CHUNK.times do |index|
           done = draft.with_lock do
             row = draft.rows.where(status: "queued").order(:number).first
             next true unless row
             if draft.expires_at.past?
               fail_pending(draft, "APPROVAL_EXPIRED")
+              sync_task!(draft)
               next true
             end
             # The domain create, its audit receipt and the row transition
@@ -45,6 +47,7 @@ module RailsAiAdmin
             rescue AccessDenied => error
               fail_pending(draft, error.code)
             end
+            sync_task!(draft) if index == CHUNK - 1 || !draft.rows.where(status: "queued").exists?
             false
           end
           break if done
@@ -52,6 +55,31 @@ module RailsAiAdmin
         draft.rows.where(status: "queued").exists?
       rescue ActiveRecord::RecordNotFound
         false
+      end
+
+      # A batch and its task share an immutable UUID. The task keeps counts
+      # after pruning, while the encrypted rows follow the draft's retention.
+      def sync_task!(draft)
+        return unless Tasks::Coordinator.available?
+        task = AdminTask.find_or_initialize_by(id: draft.id, kind: "import", tenant_ref: draft.tenant_ref)
+        counts = draft.rows.group(:status).count
+        status = if counts["queued"]
+          "executing"
+        elsif counts["failed"]
+          counts["failed"] == counts.values.sum ? "failed" : "partially_failed"
+        else
+          "succeeded"
+        end
+        task.assign_attributes(created_by_actor_ref: draft.actor_ref, resource_key: draft.resource_key,
+          title: "#{draft.resource_key.humanize} CSV import", status: status,
+          completed_at: (Time.current unless status == "executing"), summary_metadata: { "security_version" => draft.security_version,
+            "total_count" => counts.values.sum, "succeeded_count" => counts.fetch("created", 0),
+            "failed_count" => counts.fetch("failed", 0), "skipped_count" => counts.fetch("skipped", 0) })
+        changed = task.status_changed?
+        task.save!
+        if changed
+          Tasks::Coordinator.append_event!(task, actor_ref: draft.actor_ref, event_type: status, message: "CSV import #{status.humanize.downcase}")
+        end
       end
 
       def resolve!(draft)
@@ -93,6 +121,7 @@ module RailsAiAdmin
           failed = draft.rows.where(status: "failed")
           raise AccessDenied, "CONFLICT" unless failed.exists?
           failed.update_all(status: "queued", error_code: nil, updated_at: Time.current)
+          sync_task!(draft)
         end
       end
 

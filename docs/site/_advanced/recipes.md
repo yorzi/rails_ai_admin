@@ -7,11 +7,11 @@ description: Run scheduled checks and send proposed operations to a separate hum
 
 # {{ page.title }}
 
-A recipe runs one bounded check against a registered resource. It can create a task with a live result or propose one host-defined member operation. To apply the proposal, a different operator must open Tasks, review the input and confirm it. The runner checks the target version and both the current proposer and reviewer grants.
+A recipe runs one bounded check against a registered resource. It can create a task with a live result or propose one host-defined operation on a record or a fixed collection. To apply the proposal, a different operator must open Tasks, review the input and confirm it. The runner checks the target version and both the current proposer and reviewer grants.
 
 ## Install and configure
 
-Copy the engine migrations with `bin/rails generate rails_ai_admin:install --skip` and run `bin/rails db:migrate`. The context adapter must implement `resolve_job(actor_ref:, tenant_ref:, security_version:)` using current host identity and grants. The owner and execution principal both need `assistant?` and `run_recipe?(context:, resource:, slug:)` on the resource. Grant `view_tasks?` to operators who use the inbox. A proposed member operation must declare `approval: :separate_actor`.
+Copy the engine migrations with `bin/rails generate rails_ai_admin:install --skip` and run `bin/rails db:migrate`. The context adapter must implement `resolve_job(actor_ref:, tenant_ref:, security_version:)` using current host identity and grants. The owner and execution principal both need `assistant?` and `run_recipe?(context:, resource:, slug:)` on the resource. Grant `view_tasks?` to operators who use the inbox. A proposed operation must declare `approval: :separate_actor`.
 
 Run the following setup in trusted host code with resolved owner and principal contexts. Replace the example scope, operation and input with declarations from the host resource.
 
@@ -47,10 +47,10 @@ RailsAiAdmin::Recipes.emit("orders.changed", tenant_ref: tenant_ref,
 | `duplicate_detector`, `data_hygiene`, `integrity_checker` | Registered `rule` | Number of visible findings from the quality rule |
 | `order_monitor` | Optional named `scope` | Up to 25 matching records, in list order |
 | `daily_business_brief` | A visible `report_id` on the same resource | Live metric or number of displayed rows |
-| `failed_job_investigator` | Audit-log grant | Failed activity on this resource |
+| `failed_job_investigator` | Audit-log grant | Up to 100 recent operation receipts with failed operations or outbox work visible to the current actor |
 | `audit_reviewer` | Audit-log grant | Up to 1,000 audit events in the last 24 hours |
 
-Quality and list recipes can bind an operation and its input. A run proposes at most one matching record. Read-only tasks recompute the result when opened under the viewer’s grants. The recipe library shows recent run statuses, versions and task links.
+Quality and list recipes can bind an operation and its input. A member operation targets the first match. A collection operation captures up to 25 visible matching records and their versions. Approval rechecks that each selected record still qualifies and that the principal retains all required grants. Later matches never join the approved selection. Read-only tasks recompute the result when opened under the viewer’s grants. The recipe library shows recent run statuses, versions and task links.
 
 ## Optional model decision
 

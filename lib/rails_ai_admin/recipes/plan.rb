@@ -2,7 +2,7 @@
 
 module RailsAiAdmin
   module Recipes
-    # One bounded observation and at most one input-bound member proposal.
+    # One bounded observation and at most one input-bound proposal.
     # Templates select a source; hosts supply their own resource, scope and operation.
     module Plan
       GALLERY = {
@@ -10,7 +10,8 @@ module RailsAiAdmin
         "failed_job_investigator" => "failures", "daily_business_brief" => "report",
         "integrity_checker" => "quality", "audit_reviewer" => "audit"
       }.freeze
-      Observation = Data.define(:count, :target, :version)
+      TARGET_LIMIT = 25
+      Observation = Data.define(:count, :targets)
       module_function
 
       def validate!(recipe)
@@ -30,9 +31,9 @@ module RailsAiAdmin
         raise ConfigurationError, "A model decision requires an operation" if plan["consult_model"] && !plan["operation"]
         if plan["operation"]
           definition = RailsAiAdmin.operation_registry.fetch(resource, plan["operation"])
-          unless %w[list quality].include?(source) && definition.custom? && definition.scope == :member &&
+          unless %w[list quality].include?(source) && definition.custom? && %i[member collection].include?(definition.scope) &&
               definition.approval_mode == :separate_actor && !definition.merge? && plan.fetch("input", {}).is_a?(Hash)
-            raise ConfigurationError, "Recipe proposals require a separately reviewed member operation"
+            raise ConfigurationError, "Recipe proposals require a separately reviewed custom operation"
           end
         elsif plan.key?("input")
           raise ConfigurationError, "Recipe input requires an operation"
@@ -51,26 +52,44 @@ module RailsAiAdmin
             raise AccessDenied unless access.canonical_id?(target_id)
             relation = relation.where(resource.model_class.primary_key => target_id)
           end
-          records = relation.limit(25).to_a
-          record = records.first
-          access.authorize!(:show, record) if record
-          Observation.new(records.size, record&.id, record && RecordVersion.of(record))
+          targets = relation.limit(TARGET_LIMIT).filter_map do |record|
+            access.authorize!(:show, record)
+            [ record.id.to_s, RecordVersion.of(record) ]
+          rescue AccessDenied
+            nil
+          end
+          Observation.new(targets.size, targets)
         when "quality"
           reviews = Quality::Runner.new(access, assistant: true).call(plan.fetch("rule")).reviews
           ids = reviews.flat_map { |review| review.rows.map(&:id) }
-          id = target_id ? ids.find { |candidate| candidate == target_id } : ids.first
-          record = access.find!(id) if id
-          Observation.new(reviews.size, id, record && RecordVersion.of(record))
+          ids = ids.select { |id| id == target_id } if target_id
+          targets = ids.uniq.first(TARGET_LIMIT).map { |id| [ id, RecordVersion.of(access.find!(id)) ] }
+          count = target_id ? reviews.count { |review| review.rows.any? { |row| row.id == target_id } } : reviews.size
+          Observation.new(count, targets)
         when "report"
           report = SavedQuery.visible(context).find_by(id: plan["report_id"], resource_key: resource.key)
           raise AccessDenied unless report
           result = Presentation::SavedQueries.evaluate(context, report, assistant: true)
-          Observation.new(result.value || result.rows.size, nil, nil)
-        when "audit", "failures"
+          Observation.new(result.query.query_ast["kind"] == "list" ? result.rows.size : result.value, [])
+        when "failures"
+          access.authorize_audit_log!
+          runs = OperationRun.where(actor_ref: context.actor_ref, security_version: context.security_version,
+            tenant_ref: context.tenant_ref, resource_key: resource.key)
+          failed_work = WorkItem.where(status: %w[failed reconciliation_required], updated_at: 24.hours.ago..).select(:operation_run_id)
+          candidates = runs.where(status: %w[failed partially_succeeded reconciliation_required], updated_at: 24.hours.ago..)
+            .or(runs.where(id: failed_work)).order(updated_at: :desc, id: :desc).limit(100)
+          count = candidates.count do |run|
+            record = access.find!(run.target_id) if run.target_id
+            access.authorize_receipt!(run.operation, record)
+            true
+          rescue AccessDenied
+            false
+          end
+          Observation.new(count, [])
+        when "audit"
           access.authorize_audit_log!
           events = AuditEvent.where(tenant_ref: context.tenant_ref, resource_key: resource.key, created_at: 24.hours.ago..)
-          events = events.where.not(code: "OK") if plan["template"] == "failed_job_investigator"
-          Observation.new(events.limit(1000).count, nil, nil)
+          Observation.new(events.limit(1000).count, [])
         end
       end
     end

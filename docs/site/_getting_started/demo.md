@@ -29,8 +29,8 @@ Open [http://127.0.0.1:3917/login](http://127.0.0.1:3917/login) and choose **Sig
 
 ## Try reports, recipes and a background import
 
-1. Sign in as **Admin**. On **Overview**, open the data table in **Orders by review state**. It counts all 45 Tenant A orders. The other tenant has its own Overview.
-2. Open **Tasks → Recipes → First customer award → Run for review**. Sign in as **Reviewer**, open **Tasks → Needs approval**, inspect the customer and the ten-point award, and approve it. The task records the recipe version, proposer and reviewer. The library also contains a scheduled **Daily order brief** and an event-triggered **Customer duplicate check**. The latter has one completed example from setup.
+1. Sign in as **Admin**. On **Overview**, read the data table in **Orders by review state**. It counts all 45 Tenant A orders. The other tenant has its own Overview.
+2. Open **Tasks → Recipes → First customer award → Run for review**. Sign in as **Reviewer**, open **Tasks → Needs approval**, inspect the selected customers and the ten-point award for each, and approve it. The task records the recipe version, proposer and reviewer. The library also contains a scheduled **Daily order brief** and an event-triggered **Customer duplicate check**. The latter has one completed example from setup.
 3. Sign in as **Admin** and open **Articles → Import CSV**. Upload the generated `articles-batch.csv` in the demo directory and choose **Review CSV import**. Confirm 125 rows, then refresh progress until all rows are created. The smaller `articles-import.csv` includes a deliberately invalid value for practicing corrections.
 
 ## 1. Find and Edit an Article

@@ -32,6 +32,7 @@ class RecipesTest < ActionDispatch::IntegrationTest
       integer :points
     end
     operation :adjust, handler: "RecipesTest::Adjust"
+    operation :bulk_adjust, handler: "RecipesTest::Adjust", scope: :collection, approval: :separate_actor
   end
 
   class Resolver < TestContext
@@ -47,9 +48,10 @@ class RecipesTest < ActionDispatch::IntegrationTest
     def assistant?(**) = true
     def run_recipe?(**) = true
     def view_tasks?(**) = true
+    def select_records?(**) = true
     def operation_fields(**) = [ :points ]
     def approve_operation?(context:, **) = context.actor.id == 2
-    def allowed?(context:, action:, **) = action == :adjust || super
+    def allowed?(context:, action:, **) = %i[adjust bulk_adjust].include?(action) || super
   end
 
   def setup
@@ -103,6 +105,35 @@ class RecipesTest < ActionDispatch::IntegrationTest
       assert_response :see_other
       assert_equal 9, @customer.reload.points
       assert_equal "succeeded", task.reload.status
+    end
+  end
+
+  def test_collection_proposal_binds_the_manifest_and_rechecks_the_principal_before_admission
+    with_recipes do
+      second = @customer.dup
+      second.update!(name: "Second customer")
+      install(plan: { template: "order_monitor", operation: "bulk_adjust", input: { points: 8 } })
+      run = fire("collection")
+      execute(run)
+      intent = RailsAiAdmin::OperationRun.sole
+      assert_equal [ @customer.id.to_s, second.id.to_s ].sort, intent.manifest_payload.map(&:first).sort
+      assert_empty RailsAiAdmin::BatchItem.all
+      assert_equal 0, second.reload.points
+      post "/test/sign_in/2"
+      approve = -> { post "/backoffice/tasks/#{run.reload.task_id}/approve", params: { reviewed_digest: intent.input_digest } }
+      Resolver.revoked = context.actor_ref
+      approve.call
+      assert_response :conflict
+      assert_empty RailsAiAdmin::BatchItem.all
+      Resolver.revoked = nil
+      later = @customer.dup
+      later.update!(name: "Later customer")
+      approve.call
+      assert_response :see_other
+      RailsAiAdmin::Collections::Dispatcher.new.run(intent.id, enqueue_continuation: false)
+      assert_equal "succeeded", intent.reload.status
+      assert_equal [ 8, 8, 0, 0 ], [ @customer, second, later, @other ].map { |record| record.reload.points }
+      assert_nil RailsAiAdmin::Recipes::Origin.recipe
     end
   end
 

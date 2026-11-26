@@ -83,12 +83,11 @@ module RailsAiAdmin
       def publish(context, observation, review)
         metadata = { "recipe_id" => @recipe.id, "recipe_version" => @run.recipe_version, "recipe_run_id" => @run.id,
           "recipe_trigger" => @run.trigger_kind }
-        if review && observation.target && @recipe.plan["operation"]
+        if review && observation.targets.any? && @recipe.plan["operation"]
           resource = RailsAiAdmin.registry.fetch(@recipe.resource_key)
           Plan.validate!(@recipe)
-          proposal = Operations::Runner.new.preflight(context: context, resource: resource, operation: @recipe.plan.fetch("operation"),
-            target_id: observation.target, expected_version: observation.version, input: @recipe.plan.fetch("input", {}), origin: :recipe)
-          raise AccessDenied, proposal.code if proposal.is_a?(Operations::Result)
+          proposal = propose(context, resource, observation.targets)
+          raise AccessDenied, proposal.code if proposal.is_a?(Operations::Result) || proposal.is_a?(Collections::Result)
           raise ConfigurationError, "Recipe inputs must be reviewable" unless proposal.intent.input_payload.is_a?(Hash)
           task = AdminTask.find_by!(operation_run_id: proposal.intent.id)
           task.update!(kind: "recipe_run", summary_metadata: task.summary_metadata.merge(metadata))
@@ -100,6 +99,19 @@ module RailsAiAdmin
         Tasks::Coordinator.append_event!(task, actor_ref: context.actor_ref, event_type: "recipe_run",
           message: "#{@recipe.slug} v#{@recipe.version} (#{@run.trigger_kind})")
         task
+      end
+
+      def propose(context, resource, targets)
+        definition = RailsAiAdmin.operation_registry.fetch(resource, @recipe.plan.fetch("operation"))
+        args = { context: context, resource: resource, operation: definition.key, input: @recipe.plan.fetch("input", {}), origin: :recipe }
+        if definition.scope == :collection
+          selection = Selections::Builder.new.capture(context: context, resource: resource, target_ids: targets.map(&:first))
+          raise AccessDenied, "CONFLICT" unless selection.targets.to_h { |target| [ target.id, target.expected_version ] } == targets.to_h
+          Collections::Runner.new.preflight(**args, selection_ref: selection.selection_ref)
+        else
+          id, version = targets.first
+          Operations::Runner.new.preflight(**args, target_id: id, expected_version: version)
+        end
       end
 
       def fail_running(status, code)

@@ -5,6 +5,7 @@
 <% if @problem %><p role="alert"><%= @problem %></p><% end %>
 <% if @draft.status == "admitted" %>
   <% if @counts %>
+    <% if tasks_available? %><%= link_to t("rails_ai_admin.tasks.title"), admin_task_path(id: @draft.id) %><% end %>
     <p><%= t("rails_ai_admin.imports.batch_status", pending: @counts.fetch("queued", 0), failed: @counts.fetch("failed", 0), skipped: @counts.fetch("skipped", 0)) %> <%= link_to t("rails_ai_admin.imports.batch_refresh"), resource_import_draft_path(resource: @resource.key, id: @draft.id) %></p>
     <% if @counts["failed"] %>
       <%= link_to t("rails_ai_admin.imports.batch_download"), failed_resource_import_path(resource: @resource.key, id: @draft.id) %>

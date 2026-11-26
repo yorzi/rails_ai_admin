@@ -293,8 +293,11 @@ module RailsAiAdmin
       def execute_admitted(claim:)
         raise ConfigurationError, "Expected a collection lease claim" unless claim.is_a?(Collections::Claim)
         Collections::Contract.ensure_outside_transaction!
-        execute_intent(context: claim.context, intent_ref: claim.operation_run_id,
-          input: claim.payload, origin: claim.origin, admission: claim)
+        context = claim.context
+        Recipes::Origin.set(recipe: claim.origin.to_s == "recipe") do
+          execute_intent(context: context, intent_ref: claim.operation_run_id,
+            input: claim.payload, origin: claim.origin, admission: claim)
+        end
       rescue AccessDenied => error
         Result.new(code: error.code)
       end
@@ -340,7 +343,7 @@ module RailsAiAdmin
             access.authorize_approval!(run.operation, record, proposed_by_actor_ref: proposer_ref) if mode != "self" && !admission
             access.authorize!(run.operation, record)
           end
-          if run.origin == "recipe" && run.status == "proposed"
+          if run.origin == "recipe" && run.status == "proposed" && !admission
             Recipes.check_approval!(run)
             Recipes::Origin.recipe = true
           end

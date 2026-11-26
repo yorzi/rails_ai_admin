@@ -234,6 +234,8 @@ class InteractiveToolViewsTest < ActionDispatch::IntegrationTest
       get "/backoffice/assistant/conversations/#{chat.ref}"
       assert_response :success
       assert_select ".raa-metric-card .raa-metric-value", text: "50"
+      assert_select ".raa-metric-card svg rect", count: 2
+      assert_select ".raa-metric-card table caption", count: 1
       assert_select ".raa-metric-card table tbody tr", count: 2
 
       # Revoking read grant on points hides the metric card on reload.

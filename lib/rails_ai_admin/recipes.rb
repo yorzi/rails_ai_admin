@@ -61,12 +61,22 @@ module RailsAiAdmin
         (recipe.trigger_kind != "event" || RailsAiAdmin.configuration.recipe_events.include?(recipe.event_name))
       current = principal!(recipe)
       raise AccessDenied unless current.actor_ref == intent.proposed_by_actor_ref && recipe.plan["operation"] == intent.operation
-      observation = ActiveRecord::Base.while_preventing_writes { Plan.observe(current, recipe, intent.target_id) }
-      raise AccessDenied, "APPROVAL_INVALIDATED" unless observation.target.to_s == intent.target_id && observation.version == intent.expected_version
       resource = RailsAiAdmin.registry.fetch(recipe.resource_key)
-      preview = Operations::Runner.new.preview(context: current, resource: resource, operation: intent.operation,
-        target_id: intent.target_id, expected_version: intent.expected_version, input: intent.input_payload)
-      raise AccessDenied, "APPROVAL_INVALIDATED" if preview.is_a?(Operations::Result)
+      ActiveRecord::Base.while_preventing_writes do
+        observation = Plan.observe(current, recipe, intent.selection_id ? run.target_id : intent.target_id)
+        targets = intent.selection_id ? intent.manifest_payload : [ [ intent.target_id, intent.expected_version ] ]
+        raise AccessDenied, "APPROVAL_INVALIDATED" if targets.empty? || (targets - observation.targets).any?
+        if intent.selection_id
+          access = Authorization::Access.new(current, resource)
+          access.authorize_selection!
+          access.authorize!(intent.operation)
+        end
+        targets.each do |id, version|
+          preview = Operations::Runner.new.preview(context: current, resource: resource, operation: intent.operation,
+            target_id: id, expected_version: version, input: intent.input_payload)
+          raise AccessDenied, "APPROVAL_INVALIDATED" if preview.is_a?(Operations::Result) || InputSchema.digest(preview.values) != intent.input_digest
+        end
+      end
     end
 
     def trigger!(context:, slug:, key:)

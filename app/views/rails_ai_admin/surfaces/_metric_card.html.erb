@@ -16,8 +16,11 @@
       <% if metric.time_zone.present? %> · <%= t("rails_ai_admin.surfaces.metric_card.zone", zone: metric.time_zone) %><% end %>
     </p>
     <% if metric.groups.any? %>
+      <% chart_rows = metric.groups.zip(agg.groups).map { |row, group| [ row[:label], agg.field ? group.value : group.count ] } %>
+      <%= admin_report_chart(chart_rows, time_series: agg.period.present? && !agg.period_field) %>
       <div class="raa-table-scroll" role="region" aria-label="<%= t("rails_ai_admin.surfaces.metric_card.breakdown") %>" tabindex="0">
         <table>
+          <caption><%= t("rails_ai_admin.surfaces.metric_card.breakdown") %></caption>
           <thead>
             <tr>
               <% if agg.period_field %><th scope="col"><%= agg.period_field.label %></th><% end %>

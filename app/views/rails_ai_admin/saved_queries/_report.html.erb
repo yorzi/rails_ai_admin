@@ -1,11 +1,11 @@
-<section class="raa-dashboard-section">
+<section id="report-<%= report.query.id %>" class="raa-dashboard-section">
   <h2><%= report.query.name %></h2>
   <p><%= report.resource.label %> · <%= @context.time_zone %> · <%= l(report.evaluated_at.in_time_zone(@context.time_zone), format: :short) %></p>
   <% list = report.query.query_ast["kind"] == "list" %>
   <% unless list %><p class="raa-metric-value"><%= report.value.nil? ? "—" : number_with_delimiter(report.value) %></p><% end %>
   <% if report.rows.any? %>
-    <% if !list && report.rows.all? { |_, value| value.is_a?(Numeric) && value >= 0 } %>
-      <%= admin_bar_chart(report.rows) %>
+    <% unless list %>
+      <%= admin_report_chart(report.rows, time_series: report.query.query_ast["period"].present? && !report.query.query_ast["period_field"]) %>
     <% end %>
     <table><caption><%= report.query.name %></caption><thead><tr><th scope="col"><%= report.resource.label %></th><% unless list %><th scope="col"><%= t("rails_ai_admin.reports.value") %></th><% end %></tr></thead>
       <tbody><% report.rows.each do |label, value| %><tr>

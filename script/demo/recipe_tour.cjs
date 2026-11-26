@@ -1,4 +1,4 @@
-// Run on the disposable, freshly seeded offline demo. This tour approves one award and imports 125 articles.
+// Run on a freshly seeded offline demo. This tour saves a report, approves awards and imports 125 articles.
 const assert = require("node:assert/strict");
 const { resolve } = require("node:path");
 const { chromium } = require("../../tmp/demo-browser/node_modules/playwright");
@@ -27,6 +27,20 @@ async function run() {
     const report = page.locator("section").filter({ has: heading("Orders by review state") });
     assert.equal(await report.locator(".raa-metric-value").innerText(), "45");
     assert.equal(await report.locator("tbody tr").count(), 3);
+
+    await visit("/staff/assistant");
+    await button("New conversation").click();
+    await page.getByLabel("Message", { exact: true }).fill("sum orders total by state");
+    await button("Send").click();
+    const chart = page.locator(".raa-metric-card");
+    await chart.locator("svg rect").first().waitFor();
+    await chart.locator("summary").filter({ hasText: "Save report" }).click();
+    await chart.getByLabel("Report name").fill("Order totals from chat");
+    await chart.getByLabel("Pin to Overview").check();
+    await chart.getByRole("button", { name: "Save report", exact: true }).click();
+    await heading("Order totals from chat").waitFor();
+    await visit("/staff");
+    await heading("Order totals from chat").waitFor();
 
     await visit("/staff/tasks");
     await page.getByRole("link", { name: "Recipes", exact: true }).click();
@@ -59,10 +73,33 @@ async function run() {
       await page.reload();
     }
     assert.equal(await done.count(), 1, "The background worker must finish the admitted batch");
+    await page.getByRole("main").getByRole("link", { name: "Tasks and approvals", exact: true }).click();
+    await page.getByText("Succeeded", { exact: true }).first().waitFor();
+    await visit("/staff/customers/1");
+    const toggle = page.locator('[data-raa-drawer-target="toggle"]');
+    const drawer = page.locator("#raa-assistant-drawer");
+    await toggle.click();
+    await page.waitForFunction(() => document.activeElement.matches("#raa-assistant-drawer textarea"));
+    const chip = drawer.locator('[data-raa-drawer-target="chipLabel"]');
+    const customerLabel = await chip.innerText();
+    assert(customerLabel.length > 0);
+    await drawer.getByRole("button", { name: "Pin context" }).click();
+    await page.keyboard.press("Escape");
+    assert(await toggle.evaluate(element => element === document.activeElement));
+    await page.getByRole("navigation").getByRole("link", { name: "Articles", exact: true }).click();
+    await toggle.click();
+    assert.equal(await chip.innerText(), customerLabel);
     await signIn("Other tenant");
+    await visit("/staff/articles");
+    await toggle.click();
+    assert.notEqual(await chip.innerText(), customerLabel);
+    await drawer.getByRole("button", { name: "Remove page context" }).click();
+    assert.equal(await chip.isVisible(), false);
+    await page.keyboard.press("Escape");
+    await visit("/staff");
     assert.equal(await heading("Orders by review state").count(), 0);
     assert.deepEqual(errors, []);
-    console.log("Passed shared dashboard, recipe approval, 125-row import and tenant isolation.");
+    console.log("Passed shared dashboard, saved chat chart, collection recipe approval, 125-row import task and tenant isolation.");
   } finally {
     await browser.close();
   }

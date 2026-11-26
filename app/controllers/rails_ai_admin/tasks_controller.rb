@@ -111,10 +111,20 @@ module RailsAiAdmin
           begin
             Recipes.authorize!(@context, recipe)
             @recipe_observation = ActiveRecord::Base.while_preventing_writes { Recipes::Plan.observe(@context, recipe, recipe_run.target_id) }
+            @recipe_source_path = if recipe.plan["rule"]
+              quality_rule_path(resource: @resource.key, rule: recipe.plan["rule"])
+            elsif recipe.plan["report_id"]
+              saved_queries_path(resource: @resource.key, anchor: "report-#{recipe.plan['report_id']}")
+            elsif recipe.plan["template"] == "audit_reviewer"
+              audit_log_path(resource: @resource.key)
+            end
           rescue AccessDenied
             @recipe_observation = nil
           end
         end
+      end
+      if @task.kind == "import"
+        @import_draft = ImportDraft.where("expires_at > ?", Time.current).find_by(id: @task.id, tenant_ref: @context.tenant_ref, actor_ref: @context.actor_ref)
       end
       @events = @task.events.to_a
       refs = ([ @task.created_by_actor_ref, @task.assigned_to_actor_ref, @run&.approved_by_ref ] + @events.map(&:actor_ref)).compact.uniq

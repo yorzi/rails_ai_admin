@@ -219,6 +219,10 @@ module RailsAiAdmin
         resource = fetch_resource(task.resource_key)
         return false unless resource
         access = Authorization::Access.new(context, resource)
+        if task.kind == "import"
+          return false unless task.created_by_actor_ref == context.actor_ref && task.summary_metadata["security_version"] == context.security_version
+          return access.authorize_import!
+        end
         if task.created_by_actor_ref == context.actor_ref
           access.authorize!(:index)
           return true

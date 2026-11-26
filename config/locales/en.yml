@@ -10,6 +10,7 @@ en:
       next: "Next run %{time}"
       run: Run for review
       task: Open task
+      source: Review findings
       observation: "Current result under your permissions"
     reports:
       title: Saved reports

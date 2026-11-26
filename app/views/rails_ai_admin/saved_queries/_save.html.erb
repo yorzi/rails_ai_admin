@@ -1,6 +1,6 @@
 <details>
   <summary><%= t("rails_ai_admin.reports.save") %></summary>
-  <%= form_with url: saved_queries_path(resource: resource.key), local: true do |form| %>
+  <%= form_with url: saved_queries_path(resource: resource.key), local: true, data: { turbo_frame: "_top" } do |form| %>
     <%= hidden_field_tag :definition, definition.to_json, id: nil %>
     <label><%= t("rails_ai_admin.reports.name") %> <%= form.text_field :name, required: true, maxlength: 80, id: nil %></label>
     <% if RailsAiAdmin::Presentation::SavedQueries.shareable?(context, resource) %>

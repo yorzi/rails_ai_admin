@@ -98,9 +98,11 @@ class ImportDraftsTest < ActionDispatch::IntegrationTest
       assert_equal 101, draft.rows.count
       assert_equal 1, Article.count
       assert_nil draft.payload_blob
+      assert_equal "executing", RailsAiAdmin::AdminTask.find(draft.id).status
       assert RailsAiAdmin::Presentation::ImportBatch.process(draft.id)
       assert_equal 25, draft.reload.created_count
       4.times { RailsAiAdmin::Presentation::ImportBatch.process(draft.id) }
+      assert_equal "partially_failed", RailsAiAdmin::AdminTask.find(draft.id).status
       assert_equal 100, draft.reload.created_count
       assert_equal 1, draft.rows.where(status: "failed").count
       assert_nil draft.rows.find_by!(status: "created").input_blob

@@ -121,7 +121,7 @@ module RailsAiAdmin
       def authorize_batch!(draft)
         @access.authorize_import!
         @access.authorize!(:create, @access.relation.new)
-        raise AccessDenied unless draft.status == "admitted" && draft.expires_at.future? && draft.execution_zone == @context.time_zone &&
+        raise AccessDenied unless draft.status == "admitted" && draft.expires_at.future? && draft.try(:execution_zone) == @context.time_zone && ImportRow.table_exists? &&
           owner.all? { |key, value| draft[key] == value } && draft.resource_signature == signature
         batch_fields(draft)
       end

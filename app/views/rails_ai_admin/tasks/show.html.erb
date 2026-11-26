@@ -28,12 +28,15 @@
     <% end %>
   </dl>
 
-  <% if @recipe_observation %><p><%= t("rails_ai_admin.recipes.observation") %> · <%= @recipe_observation.count %></p><% end %>
+  <% if @recipe_observation %><p><%= t("rails_ai_admin.recipes.observation") %> · <%= @recipe_observation.count || "—" %></p>
+    <% if @recipe_source_path %><%= link_to t("rails_ai_admin.recipes.source"), @recipe_source_path, data: { turbo_frame: "_top" } %><% end %>
+  <% end %>
   <% meta = @task.summary_metadata || {} %>
   <% if meta["total_count"].to_i > 1 %>
     <p><%= t("rails_ai_admin.tasks.progress", succeeded: meta["succeeded_count"].to_i, failed: meta["failed_count"].to_i, total: meta["total_count"].to_i) %></p>
   <% end %>
 
+  <% if @import_draft %><p><%= link_to t("rails_ai_admin.imports.review"), resource_import_draft_path(resource: @task.resource_key, id: @import_draft.id), data: { turbo_frame: "_top" } %></p><% end %>
   <% if @polling %>
     <p><%= link_to t("rails_ai_admin.collection_jobs.refresh"), admin_task_path(id: @task.id), data: { turbo_frame: "_top" } %></p>
   <% end %>
