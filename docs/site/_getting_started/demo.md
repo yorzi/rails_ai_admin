@@ -27,6 +27,12 @@ bin/demo
 
 Open [http://127.0.0.1:3917/login](http://127.0.0.1:3917/login) and choose **Sign in as Admin**. The demo copies the session/SQLite host to `tmp/demo`, installs and seeds it, and uses a scripted local model on port 3918. Neither Chat nor MCP needs an API key. Both servers bind to loopback. Ctrl-C stops them, and restarting the demo resets the sample data and conversations.
 
+## Try reports, recipes and a background import
+
+1. Sign in as **Admin**. On **Overview**, open the data table in **Orders by review state**. It counts all 45 Tenant A orders. The other tenant has its own Overview.
+2. Open **Tasks → Recipes → First customer award → Run for review**. Sign in as **Reviewer**, open **Tasks → Needs approval**, inspect the customer and the ten-point award, and approve it. The task records the recipe version, proposer and reviewer. The library also contains a scheduled **Daily order brief** and an event-triggered **Customer duplicate check**. The latter has one completed example from setup.
+3. Sign in as **Admin** and open **Articles → Import CSV**. Upload the generated `articles-batch.csv` in the demo directory and choose **Review CSV import**. Confirm 125 rows, then refresh progress until all rows are created. The smaller `articles-import.csv` includes a deliberately invalid value for practicing corrections.
+
 ## 1. Find and Edit an Article
 
 Start on **Overview** for resource counts, metrics and charts. Search for `upgrading` in the header to see [global search]({% link _core_features/dashboard.md %}), or open **Articles** for a single resource.

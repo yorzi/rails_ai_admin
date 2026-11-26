@@ -7,11 +7,14 @@ module RailsAiAdmin
       Row = Data.define(:number, :input, :result, :duplicate, :excluded, :formula)
       Preview = Data.define(:headers, :samples, :rows, :digest, :selected, :ready)
 
+      attr_reader :limit
+
       def initialize(context, resource)
         @context, @resource = context, resource
         @access = Authorization::Access.new(context, resource)
         limit = RailsAiAdmin.configuration.import_limit
-        @import = CsvImport.new(context, resource, limit: ImportBatch.available? ? limit : [ SYNC_LIMIT, limit ].min)
+        @limit = ImportBatch.available? ? limit : [ SYNC_LIMIT, limit ].min
+        @import = CsvImport.new(context, resource, limit: @limit)
         @runner = Operations::Runner.new
       end
 

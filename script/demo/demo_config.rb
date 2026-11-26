@@ -11,6 +11,7 @@ RailsAiAdmin.configure do |config|
   config.sign_out_path = "/logout"
   config.quality_rules = [ "MissingDeliveryDate", "DuplicateActiveCustomers" ]
   config.resources = [ "ArticleAdmin", "TagAdmin", "SummaryAdmin", "CustomerAdmin", "OrderAdmin" ]
+  config.recipe_events = [ "customer.review_requested" ]
   config.collection_auto_dispatch = true
   config.surfaces = true
   config.assistant = true

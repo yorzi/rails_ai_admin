@@ -33,3 +33,21 @@ days_ago.each_with_index do |days, i|
   end
   Summary.create!(account: a, article: article, text: "Summary of article #{i + 1}") if i.even?
 end
+
+admin = User.find_by!(email: "admin@example.test")
+operator = RailsAiAdmin::Context.new(actor: admin, tenant: a, security_version: admin.security_version)
+report = RailsAiAdmin::Presentation::SavedQueries.save!(context: operator, resource: OrderAdmin, name: "Orders by review state",
+  ast: { "kind" => "metric", "function" => "count", "group_by" => "state", "scope" => "all" }, shared: true, pinned: true)
+RailsAiAdmin::Recipes.configure!(owner: operator, principal: operator, slug: "first_award", resource: :customers,
+  name: "First customer award", instructions: "Propose ten points for one active customer awaiting a first award.",
+  plan: { template: "order_monitor", scope: "first_award", operation: "reviewed_award", input: { amount: 10 } }, enabled: true)
+RailsAiAdmin::Recipes.configure!(owner: operator, principal: operator, slug: "daily_order_brief", resource: :orders,
+  name: "Daily order brief", instructions: "Open the order report for the morning review.",
+  trigger: "schedule", cron: "0 9 * * 1-5", time_zone: "Asia/Shanghai",
+  plan: { template: "daily_business_brief", report_id: report.id }, enabled: true)
+RailsAiAdmin::Recipes.configure!(owner: operator, principal: operator, slug: "check_customer_duplicates", resource: :customers,
+  name: "Customer duplicate check", instructions: "Check active customers with the same name.",
+  trigger: "event", event: "customer.review_requested",
+  plan: { template: "duplicate_detector", rule: "duplicate_active_customers" }, enabled: true)
+run = RailsAiAdmin::Recipes.emit("customer.review_requested", tenant_ref: operator.tenant_ref, dedup_key: "seed-review").sole
+RailsAiAdmin::Recipes::Execution.call(run.id)

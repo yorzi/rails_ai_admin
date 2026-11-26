@@ -16,7 +16,7 @@ module RailsAiAdmin
         "resource_navigation" => [ "rails_ai_admin/shared/_navigation.html.erb", [], %i[groups] ],
         "dashboard" => [ "rails_ai_admin/dashboard/index.html.erb", %i[context counts widgets reports], [] ],
         "audit_log" => [ "rails_ai_admin/audit/index.html.erb", %i[context log filters page actor_labels], [] ],
-        "resource_import" => [ "rails_ai_admin/imports/new.html.erb", %i[context resource import report problem], [] ],
+        "resource_import" => [ "rails_ai_admin/imports/new.html.erb", %i[context resource import review report problem], [] ],
         "search" => [ "rails_ai_admin/search/index.html.erb", %i[context query sections], [] ],
         "resource_index" => [ "rails_ai_admin/resources/index.html.erb", %i[context resource page columns rows searchable selectable exportable importable sortable_fields list_scopes current_scope filter_fields omitted_rows bulk_destroy bulk_operations saved_views deleted_records quality_rules_available], [] ],
         "resource_show" => [ "rails_ai_admin/resources/show.html.erb", %i[context resource record values fields operations association_panels], [] ],
@@ -57,7 +57,7 @@ module RailsAiAdmin
         elsif key == "resource_index"
           11 # save the current list as a report
         elsif key == "resource_import"
-          2 # reviewed upload and legacy large-file controls
+          3 # current review limit including resumable batches
         elsif key == "resource_show"
           3
         elsif %w[resource_new resource_edit resource_form].include?(key)

@@ -192,7 +192,7 @@ en:
         iso_date: Use ISO dates such as 2026-11-25.
         boolean_words: Boolean fields accept yes or no, true or false, and 1 or 0.
         choice_label: Use a configured choice label or its stored value.
-      review_help: "Review up to %{limit} rows. For a larger file, check it first, then upload it again to import directly."
+      review_help: "Review up to %{limit} rows. Batches with more than 100 selected rows run in the background."
       review: Review CSV import
       mapping: Map CSV columns to fields
       header: "Column %{position} · %{header}"

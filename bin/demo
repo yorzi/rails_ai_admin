@@ -87,6 +87,10 @@ RUBY
 File.write(File.join(TARGET, "config/storage.yml"), "local:\n  service: Disk\n  root: <%= Rails.root.join(\"storage\") %>\n")
 FileUtils.cp(File.join(showcase, "migration.rb"), File.join(TARGET, "db/migrate/20261113000001_create_showcase.rb"))
 FileUtils.cp(File.join(showcase, "articles-import.csv"), TARGET)
+File.open(File.join(TARGET, "articles-batch.csv"), "w") do |file|
+  file.puts "Title,Views"
+  125.times { |i| file.puts "Release checklist item #{i + 1},#{i}" }
+end
 Dir[File.join(showcase, "models/*.rb")].each { |path| FileUtils.cp(path, File.join(TARGET, "app/models")) }
 Dir[File.join(showcase, "rails_ai_admin/*.rb")].each { |path| FileUtils.cp(path, File.join(TARGET, "app/rails_ai_admin")) }
 File.write(File.join(TARGET, "db/seeds.rb"), File.read(File.join(showcase, "seeds.rb")), mode: "a")
@@ -111,6 +115,11 @@ edit("app/rails_ai_admin/customer_admin.rb", %(operation :award_points, handler:
   %(operation :reviewed_award, handler: "AwardCustomerPoints", approval: :separate_actor\n  ) +
   %(operation :combine_customers, handler: "CombineCustomers", approval: :separate_actor\n  ) +
   %(assistant_changes :update, :bulk_update\n  undoable :update))
+edit("app/rails_ai_admin/customer_admin.rb", "  has_many :orders", <<~RUBY.gsub(/^/, "  ") + "  has_many :orders")
+  scopes do
+    scope :first_award, -> { where(active: true, points: 0) }, label: "Awaiting first award"
+  end
+RUBY
 edit("app/rails_ai_admin/customer_admin.rb", %(integer :points, tab: "Account", panel: "Rewards"),
   %(integer :points, aggregatable: true, tab: "Account", panel: "Rewards"))
 edit("app/rails_ai_admin/order_admin.rb", %(decimal :total, required: true, nullable: false, filterable: true,),
@@ -133,7 +142,9 @@ puts <<~TEXT
 
   Demo ready in #{DISPLAY_TARGET}.
     Start:     http://127.0.0.1:#{options[:port]}/login → Sign in as Admin
-    Tour:      Overview → Articles → Assistant → Audit log
+    Reports:   Overview → Orders by review state
+    Recipes:   Tasks → Recipes → First customer award → Run for review; sign in as Reviewer to approve
+    Batch:     Articles → Import CSV → Review CSV import using #{DISPLAY_TARGET}/articles-batch.csv
     CSV:       #{DISPLAY_TARGET}/articles-import.csv
     Chat:      #{admin}/assistant → New conversation
 TEXT

@@ -25,7 +25,15 @@ module ShowcasePolicy
   end
 
   def named_scopes(context:, resource:)
+    return [ :first_award ] if resource.key == :customers && context.actor.role == "admin"
     resource.key == :articles ? %i[popular recent] : super
+  end
+
+  def share_reports?(context:, resource:) = context.actor.role == "admin"
+
+  def run_recipe?(context:, resource:, slug:)
+    context.actor.role == "admin" && %i[customers orders].include?(resource.key) &&
+      %w[first_award daily_order_brief check_customer_duplicates].include?(slug)
   end
 
   def assistant?(context:, resource:)
