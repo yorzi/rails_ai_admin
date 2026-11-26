@@ -13,12 +13,15 @@ description: Apply development-line migrations, update host template overrides a
 
 ## 0.8.0 development on main
 
-For staged CSV review, run `bin/rails generate rails_ai_admin:install --skip` and `bin/rails db:migrate` to install the import-drafts table. If your host overrides `resource_import`, update its upload form to template revision 2 to expose **Review CSV import**. Schedule `bin/rails rails_ai_admin:prune` to delete expired drafts. The review uses the existing import and create grants. [CSV export and import]({% link _core_features/csv-export.md %}).
+0.6.0 and 0.7.0 are not released on their own. Their changes and the 0.8 work ship together in the next release from `main`, so a 0.5.0 host applies this section and the two below.
+
+**Import drafts.** For staged CSV review, run `bin/rails generate rails_ai_admin:install --skip` and `bin/rails db:migrate` to install the import-drafts table. If your host overrides `resource_import`, update its upload form to template revision 2 to expose **Review CSV import**. Schedule `bin/rails rails_ai_admin:prune` to delete expired drafts. The review uses the existing import and create grants. [CSV export and import]({% link _core_features/csv-export.md %}).
+
+**Data quality rules.** No migration. Register rules in `config.quality_rules` and grant each one with `run_quality_rule?(context:, resource:, rule:)`; every preset, including `FullAccessAdapter`, denies it. If you copied `resources/index.html.erb`, add the **Data quality** link shown when `@quality_rules_available` is true, as in the default template, and set the header's `contract` to 10. A rule's evidence must name declared, visible scalar fields, or the check raises `ConfigurationError`. [Data Quality Rules]({% link _core_features/data-quality.md %}).
 
 ## Upgrade to 0.7.0
 
-0.7.0 is in development on `main`; this section describes that branch. It
-includes every 0.6.0 change below, so a 0.5.0 host applies both sections.
+This section describes the 0.7 milestone on `main`. It includes every 0.6.0 change below.
 
 ```sh
 bundle update rails_ai_admin
@@ -71,10 +74,7 @@ Lower the limit if your reviewers should not confirm that many at once.
 
 ## Upgrade to 0.6.0
 
-0.6.0 was not released on its own; its changes ship with 0.7.0.
-
-Set `gem "rails_ai_admin", "~> 0.6.0"` in your Gemfile once it is released, then
-run these commands from the host application.
+0.6.0 was not released on its own; its changes ship in the next release from `main`. Run these commands from the host application.
 
 ```sh
 bundle update rails_ai_admin
