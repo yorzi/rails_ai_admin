@@ -26,6 +26,12 @@ a link to the full list for that search. Resources hidden from the menu are left
 out, and one search queries at most 30 resources. `search` is a reserved
 resource key.
 
+## Save and share reports
+
+Use **Save report** on a resource list or on a table or metric returned by chat. Give it a name and select **Pin to Overview** to keep the result on the dashboard. Operators with the host’s `share_reports?(context:, resource:)` grant can also select **Share with this tenant**. Manage pins and delete your reports under **Saved reports** on the resource list.
+
+The report stores the query definition. Each time a viewer opens it, Rails AI Admin checks the resource, scope, filters, related resources and fields again, then runs the query in the viewer’s time zone. A report with a revoked grant disappears. Grouped numeric metrics include a chart and a data table. Calendar series show a line with gaps for missing values. The table includes undated entries and nonnumeric results.
+
 ## Counts on Resource Cards
 
 The overview page shows a record count on a resource's card when its list

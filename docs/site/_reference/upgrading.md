@@ -11,9 +11,17 @@ description: Apply development-line migrations, update host template overrides a
 {{ page.description }}
 {: .fs-6 .fw-300 }
 
-## 0.8.0 development on main
+## Upgrade from 0.5.0 to the 0.9.0 development line
 
-0.6.0 and 0.7.0 are not released on their own. Their changes and the 0.8 work ship together in the next release from `main`, so a 0.5.0 host applies this section and the two below.
+Run `bin/rails generate rails_ai_admin:install --skip`, `bin/rails db:migrate` and `bin/rails rails_ai_admin:doctor`. There are eight new migrations since 0.5.0. The last three install saved queries, recipes and recipe runs, and encrypted import rows. The gem adds `fugit` to evaluate five-field cron expressions.
+
+For template overrides, compare the current resource index (revision 11), dashboard (5) and import form (3) to your host copies. The upload form uses `@review.limit`. The layout remains at contract 7. Check the earlier milestone notes below for other affected templates.
+
+Schedule `bin/rails rails_ai_admin:imports:scan` and `bin/rails rails_ai_admin:recipes:scan` for the background features you enable. Run an Active Job worker and keep the prune task scheduled. Background imports require a context adapter with `resolve_job`. Hosts without it keep synchronous review up to 100 rows. Sharing reports requires `share_reports?`. Recipe owners and principals require `run_recipe?` and assistant access. Reviewers need the operation and approval grants. [Recipes]({% link _advanced/recipes.md %}).
+
+## 0.8.0 milestone
+
+The 0.6, 0.7 and 0.8 milestones are included in the 0.9.0 development line.
 
 **Import drafts.** For staged CSV review, run `bin/rails generate rails_ai_admin:install --skip` and `bin/rails db:migrate` to install the import-drafts table. If your host overrides `resource_import`, update its upload form to template revision 2 to expose **Review CSV import**. Schedule `bin/rails rails_ai_admin:prune` to delete expired drafts. The review uses the existing import and create grants. [CSV export and import]({% link _core_features/csv-export.md %}).
 

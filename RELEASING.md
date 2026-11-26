@@ -2,7 +2,7 @@
 
 The owner authorized publication of the 0.5.0 Public Preview on 2026-11-22.
 The release commit opens `allowed_push_host`. Development continues as
-`0.6.0.dev` with publishing blocked.
+`0.9.0.dev` with publishing blocked.
 
 ## Candidate checks
 
@@ -30,6 +30,8 @@ Ruby dependency advisories and npm advisories. Record executed combinations in
 `COMPATIBILITY.md`; local results do not establish that remote CI passed. The
 candidate check accepts a closed publishing gate and never publishes.
 
+Run the 0.9 Chromium tour against a freshly seeded offline demo as described in `CONTRIBUTING.md`. It covers chat chart refresh and persistence, separate-person approval of a collection, background CSV progress and account switching.
+
 Before approval, review generated resource exposure, tenant policies and the
 upgrade guide. A human screen-reader pass, independent host trial, native OpenAI and Anthropic
 API checks and repeated live runs remain open. The recorded OpenRouter replays in
@@ -37,9 +39,7 @@ API checks and repeated live runs remain open. The recorded OpenRouter replays i
 replies, not of how a model answers today; if the assistant's instructions or
 tools changed since the manifest's recording date, record them again first
 (`test/support/recorded_provider.rb`). Nested child forms that save with the
-parent, polymorphic references, bulk actions and bulk changes over more than 100
-records, undo of a confirmed change and separate attach/detach grants remain
-outside the 0.5.0 release.
+parent, polymorphic references and separate attach/detach grants remain future work. The 0.9 development line includes reviewed background collections and opt-in undo.
 
 ## After owner approval
 

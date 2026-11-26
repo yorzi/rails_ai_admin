@@ -1,5 +1,11 @@
 # Compatibility
 
+## 2026-11-26 — 0.9.0 development candidate
+
+On Ruby 4.0.10 and Rails 8.1.4.1, the full engine suite exercised SQLite and PostgreSQL 17. The offline Chromium demo saved a live chat chart to Overview, routed a fixed collection to a second reviewer, tracked 125 imported rows through Tasks and checked tenant and drawer context isolation. Recipe tests covered both New York DST transitions, event replay, owner revocation, fixed selection approval and isolated RubyLLM usage. The provider used for the demo and new recipe budget tests was scripted.
+
+All 33 stored OpenRouter evaluation scenarios now pass offline grading. The earlier inactive-customer miss returned the correct count of four by grouping on the active flag. The grader now accepts either the exact filtered count or the exact grouped count with the expected buckets. The historical grades below show the original evaluation criteria.
+
 ## 2026-11-26 — 0.8 development recordings
 
 Not a release candidate record. On Ruby 4.0.10 with Rails 8.1.4.1, RubyLLM 2.2.3 and the unchanged prompt version 4, new OpenRouter recordings cover the 0.8 assistant features. Only the cassettes named here were recorded again.

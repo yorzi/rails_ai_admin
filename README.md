@@ -88,6 +88,6 @@ bundle install
 bin/demo
 ```
 
-Open `http://127.0.0.1:3917/login` and choose **Sign in as Admin**. Explore the dashboard and Articles, then ask the offline **Assistant** `set articles 1 title to Hello`. Review and confirm the change, then find it in **Audit log**. No API key is needed. Follow the [demo walkthrough](https://rails-ai-admin.wangyaodi.com/next/demo/) to try CSV, bulk reviews, permissions and MCP in the same demo.
+Open `http://127.0.0.1:3917/login` and choose **Sign in as Admin**. Explore the dashboard and Articles, then ask the offline **Assistant** `set articles 1 title to Hello`. Review and confirm the change, then find it in **Audit log**. No API key is needed. Follow the [demo walkthrough](https://rails-ai-admin.wangyaodi.com/next/demo/) to save a chat chart to Overview, review a recipe as a second operator, track a 125-row import, and try MCP.
 
 [MIT License](LICENSE) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)

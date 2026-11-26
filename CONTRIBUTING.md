@@ -34,4 +34,4 @@ tmp/demo-browser/node_modules/.bin/playwright install chromium
 bin/demo --port 3957
 ```
 
-In a second terminal run `node script/demo/screenshots.cjs 3957`. The script writes to `tmp/demo-screenshots` only after the tour passes. It edits sample records, so restart the offline demo before each run. Inspect the images, then copy the six PNGs to `docs/site/assets/images/screenshots/`. Press Ctrl-C in the first terminal to stop both demo servers.
+In a second terminal run `node script/demo/screenshots.cjs 3957`. The script writes to `tmp/demo-screenshots` only after the tour passes. It edits sample records, so restart the offline demo before each run. Inspect the images, then copy the six PNGs to `docs/site/assets/images/screenshots/`. For the 0.9 workflow, start a fresh demo and run `node script/demo/recipe_tour.cjs 3957`. It creates a report from chat, approves a recipe with a second account, and follows a 125-row import through Tasks. Press Ctrl-C in the first terminal to stop both demo servers.

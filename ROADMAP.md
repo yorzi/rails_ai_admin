@@ -60,7 +60,7 @@ read-only demo is a future task, not part of this release's claim.
   scripted provider only.
 - A nightly, non-blocking run against Rails main.
 
-## 0.6.0: contextual and interactive admin (in development)
+## 0.6.0 milestone on the 0.9 development line
 
 Unreleased; see the Unreleased section of [CHANGELOG.md](CHANGELOG.md).
 
@@ -81,18 +81,20 @@ Unreleased; see the Unreleased section of [CHANGELOG.md](CHANGELOG.md).
 
 Operators can review another person’s proposal, track large bulk changes in Tasks, inspect verification receipts and preview undo when the host supports it. See the [unreleased changelog](CHANGELOG.md#unreleased) for the migrations and upgrade details.
 
-## 0.8.0: data quality, import review and saved reports (in progress)
+## 0.8.0 milestone on the 0.9 development line
 
 - **Data quality (E07).** Operators can run host checks for duplicates, missing values and unavailable references, compare records, choose a survivor and confirm a host-defined merge. Each confirmation rechecks permissions and record versions. The native UI works offline. Chat can open a live comparison, and MCP exposes the read-only checks. [Data quality guide](docs/site/_core_features/data-quality.md)
-- **CSV import (E08).** Operators can map and review up to 100 rows, skip scoped duplicates and confirm one audited create per selected row. Optional AI mapping suggestions use headers and writable field definitions. Chat can reopen the latest draft in a private review card. Resumable large imports and failed-row download and retry remain planned.
+- **CSV import (E08).** Operators can map rows, skip scoped duplicates and confirm one audited create per selected row. Up to 100 selected rows commit together. Larger imports use encrypted rows, a background worker and a progress task. Operators can download and retry the failed subset. Optional AI mapping suggestions use headers and writable field definitions. Chat can reopen the latest draft in a private review card.
 - **Cross-resource queries (E02-P2).** Operators can search a related resource, include or exclude records with a matching relation, and break down an aggregate by category and calendar period. Each query uses the viewer’s current grants on both resources. [Assistant query guide](docs/site/_advanced/admin-assistant.md)
-- **Saved queries and dashboards (E09).** Planned work includes saving a query, sharing it and pinning a chart to Overview. Each chart will recheck the viewer’s permissions when rendered.
+- **Saved queries and dashboards (E09).** Operators can save a list or chat query, share it with their tenant under a host grant, and pin the live report to Overview. Grouped metrics have inline charts and accessible data tables. Every render checks the viewer’s current grants.
+
+## 0.9.0: recipes and automation (release preparation)
+
+Hosts can bind seven recipe templates to a resource, quality rule or saved report. A recipe runs manually, on a five-field cron schedule in its configured time zone, or from a declared host event. Runs record the definition version and execution principal. Deduplication, overlap controls, recovery scans and per-tenant model budgets apply to background work.
+
+Recipes can open findings in Tasks or propose a host operation on one record or a fixed selection of up to 25. A different person must approve each proposed change. Confirmation rechecks the recipe version, grants and target versions. The offline demo includes a scheduled report, an event-driven duplicate check, a two-person award and a 125-row CSV import. [Recipes guide](docs/site/_advanced/recipes.md)
 
 ## Next candidates
-
-- **Propose-only recipes & automation (`0.9` target):** versioned manual,
-  scheduled and event-driven recipes with explicit execution principals,
-  isolated budgets and approval-inbox routing.
 - **Everyday admin & validation (ongoing):** child forms that save with the
   parent, polymorphic references, separately controlled attachment changes,
   native OpenAI and Anthropic API checks, human screen-reader review, an

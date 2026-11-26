@@ -608,6 +608,8 @@ or a provider, so it cannot prove that credentials work.
 
 ## Current Limits
 
+The 0.9 candidate replays all 33 stored evaluation scenarios successfully. The inactive-customer question accepts either the scoped count or the verified active/inactive breakdown. This regrade used the existing OpenRouter recordings.
+
 The engine suite replays real conversations recorded on 2026-11-22 through
 RubyLLM 2.2.3's OpenRouter provider with prompt caching on: totals with real
 usage and cost feeding the budget, active customers per month from period
