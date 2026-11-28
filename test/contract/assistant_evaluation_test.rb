@@ -26,10 +26,11 @@ class AssistantEvaluationTest < ActiveSupport::TestCase
     ]
   end
 
-  # An earlier test may leave RubyLLM's bundled, priced catalog loaded; each
-  # test starts again from the one stored model row, which has no pricing.
-  def test_the_summary_does_not_depend_on_the_registry_an_earlier_test_left
+  def test_the_summary_does_not_depend_on_pricing_an_earlier_test_left
     RubyLLM.models.load_from_json
+    priced_model = RubyLLM.models.find("gpt-4.1-mini", provider: :openai)
+    RubyLLM::ActiveRecord::Model.find_by!(model_id: priced_model.id, provider: priced_model.provider)
+      .update!(pricing: priced_model.pricing.to_h)
     reset_assistant
     with_assistant do
       LLMFixture.tool("count_records", { resource: "contract_customers" })
